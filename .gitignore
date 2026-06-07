@@ -1,0 +1,13 @@
+# graphify internal state / caches (regenerable)
+graphify-out/.graphify_*
+graphify-out/.detect_err.txt
+graphify-out/.needs_update
+graphify-out/cache/
+graphify-out/cost.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
