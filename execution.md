@@ -3,7 +3,8 @@
 > How a product-led, AI-native engineering org (think Anthropic/Claude-style: small senior teams, AI in every loop, ruthless quality gates) would ship SatelliteHR **fast** without trading away **enterprise-grade** correctness, security, and auditability.
 
 **Status:** Draft v1.0 · **Owner:** Eng Leadership · **Source of truth:** `SatelliteHR Phase I-BRD`, `SatelliteHR Phase II-BRD`, `SatelliteHR-FunctionalSpec-CompanyManagement`
-**Locked stack (per BRD §8.10.2):** React (frontend) · .NET Core (backend) · PostgreSQL (DB) · REST + OAuth2/JWT · OpenAPI/Swagger
+**Target stack (revises BRD §8.10.2 .NET — see ADR-009):** React/TypeScript (frontend) · **TypeScript on AWS Lambda — pure FaaS** (backend) · **Aurora Serverless v2 PostgreSQL + Data API + RLS** (data) · REST + OAuth2/JWT · OpenAPI/Swagger · **AWS `ap-south-1` (Mumbai) primary, `ap-south-2` (Hyderabad) DR — India residency**
+> Stack/infra decisions are detailed in `TECH-STACK-AND-INFRA-COMPARISON.md` and ratified in ADR-002/009–013 below.
 
 ---
 
@@ -12,7 +13,7 @@
 - **Product:** Multi-tenant SaaS HRMS. Operating hierarchy `Platform > Portfolio > Group Company > Company`. Core design invariant: **User ≠ Employee ≠ Contractor** (three independent identities).
 - **Scale of Phase I:** ~29 functional modules across 9 domains, 4-tier RBAC (~20 roles), full HR lifecycle, hard compliance/uptime NFRs.
 - **Strategy:** A **paved-road platform foundation first**, then **parallel vertical-slice squads** delivering module-by-module behind feature flags, with **AI accelerating every SDLC stage** (spec→tests→code→review→docs) under **non-negotiable quality gates**.
-- **Architecture call:** **Modular monolith** in .NET (clean module boundaries) + **PostgreSQL Row-Level Security (RLS)** for tenant isolation. Extract services only where scale forces it (Reporting, Notifications, Workflow). *(See §4 for why, and how this reconciles the doc's conflicting isolation language.)*
+- **Architecture call:** **Pure FaaS** (TypeScript on AWS Lambda) with clean module boundaries via shared layers, fronted by API Gateway, backed by **Aurora Serverless v2 PostgreSQL with Row-Level Security (RLS)** for tenant isolation. Long-running batch is fanned out via **Step Functions**. All data + compute pinned to **India (`ap-south-1`)**. *(See §4 and the comparison doc for why, and how this reconciles the doc's conflicting isolation language.)*
 - **Timeline (target, aggressive-but-real):** Foundation ~5 weeks → **Phase I core GA ~5 months** → **full Phase I ~7 months** → **Phase II ~+5 months**, with 5–6 parallel squads.
 - **Bulletproof doctrine:** TDD, trunk-based dev, everything-as-code, every merge gated by tests + security + AI review, progressive delivery, SLOs with error budgets, immutable audit from day one.
 
@@ -132,40 +133,51 @@ This is what lets 5–6 squads parallelize safely: they consume the same paved r
 | ADR | Decision | Recommendation | Rationale |
 |-----|----------|----------------|-----------|
 | **ADR-001 Tenancy** | How are tenants isolated? | **Shared DB, shared schema, PostgreSQL RLS** keyed on `company_id`, with tenant context from JWT claims. Offer **schema-/DB-per-tenant** as an Enterprise deployment tier. | RLS scales to "thousands of companies, no platform limit" (BRD §8.2) operationally far better than thousands of schemas. Resolves D2. Defense-in-depth: RLS *and* app-layer filter. |
-| **ADR-002 Modularity** | Monolith vs microservices? | **Modular monolith** with enforced module boundaries; extract only Reporting, Notifications, and the Workflow Engine as services when load demands. | Fastest to build & operate; avoids premature distributed-systems tax. Boundaries are clean enough to split later. |
+| **ADR-002 Modularity** | How are modules structured? | **Pure FaaS** — TypeScript Lambda handlers grouped by domain, sharing a common internal package / Lambda Layers for the paved-road cross-cutting code. Enforced module boundaries via the shared package, not a single deployable. | Maximum elasticity + pay-per-use; module boundaries preserved through shared layers. (See ADR-010.) |
 | **ADR-003 Identity model** | User/Employee/Contractor | Three separate aggregates; a `PersonLink` concept maps the same physical person across companies/types. Never collapse them. | This is *the* core BRD invariant (§1, §7). Getting it wrong is unrecoverable. |
 | **ADR-004 Workflow engine** | Build vs adopt | Build a thin configurable engine over a **durable execution** foundation (e.g., a saga/state-machine library) supporting sequential/parallel/conditional + SLA + escalation. | Required by ~15 modules (§6.25). Centralize once; reuse everywhere. |
 | **ADR-005 AuthN/AuthZ** | SSO + RBAC | OAuth2/OIDC broker for SAML/AD/O365/Google + local; **policy-as-code (OPA/Cedar)** for the 4-tier RBAC + row-level security; permissions = composable capability sets (BRD §5.1). | Roles-as-personas / permissions-as-capabilities is explicit in the BRD. Policy-as-code makes the RBAC matrix testable. |
 | **ADR-006 Audit & temporal** | Immutable audit + effective-dating | Append-only audit store (hash-chained for tamper-evidence); bitemporal pattern for entities flagged temporal (resolve via D4). | BRD §6.29, §8.6, §6.9.5. "Tamper-resistant logs" is a stated requirement. |
 | **ADR-007 Multi-region/DR** | Meet RTO/RPO | Active-passive multi-region in India region; async replication; automated failover ≤5 min; PITR. | BRD §8.3/§8.4: RTO 4h, RPO 15min, India data residency (§8.5). |
 | **ADR-008 Extensibility** | Custom fields | Typed EAV / JSONB hybrid with validation, indexed, searchable, workflow- and report-aware. | BRD §6.26 spans 6 entities, many data types. Must be designed before those entities are finalized. |
+| **ADR-009 Backend language** | .NET vs TypeScript | **TypeScript** (NestJS-style modules → Lambda handlers), superseding BRD §8.10.2 (.NET) — requires stakeholder sign-off. Guardrail: Postgres `NUMERIC` + decimal lib for all money (no `float`). | One language with the React/TS frontend (shared types/validation), best AI-codegen support, deepest India talent. |
+| **ADR-010 Compute & cloud** | Where/how does it run? | **Pure FaaS on AWS Lambda** (ARM/Graviton), `ap-south-1` primary + `ap-south-2` DR. Batch >15 min orchestrated via Step Functions. | Scale-to-zero elasticity + only model that meets hard India residency with in-country DR. |
+| **ADR-011 Data tier** | FaaS-safe Postgres | **Aurora Serverless v2 + Data API (connectionless) + RLS**. Tenant isolation via `SET LOCAL company_id` inside each transaction. | Removes the #1 FaaS failure mode (connection exhaustion); keeps real Postgres + RLS. |
+| **ADR-012 Data residency** | What stays in India? | **India-only data + compute plane**; only PII-scrubbed metadata may egress. | Aadhaar/UIDAI law + customer contracts + DPDP 2023. (See comparison doc §5.) |
+| **ADR-013 Edge** | Edge security | **Cloudflare** (WAF/DDoS/CDN) with **India Regional Services** to keep TLS termination in-country, or **CloudFront + AWS WAF** single-vendor. | Best-in-class edge security without breaking residency. |
 
 ### 4.2 Logical layering (every module follows this)
 
 ```mermaid
 flowchart TB
-  SPA["React SPA"] -->|REST/JSON + JWT| GW["API Gateway<br/>authn · rate-limit · tenant claim"]
-  GW --> APP
+  SPA["React SPA"] -->|REST/JSON + JWT| EDGE["Cloudflare edge (India Regional Services)<br/>or CloudFront + WAF"]
+  EDGE --> GW["API Gateway (HTTP API)<br/>JWT authorizer · rate-limit · tenant claim"]
 
-  subgraph APP[".NET Core Modular Monolith"]
-    direction TB
-    subgraph XC["Cross-cutting — paved road (inherited by every module)"]
-      direction LR
-      TC[TenantContext] --- AZ["AuthZ (OPA)"] --- AU[Audit] --- WF[Workflow] --- NO[Notifications] --- CF[CustomFields] --- IE[Import/Export]
-    end
-    subgraph MOD["Business modules"]
-      direction LR
-      M1[Company] --- M2[Org Masters] --- M3[Employee] --- M4[Policy] --- M5[Leave] --- M6[Attendance]
-      M7[Talent] --- M8[Lifecycle] --- M9[ESS] --- M10[Assets] --- M11[Directory] --- M12[Reporting]
-    end
-    XC --- MOD
+  subgraph LAY["Paved-road shared layer (Lambda Layers / internal package)"]
+    direction LR
+    TC[TenantContext] --- AZ["AuthZ (OPA/Cedar)"] --- AU[Audit] --- CF[CustomFields] --- IE[Import/Export]
   end
 
-  APP --> DB[("PostgreSQL<br/>RLS on company_id")]
-  APP --> OS[("Object store<br/>encrypted docs")]
-  APP --> BUS["Message bus<br/>events / webhooks"]
-  APP --> AUS[("Append-only<br/>audit store")]
-  APP --> SC[Search] & CA[Cache]
+  GW --> LAY
+  LAY --> FNS
+
+  subgraph FNS["TypeScript Lambda handlers (per domain)"]
+    direction LR
+    M1[Company/Org] --- M2[Employee/Lifecycle] --- M3[Leave/Attendance] --- M4[Policy/ESS] --- M5[Reporting]
+  end
+
+  FNS --> DAPI["Aurora Data API (HTTP, connectionless)"]
+  DAPI --> DB[("Aurora Serverless v2 PostgreSQL<br/>RLS via SET LOCAL · ap-south-1")]
+  DB -. Global DB .-> DR[("DR replica · ap-south-2")]
+  FNS --> OS[("S3 · encrypted docs · Object Lock WORM audit")]
+  FNS --> BUS["EventBridge / SQS · events · webhooks"]
+  BUS --> ASY["Async Lambdas · notifications · webhooks"]
+  GW -. long flows .-> SF["Step Functions · workflow · SLA · batch fan-out"]
+  SF --> FNS
+
+  classDef data fill:#d1e7dd,stroke:#0f5132,color:#000;
+  classDef edge fill:#fff3cd,stroke:#d39e00,color:#000;
+  class DB,DR,OS data; class EDGE edge;
 ```
 
 ### 4.3 Non-negotiable cross-cutting concerns (inherited by all modules)
@@ -389,9 +401,9 @@ Test pyramid, AI-generated and human-curated, with isolation/security as first-c
 
 | Layer | What | Tooling | Gate |
 |-------|------|---------|------|
-| **Unit** | Domain logic, business rules (BRD §7 invariants as property tests) | xUnit + AI-generated cases | ≥80% line, ≥70% branch on domain code |
-| **Mutation** | Are the tests meaningful? | Stryker.NET | ≥60% mutation score on critical modules |
-| **Integration** | API + DB + RLS + authz together | Testcontainers (real Postgres) | Per-module suite green |
+| **Unit** | Domain logic, business rules (BRD §7 invariants as property tests) | Vitest/Jest + AI-generated cases | ≥80% line, ≥70% branch on domain code |
+| **Mutation** | Are the tests meaningful? | StrykerJS | ≥60% mutation score on critical modules |
+| **Integration** | Lambda handler + DB + RLS + authz together | Testcontainers (real Postgres) + local Lambda emulation (SAM/LocalStack) | Per-module suite green |
 | **Tenant-isolation** | Attempt cross-tenant reads/writes; must fail | Custom harness in CI | **Zero leaks — hard fail** |
 | **Contract** | Cross-module + frontend/back contracts | Pact/OpenAPI diff | No breaking change unflagged |
 | **E2E** | Critical user journeys (provision company, onboard employee, leave→approve, context switch) | Playwright | Smoke green pre-deploy |
@@ -411,7 +423,7 @@ flowchart LR
   PR["PR opened"] --> CI1["build · lint · typecheck<br/>unit · mutation · SAST<br/>secret-scan · AI review"]
   CI1 --> HA{Human approval}
   HA --> MG["merge to main"]
-  MG --> CI2["integration · tenant-isolation<br/>contract · container build · IaC scan"]
+  MG --> CI2["integration · tenant-isolation<br/>contract · Lambda artifact build · IaC scan"]
   CI2 --> ST["deploy to staging"]
   ST --> CI3["E2E smoke · DAST · perf-smoke"]
   CI3 --> CAN["flag-gated canary<br/>(1 internal tenant)"]
@@ -425,7 +437,7 @@ flowchart LR
 ```
 
 - **Trunk-based, multiple deploys/day** to staging; production via progressive rollout with automated rollback on SLO breach.
-- **Database migrations:** expand/contract pattern, reversible, applied automatically, tested against prod-shaped data; never destructive in a single step.
+- **Database migrations:** expand/contract pattern (Prisma/Drizzle), reversible, applied via a dedicated migration step (not from request-path Lambdas), tested against prod-shaped data; never destructive in a single step.
 - **Feature flags** decouple deploy from release; every risky feature dark-launches.
 - **Supply chain:** signed artifacts, SBOM generated, pinned dependencies, base-image scanning.
 
