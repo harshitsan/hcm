@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
-  Workflow, Plus, X, ChevronUp, ChevronDown, Play, CheckCircle2, Bell, Clock,
+  Workflow, Plus, X, ChevronUp, ChevronDown, Play, CheckCircle2, Check, Bell, Clock,
   AlertTriangle, ArrowDownToLine, Lock, Sparkles, User, Loader2,
 } from 'lucide-react'
 import { useApp } from '../app/store'
@@ -258,7 +258,7 @@ export default function WorkflowBuilder() {
                             : 'bg-muted text-muted-fg',
                       )}
                     >
-                      {stepDone ? '✓' : i + 1}
+                      {stepDone ? <Check className="h-3.5 w-3.5" /> : i + 1}
                     </span>
                     <div className="min-w-0 flex-1">
                       {readOnly ? (
@@ -326,7 +326,7 @@ export default function WorkflowBuilder() {
                 <CheckCircle2 className="h-3.5 w-3.5" />
               </span>
               <p className={cn('text-sm font-semibold', approved ? 'text-success' : 'text-muted-fg')}>
-                {approved ? 'Approved ✓' : 'Final approval'}
+                {approved ? 'Approved' : 'Final approval'}
               </p>
             </div>
 

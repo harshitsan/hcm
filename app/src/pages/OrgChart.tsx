@@ -16,7 +16,7 @@ import { cn } from '../lib/cn'
 
 type View = 'people' | 'departments'
 
-const accentHandle = '!h-1.5 !w-9 !min-w-0 !rounded-full !border-0 !bg-accent'
+const handleStyle = { width: 36, height: 6, minWidth: 0, border: 'none', borderRadius: 9999, background: 'rgb(var(--accent))' }
 
 const statusTone = (s: Employee['status']): 'success' | 'info' | 'warning' | 'accent' =>
   s === 'Active' ? 'success' : s === 'On Leave' ? 'info' : s === 'Probation' ? 'warning' : 'accent'
@@ -41,7 +41,7 @@ function EmployeeNode({ data }: NodeProps) {
         d.match ? 'border-primary ring-2 ring-primary/40' : 'border-border hover:border-primary/50',
       )}
     >
-      {d.hasParent && <Handle type="target" position={Position.Top} className={accentHandle} />}
+      {d.hasParent && <Handle type="target" position={Position.Top} style={handleStyle} />}
       <div className="flex items-center gap-2.5">
         <Avatar name={d.name} size="sm" />
         <div className="min-w-0 flex-1">
@@ -56,7 +56,7 @@ function EmployeeNode({ data }: NodeProps) {
           {d.reports > 0 && <Badge tone="neutral"><Users className="h-3 w-3" />{d.reports}</Badge>}
         </div>
       </div>
-      {d.hasChildren && <Handle type="source" position={Position.Bottom} className={accentHandle} />}
+      {d.hasChildren && <Handle type="source" position={Position.Bottom} style={handleStyle} />}
     </div>
   )
 }

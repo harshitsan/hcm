@@ -19,7 +19,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import { cn } from '../lib/cn'
 
 /* ----------------------------------------------------------------- Button */
@@ -565,7 +565,7 @@ export function Stepper({
                   state === 'todo' && 'bg-muted text-muted-fg',
                 )}
               >
-                {state === 'done' ? '✓' : i + 1}
+                {state === 'done' ? <Check className="h-3.5 w-3.5" /> : i + 1}
               </span>
               <span
                 className={cn(

@@ -24,7 +24,8 @@ type RFData = {
   hasChildren?: boolean
 }
 
-const accentHandle = '!h-1.5 !w-9 !min-w-0 !rounded-full !border-0 !bg-accent'
+// Inline style so the connector handles are ALWAYS the green bar (never React Flow's dark default).
+const handleStyle = { width: 36, height: 6, minWidth: 0, border: 'none', borderRadius: 9999, background: 'rgb(var(--accent))' }
 
 /* ---------------- custom nodes ---------------- */
 function PersonaNode({ data }: NodeProps) {
@@ -32,14 +33,14 @@ function PersonaNode({ data }: NodeProps) {
   const p = personas.find((x) => x.id === d.personaId)!
   return (
     <div className="group flex w-[224px] items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2.5 shadow-card transition-colors hover:border-primary/60">
-      {d.hasParent && <Handle type="target" position={Position.Top} className={accentHandle} />}
+      {d.hasParent && <Handle type="target" position={Position.Top} style={handleStyle} />}
       <Avatar name={p.name} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-bold leading-tight">{p.name}</p>
         <p className="truncate text-2xs text-muted-fg">{d.roleText ?? ROLE_LABELS[p.role]}</p>
       </div>
       <Badge tone="primary">{d.tier}</Badge>
-      {d.hasChildren && <Handle type="source" position={Position.Bottom} className={accentHandle} />}
+      {d.hasChildren && <Handle type="source" position={Position.Bottom} style={handleStyle} />}
     </div>
   )
 }
@@ -49,7 +50,7 @@ function GroupNode({ data }: NodeProps) {
   const g = groups.find((x) => x.id === d.groupId)!
   return (
     <div className="flex w-[224px] items-center gap-2.5 rounded-xl border border-dashed border-border bg-surface2/70 px-3 py-2.5 shadow-card">
-      {d.hasParent && <Handle type="target" position={Position.Top} className={accentHandle} />}
+      {d.hasParent && <Handle type="target" position={Position.Top} style={handleStyle} />}
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
         <Layers className="h-3.5 w-3.5" />
       </span>
@@ -63,7 +64,7 @@ function GroupNode({ data }: NodeProps) {
         )}
       </div>
       <Badge tone="accent">Group</Badge>
-      {d.hasChildren && <Handle type="source" position={Position.Bottom} className={accentHandle} />}
+      {d.hasChildren && <Handle type="source" position={Position.Bottom} style={handleStyle} />}
     </div>
   )
 }
@@ -74,7 +75,7 @@ function CompanyNode({ data }: NodeProps) {
   const tone = c.status === 'Active' ? 'success' : c.status === 'Suspended' ? 'warning' : 'neutral'
   return (
     <div className="group flex w-[224px] items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2.5 shadow-card transition-colors hover:border-primary/60">
-      {d.hasParent && <Handle type="target" position={Position.Top} className={accentHandle} />}
+      {d.hasParent && <Handle type="target" position={Position.Top} style={handleStyle} />}
       <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-2xs font-bold text-white', c.color)}>
         {c.initials}
       </span>
@@ -83,7 +84,7 @@ function CompanyNode({ data }: NodeProps) {
         <p className="tnum truncate text-2xs text-muted-fg">{c.employees} employees</p>
       </div>
       <Badge tone={tone} dot>{c.status}</Badge>
-      {d.hasChildren && <Handle type="source" position={Position.Bottom} className={accentHandle} />}
+      {d.hasChildren && <Handle type="source" position={Position.Bottom} style={handleStyle} />}
     </div>
   )
 }

@@ -84,7 +84,7 @@ export default function Home() {
           <CardBody className="p-0">
             {items.length === 0 ? (
               <div className="p-5">
-                <EmptyState icon={<Check className="h-5 w-5" />} title="Inbox zero 🎉" description="Nothing needs your attention right now." />
+                <EmptyState icon={<Check className="h-5 w-5" />} title="Inbox zero" description="Nothing needs your attention right now." />
               </div>
             ) : (
               <ul className="divide-y divide-border">
