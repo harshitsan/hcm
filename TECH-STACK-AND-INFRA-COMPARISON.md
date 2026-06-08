@@ -10,7 +10,8 @@
 
 | Layer | Choice | One-line rationale |
 |-------|--------|--------------------|
-| **Backend language** | **TypeScript** (NestJS-style modules → Lambda handlers) | One language with the React/TS frontend; deepest AI-codegen support; abundant India talent |
+| **Backend language** | **TypeScript** | One language with the React/TS frontend; deepest AI-codegen support; abundant India talent |
+| **Framework & runtime** | **Hono** on **managed Node.js** (Lambda); **Bun** for dev/tooling + container batch | Hono's light cold-start fits pure FaaS; managed Node keeps the SOC2/ISO patching story clean (see §1.5) |
 | **Compute model** | **Pure FaaS** (AWS Lambda) | Scale-to-zero elasticity, pay-per-use, no servers; with the guardrails in §7 |
 | **Cloud platform** | **AWS** (`ap-south-1` Mumbai, DR `ap-south-2` Hyderabad) | Only option that satisfies **hard India residency** + Postgres-native serverless + in-country DR |
 | **Data tier** | **Aurora Serverless v2 PostgreSQL** + **Data API** + **RLS** | Connectionless HTTP access (FaaS-safe), real Postgres, Global DB DR inside India |
@@ -23,7 +24,7 @@
 
 ## 1. Backend language
 
-| Criterion | .NET Core (BRD default) | **Node.js / TypeScript (NestJS)** | Java / Spring | Go |
+| Criterion | .NET Core (BRD default) | **Node.js / TypeScript** | Java / Spring | Go |
 |-----------|-------------------------|-----------------------------------|---------------|-----|
 | Same language as React frontend | ❌ | ✅ shared types/validation end-to-end | ❌ | ❌ |
 | Enterprise structure (DI, modules, guards) | ✅ | ✅ NestJS modules/guards/interceptors | ✅ | ⚠️ manual |
@@ -34,9 +35,51 @@
 | ORM + migrations on Postgres | ✅ EF Core | ✅ Prisma / Drizzle | ✅ Hibernate | ⚠️ sqlc/gorm |
 | OpenAPI/Swagger | ✅ Swashbuckle | ✅ `@nestjs/swagger` | ✅ springdoc | ⚠️ |
 
-**Verdict → TypeScript / NestJS.** Single-language full-stack squads + best AI leverage + deepest local talent. The one real caution — no native decimal — is fully mitigated by Postgres `NUMERIC` + a decimal library (mandatory for Phase II payroll/statutory math).
+**Verdict → TypeScript.** Single-language full-stack squads + best AI leverage + deepest local talent. The one real caution — no native decimal — is fully mitigated by Postgres `NUMERIC` + a decimal library (mandatory for Phase II payroll/statutory math). *(Which TS framework + runtime is decided separately in §1.5.)*
 
 > Deviation from BRD §8.10.2 (.NET) — must be ratified via an ADR with stakeholder sign-off, since the stack was contractually specified.
+
+---
+
+## 1.5 Backend framework & runtime (Hono vs NestJS · Bun vs Node)
+
+"Use TypeScript" is two decisions, not one: the **web framework** and the **runtime**. They have different answers for a pure-FaaS, compliance-bound Lambda backend.
+
+### 1.5.1 Framework — Hono vs NestJS
+
+| Criterion | NestJS | **Hono** |
+|-----------|--------|----------|
+| Cold start on Lambda | ⚠️ heavy — bootstraps a full app context per cold start (its weak spot; pure FaaS cares most about this) | ✅✅ minimal — tiny, fast init |
+| Structure for 29 modules / 6 squads | ✅✅ opinionated: modules, DI, guards, interceptors, lifecycle | ⚠️ you codify conventions yourself |
+| RBAC (deny-by-default) | ✅ Guards | ✅ middleware (wire the pattern once) |
+| Auto-audit on writes | ✅ Interceptors | ✅ middleware |
+| OpenAPI (BRD requirement) | ✅ `@nestjs/swagger` | ✅ `@hono/zod-openapi` (zod-first, genuinely good) |
+| DI / testability | ✅ built-in | ⚠️ add `awilix` / `tsyringe` |
+| Edge portability (if some fns move to Cloudflare) | ❌ not edge-friendly | ✅✅ runs on Workers/Bun/Node/Lambda |
+| Ecosystem / hiring familiarity | ✅✅ large | ✅ growing |
+
+**Verdict → Hono.** For *pure FaaS*, Hono's lightness directly attacks the cold-start problem that is FaaS's main weakness, and it's edge-portable. The price is that NestJS's *structure* — the thing the paved road relies on for 6-squad consistency — becomes conventions the platform team **builds**: a DI container (`awilix`/`tsyringe`), a module-folder convention, and standard `tenant-context` / `authz` / `audit` middleware. That's a one-time platform cost, not a per-squad tax.
+
+> NestJS stays defensible if the org values batteries-included structure over cold-start milliseconds — mitigate its cold start with provisioned concurrency on hot paths.
+
+### 1.5.2 Runtime — Bun vs Node (on Lambda)
+
+| Criterion | **Managed Node.js (recommended for Lambda)** | Bun on Lambda |
+|-----------|----------------------------------------------|----------------|
+| AWS-managed runtime (auto CVE patching) | ✅✅ yes — clean SOC2/ISO story | ❌ no managed Bun runtime → custom runtime/container, **you** patch it |
+| Cold start | ✅ fast on ARM/Graviton | ✅✅ fastest |
+| Ops burden | ✅ low | ⚠️ you own the runtime layer |
+| Ecosystem / AWS SDK compatibility | ✅✅ reference platform | ✅ good, occasional edge cases |
+| Dev/tooling speed (install, test, bundle) | ⚠️ ok | ✅✅ excellent |
+
+**Verdict → managed Node.js for the production Lambda runtime; Bun for dev/tooling and container batch.**
+
+- **Production Lambda → managed Node.** On Lambda there is no managed Bun runtime, so Bun means a custom runtime/container that *you* must patch — directly weakening the SOC2/ISO patching narrative for marginal cold-start gain (ARM Node + provisioned concurrency already neutralizes cold starts on hot paths).
+- **Bun where it shines, without the compliance cost:** local dev, the test runner, bundling, and as the runtime for **Fargate/container batch** workloads (imports, payroll, reports). Big DX win, zero Lambda-patching risk.
+
+> If the team explicitly wants Bun-on-Lambda (doable via container images), document it as a conscious decision that accepts ownership of runtime patching.
+
+**Net stack:** **Hono + zod + `@hono/zod-openapi` + a light DI container, on AWS-managed Node.js Lambda; Bun for tooling + container batch.**
 
 ---
 
@@ -231,7 +274,8 @@ flowchart TB
 | ADR | Decision |
 |-----|----------|
 | ADR-002 (revised) | Modular architecture expressed as TypeScript Lambda handlers with shared layers |
-| ADR-009 | Backend language = TypeScript (NestJS-style), superseding BRD §8.10.2 .NET — with stakeholder sign-off |
+| ADR-009 | Backend language = TypeScript, superseding BRD §8.10.2 .NET — with stakeholder sign-off |
+| ADR-014 | Framework = Hono (+ zod / `@hono/zod-openapi` / DI container); runtime = AWS-managed Node.js for Lambda, Bun for dev/tooling + container batch |
 | ADR-010 | Compute = Pure FaaS on AWS Lambda, ap-south-1 primary + ap-south-2 DR |
 | ADR-011 | Data tier = Aurora Serverless v2 + Data API + RLS (`SET LOCAL`) |
 | ADR-012 | Data residency = India-only data+compute plane; sanitized metadata only may egress |
