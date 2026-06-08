@@ -11,7 +11,7 @@ function scopeLabel(p: Persona) {
   return `${p.companyIds.length} companies`
 }
 
-const CARD = 'w-56'
+const CARD = 'w-44'
 const handleTop = <span className="absolute -top-[3px] left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-accent" />
 const handleBottom = <span className="absolute -bottom-[3px] left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-full bg-accent" />
 
@@ -128,7 +128,7 @@ function PortfolioSubtree({
     <div className="flex flex-col items-center">
       <Node personaId={managerPersonaId} tier="Portfolio" hasParent hasChildren onChoose={choose} />
       <Branch3 />
-      <div className="grid w-full grid-cols-3 items-start gap-4">
+      <div className="grid w-full grid-cols-3 items-start gap-3">
         {cos.map((c, i) => {
           const drill = withPeople && i === 0
           return (
@@ -170,7 +170,7 @@ export default function Login() {
 
   return (
     <div className="min-h-dvh bg-bg">
-      <div className="mx-auto flex min-h-dvh max-w-6xl flex-col items-center justify-center px-4 py-12">
+      <div className="mx-auto flex min-h-dvh max-w-7xl flex-col items-center justify-start px-4 py-12">
         <div className="mb-8 flex flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-fg shadow-pop">
             <Building2 className="h-6 w-6" />
@@ -185,10 +185,10 @@ export default function Login() {
 
         {/* Platform > 2 portfolios > their companies (each its own node) > Acme's people */}
         <div className="w-full overflow-x-auto pb-2">
-          <div className="mx-auto flex min-w-[1180px] flex-col items-center">
+          <div className="mx-auto flex min-w-[1200px] flex-col items-center">
             <Node personaId="p1" tier="Platform" hasChildren onChoose={choose} />
             <div className="w-full"><Branch2 /></div>
-            <div className="grid w-full grid-cols-2 items-start gap-8">
+            <div className="grid w-full grid-cols-2 items-start gap-6">
               <PortfolioSubtree managerPersonaId="p2" portfolioId="pf1" withPeople choose={choose} enter={enter} />
               <PortfolioSubtree managerPersonaId="p6" portfolioId="pf2" choose={choose} enter={enter} />
             </div>
