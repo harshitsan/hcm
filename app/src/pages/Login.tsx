@@ -1,241 +1,201 @@
-import { useCallback, useMemo } from 'react'
+/**
+ * Login / persona picker — a clean, collapsible COLUMN BOARD (reference style),
+ * replacing the old React-Flow tree. Left: who to log in as (Platform + Portfolios).
+ * Right: the company hierarchy (Portfolio → Group → Company → people), with
+ * collapsible portfolios and expandable companies. Uniform cards throughout.
+ * Tap a person to log in · tap a company to enter it.
+ */
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ReactFlow, Background, Controls, Panel, Handle, Position,
-  type Node, type Edge, type NodeProps,
-} from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
-import dagre from 'dagre'
-import { Building2, Layers, Check } from 'lucide-react'
+  Building2, ChevronDown, ChevronRight, Check, Layers, Users, LogIn,
+} from 'lucide-react'
 import { useApp } from '../app/store'
-import { personas, ROLE_LABELS, companies, groups, portfolios } from '../data/mock'
+import { personas, ROLE_LABELS, companies, groups, portfolios, type Company } from '../data/mock'
 import { Avatar, Badge } from '../components/ui'
 import { cn } from '../lib/cn'
 
 const MANAGER_OF: Record<string, string> = { pf1: 'p2', pf2: 'p6' }
-
-type RFData = {
-  personaId?: string
-  companyId?: string
-  groupId?: string
-  tier?: string
-  roleText?: string
-  hasParent?: boolean
-  hasChildren?: boolean
-}
-
-// Inline style so the connector handles are ALWAYS the green bar (never React Flow's dark default).
-const handleStyle = { width: 36, height: 6, minWidth: 0, border: 'none', borderRadius: 9999, background: 'rgb(var(--accent))' }
-
-/* ---------------- custom nodes ---------------- */
-function PersonaNode({ data }: NodeProps) {
-  const d = data as RFData
-  const p = personas.find((x) => x.id === d.personaId)!
-  return (
-    <div className="group flex w-[224px] items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2.5 shadow-card transition-colors hover:border-primary/60">
-      {d.hasParent && <Handle type="target" position={Position.Top} style={handleStyle} />}
-      <Avatar name={p.name} size="sm" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-bold leading-tight">{p.name}</p>
-        <p className="truncate text-2xs text-muted-fg">{d.roleText ?? ROLE_LABELS[p.role]}</p>
-      </div>
-      <Badge tone="primary">{d.tier}</Badge>
-      {d.hasChildren && <Handle type="source" position={Position.Bottom} style={handleStyle} />}
-    </div>
-  )
-}
-
-function GroupNode({ data }: NodeProps) {
-  const d = data as RFData
-  const g = groups.find((x) => x.id === d.groupId)!
-  return (
-    <div className="flex w-[224px] items-center gap-2.5 rounded-xl border border-dashed border-border bg-surface2/70 px-3 py-2.5 shadow-card">
-      {d.hasParent && <Handle type="target" position={Position.Top} style={handleStyle} />}
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent/15 text-accent">
-        <Layers className="h-3.5 w-3.5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-bold leading-tight">{g.name}</p>
-        <p className="truncate text-2xs text-muted-fg">{g.type} · {g.companyIds.length} companies</p>
-        {g.sharingEnabled && (
-          <p className="mt-0.5 flex items-center gap-1 text-2xs font-semibold text-success">
-            <Check className="h-3 w-3" /> Cross-company sharing on
-          </p>
-        )}
-      </div>
-      <Badge tone="accent">Group</Badge>
-      {d.hasChildren && <Handle type="source" position={Position.Bottom} style={handleStyle} />}
-    </div>
-  )
-}
-
-function CompanyNode({ data }: NodeProps) {
-  const d = data as RFData
-  const c = companies.find((x) => x.id === d.companyId)!
-  const tone = c.status === 'Active' ? 'success' : c.status === 'Suspended' ? 'warning' : 'neutral'
-  return (
-    <div className="group flex w-[224px] items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2.5 shadow-card transition-colors hover:border-primary/60">
-      {d.hasParent && <Handle type="target" position={Position.Top} style={handleStyle} />}
-      <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-2xs font-bold text-white', c.color)}>
-        {c.initials}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-bold leading-tight">{c.name}</p>
-        <p className="tnum truncate text-2xs text-muted-fg">{c.employees} employees</p>
-      </div>
-      <Badge tone={tone} dot>{c.status}</Badge>
-      {d.hasChildren && <Handle type="source" position={Position.Bottom} style={handleStyle} />}
-    </div>
-  )
-}
-
-const nodeTypes = { persona: PersonaNode, group: GroupNode, company: CompanyNode }
-
-/* ---------------- graph construction ---------------- */
-const NODE_W = 240
-const NODE_H = 66
-
-function buildGraph() {
-  const nodes: Node[] = []
-  const edges: Edge[] = []
-  const add = (id: string, type: string, data: RFData) => nodes.push({ id, type, position: { x: 0, y: 0 }, data })
-  const link = (source: string, target: string) => edges.push({ id: `${source}->${target}`, source, target })
-
-  // Platform (root)
-  add('p1', 'persona', { personaId: 'p1', tier: 'Platform' })
-
-  // Portfolios → groups → companies, + standalone companies in the portfolio
-  portfolios.forEach((pf) => {
-    const mgr = MANAGER_OF[pf.id]
-    add(mgr, 'persona', { personaId: mgr, tier: 'Portfolio' })
-    link('p1', mgr)
-    const cos = companies.filter((c) => c.portfolioId === pf.id)
-    const gids = [...new Set(cos.filter((c) => c.groupId).map((c) => c.groupId!))]
-    gids.forEach((gid) => {
-      add(gid, 'group', { groupId: gid })
-      link(mgr, gid)
-      cos.filter((c) => c.groupId === gid).forEach((c) => {
-        add(c.id, 'company', { companyId: c.id })
-        link(gid, c.id)
-      })
-    })
-    cos.filter((c) => !c.groupId).forEach((c) => {
-      add(c.id, 'company', { companyId: c.id })
-      link(mgr, c.id)
-    })
-  })
-
-  // Standalone companies directly under the platform (no portfolio)
-  companies.filter((c) => !c.portfolioId).forEach((c) => {
-    add(c.id, 'company', { companyId: c.id })
-    link('p1', c.id)
-  })
-
-  // People inside Kensium Pvt Ltd (c1). Rohan (p7) is an employee here who ALSO runs
-  // the portfolio — the "portfolio manager is part of the company" case (User ≠ Employee).
-  const people: { id: string; tier: string; roleText?: string }[] = [
-    { id: 'p3', tier: 'Company' },
+/** demo people that belong to a company (only the home company is populated) */
+const PEOPLE_OF: Record<string, { id: string; tier: string }[]> = {
+  c1: [
+    { id: 'p3', tier: 'Company HR' },
     { id: 'p4', tier: 'Manager' },
     { id: 'p5', tier: 'Employee' },
-    { id: 'p7', tier: 'Dual role', roleText: 'Group HR Lead · also portfolio mgr' },
-  ]
-  people.forEach((pp) => {
-    add(pp.id, 'persona', { personaId: pp.id, tier: pp.tier, roleText: pp.roleText })
-    link('c1', pp.id)
-  })
-
-  // mark which nodes have a parent / children (to render only the needed handles)
-  const sources = new Set(edges.map((e) => e.source))
-  const targets = new Set(edges.map((e) => e.target))
-  nodes.forEach((n) => {
-    const d = n.data as RFData
-    d.hasParent = targets.has(n.id)
-    d.hasChildren = sources.has(n.id)
-  })
-
-  return { nodes, edges }
+    { id: 'p7', tier: 'Dual role' },
+  ],
 }
+const byId = (id: string) => personas.find((p) => p.id === id)!
+const statusTone = (s: Company['status']) => (s === 'Active' ? 'success' : s === 'Suspended' ? 'warning' : 'neutral')
 
-function layout(nodes: Node[], edges: Edge[]): Node[] {
-  const g = new dagre.graphlib.Graph()
-  g.setDefaultEdgeLabel(() => ({}))
-  g.setGraph({ rankdir: 'TB', nodesep: 26, ranksep: 52 })
-  nodes.forEach((n) => g.setNode(n.id, { width: NODE_W, height: NODE_H }))
-  edges.forEach((e) => g.setEdge(e.source, e.target))
-  dagre.layout(g)
-  return nodes.map((n) => {
-    const p = g.node(n.id)
-    return {
-      ...n,
-      position: { x: p.x - NODE_W / 2, y: p.y - NODE_H / 2 },
-      sourcePosition: Position.Bottom,
-      targetPosition: Position.Top,
-    }
-  })
+/* ---------------- uniform person card ---------------- */
+function PersonCard({
+  id, tier, onClick, nested = false,
+}: { id: string; tier?: string; onClick: () => void; nested?: boolean }) {
+  const p = byId(id)
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'group flex w-full items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2.5 text-left shadow-card transition-colors hover:border-accent/50',
+        nested && 'bg-surface2/60',
+      )}
+    >
+      <Avatar name={p.name} size="sm" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[13px] font-bold leading-tight">{p.name}</span>
+        <span className="block truncate text-2xs text-muted-fg">{tier ? `${ROLE_LABELS[p.role]}` : p.title}</span>
+      </span>
+      {tier && <Badge tone="primary">{tier}</Badge>}
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-fg opacity-0 transition-opacity group-hover:opacity-100">
+        <LogIn className="h-3.5 w-3.5" />
+      </span>
+    </button>
+  )
 }
 
 export default function Login() {
-  const { loginAs, setCompanyId, theme } = useApp()
+  const { loginAs, setCompanyId } = useApp()
   const navigate = useNavigate()
+  const [openPf, setOpenPf] = useState<Record<string, boolean>>({ pf1: true, pf2: true })
+  const [openCo, setOpenCo] = useState<Record<string, boolean>>({ c1: true })
 
-  const { nodes, edges } = useMemo(() => {
-    const built = buildGraph()
-    return { nodes: layout(built.nodes, built.edges), edges: built.edges }
-  }, [])
+  const loginPersona = (id: string) => { loginAs(id); navigate('/') }
+  const enterCompany = (c: Company) => {
+    loginAs(c.portfolioId ? MANAGER_OF[c.portfolioId] : 'p1')
+    setCompanyId(c.id)
+    navigate('/')
+  }
 
-  const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
-      const d = node.data as RFData
-      if (d.personaId) {
-        loginAs(d.personaId)
-        navigate('/')
-      } else if (d.companyId) {
-        const c = companies.find((x) => x.id === d.companyId)
-        if (c) {
-          loginAs(c.portfolioId ? MANAGER_OF[c.portfolioId] : 'p1')
-          setCompanyId(c.id)
-          navigate('/')
-        }
-      }
-    },
-    [loginAs, setCompanyId, navigate],
-  )
+  /* one company row (uniform) + its collapsible people */
+  const companyRow = (c: Company) => {
+    const people = PEOPLE_OF[c.id]
+    const open = !!openCo[c.id]
+    return (
+      <div key={c.id}>
+        <div className="flex items-center gap-2.5 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-card transition-colors hover:border-accent/50">
+          <button onClick={() => enterCompany(c)} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
+            <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-2xs font-bold text-white', c.color)}>
+              {c.initials}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[13px] font-bold leading-tight">{c.name}</span>
+              <span className="tnum block truncate text-2xs text-muted-fg">{c.employees} employees · {c.jurisdiction}</span>
+            </span>
+          </button>
+          <Badge tone={statusTone(c.status)} dot>{c.status}</Badge>
+          {people && (
+            <button
+              onClick={() => setOpenCo((s) => ({ ...s, [c.id]: !open }))}
+              aria-label={open ? 'Collapse people' : 'Expand people'}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-fg transition-colors hover:bg-muted hover:text-fg"
+            >
+              {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          )}
+        </div>
+        {people && open && (
+          <div className="ml-4 mt-1.5 space-y-1.5 border-l-2 border-border pl-3">
+            <p className="flex items-center gap-1.5 pb-0.5 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">
+              <Users className="h-3 w-3" /> People — log in as
+            </p>
+            {people.map((pp) => (
+              <PersonCard key={pp.id} id={pp.id} tier={pp.tier} nested onClick={() => loginPersona(pp.id)} />
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div className="h-dvh w-full bg-bg">
-      <ReactFlow
-        defaultNodes={nodes}
-        defaultEdges={edges}
-        nodeTypes={nodeTypes}
-        onNodeClick={onNodeClick}
-        colorMode={theme}
-        fitView
-        fitViewOptions={{ padding: 0.18 }}
-        minZoom={0.3}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: 'default', style: { stroke: 'rgb(148 163 184 / 0.55)', strokeWidth: 1.5 } }}
-      >
-        <Background gap={22} size={1} color="rgb(148 163 184 / 0.25)" />
-        <Controls showInteractive={false} />
-        <Panel position="top-left">
-          <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface/90 px-3 py-2 shadow-card backdrop-blur">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-primary-fg">
-              <Building2 className="h-4 w-4" />
-            </span>
-            <div>
-              <p className="text-sm font-extrabold leading-tight tracking-tight">SatelliteHR</p>
-              <p className="text-2xs text-muted-fg">Tap a person to log in · tap a company to enter it</p>
-            </div>
+    <div className="min-h-dvh w-full">
+      <div className="mx-auto max-w-5xl px-4 pb-16 pt-10 sm:px-6">
+        {/* brand */}
+        <div className="mb-8 flex items-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-fg shadow-card">
+            <Building2 className="h-6 w-6" />
+          </span>
+          <div>
+            <h1 className="text-2xl font-extrabold tracking-tight">SatelliteHR</h1>
+            <p className="text-sm text-muted-fg">Tap a person to log in · tap a company to enter it.</p>
           </div>
-        </Panel>
-        <Panel position="bottom-center">
-          <p className="rounded-full border border-border bg-surface/80 px-3 py-1 text-2xs text-muted-fg shadow-card backdrop-blur">
-            Platform → Portfolio → Group Company → Company → people · drag to pan, scroll to zoom
-          </p>
-        </Panel>
-      </ReactFlow>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-[19rem_1fr]">
+          {/* ---- Column A: who to log in as ---- */}
+          <div className="space-y-5">
+            <section className="rounded-3xl border border-border bg-surface/60 p-3 shadow-card backdrop-blur">
+              <h2 className="px-1.5 pb-2 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">Platform</h2>
+              <PersonCard id="p1" onClick={() => loginPersona('p1')} />
+            </section>
+            <section className="rounded-3xl border border-border bg-surface/60 p-3 shadow-card backdrop-blur">
+              <h2 className="px-1.5 pb-2 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">Portfolio managers</h2>
+              <div className="space-y-2">
+                <PersonCard id="p2" onClick={() => loginPersona('p2')} />
+                <PersonCard id="p6" onClick={() => loginPersona('p6')} />
+              </div>
+            </section>
+          </div>
+
+          {/* ---- Column B: company hierarchy ---- */}
+          <div className="space-y-4">
+            {portfolios.map((pf) => {
+              const pfCos = companies.filter((c) => c.portfolioId === pf.id)
+              const groupIds = [...new Set(pfCos.filter((c) => c.groupId).map((c) => c.groupId!))]
+              const standalone = pfCos.filter((c) => !c.groupId)
+              const open = !!openPf[pf.id]
+              return (
+                <section key={pf.id} className="rounded-3xl border border-border bg-surface/60 p-3 shadow-card backdrop-blur">
+                  <button
+                    onClick={() => setOpenPf((s) => ({ ...s, [pf.id]: !open }))}
+                    className="flex w-full items-center gap-2 px-1.5 pb-2 text-left"
+                  >
+                    {open ? <ChevronDown className="h-4 w-4 text-muted-fg" /> : <ChevronRight className="h-4 w-4 text-muted-fg" />}
+                    <span className="flex-1 text-[13px] font-extrabold tracking-tight">{pf.name}</span>
+                    <Badge tone="neutral">Portfolio</Badge>
+                    <span className="tnum text-2xs text-muted-fg">{pfCos.length} companies</span>
+                  </button>
+
+                  {open && (
+                    <div className="space-y-3">
+                      {groupIds.map((gid) => {
+                        const g = groups.find((x) => x.id === gid)!
+                        return (
+                          <div key={gid} className="space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2 px-1">
+                              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent/12 text-accent">
+                                <Layers className="h-3.5 w-3.5" />
+                              </span>
+                              <span className="text-[13px] font-bold">{g.name}</span>
+                              <Badge tone="accent">Group · {g.type}</Badge>
+                              {g.sharingEnabled && (
+                                <span className="flex items-center gap-1 text-2xs font-semibold text-success">
+                                  <Check className="h-3 w-3" /> Sharing on
+                                </span>
+                              )}
+                            </div>
+                            <div className="space-y-1.5">{g.companyIds.filter((id) => pfCos.some((c) => c.id === id)).map((id) => companyRow(pfCos.find((c) => c.id === id)!))}</div>
+                          </div>
+                        )
+                      })}
+                      {standalone.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="px-1 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">Standalone</p>
+                          <div className="space-y-1.5">{standalone.map(companyRow)}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )
+            })}
+            <p className="px-1 text-2xs text-muted-fg">
+              Platform → Portfolio → Group Company → Company → people. Group companies are opt-in (enabled + audited).
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
