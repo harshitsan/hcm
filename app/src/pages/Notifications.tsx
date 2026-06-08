@@ -8,6 +8,7 @@ import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
 import { useApp } from '../app/store'
+import { useNotifications, type Notif } from '../app/notifications'
 import { useCompanyData } from '../data/companyData'
 import {
   Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field,
@@ -23,19 +24,6 @@ type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 
 type Channel = 'inapp' | 'email'
 type Digest = 'event' | 'daily' | 'weekly'
 type FilterTab = 'all' | 'unread' | 'mentions'
-
-type Notif = {
-  id: string
-  kind: NotifKind
-  module: string
-  title: string
-  body: string
-  actorIdx: number | null   // index into employees for an avatar; null = system
-  time: string              // human label
-  order: number             // deterministic sort key (higher = more recent)
-  read: boolean
-  mention: boolean
-}
 
 type PrefRow = {
   id: string
@@ -74,25 +62,6 @@ const KIND_META: Record<NotifKind, { icon: LucideIcon; tone: Tone; label: string
 }
 
 /* ----------------------------------------------------------------- deterministic mock */
-// Inbox feed shared by everyone; admin/manager personas additionally see the
-// security/context rows. actorIdx maps to a real person from useCompanyData().
-const SEED_NOTIFS: Notif[] = [
-  { id: 'n1', kind: 'leave', module: 'Leave Management', title: 'Leave request approved', body: 'Your annual leave for Jun 18–19 was approved.', actorIdx: 1, time: '12 min ago', order: 99, read: false, mention: false },
-  { id: 'n2', kind: 'mention', module: 'Feedback', title: 'You were mentioned', body: '“@you can you confirm the asset hand-back note?”', actorIdx: 3, time: '40 min ago', order: 98, read: false, mention: true },
-  { id: 'n3', kind: 'policy', module: 'Policy Distribution', title: 'Acknowledgment due', body: 'Code of Conduct v3 needs your sign-off by Jun 14.', actorIdx: null, time: '2 hours ago', order: 97, read: false, mention: false },
-  { id: 'n4', kind: 'document', module: 'HR Letters', title: 'New letter available', body: 'Your experience certificate is ready to download.', actorIdx: 4, time: '5 hours ago', order: 96, read: true, mention: false },
-  { id: 'n5', kind: 'attendance', module: 'Time & Attendance', title: 'Correction request decided', body: 'Your missed-punch correction for Jun 6 was accepted.', actorIdx: 2, time: 'Yesterday', order: 95, read: false, mention: false },
-  { id: 'n6', kind: 'announcement', module: 'Announcements', title: 'Company town hall', body: 'All-hands scheduled for Jun 20 at 4:00 PM IST.', actorIdx: null, time: 'Yesterday', order: 94, read: true, mention: false },
-  { id: 'n7', kind: 'mention', module: 'Onboarding', title: 'You were mentioned', body: '“@you please review the buddy assignment.”', actorIdx: 5, time: '2 days ago', order: 93, read: true, mention: true },
-  { id: 'n8', kind: 'delegation', module: 'Delegation', title: 'Delegation activated', body: 'Pending approvals delegated to you until Jun 15.', actorIdx: 0, time: '2 days ago', order: 92, read: true, mention: false },
-]
-
-// Privileged rows surfaced only to admin/manager personas (security + context-switch).
-const ADMIN_NOTIFS: Notif[] = [
-  { id: 'n9', kind: 'security', module: 'Authentication', title: 'New sign-in detected', body: 'Local login from a new device · MFA satisfied.', actorIdx: null, time: '3 hours ago', order: 96, read: false, mention: false },
-  { id: 'n10', kind: 'context', module: 'Tenant Isolation', title: 'Company context switched', body: 'Active context moved between authorized companies.', actorIdx: null, time: 'Yesterday', order: 94, read: true, mention: false },
-]
-
 // Per-event channel preferences (in-app / email). Security email is mandatory.
 const SEED_PREFS: PrefRow[] = [
   { id: 'p1', label: 'Leave decisions', hint: 'Approved, rejected or escalated leave requests.', kind: 'leave', inapp: true, email: true },
@@ -188,26 +157,17 @@ export default function Notifications() {
   const { push } = useToast()
 
   const isAdmin = role === 'company_hr_admin' || role === 'provider_admin' || role === 'portfolio_manager'
-  const isManagerOrAdmin = isAdmin || role === 'people_manager'
+
+  // Shared store — read state is in sync with the top-bar bell.
+  const { feed, unreadCount, mentionCount, toggleRead, markAllRead } = useNotifications()
 
   const names = useMemo(() => employees.map((e) => e.name), [employees])
   const actorFor = (idx: number | null): string | null =>
     idx === null ? null : names[idx % Math.max(1, names.length)] ?? null
 
-  // Build the inbox: everyone gets the base feed; managers/admins also see
-  // security + context rows. Sorted deterministically by `order` (no Date.now()).
-  const initialFeed = useMemo<Notif[]>(() => {
-    const base = isManagerOrAdmin ? [...SEED_NOTIFS, ...ADMIN_NOTIFS] : SEED_NOTIFS
-    return [...base].sort((a, b) => b.order - a.order)
-  }, [isManagerOrAdmin])
-
-  const [feed, setFeed] = useState<Notif[]>(initialFeed)
   const [tab, setTab] = useState<FilterTab>('all')
   const [prefs, setPrefs] = useState<PrefRow[]>(SEED_PREFS)
   const [digest, setDigest] = useState<Digest>('event')
-
-  const unreadCount = useMemo(() => feed.filter((n) => !n.read).length, [feed])
-  const mentionCount = useMemo(() => feed.filter((n) => n.mention).length, [feed])
 
   const visible = useMemo(() => {
     if (tab === 'unread') return feed.filter((n) => !n.read)
@@ -215,11 +175,8 @@ export default function Notifications() {
     return feed
   }, [feed, tab])
 
-  const toggleRead = (id: string) =>
-    setFeed((p) => p.map((n) => (n.id === id ? { ...n, read: !n.read } : n)))
-
   const markAll = () => {
-    setFeed((p) => p.map((n) => ({ ...n, read: true })))
+    markAllRead()
     push({ title: 'All notifications marked as read', tone: 'success' })
   }
 
