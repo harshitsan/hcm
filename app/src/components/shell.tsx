@@ -19,9 +19,11 @@ import { cn } from '../lib/cn'
 
 /* Short labels for the top group pills (full names live in the sub-nav). */
 const SHORT: Record<string, string> = {
-  'Overview': 'Home',
+  'Overview': 'Overview',
+  'My Space': 'Me',
   'Time & Leave': 'Time',
   'Hiring & Lifecycle': 'Hiring',
+  'Communication': 'Comms',
   'Policies & Documents': 'Policies',
   'Admin & Setup': 'Admin',
 }
