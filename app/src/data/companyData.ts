@@ -1,5 +1,5 @@
 /**
- * Per-company data layer. Acme Foods (c1) uses the rich hand-authored data in
+ * Per-company data layer. Kensium Pvt Ltd (c1) uses the rich hand-authored data in
  * mock.ts; every other company gets a distinct, deterministic dataset so that
  * switching the company context visibly re-populates every screen.
  *
@@ -104,7 +104,7 @@ function generate(company: Company): CompanyData {
   const between = (lo: number, hi: number) => lo + Math.floor(rng() * (hi - lo + 1))
 
   const state = (company.jurisdiction.split('·')[1] || '').trim()
-  const city = CITY_BY_STATE[state] || 'HQ'
+  const city = CITY_BY_STATE[state] || state || 'HQ'
   const locations = [`${city} HQ`, `${city} Office`, 'Remote']
   const domain = company.name.toLowerCase().replace(/[^a-z]/g, '') + '.example'
 
@@ -263,7 +263,7 @@ function generate(company: Company): CompanyData {
   }
 }
 
-/* Acme (c1) keeps the rich hand-authored dataset. */
+/* Kensium Pvt Ltd (c1) keeps the rich hand-authored dataset. */
 const acmeData = (company: Company): CompanyData => ({
   company,
   employees: acmeEmployees,

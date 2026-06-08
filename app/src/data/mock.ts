@@ -156,35 +156,38 @@ export type CustomField = {
 
 /* ----------------------------------------------------------------- Companies */
 export const companies: Company[] = [
-  { id: 'c1', code: 'COMP-2026-0042', name: 'Acme Foods', initials: 'AF', color: 'bg-indigo-500', jurisdiction: 'India · Maharashtra', employees: 312, status: 'Active', tier: 'Enterprise', portfolioId: 'pf1', groupId: 'g1', group: 'Acme Group' },
-  { id: 'c2', code: 'COMP-2026-0043', name: 'Bright Tech', initials: 'BT', color: 'bg-emerald-500', jurisdiction: 'India · Karnataka', employees: 148, status: 'Active', tier: 'Standard', portfolioId: 'pf1', groupId: null },
-  { id: 'c3', code: 'COMP-2026-0051', name: 'Gamma Retail', initials: 'GR', color: 'bg-rose-500', jurisdiction: 'India · Delhi', employees: 96, status: 'Active', tier: 'Standard', portfolioId: 'pf1', groupId: 'g1', group: 'Acme Group' },
-  { id: 'c4', code: 'COMP-2026-0058', name: 'Delta Logistics', initials: 'DL', color: 'bg-amber-500', jurisdiction: 'India · Tamil Nadu', employees: 54, status: 'Suspended', tier: 'Basic', portfolioId: 'pf2', groupId: null },
-  { id: 'c5', code: 'COMP-2026-0061', name: 'Orbit Media', initials: 'OM', color: 'bg-sky-500', jurisdiction: 'India · Telangana', employees: 27, status: 'Draft', tier: 'Basic', portfolioId: 'pf2', groupId: 'g2', group: 'Orbit Group' },
-  { id: 'c6', code: 'COMP-2026-0064', name: 'Nimbus Cloud', initials: 'NC', color: 'bg-violet-500', jurisdiction: 'India · Karnataka', employees: 73, status: 'Active', tier: 'Standard', portfolioId: 'pf2', groupId: 'g2', group: 'Orbit Group' },
-  { id: 'c7', code: 'COMP-2026-0070', name: 'Vertex Pharma', initials: 'VP', color: 'bg-teal-500', jurisdiction: 'India · Gujarat', employees: 205, status: 'Active', tier: 'Enterprise', portfolioId: null, groupId: null },
+  // OpsMaven portfolio · Kensium Group (Kensium Pvt Ltd is the detailed "home" tenant)
+  { id: 'c1', code: 'COMP-2026-0042', name: 'Kensium Pvt Ltd', initials: 'KP', color: 'bg-indigo-500', jurisdiction: 'India · Telangana', employees: 312, status: 'Active', tier: 'Enterprise', portfolioId: 'pf1', groupId: 'g1', group: 'Kensium Group' },
+  { id: 'c2', code: 'COMP-2026-0043', name: 'Kensium LLC', initials: 'KL', color: 'bg-sky-500', jurisdiction: 'United States · Delaware', employees: 184, status: 'Active', tier: 'Enterprise', portfolioId: 'pf1', groupId: 'g1', group: 'Kensium Group' },
+  { id: 'c3', code: 'COMP-2026-0051', name: 'Readywire', initials: 'RW', color: 'bg-emerald-500', jurisdiction: 'India · Telangana', employees: 64, status: 'Active', tier: 'Standard', portfolioId: 'pf1', groupId: 'g1', group: 'Kensium Group' },
+  { id: 'c4', code: 'COMP-2026-0058', name: 'Digiteon', initials: 'DG', color: 'bg-rose-500', jurisdiction: 'India · Maharashtra', employees: 48, status: 'Active', tier: 'Standard', portfolioId: 'pf1', groupId: 'g1', group: 'Kensium Group' },
+  { id: 'c5', code: 'COMP-2026-0061', name: '99x', initials: '9X', color: 'bg-violet-500', jurisdiction: 'Sri Lanka · Colombo', employees: 120, status: 'Active', tier: 'Enterprise', portfolioId: 'pf1', groupId: 'g1', group: 'Kensium Group' },
+  // Asia-Pacific Operations portfolio (kept for variety)
+  { id: 'c6', code: 'COMP-2026-0064', name: 'Delta Logistics', initials: 'DL', color: 'bg-amber-500', jurisdiction: 'India · Tamil Nadu', employees: 54, status: 'Suspended', tier: 'Basic', portfolioId: 'pf2', groupId: null },
+  { id: 'c7', code: 'COMP-2026-0070', name: 'Orbit Media', initials: 'OM', color: 'bg-teal-500', jurisdiction: 'India · Telangana', employees: 27, status: 'Draft', tier: 'Basic', portfolioId: 'pf2', groupId: 'g2', group: 'Orbit Group' },
+  { id: 'c8', code: 'COMP-2026-0075', name: 'Nimbus Cloud', initials: 'NC', color: 'bg-fuchsia-500', jurisdiction: 'India · Karnataka', employees: 73, status: 'Active', tier: 'Standard', portfolioId: 'pf2', groupId: 'g2', group: 'Orbit Group' },
 ]
 
 /* ----------------------------------------------------------------- Portfolios & Groups */
 export const portfolios: Portfolio[] = [
-  { id: 'pf1', code: 'PORT-2026-015', name: 'Global Shared Services', manager: 'John Mathew', companyIds: ['c1', 'c2', 'c3'] },
-  { id: 'pf2', code: 'PORT-2026-021', name: 'Asia-Pacific Operations', manager: 'Lim Wei', companyIds: ['c4', 'c5', 'c6'] },
+  { id: 'pf1', code: 'PORT-2026-015', name: 'OpsMaven', manager: 'John Mathew', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
+  { id: 'pf2', code: 'PORT-2026-021', name: 'Asia-Pacific Operations', manager: 'Lim Wei', companyIds: ['c6', 'c7', 'c8'] },
 ]
 export const groups: Group[] = [
-  { id: 'g1', name: 'Acme Group', type: 'Holding', companyIds: ['c1', 'c3'] },
-  { id: 'g2', name: 'Orbit Group', type: 'Sister', companyIds: ['c5', 'c6'] },
+  { id: 'g1', name: 'Kensium Group', type: 'Holding', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
+  { id: 'g2', name: 'Orbit Group', type: 'Sister', companyIds: ['c7', 'c8'] },
 ]
 export const getPortfolio = (id: string | null) => portfolios.find((p) => p.id === id) ?? null
 export const getGroup = (id: string | null) => groups.find((g) => g.id === id) ?? null
 
 /* ----------------------------------------------------------------- Personas (login-as) */
 export const personas: Persona[] = [
-  { id: 'p1', name: 'Anita Rao', role: 'provider_admin', title: 'Platform Operations', blurb: 'Runs the whole platform; provisions new companies.', companyIds: [] },
-  { id: 'p2', name: 'John Mathew', role: 'portfolio_manager', title: 'Lead · Global Shared Services', blurb: 'Runs HR for the Global portfolio (Acme, Bright Tech, Gamma).', companyIds: ['c1', 'c2', 'c3'] },
-  { id: 'p6', name: 'Lim Wei', role: 'portfolio_manager', title: 'Lead · Asia-Pacific Operations', blurb: 'Runs HR for the APAC portfolio (Delta, Orbit, Nimbus).', companyIds: ['c4', 'c5', 'c6'] },
-  { id: 'p3', name: 'Priya Sharma', role: 'company_hr_admin', title: 'HR Manager · Acme Foods', blurb: 'Owns people, policies & reports for one company.', companyIds: ['c1'] },
-  { id: 'p4', name: 'Rahul Verma', role: 'people_manager', title: 'Engineering Lead · Acme Foods', blurb: 'Leads a team; approves their requests.', companyIds: ['c1'] },
-  { id: 'p5', name: 'Meera Iyer', role: 'employee', title: 'Senior Analyst · Acme Foods', blurb: 'Uses simple self-service every day.', companyIds: ['c1'] },
+  { id: 'p1', name: 'Anita Rao', role: 'provider_admin', title: 'Platform Operations · SatelliteHR', blurb: 'Runs the whole SatelliteHR platform; provisions new companies.', companyIds: [] },
+  { id: 'p2', name: 'John Mathew', role: 'portfolio_manager', title: 'Lead · OpsMaven', blurb: 'Runs HR for the OpsMaven portfolio (Kensium Group).', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
+  { id: 'p6', name: 'Lim Wei', role: 'portfolio_manager', title: 'Lead · Asia-Pacific Operations', blurb: 'Runs HR for the APAC portfolio (Delta, Orbit, Nimbus).', companyIds: ['c6', 'c7', 'c8'] },
+  { id: 'p3', name: 'Priya Sharma', role: 'company_hr_admin', title: 'HR Manager · Kensium Pvt Ltd', blurb: 'Owns people, policies & reports for one company.', companyIds: ['c1'] },
+  { id: 'p4', name: 'Rahul Verma', role: 'people_manager', title: 'Engineering Lead · Kensium Pvt Ltd', blurb: 'Leads a team; approves their requests.', companyIds: ['c1'] },
+  { id: 'p5', name: 'Meera Iyer', role: 'employee', title: 'Senior Analyst · Kensium Pvt Ltd', blurb: 'Uses simple self-service every day.', companyIds: ['c1'] },
 ]
 
 /* ----------------------------------------------------------------- Departments */
@@ -201,20 +204,20 @@ export const departments: Department[] = [
 
 /* ----------------------------------------------------------------- Employees */
 export const employees: Employee[] = [
-  { id: 'e1', name: 'Vikram Nair', email: 'vikram@acme.example', title: 'Chief Executive Officer', departmentId: 'd1', location: 'Mumbai HQ', managerId: null, status: 'Active', type: 'Employee', joinDate: '2018-03-12', phone: '+91 98200 11001' },
-  { id: 'e2', name: 'Rahul Verma', email: 'rahul@acme.example', title: 'Engineering Lead', departmentId: 'd2', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2019-07-01', phone: '+91 98200 11002' },
-  { id: 'e3', name: 'Priya Sharma', email: 'priya@acme.example', title: 'HR Manager', departmentId: 'd5', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2019-02-18', phone: '+91 98200 11003' },
-  { id: 'e4', name: 'Meera Iyer', email: 'meera@acme.example', title: 'Senior Analyst', departmentId: 'd8', location: 'Pune Office', managerId: 'e2', status: 'Active', type: 'Employee', joinDate: '2021-09-06', phone: '+91 98200 11004' },
-  { id: 'e5', name: 'Karan Mehta', email: 'karan@acme.example', title: 'Operations Head', departmentId: 'd6', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2020-01-20', phone: '+91 98200 11005' },
-  { id: 'e6', name: 'Sneha Kapoor', email: 'sneha@acme.example', title: 'Sales Director', departmentId: 'd3', location: 'Delhi Office', managerId: 'e1', status: 'On Leave', type: 'Employee', joinDate: '2020-11-11', phone: '+91 98200 11006' },
-  { id: 'e7', name: 'Arjun Desai', email: 'arjun@acme.example', title: 'Finance Controller', departmentId: 'd4', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2019-05-30', phone: '+91 98200 11007' },
-  { id: 'e8', name: 'Divya Menon', email: 'divya@acme.example', title: 'Backend Engineer', departmentId: 'd7', location: 'Pune Office', managerId: 'e2', status: 'Active', type: 'Employee', joinDate: '2022-04-04', phone: '+91 98200 11008' },
-  { id: 'e9', name: 'Imran Khan', email: 'imran@acme.example', title: 'Data Engineer', departmentId: 'd8', location: 'Remote', managerId: 'e2', status: 'Probation', type: 'Employee', joinDate: '2026-03-01', phone: '+91 98200 11009' },
-  { id: 'e10', name: 'Fatima Sheikh', email: 'fatima@acme.example', title: 'Account Executive', departmentId: 'd3', location: 'Delhi Office', managerId: 'e6', status: 'Active', type: 'Employee', joinDate: '2023-08-21', phone: '+91 98200 11010' },
-  { id: 'e11', name: 'Joseph Thomas', email: 'joseph@acme.example', title: 'Ops Associate', departmentId: 'd6', location: 'Chennai Hub', managerId: 'e5', status: 'Active', type: 'Contractor', joinDate: '2024-02-14', phone: '+91 98200 11011' },
-  { id: 'e12', name: 'Ananya Bose', email: 'ananya@acme.example', title: 'Recruiter', departmentId: 'd5', location: 'Mumbai HQ', managerId: 'e3', status: 'Active', type: 'Employee', joinDate: '2022-10-10', phone: '+91 98200 11012' },
-  { id: 'e13', name: 'Sanjay Gupta', email: 'sanjay@acme.example', title: 'QA Engineer', departmentId: 'd7', location: 'Pune Office', managerId: 'e2', status: 'Active', type: 'Employee', joinDate: '2021-06-15', phone: '+91 98200 11013' },
-  { id: 'e14', name: 'Riya Singh', email: 'riya@acme.example', title: 'New Hire — Analyst', departmentId: 'd8', location: 'Pune Office', managerId: 'e2', status: 'Onboarding', type: 'Employee', joinDate: '2026-06-15', phone: '+91 98200 11014' },
+  { id: 'e1', name: 'Vikram Nair', email: 'vikram@kensium.example', title: 'Chief Executive Officer', departmentId: 'd1', location: 'Mumbai HQ', managerId: null, status: 'Active', type: 'Employee', joinDate: '2018-03-12', phone: '+91 98200 11001' },
+  { id: 'e2', name: 'Rahul Verma', email: 'rahul@kensium.example', title: 'Engineering Lead', departmentId: 'd2', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2019-07-01', phone: '+91 98200 11002' },
+  { id: 'e3', name: 'Priya Sharma', email: 'priya@kensium.example', title: 'HR Manager', departmentId: 'd5', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2019-02-18', phone: '+91 98200 11003' },
+  { id: 'e4', name: 'Meera Iyer', email: 'meera@kensium.example', title: 'Senior Analyst', departmentId: 'd8', location: 'Pune Office', managerId: 'e2', status: 'Active', type: 'Employee', joinDate: '2021-09-06', phone: '+91 98200 11004' },
+  { id: 'e5', name: 'Karan Mehta', email: 'karan@kensium.example', title: 'Operations Head', departmentId: 'd6', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2020-01-20', phone: '+91 98200 11005' },
+  { id: 'e6', name: 'Sneha Kapoor', email: 'sneha@kensium.example', title: 'Sales Director', departmentId: 'd3', location: 'Delhi Office', managerId: 'e1', status: 'On Leave', type: 'Employee', joinDate: '2020-11-11', phone: '+91 98200 11006' },
+  { id: 'e7', name: 'Arjun Desai', email: 'arjun@kensium.example', title: 'Finance Controller', departmentId: 'd4', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2019-05-30', phone: '+91 98200 11007' },
+  { id: 'e8', name: 'Divya Menon', email: 'divya@kensium.example', title: 'Backend Engineer', departmentId: 'd7', location: 'Pune Office', managerId: 'e2', status: 'Active', type: 'Employee', joinDate: '2022-04-04', phone: '+91 98200 11008' },
+  { id: 'e9', name: 'Imran Khan', email: 'imran@kensium.example', title: 'Data Engineer', departmentId: 'd8', location: 'Remote', managerId: 'e2', status: 'Probation', type: 'Employee', joinDate: '2026-03-01', phone: '+91 98200 11009' },
+  { id: 'e10', name: 'Fatima Sheikh', email: 'fatima@kensium.example', title: 'Account Executive', departmentId: 'd3', location: 'Delhi Office', managerId: 'e6', status: 'Active', type: 'Employee', joinDate: '2023-08-21', phone: '+91 98200 11010' },
+  { id: 'e11', name: 'Joseph Thomas', email: 'joseph@kensium.example', title: 'Ops Associate', departmentId: 'd6', location: 'Chennai Hub', managerId: 'e5', status: 'Active', type: 'Contractor', joinDate: '2024-02-14', phone: '+91 98200 11011' },
+  { id: 'e12', name: 'Ananya Bose', email: 'ananya@kensium.example', title: 'Recruiter', departmentId: 'd5', location: 'Mumbai HQ', managerId: 'e3', status: 'Active', type: 'Employee', joinDate: '2022-10-10', phone: '+91 98200 11012' },
+  { id: 'e13', name: 'Sanjay Gupta', email: 'sanjay@kensium.example', title: 'QA Engineer', departmentId: 'd7', location: 'Pune Office', managerId: 'e2', status: 'Active', type: 'Employee', joinDate: '2021-06-15', phone: '+91 98200 11013' },
+  { id: 'e14', name: 'Riya Singh', email: 'riya@kensium.example', title: 'New Hire — Analyst', departmentId: 'd8', location: 'Pune Office', managerId: 'e2', status: 'Onboarding', type: 'Employee', joinDate: '2026-06-15', phone: '+91 98200 11014' },
 ]
 
 export function getEmployee(id: string | null) {
@@ -304,7 +307,7 @@ export const attendanceMix = [
 /* ----------------------------------------------------------------- Audit log */
 export const auditLog: AuditEntry[] = [
   { id: 'a1', time: '2026-06-08 14:32', actor: 'Priya Sharma', action: 'Updated', entity: 'Employee · Meera Iyer', detail: 'Location: Mumbai HQ → Pune Office' },
-  { id: 'a2', time: '2026-06-08 13:10', actor: 'John Mathew', action: 'Context switch', entity: 'Company', detail: 'Bright Tech → Acme Foods' },
+  { id: 'a2', time: '2026-06-08 13:10', actor: 'John Mathew', action: 'Context switch', entity: 'Company', detail: 'Kensium LLC → Kensium Pvt Ltd' },
   { id: 'a3', time: '2026-06-08 11:48', actor: 'Anita Rao', action: 'Created', entity: 'Company · Orbit Media', detail: 'Status: Draft' },
   { id: 'a4', time: '2026-06-07 17:05', actor: 'Rahul Verma', action: 'Approved', entity: 'Leave · Sanjay Gupta', detail: 'Casual · 1 day' },
   { id: 'a5', time: '2026-06-07 09:22', actor: 'Priya Sharma', action: 'Published', entity: 'Policy · Code of Conduct v3', detail: 'Audience: All employees' },
