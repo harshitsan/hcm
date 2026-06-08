@@ -1,153 +1,136 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  Network, ChevronRight, ChevronDown, Users, MapPin, Search,
-  ChevronsDownUp, ChevronsUpDown, Building2, UserCog,
-} from 'lucide-react'
+  ReactFlow, Background, Controls, useNodesState, useEdgesState, Handle, Position,
+  type Node, type Edge, type NodeProps,
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
+import dagre from 'dagre'
+import { Network, Users, Search } from 'lucide-react'
 import { useApp } from '../app/store'
 import { useCompanyData } from '../data/companyData'
+import type { Employee } from '../data/mock'
 import {
-  type Employee,
-} from '../data/mock'
-import {
-  Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState,
-  Input, PageHeader, Segmented, useToast,
+  Avatar, Badge, Card, CardBody, Input, PageHeader, Segmented, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
 
 type View = 'people' | 'departments'
 
-const statusTone: Record<Employee['status'], 'success' | 'info' | 'warning' | 'accent'> = {
-  Active: 'success',
-  'On Leave': 'info',
-  Probation: 'warning',
-  Onboarding: 'accent',
+const accentHandle = '!h-1.5 !w-9 !min-w-0 !rounded-full !border-0 !bg-accent'
+
+const statusTone = (s: Employee['status']): 'success' | 'info' | 'warning' | 'accent' =>
+  s === 'Active' ? 'success' : s === 'On Leave' ? 'info' : s === 'Probation' ? 'warning' : 'accent'
+
+type EData = {
+  name: string
+  title: string
+  dept: string
+  status: Employee['status']
+  reports: number
+  hasParent: boolean
+  hasChildren: boolean
+  match: boolean
 }
 
-function OrgNode({
-  emp,
-  depth,
-  collapsed,
-  toggle,
-  query,
-  onSelect,
-}: {
-  emp: Employee
-  depth: number
-  collapsed: Set<string>
-  toggle: (id: string) => void
-  query: string
-  onSelect: (id: string) => void
-}) {
-  const { reportsOf, getDepartment } = useCompanyData()
-  const children = reportsOf(emp.id)
-  const dept = getDepartment(emp.departmentId)
-  // While searching, force every branch open so matches deeper in the tree are visible.
-  const isCollapsed = collapsed.has(emp.id) && query.length === 0
-  const hasReports = children.length > 0
-  const match =
-    query.length > 0 &&
-    (emp.name.toLowerCase().includes(query) || emp.title.toLowerCase().includes(query))
-
+function EmployeeNode({ data }: NodeProps) {
+  const d = data as EData
   return (
-    <div className={cn(depth > 0 && 'ml-4 border-l border-border pl-4')}>
-      <div
-        className={cn(
-          'group flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-muted/50',
-          match && 'bg-primary/5 ring-1 ring-primary/30',
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => hasReports && toggle(emp.id)}
-          aria-label={hasReports ? (isCollapsed ? 'Expand' : 'Collapse') : 'No reports'}
-          className={cn(
-            'flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-fg transition-colors',
-            hasReports ? 'cursor-pointer hover:bg-muted hover:text-fg' : 'invisible',
-          )}
-        >
-          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-        </button>
-
-        <Avatar name={emp.name} size="sm" />
-
-        <button
-          type="button"
-          onClick={() => onSelect(emp.id)}
-          className="min-w-0 flex-1 cursor-pointer text-left"
-        >
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold text-fg">{emp.name}</span>
-            <Badge tone={statusTone[emp.status]} className="hidden sm:inline-flex">
-              {emp.status}
-            </Badge>
-          </div>
-          <p className="truncate text-xs text-muted-fg">
-            {emp.title}
-            {dept && <span> · {dept.name}</span>}
-          </p>
-        </button>
-
-        <span className="hidden items-center gap-1 text-2xs font-medium text-muted-fg sm:flex">
-          <MapPin className="h-3 w-3" /> {emp.location}
-        </span>
-
-        {hasReports && (
-          <Badge tone="neutral" className="tnum shrink-0">
-            <Users className="h-3 w-3" /> {children.length}
-          </Badge>
-        )}
-      </div>
-
-      {hasReports && !isCollapsed && (
-        <div className="mt-0.5">
-          {children.map((c) => (
-            <OrgNode
-              key={c.id}
-              emp={c}
-              depth={depth + 1}
-              collapsed={collapsed}
-              toggle={toggle}
-              query={query}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
+    <div
+      className={cn(
+        'group w-[220px] rounded-xl border bg-surface px-3 py-2.5 shadow-card transition-colors',
+        d.match ? 'border-primary ring-2 ring-primary/40' : 'border-border hover:border-primary/50',
       )}
+    >
+      {d.hasParent && <Handle type="target" position={Position.Top} className={accentHandle} />}
+      <div className="flex items-center gap-2.5">
+        <Avatar name={d.name} size="sm" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-bold leading-tight">{d.name}</p>
+          <p className="truncate text-2xs text-muted-fg">{d.title}</p>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="truncate text-2xs text-muted-fg">{d.dept}</span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Badge tone={statusTone(d.status)}>{d.status}</Badge>
+          {d.reports > 0 && <Badge tone="neutral"><Users className="h-3 w-3" />{d.reports}</Badge>}
+        </div>
+      </div>
+      {d.hasChildren && <Handle type="source" position={Position.Bottom} className={accentHandle} />}
     </div>
   )
 }
 
+const nodeTypes = { employee: EmployeeNode }
+
+const NODE_W = 240
+const NODE_H = 84
+
+function buildAndLayout(
+  employees: Employee[],
+  deptName: (id: string) => string,
+  reportsCount: (id: string) => number,
+): { nodes: Node[]; edges: Edge[] } {
+  const nodes: Node[] = employees.map((e) => ({
+    id: e.id,
+    type: 'employee',
+    position: { x: 0, y: 0 },
+    data: {
+      name: e.name,
+      title: e.title,
+      dept: deptName(e.departmentId),
+      status: e.status,
+      reports: reportsCount(e.id),
+      hasParent: !!e.managerId,
+      hasChildren: reportsCount(e.id) > 0,
+      match: false,
+    } as EData,
+  }))
+  const edges: Edge[] = employees
+    .filter((e) => e.managerId)
+    .map((e) => ({ id: `${e.managerId}->${e.id}`, source: e.managerId as string, target: e.id }))
+
+  const g = new dagre.graphlib.Graph()
+  g.setDefaultEdgeLabel(() => ({}))
+  g.setGraph({ rankdir: 'TB', nodesep: 28, ranksep: 56 })
+  nodes.forEach((n) => g.setNode(n.id, { width: NODE_W, height: NODE_H }))
+  edges.forEach((e) => g.setEdge(e.source, e.target))
+  dagre.layout(g)
+  nodes.forEach((n) => {
+    const p = g.node(n.id)
+    n.position = { x: p.x - NODE_W / 2, y: p.y - NODE_H / 2 }
+  })
+  return { nodes, edges }
+}
+
 export default function OrgChart() {
-  const { employees, departments, getDepartment, getEmployee, reportsOf } = useCompanyData()
-  const { company, role } = useApp()
+  const { employees, departments, getDepartment, reportsOf } = useCompanyData()
+  const { company, theme } = useApp()
   const { push } = useToast()
   const [view, setView] = useState<View>('people')
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
-  const isEmployee = role === 'employee'
 
-  const root = useMemo(() => employees.find((e) => e.managerId === null) ?? null, [employees])
-  const managerCount = useMemo(
-    () => employees.filter((e) => reportsOf(e.id).length > 0).length,
-    [employees, reportsOf],
-  )
-  const allManagerIds = useMemo(
-    () => employees.filter((e) => reportsOf(e.id).length > 0).map((e) => e.id),
-    [employees, reportsOf],
+  const initial = useMemo(
+    () => buildAndLayout(employees, (id) => getDepartment(id)?.name ?? '—', (id) => reportsOf(id).length),
+    [employees, getDepartment, reportsOf],
   )
 
-  const toggle = (id: string) =>
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
+  const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes)
+  const [edges, , onEdgesChange] = useEdgesState(initial.edges)
 
-  const onSelect = (id: string) => {
-    const emp = getEmployee(id)
-    if (emp) push({ title: `${emp.name} · ${emp.title}`, tone: 'info' })
-  }
+  // highlight nodes matching the search
+  useEffect(() => {
+    const q = query.trim().toLowerCase()
+    setNodes((ns) =>
+      ns.map((n) => {
+        const d = n.data as EData
+        const match = q.length > 0 && (d.name.toLowerCase().includes(q) || d.title.toLowerCase().includes(q))
+        return d.match === match ? n : { ...n, data: { ...d, match } }
+      }),
+    )
+  }, [query, setNodes])
+
+  const matchCount = nodes.filter((n) => (n.data as EData).match).length
 
   return (
     <div className="animate-fade-in">
@@ -168,95 +151,60 @@ export default function OrgChart() {
       />
 
       {view === 'people' ? (
-        <Card>
-          <CardHeader>
+        <Card className="overflow-hidden p-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
-              <CardTitle>Reporting tree</CardTitle>
-              <Badge tone="primary" className="tnum">
-                {employees.length} people
-              </Badge>
-              <Badge tone="neutral" className="tnum hidden sm:inline-flex">
-                {managerCount} managers
-              </Badge>
+              <Badge tone="primary" className="tnum">{employees.length} people</Badge>
+              {query && <Badge tone={matchCount ? 'success' : 'neutral'} className="tnum">{matchCount} match</Badge>}
             </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-fg" />
-                <Input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value.toLowerCase())}
-                  placeholder="Find a person…"
-                  className="h-8 w-40 pl-8 text-[13px] sm:w-52"
-                />
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setCollapsed(new Set(allManagerIds))}
-                title="Collapse all"
-              >
-                <ChevronsDownUp className="h-4 w-4" />
-                <span className="hidden sm:inline">Collapse</span>
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setCollapsed(new Set())}
-                title="Expand all"
-              >
-                <ChevronsUpDown className="h-4 w-4" />
-                <span className="hidden sm:inline">Expand</span>
-              </Button>
+            <div className="relative w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-fg" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a person…" className="h-8 pl-8 text-[13px]" />
             </div>
-          </CardHeader>
-          <CardBody className="p-3">
-            {root ? (
-              <OrgNode
-                emp={root}
-                depth={0}
-                collapsed={collapsed}
-                toggle={toggle}
-                query={query}
-                onSelect={onSelect}
-              />
-            ) : (
-              <EmptyState
-                icon={<UserCog className="h-5 w-5" />}
-                title="No root found"
-                description="No employee without a manager could be located."
-              />
-            )}
-          </CardBody>
+          </div>
+          <div className="h-[72vh] w-full bg-surface2/40">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              nodeTypes={nodeTypes}
+              onNodeClick={(_, node) => {
+                const d = node.data as EData
+                push({ title: `${d.name} · ${d.title}`, tone: 'info' })
+              }}
+              colorMode={theme}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              minZoom={0.2}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              proOptions={{ hideAttribution: true }}
+              defaultEdgeOptions={{ type: 'default', style: { stroke: 'rgb(148 163 184 / 0.55)', strokeWidth: 1.5 } }}
+            >
+              <Background gap={22} size={1} color="rgb(148 163 184 / 0.25)" />
+              <Controls showInteractive={false} />
+            </ReactFlow>
+          </div>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {departments.map((d) => {
             const parent = d.parentId ? getDepartment(d.parentId) : null
+            const head = employees.find((e) => e.name === d.head)
             return (
-              <Card key={d.id} className="transition-colors hover:border-primary/40">
+              <Card key={d.id}>
                 <CardBody>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Building2 className="h-4 w-4" />
-                      </span>
-                      <div>
-                        <p className="text-sm font-bold tracking-tight">{d.name}</p>
-                        <p className="text-2xs text-muted-fg">
-                          {parent ? `Under ${parent.name}` : 'Top level'}
-                        </p>
-                      </div>
-                    </div>
-                    <Badge tone="info" className="tnum shrink-0">
-                      <Users className="h-3 w-3" /> {d.headcount}
-                    </Badge>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold tracking-tight">{d.name}</h3>
+                    <Badge tone="primary" className="tnum">{d.headcount}</Badge>
                   </div>
-
-                  <div className="mt-4 flex items-center gap-2.5 rounded-lg bg-surface2/60 px-3 py-2">
+                  {parent && <p className="mt-0.5 text-2xs text-muted-fg">under {parent.name}</p>}
+                  <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
                     <Avatar name={d.head} size="sm" />
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{d.head}</p>
-                      <p className="text-2xs text-muted-fg">Department head</p>
+                      <p className="truncate text-[13px] font-semibold">{d.head}</p>
+                      <p className="truncate text-2xs text-muted-fg">{head?.title ?? 'Department head'}</p>
                     </div>
                   </div>
                 </CardBody>
@@ -264,12 +212,6 @@ export default function OrgChart() {
             )
           })}
         </div>
-      )}
-
-      {isEmployee && view === 'people' && (
-        <p className="mt-4 text-center text-2xs text-muted-fg">
-          Read-only view · contact HR to request a reporting change.
-        </p>
       )}
     </div>
   )

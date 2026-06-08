@@ -170,7 +170,7 @@ export const companies: Company[] = [
 
 /* ----------------------------------------------------------------- Portfolios & Groups */
 export const portfolios: Portfolio[] = [
-  { id: 'pf1', code: 'PORT-2026-015', name: 'OpsMaven', manager: 'John Mathew', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
+  { id: 'pf1', code: 'PORT-2026-015', name: 'OpsMaven', manager: 'OpsMaven', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
   { id: 'pf2', code: 'PORT-2026-021', name: 'Asia-Pacific Operations', manager: 'Lim Wei', companyIds: ['c6', 'c7', 'c8'] },
 ]
 export const groups: Group[] = [
@@ -183,7 +183,7 @@ export const getGroup = (id: string | null) => groups.find((g) => g.id === id) ?
 /* ----------------------------------------------------------------- Personas (login-as) */
 export const personas: Persona[] = [
   { id: 'p1', name: 'Anita Rao', role: 'provider_admin', title: 'Platform Operations · SatelliteHR', blurb: 'Runs the whole SatelliteHR platform; provisions new companies.', companyIds: [] },
-  { id: 'p2', name: 'John Mathew', role: 'portfolio_manager', title: 'Lead · OpsMaven', blurb: 'Runs HR for the OpsMaven portfolio (Kensium Group).', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
+  { id: 'p2', name: 'OpsMaven', role: 'portfolio_manager', title: 'Shared-services portfolio manager', blurb: 'OpsMaven manages HR for its portfolio — the Kensium Group of companies.', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
   { id: 'p6', name: 'Lim Wei', role: 'portfolio_manager', title: 'Lead · Asia-Pacific Operations', blurb: 'Runs HR for the APAC portfolio (Delta, Orbit, Nimbus).', companyIds: ['c6', 'c7', 'c8'] },
   { id: 'p3', name: 'Priya Sharma', role: 'company_hr_admin', title: 'HR Manager · Kensium Pvt Ltd', blurb: 'Owns people, policies & reports for one company.', companyIds: ['c1'] },
   { id: 'p4', name: 'Rahul Verma', role: 'people_manager', title: 'Engineering Lead · Kensium Pvt Ltd', blurb: 'Leads a team; approves their requests.', companyIds: ['c1'] },
@@ -307,7 +307,7 @@ export const attendanceMix = [
 /* ----------------------------------------------------------------- Audit log */
 export const auditLog: AuditEntry[] = [
   { id: 'a1', time: '2026-06-08 14:32', actor: 'Priya Sharma', action: 'Updated', entity: 'Employee · Meera Iyer', detail: 'Location: Mumbai HQ → Pune Office' },
-  { id: 'a2', time: '2026-06-08 13:10', actor: 'John Mathew', action: 'Context switch', entity: 'Company', detail: 'Kensium LLC → Kensium Pvt Ltd' },
+  { id: 'a2', time: '2026-06-08 13:10', actor: 'OpsMaven', action: 'Context switch', entity: 'Company', detail: 'Kensium LLC → Kensium Pvt Ltd' },
   { id: 'a3', time: '2026-06-08 11:48', actor: 'Anita Rao', action: 'Created', entity: 'Company · Orbit Media', detail: 'Status: Draft' },
   { id: 'a4', time: '2026-06-07 17:05', actor: 'Rahul Verma', action: 'Approved', entity: 'Leave · Sanjay Gupta', detail: 'Casual · 1 day' },
   { id: 'a5', time: '2026-06-07 09:22', actor: 'Priya Sharma', action: 'Published', entity: 'Policy · Code of Conduct v3', detail: 'Audience: All employees' },
