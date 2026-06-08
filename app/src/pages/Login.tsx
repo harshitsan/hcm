@@ -6,7 +6,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import dagre from 'dagre'
-import { Building2, Layers } from 'lucide-react'
+import { Building2, Layers, Check } from 'lucide-react'
 import { useApp } from '../app/store'
 import { personas, ROLE_LABELS, companies, groups, portfolios } from '../data/mock'
 import { Avatar, Badge } from '../components/ui'
@@ -19,6 +19,7 @@ type RFData = {
   companyId?: string
   groupId?: string
   tier?: string
+  roleText?: string
   hasParent?: boolean
   hasChildren?: boolean
 }
@@ -35,7 +36,7 @@ function PersonaNode({ data }: NodeProps) {
       <Avatar name={p.name} size="sm" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-bold leading-tight">{p.name}</p>
-        <p className="truncate text-2xs text-muted-fg">{ROLE_LABELS[p.role]}</p>
+        <p className="truncate text-2xs text-muted-fg">{d.roleText ?? ROLE_LABELS[p.role]}</p>
       </div>
       <Badge tone="primary">{d.tier}</Badge>
       {d.hasChildren && <Handle type="source" position={Position.Bottom} className={accentHandle} />}
@@ -55,6 +56,11 @@ function GroupNode({ data }: NodeProps) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-bold leading-tight">{g.name}</p>
         <p className="truncate text-2xs text-muted-fg">{g.type} · {g.companyIds.length} companies</p>
+        {g.sharingEnabled && (
+          <p className="mt-0.5 flex items-center gap-1 text-2xs font-semibold text-success">
+            <Check className="h-3 w-3" /> Cross-company sharing on
+          </p>
+        )}
       </div>
       <Badge tone="accent">Group</Badge>
       {d.hasChildren && <Handle type="source" position={Position.Bottom} className={accentHandle} />}
@@ -124,10 +130,17 @@ function buildGraph() {
     link('p1', c.id)
   })
 
-  // People inside Acme Foods (c1)
-  ;[['p3', 'Company'], ['p4', 'Manager'], ['p5', 'Employee']].forEach(([pid, tier]) => {
-    add(pid, 'persona', { personaId: pid, tier })
-    link('c1', pid)
+  // People inside Kensium Pvt Ltd (c1). Rohan (p7) is an employee here who ALSO runs
+  // the portfolio — the "portfolio manager is part of the company" case (User ≠ Employee).
+  const people: { id: string; tier: string; roleText?: string }[] = [
+    { id: 'p3', tier: 'Company' },
+    { id: 'p4', tier: 'Manager' },
+    { id: 'p5', tier: 'Employee' },
+    { id: 'p7', tier: 'Dual role', roleText: 'Group HR Lead · also portfolio mgr' },
+  ]
+  people.forEach((pp) => {
+    add(pp.id, 'persona', { personaId: pp.id, tier: pp.tier, roleText: pp.roleText })
+    link('c1', pp.id)
   })
 
   // mark which nodes have a parent / children (to render only the needed handles)

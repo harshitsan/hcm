@@ -27,6 +27,8 @@ export type Persona = {
   blurb: string
   /** companies this persona may access (ids); empty = all (provider) */
   companyIds: string[]
+  /** if set, this user is ALSO an employee (workforce record) — User ≠ Employee link */
+  employeeId?: string
 }
 
 export type Company = {
@@ -57,6 +59,8 @@ export type Group = {
   name: string
   type: 'Holding' | 'Sister' | 'Joint Venture'
   companyIds: string[]
+  /** opt-in: cross-company sharing & consolidated reporting (explicitly enabled + audited) */
+  sharingEnabled: boolean
 }
 
 export type Department = {
@@ -174,8 +178,8 @@ export const portfolios: Portfolio[] = [
   { id: 'pf2', code: 'PORT-2026-021', name: 'Asia-Pacific Operations', manager: 'Lim Wei', companyIds: ['c6', 'c7', 'c8'] },
 ]
 export const groups: Group[] = [
-  { id: 'g1', name: 'Kensium Group', type: 'Holding', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
-  { id: 'g2', name: 'Orbit Group', type: 'Sister', companyIds: ['c7', 'c8'] },
+  { id: 'g1', name: 'Kensium Group', type: 'Holding', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'], sharingEnabled: true },
+  { id: 'g2', name: 'Orbit Group', type: 'Sister', companyIds: ['c7', 'c8'], sharingEnabled: true },
 ]
 export const getPortfolio = (id: string | null) => portfolios.find((p) => p.id === id) ?? null
 export const getGroup = (id: string | null) => groups.find((g) => g.id === id) ?? null
@@ -188,6 +192,7 @@ export const personas: Persona[] = [
   { id: 'p3', name: 'Priya Sharma', role: 'company_hr_admin', title: 'HR Manager · Kensium Pvt Ltd', blurb: 'Owns people, policies & reports for one company.', companyIds: ['c1'] },
   { id: 'p4', name: 'Rahul Verma', role: 'people_manager', title: 'Engineering Lead · Kensium Pvt Ltd', blurb: 'Leads a team; approves their requests.', companyIds: ['c1'] },
   { id: 'p5', name: 'Meera Iyer', role: 'employee', title: 'Senior Analyst · Kensium Pvt Ltd', blurb: 'Uses simple self-service every day.', companyIds: ['c1'] },
+  { id: 'p7', name: 'Rohan Shetty', role: 'portfolio_manager', title: 'Group HR Lead · Kensium Pvt Ltd (internal)', blurb: 'Internal lead — an employee of Kensium Pvt Ltd who also runs HR across the Kensium Group. One login, two roles.', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'], employeeId: 'e15' },
 ]
 
 /* ----------------------------------------------------------------- Departments */
@@ -218,6 +223,8 @@ export const employees: Employee[] = [
   { id: 'e12', name: 'Ananya Bose', email: 'ananya@kensium.example', title: 'Recruiter', departmentId: 'd5', location: 'Mumbai HQ', managerId: 'e3', status: 'Active', type: 'Employee', joinDate: '2022-10-10', phone: '+91 98200 11012' },
   { id: 'e13', name: 'Sanjay Gupta', email: 'sanjay@kensium.example', title: 'QA Engineer', departmentId: 'd7', location: 'Pune Office', managerId: 'e2', status: 'Active', type: 'Employee', joinDate: '2021-06-15', phone: '+91 98200 11013' },
   { id: 'e14', name: 'Riya Singh', email: 'riya@kensium.example', title: 'New Hire — Analyst', departmentId: 'd8', location: 'Pune Office', managerId: 'e2', status: 'Onboarding', type: 'Employee', joinDate: '2026-06-15', phone: '+91 98200 11014' },
+  // Internal shared-services lead: an EMPLOYEE here who is ALSO the group's portfolio manager (persona p7)
+  { id: 'e15', name: 'Rohan Shetty', email: 'rohan@kensium.example', title: 'Group HR Lead', departmentId: 'd5', location: 'Mumbai HQ', managerId: 'e1', status: 'Active', type: 'Employee', joinDate: '2019-11-04', phone: '+91 98200 11015' },
 ]
 
 export function getEmployee(id: string | null) {
@@ -312,6 +319,7 @@ export const auditLog: AuditEntry[] = [
   { id: 'a4', time: '2026-06-07 17:05', actor: 'Rahul Verma', action: 'Approved', entity: 'Leave · Sanjay Gupta', detail: 'Casual · 1 day' },
   { id: 'a5', time: '2026-06-07 09:22', actor: 'Priya Sharma', action: 'Published', entity: 'Policy · Code of Conduct v3', detail: 'Audience: All employees' },
   { id: 'a6', time: '2026-06-06 16:40', actor: 'System', action: 'Escalated', entity: 'Timesheet · Joseph Thomas', detail: 'SLA 100% — escalated to Ops Head' },
+  { id: 'a7', time: '2026-06-05 10:15', actor: 'OpsMaven', action: 'Enabled', entity: 'Group · Kensium Group', detail: 'Cross-company sharing & consolidated reporting switched on (opt-in)' },
 ]
 
 /* ----------------------------------------------------------------- Hiring */

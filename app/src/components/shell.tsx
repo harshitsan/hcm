@@ -163,6 +163,11 @@ function UserMenu() {
               <p className="text-sm font-bold">{persona.name}</p>
               <p className="text-2xs text-muted-fg">{persona.title}</p>
               <Badge tone="primary" className="mt-1.5">{ROLE_LABELS[persona.role]}</Badge>
+              {persona.employeeId && (
+                <p className="mt-1.5 flex items-center gap-1 text-2xs font-medium text-accent">
+                  <UserCog className="h-3 w-3" /> Also an employee · Kensium Pvt Ltd
+                </p>
+              )}
             </div>
             <div className="my-1 h-px bg-border" />
             <button onClick={logout} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-semibold text-muted-fg transition-colors hover:bg-muted hover:text-fg cursor-pointer">
