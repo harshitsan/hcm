@@ -1,0 +1,66 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
+import { useApp } from './app/store'
+import { AppShell } from './components/shell'
+
+import Login from './pages/Login'
+import Home from './pages/Home'
+import Directory from './pages/Directory'
+import OrgChart from './pages/OrgChart'
+import Employees from './pages/Employees'
+import Leave from './pages/Leave'
+import Attendance from './pages/Attendance'
+import Requisitions from './pages/Requisitions'
+import Candidates from './pages/Candidates'
+import Onboarding from './pages/Onboarding'
+import TransfersExit from './pages/TransfersExit'
+import Policies from './pages/Policies'
+import Documents from './pages/Documents'
+import Reports from './pages/Reports'
+import Companies from './pages/Companies'
+import CompanySetup from './pages/CompanySetup'
+import WorkflowBuilder from './pages/WorkflowBuilder'
+import Roles from './pages/Roles'
+import CustomFields from './pages/CustomFields'
+import Audit from './pages/Audit'
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { persona } = useApp()
+  if (!persona) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        element={
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        }
+      >
+        <Route path="/" element={<Home />} />
+        <Route path="/people/directory" element={<Directory />} />
+        <Route path="/people/org-chart" element={<OrgChart />} />
+        <Route path="/people/employees" element={<Employees />} />
+        <Route path="/time/leave" element={<Leave />} />
+        <Route path="/time/attendance" element={<Attendance />} />
+        <Route path="/hiring/requisitions" element={<Requisitions />} />
+        <Route path="/hiring/candidates" element={<Candidates />} />
+        <Route path="/lifecycle/onboarding" element={<Onboarding />} />
+        <Route path="/lifecycle/transfers-exit" element={<TransfersExit />} />
+        <Route path="/policies" element={<Policies />} />
+        <Route path="/documents" element={<Documents />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/admin/companies" element={<Companies />} />
+        <Route path="/admin/company-setup" element={<CompanySetup />} />
+        <Route path="/admin/workflow-builder" element={<WorkflowBuilder />} />
+        <Route path="/admin/roles" element={<Roles />} />
+        <Route path="/admin/custom-fields" element={<CustomFields />} />
+        <Route path="/admin/audit" element={<Audit />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  )
+}

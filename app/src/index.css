@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   SatelliteHR design tokens — calm enterprise SaaS
+   Light-first, with full dark mode. Values are "R G B" channels
+   so Tailwind alpha utilities (e.g. bg-primary/10) work.
+   ============================================================ */
+:root {
+  --bg: 248 250 252;          /* slate-50  */
+  --surface: 255 255 255;      /* white     */
+  --surface-2: 248 250 252;    /* slate-50  */
+  --fg: 15 23 42;              /* slate-900 */
+  --muted: 241 245 249;        /* slate-100 */
+  --muted-fg: 100 116 139;     /* slate-500 */
+  --border: 226 232 240;       /* slate-200 */
+
+  --primary: 79 70 229;        /* indigo-600 */
+  --primary-fg: 255 255 255;
+  --accent: 16 185 129;        /* emerald-500 */
+  --accent-fg: 255 255 255;
+
+  --success: 22 163 74;        /* green-600  */
+  --warning: 217 119 6;        /* amber-600  */
+  --danger: 220 38 38;         /* red-600    */
+  --info: 37 99 235;           /* blue-600   */
+  --ring: 99 102 241;          /* indigo-500 */
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: 2 6 23;               /* slate-950 */
+  --surface: 15 23 42;         /* slate-900 */
+  --surface-2: 30 41 59;       /* slate-800 */
+  --fg: 248 250 252;           /* slate-50  */
+  --muted: 30 41 59;           /* slate-800 */
+  --muted-fg: 148 163 184;     /* slate-400 */
+  --border: 51 65 85;          /* slate-700 */
+
+  --primary: 129 140 248;      /* indigo-400 */
+  --primary-fg: 15 23 42;
+  --accent: 52 211 153;        /* emerald-400 */
+  --accent-fg: 6 25 19;
+
+  --success: 74 222 128;
+  --warning: 251 191 36;
+  --danger: 248 113 113;
+  --info: 96 165 250;
+  --ring: 129 140 248;
+
+  color-scheme: dark;
+}
+
+* {
+  border-color: rgb(var(--border));
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background-color: rgb(var(--bg));
+  color: rgb(var(--fg));
+  font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Calm, consistent focus ring for keyboard users */
+:focus-visible {
+  outline: 2px solid rgb(var(--ring));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Thin, unobtrusive scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--muted-fg) / 0.5); background-clip: content-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Tabular figures for data columns / numbers */
+.tnum { font-variant-numeric: tabular-nums; }
