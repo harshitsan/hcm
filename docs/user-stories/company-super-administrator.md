@@ -70,6 +70,11 @@
     - **Given** I provision a user, **when** I do not create or link an employee, **then** no employee record is implied or created.
 - **US-CSA-18** — As a Company Super Administrator, I want to deactivate or revoke a user's access in my company, so that departures and role changes immediately remove inappropriate access. (BRD §6.12, §8.7.2)
 - **US-CSA-19** — As a Company Super Administrator, I want to enable delegation so users can hand approval activities to a colleague within the company, so that work continues during absences with visibility to managers and hierarchy. (BRD §6.12)
+- **US-CSA-31** — As a Company Super Administrator, I want to associate user accounts with groups where required, so that group-based access control and eligibility can apply to user identities who are not necessarily employees, while preserving the User ≠ Employee distinction. (BRD §6.6)
+  - **Acceptance criteria:**
+    - **Given** a user account exists in my company, **when** I add the user to one or more groups, **then** the user's group membership is recorded without creating or implying an employee record.
+    - **Given** a user is associated with a group, **when** group-scoped access control or eligibility rules evaluate, **then** the user is included on the basis of that membership.
+    - **Given** I add or remove a user's group association, **when** I save, **then** the change is written to the tenant-isolated audit trail with actor, group, action, and timestamp.
 
 ### Policy, workflow & extensibility configuration (BRD §6.10, §6.25, §6.26, §6.27, §6.14)
 
@@ -83,6 +88,25 @@
     - **Given** I create a custom field on a supported entity, **when** I save it, **then** it becomes available in search, workflow conditions, reporting, import/export, and the API.
 - **US-CSA-23** — As a Company Super Administrator, I want to configure notification templates with company branding, sender configuration, and event subscriptions, so that communications are on-brand and reach the right audiences. (BRD §6.27)
 - **US-CSA-24** — As a Company Super Administrator, I want to authorize and configure announcements targeted by company, location, department, group, and worker type, so that organizational messaging is controlled and scoped. (BRD §6.14)
+- **US-CSA-32** — As a Company Super Administrator, I want to configure a parallel approval step as either any-one-can-approve or all-must-approve, so that quorum and unanimous decisions (e.g., parallel-by-function exit clearance requiring all functions) are modeled correctly. (BRD §6.25.2)
+  - **Acceptance criteria:**
+    - **Given** I add a parallel approval stage to a workflow, **when** I set its sub-mode, **then** I can choose any-one-can-approve or all-must-approve.
+    - **Given** an any-one-can-approve stage, **when** any single assigned approver approves, **then** the stage completes and remaining approvals are dismissed.
+    - **Given** an all-must-approve stage, **when** approvers respond, **then** the stage completes only after every assigned approver has approved, and a single rejection halts the stage per policy.
+- **US-CSA-33** — As a Company Super Administrator, I want to compose a workflow that mixes sequential and parallel stages, so that complex multi-stage approvals (e.g., parallel clearance followed by sequential sign-off) are supported in a single workflow definition. (BRD §6.25.2)
+- **US-CSA-34** — As a Company Super Administrator, I want to set escalation to a named role rather than only the manager, so that overdue items route to the right responsible role regardless of reporting line. (BRD §6.25.3)
+- **US-CSA-35** — As a Company Super Administrator, I want a pending approval automatically reassigned to an alternate approver after a configured time threshold, so that absent approvers do not block throughput (distinct from notify-only escalation). (BRD §6.25.3)
+- **US-CSA-36** — As a Company Super Administrator, I want to configure multi-level escalation chains, so that an unactioned escalation escalates again further up the hierarchy when the escalation target also misses its SLA. (BRD §6.25.3)
+  - **Acceptance criteria:**
+    - **Given** I configure an escalation chain with multiple levels, **when** the first escalation target does not act within its SLA, **then** the item escalates to the next configured level.
+    - **Given** the chain reaches its final level, **when** that level also misses SLA, **then** the system applies the configured terminal action and records every escalation hop in the workflow audit trail.
+- **US-CSA-37** — As a Company Super Administrator, I want SLA timers to honor configured business hours and holiday calendars, so that approval deadlines are not counted against weekends, holidays, or other non-working time. (BRD §6.25.4)
+- **US-CSA-38** — As a Company Super Administrator, I want the workflow audit trail to record each routing decision — which condition matched and which approver path was selected — so that I can prove why a given item routed the way it did. (BRD §6.25.5)
+- **US-CSA-39** — As a Company Super Administrator, I want to define custom fields explicitly on each of Companies, Locations, Departments, Groups, and Positions (in addition to Employees), so that company-specific attributes on every org master-data entity are captured, validated, searchable, and reportable. (BRD §6.26.1)
+  - **Acceptance criteria:**
+    - **Given** I open custom-field configuration, **when** I choose the target entity, **then** Companies, Locations, Departments, Groups, Positions, and Employees are each individually selectable.
+    - **Given** I create a custom field on any of those entities, **when** I save, **then** it becomes available in search, workflow conditions, reporting, import/export, and the API for that entity.
+- **US-CSA-40** — As a Company Super Administrator, I want the custom-field data-type catalog to include the full set — single-line text, multi-line text, number, decimal, currency, percentage, boolean, date, date-time, single-select and multi-select lists, lookup/reference, email, phone, URL, and file/attachment — so that richer company-specific attributes (especially lookup/reference and file/attachment) can be modeled without code. (BRD §6.26.3)
 
 ### Reporting & data operations (BRD §6.23, §6.24)
 
@@ -95,6 +119,10 @@
     - **Given** an import fails, **when** rollback applies, **then** the transaction is reverted atomically where feasible and no partial corruption remains.
     - **Given** I import dependent entities, **when** sequencing is enforced, **then** Foundation → Organizational → Workforce → Transactional order is respected.
 - **US-CSA-27** — As a Company Super Administrator, I want to export my company's data (including for migration and operational exchange), so that we can move data out and meet portability needs. (BRD §6.24, §8.7.3)
+- **US-CSA-41** — As a Company Super Administrator, I want imports and exports validated against the supported file formats (CSV, XLS, XLSX, JSON), the 50 MB maximum file size, and the 10,000-records-per-batch limit, so that oversized jobs are rejected with a clear message or chunked safely rather than failing mid-run. (BRD §6.24.2)
+  - **Acceptance criteria:**
+    - **Given** I submit an import file, **when** its format is not CSV, XLS, XLSX, or JSON, or it exceeds 50 MB, **then** the job is rejected before processing with a clear validation message.
+    - **Given** an import or export exceeds 10,000 records, **when** the job runs, **then** the system enforces the per-batch limit by rejecting or chunking the job so no single batch exceeds it.
 
 ### Audit & governance (BRD §6.29; FS §8)
 

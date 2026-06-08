@@ -77,6 +77,11 @@
     - **Given** a report initiates exit, **When** the clearance workflow runs, **Then** my functional clearance task appears in my inbox alongside other parallel clearances.
     - **Given** I complete my clearance, **When** saved, **Then** my task is marked done and the overall exit status reflects remaining parallel clearances.
 - **US-MGR-18** — As a People Manager, I want to confirm recovery of assets assigned to a departing report as part of exit clearance, so that company equipment is accounted for before final exit. (BRD §6.20.5, §6.15.4)
+- **US-MGR-34** — As a People Manager, I want to assign and track knowledge-transfer tasks for a departing or transferring report, so that critical know-how is handed over to teammates before they leave. (BRD §6.15)
+  - **Acceptance criteria:**
+    - **Given** a report on my team initiates exit or transfer, **When** the lifecycle workflow runs, **Then** I can create knowledge-transfer tasks, assign each to a recipient teammate, and set a due date before the effective leaving date.
+    - **Given** knowledge-transfer tasks are assigned, **When** I view the report's exit/transfer status, **Then** I see each task's owner, due date, and completion status so I can chase outstanding handovers.
+    - **Given** all knowledge-transfer tasks are completed, **When** the handover is confirmed, **Then** the completion is audit-logged and reflected in the report's exit/transfer clearance status.
 
 ### Lifecycle initiation & transfers (Employee Lifecycle Management)
 
@@ -95,6 +100,11 @@
     - **Given** the delegation period ends, **When** it expires, **Then** approval routing reverts to me and the delegation event is audit-logged.
 - **US-MGR-23** — As a People Manager, I want delegated approvals to remain visible to me and the appropriate hierarchy, so that I retain oversight of decisions made on my behalf. (BRD §6.12.3)
 - **US-MGR-24** — As a temporary/acting manager assigned to a team, I want automatic delegation of the absent manager's approvals to me, so that the team has continuous coverage without manual setup. (BRD §6.9.5)
+- **US-MGR-33** — As a People Manager who delegated my approval authority, I want to revoke an active delegation before its end date, so that I can resume my own approvals immediately when I return early, with the revocation audit-logged. (BRD §6.12.3)
+  - **Acceptance criteria:**
+    - **Given** I have an active delegation to a delegate, **When** I open the delegation and choose Revoke, **Then** the delegation is ended effective immediately rather than at its scheduled end date.
+    - **Given** I revoke the delegation, **When** the revocation is saved, **Then** approval routing reverts to me, the delegate no longer sees my routed items in their inbox, and the revocation event is recorded in the audit trail with actor, timestamp, and the original end date.
+    - **Given** items were already routed to the delegate during the active period, **When** I revoke, **Then** any decisions the delegate already made remain valid and visible, and only undecided items revert to me.
 
 ### Team directory & org chart (Employee Directory and Org Chart)
 

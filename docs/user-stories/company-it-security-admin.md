@@ -50,6 +50,12 @@
 - **US-CIT-09** — As a Company IT / Security Admin, I want roles to remain distinct from permission sets so that the same permission set can back multiple roles, so that I assign personas, not raw capabilities. (BRD §5.1, §6.12.1)
 - **US-CIT-10** — As a Company IT / Security Admin, I want access restrictions enforceable by company, group, department, and workforce type when I assign roles, so that visibility matches the security model. (BRD §6.12.2)
 - **US-CIT-11** — As a Company IT / Security Admin, I want every role-assignment change kept in a viewable history, so that I can prove who granted whom what access and when. (BRD §6.12.1, §6.29.4)
+- **US-CIT-28** — As a Company IT / Security Admin, I want policy visibility and maintenance to be gated by role, so that only authorized roles can view or edit each policy and security of business rules is enforced through RBAC. (BRD §6.10.4)
+  - **Acceptance criteria:**
+    - **Given** the RBAC model for my company, **when** a role lacks the policy-view permission, **then** the policy is not visible to users holding only that role.
+    - **Given** a role that has view but not maintain permission, **when** a user with that role opens a policy, **then** they can read it but every edit/maintain control is disabled.
+    - **Given** I change which roles may view or maintain a policy, **when** the change is saved, **then** it is recorded in the audit trail with actor and timestamp and applies to new sessions.
+    - **Given** the User ≠ Employee boundary, **when** I gate policy access, **then** I configure the access rule only and never edit the policy content itself (that remains the Company Super / HR Administrator's authority).
 
 ### Authentication & SSO Configuration (BRD §6.1)
 
@@ -74,6 +80,17 @@
 - **US-CIT-17** — As a Company IT / Security Admin, I want to configure the company password policy (complexity, expiry, reuse), so that credentials meet the organization's security baseline. (BRD §6.12.5, FS §3.1.4 COMP-FR-014)
 - **US-CIT-18** — As a Company IT / Security Admin, I want to set the company session timeout, so that idle sessions are terminated within an approved window. (FS §3.1.4 COMP-FR-014)
 - **US-CIT-19** — As a Company IT / Security Admin, I want every security-configuration change logged and effective on new transactions only, so that changes are traceable and non-retroactive. (FS §3.1.4 COMP-FR-016)
+- **US-CIT-29** — As a Company IT / Security Admin, I want to configure an account-lockout threshold and lockout duration after N failed local logins, so that brute-force attempts against company credentials are blocked. (BRD §6.1.6)
+  - **Acceptance criteria:**
+    - **Given** the company security settings, **when** I set the failed-attempt threshold (N) and the lockout duration, **then** those values govern local Email/Password authentication for the company.
+    - **Given** a configured threshold, **when** a local user reaches N consecutive failed sign-ins, **then** the account is locked for the configured duration and a lockout authentication event is recorded.
+    - **Given** an account is locked, **when** the lockout duration elapses or I manually unlock it, **then** the user may authenticate again and the unlock action is audited.
+    - **Given** I change the threshold or duration, **when** the change is saved, **then** it is logged in the audit trail and applies to new sign-in attempts only (non-retroactive).
+- **US-CIT-30** — As a Company IT / Security Admin, I want stored documents and attachments in my company to be tenant-isolated and encrypted at rest, so that one company's files are never reachable from another tenant and PII is protected even at the storage layer. (BRD §6.22.4)
+  - **Acceptance criteria:**
+    - **Given** the tenant-isolation model, **when** I review document storage for my company, **then** I can verify (read-only) that stored files are bound to my company context and are not accessible from another tenant's session.
+    - **Given** encryption-at-rest is platform-enforced, **when** I inspect the security posture, **then** I can confirm document storage uses encryption at rest (AES-256 per §8.6.2) without being able to alter the document content myself.
+    - **Given** a cross-tenant access attempt against a stored document, **when** it occurs, **then** it is denied and surfaced in my access-audit views (this role observes and attests, but does not own the Documents module's content).
 
 ### Delegation & Impersonation Governance (BRD §6.12)
 
@@ -95,7 +112,15 @@
 - **US-CIT-26** — As a Company IT / Security Admin, I want a periodic access-review report of users, their roles, and last sign-in, so that I can confirm least privilege and remove stale access. (BRD §6.23.6, §6.29)
 - **US-CIT-27** — As a Company IT / Security Admin, I want audit logs retained per policy (active retention plus archival), so that access evidence is available for compliance and inspections. (BRD §6.29.3, §8.7.1)
 
-## Primary journeys
+### Integration Security & Configuration (BRD §6.18)
+
+- **US-CIT-31** — As a Company IT / Security Admin, I want to configure and map biometric device feeds to employee attendance records, so that biometric punches are ingested automatically through a secured, authorized connection. (BRD §6.18.1)
+  - **Acceptance criteria:**
+    - **Given** a biometric device source for my company, **when** I register it, **then** the connection credentials are stored securely and the device is bound to my company context only.
+    - **Given** a registered device, **when** I map its user/device identifiers to employee records, **then** incoming punches resolve to the correct employees and unmatched punches are flagged for review.
+    - **Given** the User ≠ Employee boundary, **when** I configure the feed, **then** I set up and secure the integration only and never create or edit Employee master records (capture/processing of attendance remains the HR Administrator's domain).
+    - **Given** I add, change, or disable a device mapping, **when** the change is saved, **then** it is recorded in the audit trail with actor and timestamp.
+- **US-CIT-32** — As a Company IT / Security Admin, I want to configure and authenticate a third-party attendance API integration with field mapping, so that external attendance data flows into the system over an authorized, auditable channel. (BRD §6.18.1)
 
 1. **Onboard access for a new joiner.** HR creates the employee record; the IT / Security Admin provisions a `User` account, links it to the employee (only where system access is needed), assigns the appropriate company role, confirms MFA applies, and verifies the welcome/first-login path — every step landing in the audit trail. (US-CIT-01, US-CIT-07, US-CIT-16, US-CIT-05)
 

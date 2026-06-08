@@ -105,6 +105,10 @@
     - **Given** directory privacy controls, **when** I search, **then** results are limited to my own company and exclude fields hidden by privacy policy.
 - **US-EMP-28** — As an employee, I want to view the organizational chart, so that I can understand reporting lines and where I sit. (BRD §6.21 "Organizational Chart")
 - **US-EMP-29** — As an employee, I want sensitive contact information to be shown only where privacy policy permits, so that personal data is protected. (BRD §6.21.5)
+- **US-EMP-34** — As an employee, I want to switch the directory between list, card, and compact views, so that I can browse colleagues in the layout I prefer. (BRD §6.21.1)
+  - **Acceptance criteria:**
+    - **Given** I am viewing the company directory, **when** I select a view mode (list, card, or compact), **then** the same privacy-controlled result set re-renders in that layout showing the permitted employee information (name, photo, position, department, location, contact details).
+    - **Given** I have chosen a view mode, **when** I return to the directory later, **then** my preferred view is retained, and switching modes never widens what fields I am permitted to see beyond the directory privacy policy.
 
 ### Assets (Employee Asset Management — BRD §6.20)
 - **US-EMP-30** — As an employee, I want to digitally acknowledge receipt of an asset issued to me, so that there is a record of what I am responsible for. (BRD §6.20 "Asset Acknowledgements")
@@ -120,6 +124,11 @@
 - **US-EMP-33** — As an employee, I want to set my notification channel and event preferences, so that I receive the alerts I care about in the way I prefer. (BRD §6.27 "User Preferences")
   - **Acceptance criteria:**
     - **Given** email is the mandatory channel, **when** I adjust optional channels or event subscriptions, **then** my preferences are saved and applied to future notifications, while mandatory notifications still reach me by email.
+- **US-EMP-35** — As an employee, I want an in-app notification center listing my recent alerts with read/unread state, so that I can review notifications I may have missed in email. (BRD §6.27)
+  - **Acceptance criteria:**
+    - **Given** in-app notifications have been delivered to me, **when** I open the notification center, **then** I see a chronological list of my own alerts (approvals, status changes, reminders, lifecycle events) with an unread indicator and a count of unread items, scoped to my company context only.
+    - **Given** I am viewing a notification, **when** I open or mark it, **then** it is set to read and the unread count decrements; **and when** I dismiss a notification, **then** it is removed from my active list without affecting the underlying record or email delivery.
+    - **Given** the notification center is a read/consume view, **when** I interact with it, **then** I cannot see other employees' notifications and the feed is distinct from my policy inbox (US-EMP-16).
 
 ## Primary journeys
 1. **Request leave end-to-end.** Open self-service → check my balance for the leave type (US-EMP-06) → submit a request with type, dates, and reason (US-EMP-07) → request routes to my manager and I get an email → track status, and on approval see my balance drop and the date on my calendar (US-EMP-08, US-EMP-10); if rejected, read the reason.

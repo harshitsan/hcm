@@ -48,6 +48,25 @@
 - **US-PA-11** — As a customer leaving the platform, served by a Platform Admin, I want full company-data export on exit, so that the customer keeps their records and our retention/handover obligations are met. (BRD §6.2.6; FS COMP-FR-013)
 - **US-PA-12** — As a Platform Admin, I want a Company list/detail view with filters (status, jurisdiction, search) and status color indicators, so that I can monitor the whole tenant estate at a glance. (FS §5.1, §5.2)
 - **US-PA-13** — As a Platform Admin, I want all status transitions to follow the allowed state machine (`Draft→Active→Suspended/Inactive→Archived`) with approval where required, so that no tenant can reach an invalid lifecycle state. (FS COMP-FR-010)
+- **US-PA-41** — As a Platform Super Administrator, I want to apply and track archival fees for a closed company's data retained for the 7-year window, so that ongoing archival storage is billed per the commercial policy and the customer is charged for the hold. (BRD §6.2.6)
+  - **Acceptance criteria:**
+    - Given a company is inactivated and its 7-year retention timer starts, when archival billing is configured, then an archival-fee schedule (rate and billing cadence) is attached to the retained tenant and recorded.
+    - Given the retention period is active, when a billing cycle elapses, then an archival-fee charge is generated and tracked against the closed company with a billing audit entry.
+    - Given the 7-year retention window ends (or fees lapse per policy), when the archival hold is released, then fee accrual stops and the event is logged.
+
+### Commercial packaging & subscription (BRD §6.2.5)
+
+- **US-PA-42** — As a Platform Super Administrator, I want to configure a company's commercial subscription — subscription tier, employee limit, company-count entitlement, and the set of subscribed modules — as a first-class commercial record (not buried in master-data edit), so that each tenant's commercial entitlements are explicitly recorded and enforceable. (BRD §6.2.5)
+  - **Acceptance criteria:**
+    - Given I open a company's commercial configuration, when I set its subscription tier, employee limit, and subscribed modules, then the values are saved against the company and a configuration-change audit event is written.
+    - Given a subscription is changed, when it is applied, then the new entitlements take effect for subsequent operations only (no retroactive effect, consistent with US-PA-16) and the previous values are preserved in version history.
+    - Given I hold only the Platform Security & Compliance Admin role, when I attempt to edit commercial subscription, then the action is denied (no transactional/commercial modification by the compliance role).
+- **US-PA-43** — As a Platform Super Administrator, I want a company's accessible modules to be governed by its module subscription, so that a tenant can only use the modules it has purchased and unsubscribed modules are not available to that tenant. (BRD §6.2.5)
+- **US-PA-44** — As a Platform Super Administrator, I want the system to enforce the subscribed employee limit (and company-count entitlement) when records are added, so that tenant usage stays within the commercial agreement. (BRD §6.2.5)
+  - **Acceptance criteria:**
+    - Given a company is at its subscribed employee limit, when an additional employee record is provisioned for that tenant, then creation is blocked (or flagged per policy) with a clear limit-exceeded message.
+    - Given a portfolio/group is at its company-count entitlement, when an additional company is provisioned under it, then the limit is enforced and the attempt is recorded.
+    - Given a limit is approached, when usage crosses a configured threshold, then the tenant's administrators (and Platform Operations) are notified.
 
 ### Company configuration & defaults (BRD §6.2, FS UC-COMP-004)
 
@@ -64,6 +83,14 @@
     - Given creation succeeds, when it completes, then a `PORT-{YYYY}-{NNN}` code is generated and a `PORTFOLIO_CREATED` audit event is written.
 - **US-PA-18** — As a Platform Super Administrator, I want to modify a portfolio (add/remove companies with confirmation, change manager, update description), so that I can keep portfolio composition correct as customer relationships change. (FS PORT-FR-003)
 - **US-PA-19** — As a Platform Super Administrator, I want the system to reject a portfolio name that already exists, so that portfolio identity stays unique platform-wide. (FS PORT-FR-001; error `PORT_001`)
+
+### Group-company structure (BRD §6.3)
+
+- **US-PA-45** — As a Platform Super Administrator, I want to create a group-company structure (define the group, link the related/affiliated companies, and assign a Group Company Administrator), so that affiliated companies — subsidiaries, sister concerns, or affiliated entities — can be governed as a group while the GCA later administers it. (BRD §6.3.1)
+  - **Acceptance criteria:**
+    - Given I create a group-company structure, when I link related companies, then the group construct is established and each linked company's membership is recorded with an audit event (create-group is Platform Super Administrator only).
+    - Given I assign a Group Company Administrator, when the assignment is saved, then that user is granted group-level governance authority over the linked companies and tenant isolation between non-linked companies remains enforced.
+    - Given I hold only the Platform Operations Admin role, when I attempt to create a group, then the action is denied (group creation, like portfolio creation, is Super Admin only).
 
 ### Jurisdictions catalog (BRD §6.4)
 
@@ -128,6 +155,7 @@
 
 - **US-PA-39** — As a Platform Admin, I want to configure platform-level notification defaults and templates (email mandatory; in-app optional), so that lifecycle and approval events (e.g., provisioning welcome, suspension notice) reach the right recipients with consistent branding. (BRD §6.27; FS COMP-FR-004, COMP-FR-011)
 - **US-PA-40** — As a Platform Admin, I want platform-level custom fields available across all companies (alongside company-level fields) for supported entities, so that platform-wide attributes can be standardized without per-tenant rebuilds. (BRD §6.26)
+- **US-PA-46** — As a Platform Super Administrator, I want to configure and enable the optional Microsoft Teams and WhatsApp third-party notification connectors (credentials, endpoint, and per-company opt-in), so that companies can opt into additional delivery channels beyond the mandatory email channel. (BRD §6.27.1)
 
 ## Primary journeys
 
