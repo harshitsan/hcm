@@ -5,7 +5,8 @@ import {
 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
 import { useApp } from '../app/store'
-import { attendanceWeek, attendanceMix, employees, type Employee } from '../data/mock'
+import { type Employee } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, PageHeader,
   StatCard, Table, Tabs, Td, Th, Tr, useToast,
@@ -44,6 +45,7 @@ const teamToday: Record<string, { status: string; in: string; out: string }> = {
 }
 
 export default function Attendance() {
+  const { attendanceWeek, attendanceMix, employees } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const isEmployee = role === 'employee'
@@ -74,7 +76,7 @@ export default function Attendance() {
 
   const team = useMemo<Employee[]>(
     () => employees.filter((e) => teamToday[e.id]),
-    [],
+    [employees],
   )
   const totalMix = attendanceMix.reduce((a, m) => a + m.value, 0)
 

@@ -3,7 +3,8 @@ import {
   ShieldCheck, Check, FileText, Send, Plus, Info, CalendarClock, CheckCircle2,
 } from 'lucide-react'
 import { useApp } from '../app/store'
-import { policies as policySeed, type Policy } from '../data/mock'
+import { type Policy } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, Input,
   Modal, PageHeader, ProgressBar, Select, Table, Td, Th, Tr, Tabs, Textarea, useToast,
@@ -30,6 +31,7 @@ const ackTone = (pct: number): Tone =>
   pct >= 85 ? 'success' : pct >= 65 ? 'warning' : 'danger'
 
 export default function Policies() {
+  const { policies: policySeed } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const isEmployee = role === 'employee'
@@ -40,7 +42,7 @@ export default function Policies() {
 
   const toAck = useMemo(
     () => policySeed.filter((p) => p.status === 'Active' && p.due !== '—'),
-    [],
+    [policySeed],
   )
   const pendingCount = toAck.filter((p) => !acked.has(p.id)).length
 

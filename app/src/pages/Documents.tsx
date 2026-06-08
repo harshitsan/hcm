@@ -4,14 +4,14 @@ import {
   UploadCloud, CalendarClock, FolderOpen, Lock,
 } from 'lucide-react'
 import { useApp } from '../app/store'
-import { documents } from '../data/mock'
+import { useCompanyData, type CompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented,
   Select, Table, Td, Th, Tr, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
 
-type Doc = (typeof documents)[number] & { category: string }
+type Doc = CompanyData['documents'][number] & { category: string }
 type View = 'table' | 'grid'
 
 const CATEGORIES = ['HR', 'Finance', 'Security', 'Compliance', 'Legal']
@@ -40,13 +40,14 @@ function fileIcon(type: string) {
 }
 
 export default function Documents() {
+  const { documents } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const isEmployee = role === 'employee'
 
   const seed: Doc[] = useMemo(
     () => documents.map((d) => ({ ...d, category: docCategory(d.owner) })),
-    [],
+    [documents],
   )
   const [docs, setDocs] = useState<Doc[]>(seed)
   const [query, setQuery] = useState('')

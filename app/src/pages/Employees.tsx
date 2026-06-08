@@ -5,8 +5,9 @@ import {
 } from 'lucide-react'
 import { useApp } from '../app/store'
 import {
-  employees as employeeSeed, departments, getDepartment, type Employee,
+  type Employee,
 } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Avatar, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, Td, Th, Tr,
   useToast,
@@ -21,9 +22,8 @@ const statusTone: Record<Employee['status'], StatusTone> = {
   Onboarding: 'accent',
 }
 
-const locations = Array.from(new Set(employeeSeed.map((e) => e.location)))
-
 export default function Employees() {
+  const { employees: employeeSeed, departments, getDepartment } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()
@@ -37,6 +37,8 @@ export default function Employees() {
   const [addOpen, setAddOpen] = useState(false)
   const [menuFor, setMenuFor] = useState<string | null>(null)
 
+  const locations = useMemo(() => Array.from(new Set(employeeSeed.map((e) => e.location))), [employeeSeed])
+
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase()
     return employeeSeed.filter((e) => {
@@ -46,7 +48,7 @@ export default function Employees() {
       if (type !== 'all' && e.type !== type) return false
       return true
     })
-  }, [query, dept, status, type])
+  }, [employeeSeed, query, dept, status, type])
 
   const allChecked = rows.length > 0 && rows.every((r) => selected.includes(r.id))
   const someChecked = selected.length > 0 && !allChecked

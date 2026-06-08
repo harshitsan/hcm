@@ -39,7 +39,24 @@ export type Company = {
   employees: number
   status: 'Active' | 'Suspended' | 'Draft'
   tier: 'Basic' | 'Standard' | 'Enterprise'
-  group?: string
+  portfolioId: string | null
+  groupId: string | null
+  group?: string // display label (group name), kept for convenience
+}
+
+export type Portfolio = {
+  id: string
+  code: string
+  name: string
+  manager: string
+  companyIds: string[]
+}
+
+export type Group = {
+  id: string
+  name: string
+  type: 'Holding' | 'Sister' | 'Joint Venture'
+  companyIds: string[]
 }
 
 export type Department = {
@@ -139,17 +156,32 @@ export type CustomField = {
 
 /* ----------------------------------------------------------------- Companies */
 export const companies: Company[] = [
-  { id: 'c1', code: 'COMP-2026-0042', name: 'Acme Foods', initials: 'AF', color: 'bg-indigo-500', jurisdiction: 'India · Maharashtra', employees: 312, status: 'Active', tier: 'Enterprise', group: 'Acme Group' },
-  { id: 'c2', code: 'COMP-2026-0043', name: 'Bright Tech', initials: 'BT', color: 'bg-emerald-500', jurisdiction: 'India · Karnataka', employees: 148, status: 'Active', tier: 'Standard' },
-  { id: 'c3', code: 'COMP-2026-0051', name: 'Gamma Retail', initials: 'GR', color: 'bg-rose-500', jurisdiction: 'India · Delhi', employees: 96, status: 'Active', tier: 'Standard', group: 'Acme Group' },
-  { id: 'c4', code: 'COMP-2026-0058', name: 'Delta Logistics', initials: 'DL', color: 'bg-amber-500', jurisdiction: 'India · Tamil Nadu', employees: 54, status: 'Suspended', tier: 'Basic' },
-  { id: 'c5', code: 'COMP-2026-0061', name: 'Orbit Media', initials: 'OM', color: 'bg-sky-500', jurisdiction: 'India · Telangana', employees: 27, status: 'Draft', tier: 'Basic' },
+  { id: 'c1', code: 'COMP-2026-0042', name: 'Acme Foods', initials: 'AF', color: 'bg-indigo-500', jurisdiction: 'India · Maharashtra', employees: 312, status: 'Active', tier: 'Enterprise', portfolioId: 'pf1', groupId: 'g1', group: 'Acme Group' },
+  { id: 'c2', code: 'COMP-2026-0043', name: 'Bright Tech', initials: 'BT', color: 'bg-emerald-500', jurisdiction: 'India · Karnataka', employees: 148, status: 'Active', tier: 'Standard', portfolioId: 'pf1', groupId: null },
+  { id: 'c3', code: 'COMP-2026-0051', name: 'Gamma Retail', initials: 'GR', color: 'bg-rose-500', jurisdiction: 'India · Delhi', employees: 96, status: 'Active', tier: 'Standard', portfolioId: 'pf1', groupId: 'g1', group: 'Acme Group' },
+  { id: 'c4', code: 'COMP-2026-0058', name: 'Delta Logistics', initials: 'DL', color: 'bg-amber-500', jurisdiction: 'India · Tamil Nadu', employees: 54, status: 'Suspended', tier: 'Basic', portfolioId: 'pf2', groupId: null },
+  { id: 'c5', code: 'COMP-2026-0061', name: 'Orbit Media', initials: 'OM', color: 'bg-sky-500', jurisdiction: 'India · Telangana', employees: 27, status: 'Draft', tier: 'Basic', portfolioId: 'pf2', groupId: 'g2', group: 'Orbit Group' },
+  { id: 'c6', code: 'COMP-2026-0064', name: 'Nimbus Cloud', initials: 'NC', color: 'bg-violet-500', jurisdiction: 'India · Karnataka', employees: 73, status: 'Active', tier: 'Standard', portfolioId: 'pf2', groupId: 'g2', group: 'Orbit Group' },
+  { id: 'c7', code: 'COMP-2026-0070', name: 'Vertex Pharma', initials: 'VP', color: 'bg-teal-500', jurisdiction: 'India · Gujarat', employees: 205, status: 'Active', tier: 'Enterprise', portfolioId: null, groupId: null },
 ]
+
+/* ----------------------------------------------------------------- Portfolios & Groups */
+export const portfolios: Portfolio[] = [
+  { id: 'pf1', code: 'PORT-2026-015', name: 'Global Shared Services', manager: 'John Mathew', companyIds: ['c1', 'c2', 'c3'] },
+  { id: 'pf2', code: 'PORT-2026-021', name: 'Asia-Pacific Operations', manager: 'Lim Wei', companyIds: ['c4', 'c5', 'c6'] },
+]
+export const groups: Group[] = [
+  { id: 'g1', name: 'Acme Group', type: 'Holding', companyIds: ['c1', 'c3'] },
+  { id: 'g2', name: 'Orbit Group', type: 'Sister', companyIds: ['c5', 'c6'] },
+]
+export const getPortfolio = (id: string | null) => portfolios.find((p) => p.id === id) ?? null
+export const getGroup = (id: string | null) => groups.find((g) => g.id === id) ?? null
 
 /* ----------------------------------------------------------------- Personas (login-as) */
 export const personas: Persona[] = [
   { id: 'p1', name: 'Anita Rao', role: 'provider_admin', title: 'Platform Operations', blurb: 'Runs the whole platform; provisions new companies.', companyIds: [] },
-  { id: 'p2', name: 'John Mathew', role: 'portfolio_manager', title: 'Shared Services Lead', blurb: 'Runs HR for several companies from one login.', companyIds: ['c1', 'c2', 'c3'] },
+  { id: 'p2', name: 'John Mathew', role: 'portfolio_manager', title: 'Lead · Global Shared Services', blurb: 'Runs HR for the Global portfolio (Acme, Bright Tech, Gamma).', companyIds: ['c1', 'c2', 'c3'] },
+  { id: 'p6', name: 'Lim Wei', role: 'portfolio_manager', title: 'Lead · Asia-Pacific Operations', blurb: 'Runs HR for the APAC portfolio (Delta, Orbit, Nimbus).', companyIds: ['c4', 'c5', 'c6'] },
   { id: 'p3', name: 'Priya Sharma', role: 'company_hr_admin', title: 'HR Manager · Acme Foods', blurb: 'Owns people, policies & reports for one company.', companyIds: ['c1'] },
   { id: 'p4', name: 'Rahul Verma', role: 'people_manager', title: 'Engineering Lead · Acme Foods', blurb: 'Leads a team; approves their requests.', companyIds: ['c1'] },
   { id: 'p5', name: 'Meera Iyer', role: 'employee', title: 'Senior Analyst · Acme Foods', blurb: 'Uses simple self-service every day.', companyIds: ['c1'] },

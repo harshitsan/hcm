@@ -8,9 +8,8 @@ import {
   ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
 import { useApp } from '../app/store'
-import {
-  savedReports, headcountByDept, headcountTrend, leaveByMonth, attendanceMix,
-} from '../data/mock'
+import { savedReports } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState,
   PageHeader, Segmented, StatCard, useToast,
@@ -59,6 +58,7 @@ function ChartCard({
 }
 
 export default function Reports() {
+  const { headcountByDept, headcountTrend, leaveByMonth, attendanceMix } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const isEmployee = role === 'employee'

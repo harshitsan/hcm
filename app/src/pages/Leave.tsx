@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, Check, Plus, X, CalendarRange, Inbox } from 'lucide-react'
 import { useApp } from '../app/store'
-import { leaveBalances, leaveRequests, type LeaveRequest } from '../data/mock'
+import { type LeaveRequest } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, Input,
   Modal, PageHeader, ProgressBar, Select, Table, Td, Th, Tr, Textarea, Tabs, useToast,
@@ -34,6 +35,7 @@ const fmtShort = (iso: string) =>
   new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
 export default function Leave() {
+  const { leaveBalances, leaveRequests } = useCompanyData()
   const { role } = useApp()
   const { push } = useToast()
   const isEmployee = role === 'employee'

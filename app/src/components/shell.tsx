@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../app/store'
 import { navForRole } from '../app/nav'
-import { ROLE_LABELS } from '../data/mock'
+import { ROLE_LABELS, portfolios, type Company } from '../data/mock'
 import { Avatar, Badge, Button, Tooltip, useToast } from './ui'
 import { cn } from '../lib/cn'
 
@@ -18,6 +18,34 @@ function CompanySwitcher() {
   const { company, authorizedCompanies, setCompanyId } = useApp()
   const { push } = useToast()
   const [open, setOpen] = useState(false)
+
+  const renderCompany = (c: Company) => (
+    <button
+      key={c.id}
+      onClick={() => {
+        setCompanyId(c.id)
+        setOpen(false)
+        if (c.id !== company.id) push({ title: `Switched to ${c.name}`, tone: 'primary' })
+      }}
+      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted cursor-pointer"
+    >
+      <span className={cn('flex h-7 w-7 items-center justify-center rounded-md text-2xs font-bold text-white', c.color)}>
+        {c.initials}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold">{c.name}</span>
+        <span className="block truncate text-2xs text-muted-fg">{c.jurisdiction}</span>
+      </span>
+      {c.id === company.id && <Check className="h-4 w-4 text-primary" />}
+    </button>
+  )
+
+  // group the authorized companies by portfolio (and a Standalone bucket)
+  const pfGroups = [
+    ...portfolios.map((pf) => ({ name: pf.name, items: authorizedCompanies.filter((c) => c.portfolioId === pf.id) })),
+    { name: 'Standalone', items: authorizedCompanies.filter((c) => !c.portfolioId) },
+  ].filter((g) => g.items.length > 0)
+
   return (
     <div className="relative">
       <button
@@ -36,27 +64,12 @@ function CompanySwitcher() {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 right-0 z-40 mt-1.5 rounded-xl border border-border bg-surface p-1.5 shadow-pop animate-scale-in">
-            <p className="px-2.5 py-1.5 text-2xs font-bold uppercase tracking-wide text-muted-fg">Switch company</p>
-            {authorizedCompanies.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => {
-                  setCompanyId(c.id)
-                  setOpen(false)
-                  if (c.id !== company.id) push({ title: `Switched to ${c.name}`, tone: 'primary' })
-                }}
-                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted cursor-pointer"
-              >
-                <span className={cn('flex h-7 w-7 items-center justify-center rounded-md text-2xs font-bold text-white', c.color)}>
-                  {c.initials}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{c.name}</span>
-                  <span className="block truncate text-2xs text-muted-fg">{c.jurisdiction}</span>
-                </span>
-                {c.id === company.id && <Check className="h-4 w-4 text-primary" />}
-              </button>
+          <div className="absolute left-0 right-0 z-40 mt-1.5 max-h-[70vh] overflow-y-auto rounded-xl border border-border bg-surface p-1.5 shadow-pop animate-scale-in">
+            {pfGroups.map((g) => (
+              <div key={g.name} className="mb-1 last:mb-0">
+                <p className="px-2.5 pt-1.5 pb-1 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">{g.name}</p>
+                {g.items.map(renderCompany)}
+              </div>
             ))}
           </div>
         </>
@@ -67,7 +80,7 @@ function CompanySwitcher() {
 
 /* --------------------------------------------------- Sidebar */
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
-  const { role } = useApp()
+  const { role, persona, logout } = useApp()
   const groups = navForRole(role)
   return (
     <div className="flex h-full flex-col">
@@ -108,6 +121,22 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </nav>
+      <div className="border-t border-border p-3">
+        <button
+          onClick={() => {
+            logout()
+            onNavigate?.()
+          }}
+          className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted cursor-pointer"
+        >
+          <Avatar name={persona?.name ?? '?'} size="sm" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[13px] font-bold text-fg">{persona?.name}</span>
+            <span className="block truncate text-2xs text-muted-fg">Switch persona</span>
+          </span>
+          <UserCog className="h-4 w-4 text-muted-fg" />
+        </button>
+      </div>
     </div>
   )
 }
@@ -187,6 +216,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 
 /* --------------------------------------------------- App shell */
 export function AppShell() {
+  const { company } = useApp()
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   // close mobile drawer on route change
@@ -219,7 +249,10 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenu={() => setMobileOpen(true)} />
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <Outlet />
+          {/* Remount the page on company switch so per-company state & seeds refresh */}
+          <div key={company.id}>
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

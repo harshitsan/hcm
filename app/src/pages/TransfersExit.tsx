@@ -4,7 +4,7 @@ import {
   CheckCircle2, Circle, AlertTriangle, CalendarClock, Info,
 } from 'lucide-react'
 import { useApp } from '../app/store'
-import { departments, employees } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, Field, Input, Modal,
   PageHeader, Select, Table, Tabs, Td, Th, Tr, Avatar, useToast,
@@ -52,10 +52,10 @@ const statusTone: Record<TransferStatus, 'warning' | 'info' | 'success'> = {
   Pending: 'warning', Approved: 'info', Effective: 'success',
 }
 
-const deptNames = departments.map((d) => d.name)
-
 export default function TransfersExit() {
+  const { departments, employees } = useCompanyData()
   const { role, company } = useApp()
+  const deptNames = departments.map((d) => d.name)
   const { push } = useToast()
   const isEmployee = role === 'employee'
 

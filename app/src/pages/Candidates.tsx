@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users2, Plus, Star, ArrowRight, Briefcase, Search } from 'lucide-react'
 import { useApp } from '../app/store'
-import { candidates as candidateSeed, requisitions, type Candidate } from '../data/mock'
+import { type Candidate } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Avatar, Badge, Button, Input, PageHeader, StatCard, useToast,
 } from '../components/ui'
@@ -45,6 +46,7 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export default function Candidates() {
+  const { candidates: candidateSeed, requisitions } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()

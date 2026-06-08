@@ -3,8 +3,8 @@ import {
   UserPlus, Check, Clock, CircleDot, Circle, Building2, CalendarDays, MapPin, ListChecks,
 } from 'lucide-react'
 import { useApp } from '../app/store'
+import { useCompanyData } from '../data/companyData'
 import {
-  getEmployee, employees, onboardingTasks, getDepartment,
   type OnboardingTask, type Employee,
 } from '../data/mock'
 import {
@@ -35,6 +35,7 @@ function formatJoin(iso: string): string {
 }
 
 export default function Onboarding() {
+  const { getEmployee, employees, onboardingTasks, getDepartment } = useCompanyData()
   const { role } = useApp()
   const { push } = useToast()
   const readOnly = role === 'employee'

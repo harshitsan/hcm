@@ -4,7 +4,8 @@ import {
   AlertTriangle, ArrowDownToLine, Lock, Sparkles, User, Loader2,
 } from 'lucide-react'
 import { useApp } from '../app/store'
-import { workflowTemplates, approverRoles, departments } from '../data/mock'
+import { workflowTemplates, approverRoles } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, Field, PageHeader,
   Segmented, Select, Stepper, Switch, useToast,
@@ -42,6 +43,7 @@ function prefersReduced(): boolean {
 }
 
 export default function WorkflowBuilder() {
+  const { departments } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const readOnly = role === 'employee' || role === 'people_manager'

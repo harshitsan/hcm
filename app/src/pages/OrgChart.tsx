@@ -4,8 +4,8 @@ import {
   ChevronsDownUp, ChevronsUpDown, Building2, UserCog,
 } from 'lucide-react'
 import { useApp } from '../app/store'
+import { useCompanyData } from '../data/companyData'
 import {
-  employees, departments, getDepartment, getEmployee, reportsOf,
   type Employee,
 } from '../data/mock'
 import {
@@ -38,6 +38,7 @@ function OrgNode({
   query: string
   onSelect: (id: string) => void
 }) {
+  const { reportsOf, getDepartment } = useCompanyData()
   const children = reportsOf(emp.id)
   const dept = getDepartment(emp.departmentId)
   // While searching, force every branch open so matches deeper in the tree are visible.
@@ -117,6 +118,7 @@ function OrgNode({
 }
 
 export default function OrgChart() {
+  const { employees, departments, getDepartment, getEmployee, reportsOf } = useCompanyData()
   const { company, role } = useApp()
   const { push } = useToast()
   const [view, setView] = useState<View>('people')
@@ -124,14 +126,14 @@ export default function OrgChart() {
   const [query, setQuery] = useState('')
   const isEmployee = role === 'employee'
 
-  const root = useMemo(() => employees.find((e) => e.managerId === null) ?? null, [])
+  const root = useMemo(() => employees.find((e) => e.managerId === null) ?? null, [employees])
   const managerCount = useMemo(
     () => employees.filter((e) => reportsOf(e.id).length > 0).length,
-    [],
+    [employees, reportsOf],
   )
   const allManagerIds = useMemo(
     () => employees.filter((e) => reportsOf(e.id).length > 0).map((e) => e.id),
-    [],
+    [employees, reportsOf],
   )
 
   const toggle = (id: string) =>

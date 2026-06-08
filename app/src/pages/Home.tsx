@@ -6,8 +6,9 @@ import {
 import { Area, AreaChart, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
 import { useApp } from '../app/store'
 import {
-  inbox as inboxSeed, leaveBalances, headcountTrend, policies, type InboxItem,
+  type InboxItem,
 } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, PageHeader,
   ProgressBar, StatCard, useToast,
@@ -21,6 +22,7 @@ const typeTone: Record<InboxItem['type'], 'primary' | 'info' | 'accent' | 'warni
 }
 
 export default function Home() {
+  const { inbox: inboxSeed, leaveBalances, headcountTrend, policies } = useCompanyData()
   const { persona, role, company } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()

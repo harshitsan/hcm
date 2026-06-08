@@ -5,8 +5,9 @@ import {
 } from 'lucide-react'
 import { useApp } from '../app/store'
 import {
-  employees, departments, getDepartment, getEmployee, reportsOf, type Employee,
+  type Employee,
 } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Avatar, Badge, Button, Card, Drawer, EmptyState, Input, PageHeader, Segmented,
   Select, Table, Td, Th, Tr, useToast,
@@ -29,6 +30,7 @@ function formatJoin(iso: string): string {
 }
 
 export default function Directory() {
+  const { employees, departments, getDepartment, getEmployee, reportsOf } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const [view, setView] = useState<View>('list')
@@ -45,7 +47,7 @@ export default function Directory() {
       const matchesDept = dept === 'all' || e.departmentId === dept
       return matchesName && matchesDept
     })
-  }, [query, dept])
+  }, [employees, query, dept])
 
   const selected = selectedId ? getEmployee(selectedId) : null
   const manager = selected ? getEmployee(selected.managerId) : null

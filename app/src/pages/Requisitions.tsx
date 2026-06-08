@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Briefcase, Users, Building2, Plus, Search } from 'lucide-react'
 import { useApp } from '../app/store'
-import { requisitions as reqSeed, departments } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, Input,
   Modal, PageHeader, ProgressBar, Segmented, Select, StatCard, Table, Td, Th, Tr, useToast,
 } from '../components/ui'
 
-type Requisition = (typeof reqSeed)[number]
+type Requisition = ReturnType<typeof useCompanyData>['requisitions'][number]
 type StatusFilter = 'all' | 'Open' | 'On hold'
 
 const APPLICANT_TARGET = 50
@@ -19,6 +19,7 @@ const fillTone = (pct: number): 'success' | 'primary' | 'warning' =>
   pct >= 80 ? 'success' : pct >= 40 ? 'primary' : 'warning'
 
 export default function Requisitions() {
+  const { requisitions: reqSeed, departments } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const isEmployee = role === 'employee'

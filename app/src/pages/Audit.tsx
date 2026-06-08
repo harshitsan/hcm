@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import { ShieldCheck, Search, Download, ScrollText } from 'lucide-react'
 import { useApp } from '../app/store'
-import { auditLog, type AuditEntry } from '../data/mock'
+import { type AuditEntry } from '../data/mock'
+import { useCompanyData } from '../data/companyData'
 import {
   Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState,
   Input, PageHeader, Select, Table, Td, Th, Tr, useToast,
@@ -30,6 +31,7 @@ function parseTime(t: string): number {
 }
 
 export default function Audit() {
+  const { auditLog } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
   const [query, setQuery] = useState('')
@@ -39,7 +41,7 @@ export default function Audit() {
 
   const sorted = useMemo<AuditEntry[]>(
     () => [...auditLog].sort((a, b) => parseTime(b.time) - parseTime(a.time)),
-    [],
+    [auditLog],
   )
 
   const rows = useMemo(() => {
