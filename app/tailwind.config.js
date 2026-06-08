@@ -16,6 +16,8 @@ export default {
         'primary-fg': 'rgb(var(--primary-fg) / <alpha-value>)',
         accent: 'rgb(var(--accent) / <alpha-value>)',
         'accent-fg': 'rgb(var(--accent-fg) / <alpha-value>)',
+        accent2: 'rgb(var(--accent2) / <alpha-value>)',
+        'accent2-fg': 'rgb(var(--accent2-fg) / <alpha-value>)',
         success: 'rgb(var(--success) / <alpha-value>)',
         warning: 'rgb(var(--warning) / <alpha-value>)',
         danger: 'rgb(var(--danger) / <alpha-value>)',
@@ -28,11 +30,14 @@ export default {
       borderRadius: {
         lg: '0.75rem',
         xl: '1rem',
-        '2xl': '1.25rem',
+        '2xl': '1.375rem',
+        '3xl': '1.75rem',
       },
       boxShadow: {
-        card: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 1px 3px 0 rgb(15 23 42 / 0.06)',
-        pop: '0 10px 30px -10px rgb(15 23 42 / 0.25)',
+        /* soft, diffuse depth like the reference */
+        card: '0 1px 2px 0 rgb(15 23 42 / 0.03), 0 6px 16px -8px rgb(15 23 42 / 0.10)',
+        pop: '0 12px 36px -12px rgb(15 23 42 / 0.28)',
+        rail: '0 1px 2px 0 rgb(15 23 42 / 0.05)',
       },
       fontSize: {
         '2xs': ['0.6875rem', { lineHeight: '1rem' }],

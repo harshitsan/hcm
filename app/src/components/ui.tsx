@@ -27,7 +27,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger' | 
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon'
 
 const btnBase =
-  'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface disabled:opacity-50 disabled:pointer-events-none cursor-pointer whitespace-nowrap'
+  'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface disabled:opacity-50 disabled:pointer-events-none cursor-pointer whitespace-nowrap'
 
 const btnVariants: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-primary-fg hover:bg-primary/90 shadow-sm',
@@ -58,7 +58,7 @@ export function Button({
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('rounded-xl border border-border bg-surface shadow-card', className)}
+      className={cn('rounded-2xl border border-border bg-surface shadow-card', className)}
       {...props}
     />
   )
@@ -74,15 +74,16 @@ export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>
 }
 
 /* ----------------------------------------------------------------- Badge */
-type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
+type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'accent2'
 const toneClasses: Record<Tone, string> = {
   neutral: 'bg-muted text-muted-fg',
   primary: 'bg-primary/10 text-primary',
   success: 'bg-success/12 text-success',
-  warning: 'bg-warning/12 text-warning',
+  warning: 'bg-warning/15 text-warning',
   danger: 'bg-danger/12 text-danger',
   info: 'bg-info/12 text-info',
   accent: 'bg-accent/12 text-accent',
+  accent2: 'bg-accent2/15 text-accent2',
 }
 export function Badge({
   tone = 'neutral',
@@ -148,6 +149,74 @@ export function Avatar({
     >
       {initials}
     </span>
+  )
+}
+
+/* ----------------------------------------------------------------- IconButton (circular) */
+/** Circular icon button — the reference's card-header (+, share, calendar) and rail buttons. */
+type IconBtnVariant = 'outline' | 'ghost' | 'solid' | 'soft'
+export function IconButton({
+  variant = 'outline',
+  size = 'md',
+  className,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: IconBtnVariant; size?: 'sm' | 'md' | 'lg' }) {
+  const variants: Record<IconBtnVariant, string> = {
+    outline: 'border border-border bg-surface text-muted-fg hover:text-fg hover:border-muted-fg/40',
+    ghost: 'text-muted-fg hover:bg-muted hover:text-fg',
+    solid: 'bg-primary text-primary-fg hover:bg-primary/90',
+    soft: 'bg-muted text-fg hover:bg-border/70',
+  }
+  const sizes = { sm: 'h-8 w-8', md: 'h-9 w-9', lg: 'h-10 w-10' }
+  return (
+    <button
+      className={cn(
+        'inline-flex shrink-0 items-center justify-center rounded-full transition-colors cursor-pointer',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface',
+        'disabled:opacity-50 disabled:pointer-events-none',
+        variants[variant],
+        sizes[size],
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+/* ----------------------------------------------------------------- Avatar stack */
+/** Overlapping avatars + optional "+N" — the reference's journey participant cluster. */
+export function AvatarStack({
+  names,
+  max = 5,
+  size = 'sm',
+  className,
+}: {
+  names: string[]
+  max?: number
+  size?: 'xs' | 'sm' | 'md'
+  className?: string
+}) {
+  const shown = names.slice(0, max)
+  const extra = names.length - shown.length
+  const ring = 'ring-2 ring-surface'
+  const overlap = { xs: '-ml-2', sm: '-ml-2.5', md: '-ml-3' }[size]
+  const bubble = { xs: 'h-6 w-6 text-[10px]', sm: 'h-8 w-8 text-xs', md: 'h-9 w-9 text-sm' }[size]
+  return (
+    <div className={cn('flex items-center', className)}>
+      {shown.map((n, i) => (
+        <Avatar key={n + i} name={n} size={size} className={cn(ring, i > 0 && overlap)} />
+      ))}
+      {extra > 0 && (
+        <span
+          className={cn(
+            'inline-flex shrink-0 items-center justify-center rounded-full bg-muted font-bold text-muted-fg',
+            ring, overlap, bubble,
+          )}
+        >
+          +{extra}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -588,7 +657,7 @@ export function Stepper({
 export function ProgressBar({ value, tone = 'primary', className }: { value: number; tone?: Tone; className?: string }) {
   const bar: Record<Tone, string> = {
     neutral: 'bg-muted-fg', primary: 'bg-primary', success: 'bg-success',
-    warning: 'bg-warning', danger: 'bg-danger', info: 'bg-info', accent: 'bg-accent',
+    warning: 'bg-warning', danger: 'bg-danger', info: 'bg-info', accent: 'bg-accent', accent2: 'bg-accent2',
   }
   return (
     <div className={cn('h-2 w-full overflow-hidden rounded-full bg-muted', className)}>

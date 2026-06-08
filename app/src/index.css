@@ -3,52 +3,63 @@
 @tailwind utilities;
 
 /* ============================================================
-   SatelliteHR design tokens — calm enterprise SaaS
-   Light-first, with full dark mode. Values are "R G B" channels
-   so Tailwind alpha utilities (e.g. bg-primary/10) work.
+   SatelliteHR design tokens — v2 "Orbit" system.
+   Inspired by the reference dashboard: light, airy canvas with a
+   soft gradient, near-black INK primary, blue + coral accents,
+   very rounded soft-shadow cards, pill controls.
+   Values are "R G B" channels so Tailwind alpha utilities work
+   (e.g. bg-primary/10, text-accent/80).
    ============================================================ */
 :root {
-  --bg: 248 250 252;          /* slate-50  */
-  --surface: 255 255 255;      /* white     */
-  --surface-2: 248 250 252;    /* slate-50  */
-  --fg: 15 23 42;              /* slate-900 */
-  --muted: 241 245 249;        /* slate-100 */
-  --muted-fg: 100 116 139;     /* slate-500 */
-  --border: 226 232 240;       /* slate-200 */
+  --bg: 237 240 246;           /* cool light canvas */
+  --grad-a: 230 235 244;       /* gradient top (slightly blue-gray) */
+  --grad-b: 244 246 250;       /* gradient bottom (lighter) */
+  --surface: 255 255 255;       /* card white */
+  --surface-2: 244 246 250;     /* subtle panel */
+  --fg: 17 19 24;              /* near-black ink */
+  --muted: 240 242 247;         /* hairline fills */
+  --muted-fg: 122 132 146;      /* secondary text */
+  --border: 228 231 237;        /* hairline border */
 
-  --primary: 79 70 229;        /* indigo-600 */
+  --primary: 17 18 22;          /* INK — black pill nav, primary CTAs */
   --primary-fg: 255 255 255;
-  --accent: 16 185 129;        /* emerald-500 */
+  --accent: 59 111 246;         /* signal blue — info, links, charts */
   --accent-fg: 255 255 255;
+  --accent2: 240 103 92;        /* coral — active/alert highlight */
+  --accent2-fg: 255 255 255;
 
-  --success: 22 163 74;        /* green-600  */
-  --warning: 217 119 6;        /* amber-600  */
-  --danger: 220 38 38;         /* red-600    */
-  --info: 37 99 235;           /* blue-600   */
-  --ring: 99 102 241;          /* indigo-500 */
+  --success: 34 167 110;        /* green  */
+  --warning: 230 158 46;        /* amber  */
+  --danger: 236 106 94;         /* coral-red */
+  --info: 59 111 246;           /* blue   */
+  --ring: 59 111 246;           /* focus  */
 
   color-scheme: light;
 }
 
 .dark {
-  --bg: 2 6 23;               /* slate-950 */
-  --surface: 15 23 42;         /* slate-900 */
-  --surface-2: 30 41 59;       /* slate-800 */
-  --fg: 248 250 252;           /* slate-50  */
-  --muted: 30 41 59;           /* slate-800 */
-  --muted-fg: 148 163 184;     /* slate-400 */
-  --border: 51 65 85;          /* slate-700 */
+  --bg: 13 15 19;
+  --grad-a: 14 16 21;
+  --grad-b: 18 20 26;
+  --surface: 22 24 30;
+  --surface-2: 29 32 39;
+  --fg: 240 242 247;
+  --muted: 31 34 42;
+  --muted-fg: 148 156 169;
+  --border: 42 46 56;
 
-  --primary: 129 140 248;      /* indigo-400 */
-  --primary-fg: 15 23 42;
-  --accent: 52 211 153;        /* emerald-400 */
-  --accent-fg: 6 25 19;
+  --primary: 237 239 245;       /* inverted: light pill on dark */
+  --primary-fg: 17 19 24;
+  --accent: 96 144 255;
+  --accent-fg: 14 16 21;
+  --accent2: 244 124 113;
+  --accent2-fg: 20 12 11;
 
-  --success: 74 222 128;
-  --warning: 251 191 36;
-  --danger: 248 113 113;
-  --info: 96 165 250;
-  --ring: 129 140 248;
+  --success: 64 200 140;
+  --warning: 245 184 70;
+  --danger: 244 124 113;
+  --info: 96 144 255;
+  --ring: 96 144 255;
 
   color-scheme: dark;
 }
@@ -65,6 +76,8 @@ body {
   margin: 0;
   min-height: 100dvh;
   background-color: rgb(var(--bg));
+  background-image: linear-gradient(180deg, rgb(var(--grad-a)), rgb(var(--grad-b)));
+  background-attachment: fixed;
   color: rgb(var(--fg));
   font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -75,7 +88,7 @@ body {
 :focus-visible {
   outline: 2px solid rgb(var(--ring));
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 /* Thin, unobtrusive scrollbars */
