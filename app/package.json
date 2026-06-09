@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "shots": "node scripts/screenshot-roles.mjs",
     "shots:platform-admin": "node scripts/screenshot-platform-admin.mjs"
   },
   "dependencies": {

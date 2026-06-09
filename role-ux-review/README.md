@@ -3,16 +3,21 @@
 Full-page screenshots of every screen a role can reach, for design/UX review.
 Generated with Playwright against the running app (mock data, no backend).
 
-## platform-admin/
-The **Platform / Provider Admin console** (persona Anita Rao · `p1`, *platform
-scope*) — 10 screens, 1440×900 @2x, light theme, numbered in sidebar order
-(`01-home.png` … `10-notifications.png`): Platform Home, Portfolio, Companies,
-Company Setup, Org & Master Data, Roles & Security, Import/Export, Audit Log,
-Profile, Notifications.
+One folder per role, each capturing that role's actual nav-scoped screens
+(1440×900 @2x, light), numbered in sidebar order. Generated with
+`npm run shots` (or `ROLE=<slug> npm run shots`).
 
-Company-operational screens (leave, hiring, ESS, directory, …) are **not** part
-of the platform console — the admin reaches them by **opening a company** (which
-switches to company scope and reveals that tenant's operational nav).
+| Folder | Persona | Scope | Screens |
+|--------|---------|-------|---------|
+| `platform-admin/` | Anita Rao (`p1`) | platform console | 11 |
+| `portfolio-manager/` | OpsMaven (`p2`) | platform/portfolio console | 11 |
+| `hr-admin/` | Priya Sharma (`p3`) | company (full HR app) | 28 |
+| `people-manager/` | Rahul Verma (`p4`) | company (team subset) | 17 |
+| `employee/` | Meera Iyer (`p5`) | company (self-service) | 13 |
+
+Platform roles land on the **platform console**; company-operational screens
+appear after **opening a company** (company scope). `screenshot-platform-admin.mjs`
+remains for the platform set alone; `screenshot-roles.mjs` does all roles.
 
 ## Regenerate
 
