@@ -31,6 +31,7 @@ import Companies from './pages/Companies'
 import CompanySetup from './pages/CompanySetup'
 import OrgData from './pages/OrgData'
 import WorkflowBuilder from './pages/WorkflowBuilder'
+import AutoOps from './pages/AutoOps'
 import Roles from './pages/Roles'
 import CustomFields from './pages/CustomFields'
 import DataPorting from './pages/DataPorting'
@@ -90,6 +91,7 @@ export default function App() {
         <Route path="/admin/shared-policies" element={<SharedPolicies />} />
         <Route path="/admin/org-data" element={<OrgData />} />
         <Route path="/admin/workflow-builder" element={<WorkflowBuilder />} />
+        <Route path="/admin/auto-ops" element={<AutoOps />} />
         <Route path="/admin/roles" element={<Roles />} />
         <Route path="/admin/custom-fields" element={<CustomFields />} />
         <Route path="/admin/data" element={<DataPorting />} />

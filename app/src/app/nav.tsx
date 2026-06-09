@@ -8,7 +8,7 @@ import {
   Briefcase, ClipboardCheck, ArrowLeftRight, FileText, FolderClosed,
   BarChart3, Building2, GitBranch, ShieldCheck, SlidersHorizontal,
   ScrollText, UserCircle, Bell, Megaphone, MessageSquare, Package,
-  FileSignature, LayoutGrid, ClipboardList, Target, FolderTree, Database,
+  FileSignature, LayoutGrid, ClipboardList, Target, FolderTree, Database, Cpu,
   type LucideIcon,
 } from 'lucide-react'
 import type { Role } from '../data/mock'
@@ -101,6 +101,7 @@ export const navConfig: NavGroup[] = [
       { label: 'Company Setup', path: '/admin/company-setup', icon: SlidersHorizontal, roles: PORTFOLIO },
       { label: 'Org & Master Data', path: '/admin/org-data', icon: FolderTree, roles: HRPLUS },
       { label: 'Workflow Builder', path: '/admin/workflow-builder', icon: GitBranch, roles: HRPLUS },
+      { label: 'Auto-Operations', path: '/admin/auto-ops', icon: Cpu, roles: HRPLUS },
       { label: 'Roles & Security', path: '/admin/roles', icon: ShieldCheck, roles: HRPLUS },
       { label: 'Custom Fields', path: '/admin/custom-fields', icon: SlidersHorizontal, roles: HRPLUS },
       { label: 'Import / Export', path: '/admin/data', icon: Database, roles: ADMINS },
