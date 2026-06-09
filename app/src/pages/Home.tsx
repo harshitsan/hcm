@@ -10,7 +10,7 @@ import {
 } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
 import {
-  Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, PageHeader,
+  Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, PageHeader,
   ProgressBar, StatCard, useToast,
 } from '../components/ui'
 
@@ -90,7 +90,8 @@ export default function Home() {
               <ul className="divide-y divide-border">
                 {items.map((it) => (
                   <li key={it.id} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
-                    <Badge tone={typeTone[it.type]}>{it.type}</Badge>
+                    <span className="hidden w-24 shrink-0 sm:block"><Badge tone={typeTone[it.type]}>{it.type}</Badge></span>
+                    <Avatar name={it.requester} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{it.title}</p>
                       <p className="truncate text-xs text-muted-fg">
