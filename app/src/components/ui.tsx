@@ -77,13 +77,13 @@ export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>
 type Tone = 'neutral' | 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'accent2'
 const toneClasses: Record<Tone, string> = {
   neutral: 'bg-muted text-muted-fg',
-  primary: 'bg-primary/10 text-primary',
-  success: 'bg-success/12 text-success',
+  primary: 'bg-primary/12 text-primary',
+  success: 'bg-success/15 text-success',
   warning: 'bg-warning/15 text-warning',
-  danger: 'bg-danger/12 text-danger',
-  info: 'bg-info/12 text-info',
-  accent: 'bg-accent/12 text-accent',
-  accent2: 'bg-accent2/15 text-accent2',
+  danger: 'bg-danger/15 text-danger',
+  info: 'bg-info/15 text-info',
+  accent: 'bg-accent/15 text-accent',
+  accent2: 'bg-accent2/18 text-accent2',
 }
 export function Badge({
   tone = 'neutral',
