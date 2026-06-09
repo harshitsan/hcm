@@ -8,13 +8,13 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Check, CheckCheck, ChevronsUpDown, Menu, Moon, Sun, Search, Bell, LogOut, X,
+  Check, CheckCheck, ChevronsUpDown, ChevronLeft, Menu, Moon, Sun, Search, Bell, LogOut, X,
   Building2, Plus, LifeBuoy, CalendarPlus, MessageSquare, Megaphone, Briefcase, FileSignature,
-  BarChart3, UserPlus, UserCircle, type LucideIcon,
+  BarChart3, UserPlus, UserCircle, LayoutGrid, FolderTree, Database, type LucideIcon,
 } from 'lucide-react'
 import { useApp } from '../app/store'
 import { useNotifications } from '../app/notifications'
-import { navForRole, type NavGroup } from '../app/nav'
+import { navFor, type NavGroup } from '../app/nav'
 import { ROLE_LABELS, portfolios, type Company } from '../data/mock'
 import { Avatar, Badge, Button, IconButton, Input, Modal, Tooltip, useToast } from './ui'
 import { cn } from '../lib/cn'
@@ -83,14 +83,38 @@ function CompanySwitcher() {
 
 /* --------------------------------------------------- sidebar */
 function SidebarContent({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
-  const { theme, toggleTheme, logout, persona } = useApp()
+  const { theme, toggleTheme, logout, persona, role, scope, exitToPlatform } = useApp()
+  const navigate = useNavigate()
+  const platformRole = role === 'provider_admin' || role === 'portfolio_manager'
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 px-4 py-4">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-primary-fg"><Building2 className="h-4 w-4" /></span>
         <span className="text-[15px] font-extrabold tracking-tight">SatelliteHR</span>
       </div>
-      <div className="px-3 pb-3"><CompanySwitcher /></div>
+      <div className="px-3 pb-3">
+        {scope === 'platform' ? (
+          <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface2/60 px-2.5 py-2">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/12 text-primary"><LayoutGrid className="h-4 w-4" /></span>
+            <span className="min-w-0">
+              <span className="block text-[13px] font-bold leading-tight">Platform console</span>
+              <span className="block truncate text-2xs text-muted-fg">{role ? ROLE_LABELS[role] : ''}</span>
+            </span>
+          </div>
+        ) : (
+          <>
+            {platformRole && (
+              <button
+                onClick={() => { exitToPlatform(); onNavigate?.(); navigate('/') }}
+                className="mb-2 flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-2xs font-bold uppercase tracking-wide text-accent transition-colors hover:bg-accent/10 cursor-pointer"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" /> Platform console
+              </button>
+            )}
+            <CompanySwitcher />
+          </>
+        )}
+      </div>
       <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-6">
         {groups.map((g) => (
           <div key={g.group}>
@@ -195,10 +219,16 @@ function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 /* --------------------------------------------------- create menu (top bar) */
 function CreateMenu() {
-  const { role } = useApp()
+  const { role, scope } = useApp()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
-  const items: MenuItem[] = role === 'employee'
+  const items: MenuItem[] = scope === 'platform'
+    ? [
+        { label: 'Create company', icon: Building2, onClick: () => navigate('/admin/companies') },
+        { label: 'Company setup', icon: FolderTree, onClick: () => navigate('/admin/company-setup') },
+        { label: 'Import data', icon: Database, onClick: () => navigate('/admin/data') },
+      ]
+    : role === 'employee'
     ? [
         { label: 'Request leave', icon: CalendarPlus, onClick: () => navigate('/time/leave') },
         { label: 'Raise feedback', icon: MessageSquare, onClick: () => navigate('/comms/feedback') },
@@ -337,8 +367,8 @@ function TopBar({ onMenu, onSearch, onHelp }: { onMenu: () => void; onSearch: ()
 
 /* --------------------------------------------------- app shell */
 export function AppShell() {
-  const { role, company } = useApp()
-  const groups = navForRole(role)
+  const { role, company, scope } = useApp()
+  const groups = navFor(role, scope)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)

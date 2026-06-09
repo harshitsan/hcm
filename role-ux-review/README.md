@@ -4,9 +4,15 @@ Full-page screenshots of every screen a role can reach, for design/UX review.
 Generated with Playwright against the running app (mock data, no backend).
 
 ## platform-admin/
-All **30** screens visible to the **Platform / Provider Admin** persona
-(Anita Rao · `p1`), captured at 1440×900 @2x, light theme. Files are numbered in
-sidebar order (`01-home.png` … `30-audit.png`).
+The **Platform / Provider Admin console** (persona Anita Rao · `p1`, *platform
+scope*) — 10 screens, 1440×900 @2x, light theme, numbered in sidebar order
+(`01-home.png` … `10-notifications.png`): Platform Home, Portfolio, Companies,
+Company Setup, Org & Master Data, Roles & Security, Import/Export, Audit Log,
+Profile, Notifications.
+
+Company-operational screens (leave, hiring, ESS, directory, …) are **not** part
+of the platform console — the admin reaches them by **opening a company** (which
+switches to company scope and reveals that tenant's operational nav).
 
 ## Regenerate
 

@@ -29,38 +29,20 @@ const OUT = path.resolve(__dirname, '../../role-ux-review/platform-admin')
 const PERSONA = 'p1' // Anita Rao — Platform / Provider Admin
 const COMPANY = 'c1' // start context: Kensium Pvt Ltd
 
-// name → route. Every route a Platform Admin can reach (see app/src/App.tsx).
+// The PLATFORM CONSOLE surface (platform scope). Company-operational screens
+// (leave, hiring, ESS, …) are reached by OPENING a company, so they are not part
+// of the platform-admin review set.
 const ROUTES = [
-  ['home', '/'],
+  ['home', '/'], // Platform Home (console)
   ['portfolio', '/portfolio'],
-  ['profile', '/me/profile'],
-  ['notifications', '/me/notifications'],
-  ['directory', '/people/directory'],
-  ['org-chart', '/people/org-chart'],
-  ['employees', '/people/employees'],
-  ['assets', '/people/assets'],
-  ['letters', '/people/letters'],
-  ['leave', '/time/leave'],
-  ['attendance', '/time/attendance'],
-  ['requisitions', '/hiring/requisitions'],
-  ['candidates', '/hiring/candidates'],
-  ['interviews', '/hiring/interviews'],
-  ['onboarding', '/lifecycle/onboarding'],
-  ['performance', '/lifecycle/performance'],
-  ['transfers-exit', '/lifecycle/transfers-exit'],
-  ['announcements', '/comms/announcements'],
-  ['feedback', '/comms/feedback'],
-  ['policies', '/policies'],
-  ['documents', '/documents'],
-  ['reports', '/reports'],
   ['companies', '/admin/companies'],
   ['company-setup', '/admin/company-setup'],
   ['org-data', '/admin/org-data'],
-  ['workflow-builder', '/admin/workflow-builder'],
   ['roles', '/admin/roles'],
-  ['custom-fields', '/admin/custom-fields'],
-  ['data-import-export', '/admin/data'],
+  ['import-export', '/admin/data'],
   ['audit', '/admin/audit'],
+  ['profile', '/me/profile'],
+  ['notifications', '/me/notifications'],
 ]
 
 async function run() {
@@ -79,6 +61,7 @@ async function run() {
       localStorage.setItem('shr.persona', persona)
       localStorage.setItem('shr.company', company)
       localStorage.setItem('shr.theme', theme)
+      localStorage.setItem('shr.scope', 'platform') // platform console, not a company
     },
     [PERSONA, COMPANY, THEME],
   )

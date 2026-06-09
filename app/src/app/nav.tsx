@@ -112,3 +112,46 @@ export function navForRole(role: Role | null): NavGroup[] {
     .map((g) => ({ ...g, items: g.items.filter((i) => i.roles.includes(role)) }))
     .filter((g) => g.items.length > 0)
 }
+
+/* ---- Platform console nav (provider/portfolio at platform scope) ----
+ * The provider/portfolio "landlord" surface: tenants, governance, account.
+ * Company-operational screens (leave, hiring, ESS, …) are intentionally absent
+ * here — they appear only after you OPEN a company (company scope). */
+export const platformNav: NavGroup[] = [
+  {
+    group: 'Overview',
+    items: [
+      { label: 'Platform Home', path: '/', icon: LayoutDashboard, roles: PORTFOLIO },
+      { label: 'Portfolio', path: '/portfolio', icon: LayoutGrid, roles: PORTFOLIO },
+      { label: 'Companies', path: '/admin/companies', icon: Building2, roles: PORTFOLIO },
+      { label: 'Company Setup', path: '/admin/company-setup', icon: SlidersHorizontal, roles: PORTFOLIO },
+    ],
+  },
+  {
+    group: 'Governance',
+    items: [
+      { label: 'Org & Master Data', path: '/admin/org-data', icon: FolderTree, roles: PORTFOLIO },
+      { label: 'Roles & Security', path: '/admin/roles', icon: ShieldCheck, roles: PORTFOLIO },
+      { label: 'Import / Export', path: '/admin/data', icon: Database, roles: PORTFOLIO },
+      { label: 'Audit Log', path: '/admin/audit', icon: ScrollText, roles: PORTFOLIO },
+    ],
+  },
+  {
+    group: 'My Space',
+    items: [
+      { label: 'My Profile', path: '/me/profile', icon: UserCircle, roles: PORTFOLIO },
+      { label: 'Notifications', path: '/me/notifications', icon: Bell, roles: PORTFOLIO },
+    ],
+  },
+]
+
+/** Scope-aware nav: platform console for provider/portfolio at platform scope,
+ *  otherwise the company-operational nav for the role. */
+export function navFor(role: Role | null, scope: 'platform' | 'company'): NavGroup[] {
+  if (scope === 'platform' && (role === 'provider_admin' || role === 'portfolio_manager')) {
+    return platformNav
+      .map((g) => ({ ...g, items: g.items.filter((i) => i.roles.includes(role)) }))
+      .filter((g) => g.items.length > 0)
+  }
+  return navForRole(role)
+}

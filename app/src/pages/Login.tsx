@@ -59,7 +59,7 @@ function PersonNode({ id, tierBadge, size = 'md', onClick }: { id: string; tierB
 }
 
 export default function Login() {
-  const { loginAs, setCompanyId } = useApp()
+  const { loginAs, enterCompany: enterCompanyScope } = useApp()
   const navigate = useNavigate()
   const [openPf, setOpenPf] = useState<Record<string, boolean>>({ pf1: true, pf2: false })
   const [openCo, setOpenCo] = useState<Record<string, boolean>>({ c1: true })
@@ -67,7 +67,7 @@ export default function Login() {
   const loginPersona = (id: string) => { loginAs(id); navigate('/') }
   const enterCompany = (c: Company) => {
     loginAs(c.portfolioId ? MANAGER_OF[c.portfolioId] : 'p1')
-    setCompanyId(c.id)
+    enterCompanyScope(c.id)
     navigate('/')
   }
 

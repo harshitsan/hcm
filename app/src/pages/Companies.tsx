@@ -33,7 +33,7 @@ function lifecycleStep(status: Company['status']): number {
 }
 
 export default function Companies() {
-  const { authorizedCompanies, setCompanyId, company: current } = useApp()
+  const { authorizedCompanies, enterCompany, company: current } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()
 
@@ -68,8 +68,8 @@ export default function Companies() {
   const groupName = (id: string | null) => groups.find((g) => g.id === id)?.name
 
   const openCompany = (c: Company) => {
-    setCompanyId(c.id)
-    push({ title: `Now viewing ${c.name}`, tone: 'primary' })
+    enterCompany(c.id)
+    push({ title: `Opened ${c.name}`, tone: 'primary' })
     navigate('/')
   }
 

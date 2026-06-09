@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Inbox, Users, CalendarDays, Briefcase, Check, X, Clock, ArrowRight, FileCheck2, Megaphone,
@@ -9,6 +9,7 @@ import {
   type InboxItem,
 } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
+import PlatformHome from './PlatformHome'
 import {
   Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, PageHeader,
   ProgressBar, StatCard, useToast,
@@ -24,21 +25,21 @@ const chipTone: Record<InboxItem['type'], 'accent2' | 'accent' | 'info' | 'warni
 
 export default function Home() {
   const { inbox: inboxSeed, leaveBalances, headcountTrend, policies } = useCompanyData()
-  const { persona, role, company } = useApp()
+  const { persona, role, company, scope } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()
   const [items, setItems] = useState(inboxSeed)
   const isEmployee = role === 'employee'
+
+  // Provider/portfolio at platform scope get the platform console, not the HR inbox.
+  if (scope === 'platform') return <PlatformHome />
 
   const act = (id: string, verb: 'Approved' | 'Dismissed') => {
     setItems((p) => p.filter((i) => i.id !== id))
     push({ title: `${verb}`, tone: verb === 'Approved' ? 'success' : 'neutral' })
   }
 
-  const greeting = useMemo(() => {
-    const h = 14 // fixed for the prototype
-    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
-  }, [])
+  const greeting = 'Good afternoon' // fixed for the prototype
 
   return (
     <div className="animate-fade-in">
