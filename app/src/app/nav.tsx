@@ -98,7 +98,7 @@ export const navConfig: NavGroup[] = [
       // Company provisioning is a platform/provider function (CompanySetup.tsx blocks
       // company_hr_admin). Restrict the nav entry to PORTFOLIO to match the internal gate;
       // the company-level setup screens an HR admin owns have their own entries below.
-      { label: 'Company Setup', path: '/admin/company-setup', icon: SlidersHorizontal, roles: PORTFOLIO },
+      { label: 'Add a Company', path: '/admin/company-setup', icon: SlidersHorizontal, roles: PORTFOLIO },
       { label: 'Org & Master Data', path: '/admin/org-data', icon: FolderTree, roles: HRPLUS },
       { label: 'Workflow Builder', path: '/admin/workflow-builder', icon: GitBranch, roles: HRPLUS },
       { label: 'Auto-Operations', path: '/admin/auto-ops', icon: Cpu, roles: HRPLUS },
@@ -128,7 +128,7 @@ export const platformNav: NavGroup[] = [
       { label: 'Platform Home', path: '/', icon: LayoutDashboard, roles: PORTFOLIO },
       { label: 'Portfolio', path: '/portfolio', icon: LayoutGrid, roles: PORTFOLIO },
       { label: 'Companies', path: '/admin/companies', icon: Building2, roles: PORTFOLIO },
-      { label: 'Company Setup', path: '/admin/company-setup', icon: SlidersHorizontal, roles: PORTFOLIO },
+      { label: 'Add a Company', path: '/admin/company-setup', icon: SlidersHorizontal, roles: PORTFOLIO },
     ],
   },
   {
