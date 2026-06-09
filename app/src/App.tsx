@@ -1,5 +1,6 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { useApp } from './app/store'
+import { canAccessRoute } from './app/nav'
 import { AppShell } from './components/shell'
 
 import Login from './pages/Login'
@@ -41,6 +42,15 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// Route-level RBAC: a role may only open routes its nav grants. URL access can't
+// bypass the sidebar gating. Unauthorized → bounced to Home.
+function RouteGuard() {
+  const { role } = useApp()
+  const { pathname } = useLocation()
+  if (!canAccessRoute(role, pathname)) return <Navigate to="/" replace />
+  return <Outlet />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -52,6 +62,7 @@ export default function App() {
           </RequireAuth>
         }
       >
+        <Route element={<RouteGuard />}>
         <Route path="/" element={<Home />} />
         <Route path="/portfolio" element={<Portfolio />} />
         <Route path="/me/profile" element={<Profile />} />
@@ -83,6 +94,7 @@ export default function App() {
         <Route path="/admin/custom-fields" element={<CustomFields />} />
         <Route path="/admin/data" element={<DataPorting />} />
         <Route path="/admin/audit" element={<Audit />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

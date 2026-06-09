@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../app/store'
 import {
-  useRbac, ADMIN_ROLE, MODULE_GROUPS, ALL_MODULES, MODULE_LABEL, FIELDS, FIELD_LABEL,
+  useRbac, ADMIN_ROLE, rbacRoleFor, MODULE_GROUPS, ALL_MODULES, MODULE_LABEL, FIELDS, FIELD_LABEL,
   ACTION_GROUPS, ALL_ACTIONS, ACTION_LABEL,
   type PermLevel, type FieldLevel, type RoleLevel, type PolicyOverrides, type PolicyChangeItem,
 } from '../app/rbac'
@@ -42,7 +42,12 @@ export default function Roles() {
   const { role: myRole, persona } = useApp()
   const { push } = useToast()
   const rbac = useRbac()
-  const readOnly = myRole !== 'provider_admin' && myRole !== 'company_hr_admin' && myRole !== 'portfolio_manager'
+  // Editing the RBAC matrix requires BOTH edit on the Roles module AND the
+  // role.assign action — by default only the platform super admin qualifies.
+  // HR Admin / Portfolio Manager are read-only (their roles grant is 'read'),
+  // which closes the privilege-escalation hole.
+  const rbacSelf = rbacRoleFor(myRole ?? 'employee')
+  const readOnly = !(rbac.effModule(rbacSelf, 'roles') === 'edit' && rbac.effAction(rbacSelf, 'role.assign'))
   const actor = persona?.name ?? 'You'
 
   const [tab, setTab] = useState('modules')

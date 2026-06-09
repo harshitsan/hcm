@@ -146,6 +146,28 @@ export const platformNav: NavGroup[] = [
   },
 ]
 
+/* ---- Route-level authorization ----
+ * The roles allowed for each path, unioned across the company nav and the
+ * platform console. Used by the App route guard so URL access can't bypass the
+ * role gating the sidebar already encodes. */
+const routeRolesAcc: Record<string, Set<Role>> = {}
+for (const g of [...navConfig, ...platformNav]) {
+  for (const it of g.items) {
+    const set = routeRolesAcc[it.path] ?? (routeRolesAcc[it.path] = new Set<Role>())
+    it.roles.forEach((r) => set.add(r))
+  }
+}
+export const routeRoles: Record<string, Role[]> = Object.fromEntries(
+  Object.entries(routeRolesAcc).map(([p, s]) => [p, [...s]]),
+)
+
+/** May this role open this route at all? Unmapped paths are allowed (e.g. fallbacks). */
+export function canAccessRoute(role: Role | null, path: string): boolean {
+  if (!role) return false
+  const roles = routeRoles[path]
+  return roles ? roles.includes(role) : true
+}
+
 /** Scope-aware nav: platform console for provider/portfolio at platform scope,
  *  otherwise the company-operational nav for the role. */
 export function navFor(role: Role | null, scope: 'platform' | 'company'): NavGroup[] {

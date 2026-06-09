@@ -172,11 +172,13 @@ export default function Profile() {
   // Limited-access variant: deterministic, keyed off the demo persona id (no randomness).
   const isLimited = persona?.id === 'p5'
 
-  // Resolve "me": prefer the persona's linked employee record, else the first employee.
-  const me = useMemo(() => {
-    const linked = persona?.employeeId ? getEmployee(persona.employeeId) : null
-    return linked ?? employees[0] ?? null
-  }, [persona, getEmployee, employees])
+  // Resolve "me" STRICTLY from the persona's linked employee record. A platform
+  // admin with no record at this company gets the "no record" state below —
+  // never another employee's PII (no employees[0] fallback).
+  const me = useMemo(
+    () => (persona?.employeeId ? getEmployee(persona.employeeId) ?? null : null),
+    [persona, getEmployee],
+  )
 
   const manager = useMemo(() => (me?.managerId ? getEmployee(me.managerId) : null), [me, getEmployee])
   const department = useMemo(() => (me ? getDepartment(me.departmentId) : null), [me, getDepartment])

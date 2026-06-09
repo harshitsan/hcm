@@ -278,18 +278,21 @@ export default function Letters() {
   const { role, company } = useApp()
   const { employees } = useCompanyData()
   const { push } = useToast()
-  const isEmployee = role === 'employee'
+  // Issuing letters (incl. CTC-bearing Salary/Appointment templates) and the
+  // company-wide distribution log are HR-tier only. Managers & employees see
+  // ONLY their own letters — never others' compensation or distribution data.
+  const canIssue = role === 'company_hr_admin' || role === 'provider_admin' || role === 'portfolio_manager'
 
   const tabs = useMemo(() => {
     const t = [{ value: 'mine', label: 'My letters' }]
-    if (!isEmployee) {
+    if (canIssue) {
       t.unshift({ value: 'templates', label: 'Templates' })
       t.push({ value: 'distribution', label: 'Distribution' })
       t.push({ value: 'flow', label: 'Issuance flow' })
     }
     return t
-  }, [isEmployee])
-  const [tab, setTab] = useState(isEmployee ? 'mine' : 'templates')
+  }, [canIssue])
+  const [tab, setTab] = useState(canIssue ? 'templates' : 'mine')
 
   // template gallery search
   const [query, setQuery] = useState('')
@@ -350,13 +353,13 @@ export default function Letters() {
       <PageHeader
         title="Letters & Certificates"
         subtitle={
-          isEmployee
+          !canIssue
             ? `Your official HR letters at ${company.name}.`
             : `Generate, sign & distribute HR letters for ${company.name}.`
         }
         icon={<FileSignature className="h-5 w-5" />}
         actions={
-          !isEmployee && (
+          canIssue && (
             <>
               <Tooltip label="Batch generate (PDF)">
                 <IconButton
@@ -389,7 +392,7 @@ export default function Letters() {
       <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-6" />
 
       {/* ------------------------------------------------ Templates (HR only) */}
-      {tab === 'templates' && !isEmployee && (
+      {tab === 'templates' && canIssue && (
         <div className="space-y-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative sm:max-w-xs sm:flex-1">
@@ -430,7 +433,7 @@ export default function Letters() {
       )}
 
       {/* ------------------------------------------------ Distribution (HR only) */}
-      {tab === 'distribution' && !isEmployee && (
+      {tab === 'distribution' && canIssue && (
         <div className="space-y-6">
           {/* KPI row */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -612,7 +615,7 @@ export default function Letters() {
       )}
 
       {/* ------------------------------------------------ Issuance flow / kanban (HR only) */}
-      {tab === 'flow' && !isEmployee && (
+      {tab === 'flow' && canIssue && (
         <div className="space-y-6">
           <Card className="p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -719,7 +722,7 @@ export default function Letters() {
       )}
 
       {/* ------------------------------------------------ Generate modal (HR only) */}
-      {!isEmployee && (
+      {canIssue && (
         <Modal
           open={genOpen}
           onClose={() => setGenOpen(false)}
