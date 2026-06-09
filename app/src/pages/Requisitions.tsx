@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react'
-import { Briefcase, Users, Building2, Plus, Search } from 'lucide-react'
+import { Briefcase, Users, Building2, UserCheck, Plus, Search } from 'lucide-react'
 import { useApp } from '../app/store'
 import { rbacRoleFor, useRbac } from '../app/rbac'
 import { useCompanyData } from '../data/companyData'
 import {
-  Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, Input,
+  Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, Input,
   Modal, PageHeader, ProgressBar, Segmented, Select, StatCard, Table, Td, Th, Tr, useToast,
 } from '../components/ui'
 
 type Requisition = ReturnType<typeof useCompanyData>['requisitions'][number]
 type StatusFilter = 'all' | 'Open' | 'On hold'
+type PipelineFilter = 'all' | 'mine'
 
 const APPLICANT_TARGET = 50
 
@@ -21,7 +22,8 @@ const fillTone = (pct: number): 'success' | 'primary' | 'warning' =>
 
 export default function Requisitions() {
   const { requisitions: reqSeed, departments } = useCompanyData()
-  const { role, company } = useApp()
+  const { role, company, persona } = useApp()
+  const myName = persona?.name ?? ''
   const { effModule } = useRbac()
   const { push } = useToast()
   // Opening a requisition is a write affordance — only roles with edit access to
@@ -31,6 +33,7 @@ export default function Requisitions() {
 
   const [reqs, setReqs] = useState<Requisition[]>(reqSeed)
   const [filter, setFilter] = useState<StatusFilter>('all')
+  const [pipeline, setPipeline] = useState<PipelineFilter>('all')
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
 
@@ -43,13 +46,14 @@ export default function Requisitions() {
     () =>
       reqs.filter((r) => {
         const matchStatus = filter === 'all' || r.status === filter
+        const matchPipeline = pipeline === 'all' || r.owner === myName
         const matchQuery =
           query.trim() === '' ||
           r.title.toLowerCase().includes(query.toLowerCase()) ||
           r.dept.toLowerCase().includes(query.toLowerCase())
-        return matchStatus && matchQuery
+        return matchStatus && matchPipeline && matchQuery
       }),
-    [reqs, filter, query],
+    [reqs, filter, pipeline, query, myName],
   )
 
   const stats = useMemo(() => {
@@ -58,8 +62,9 @@ export default function Requisitions() {
       .reduce((sum, r) => sum + r.openings, 0)
     const applicants = reqs.reduce((sum, r) => sum + r.applicants, 0)
     const depts = new Set(reqs.map((r) => r.dept)).size
-    return { openRoles, applicants, depts }
-  }, [reqs])
+    const myPipeline = reqs.filter((r) => r.owner === myName).length
+    return { openRoles, applicants, depts, myPipeline }
+  }, [reqs, myName])
 
   const resetForm = () => {
     setTitle('')
@@ -79,6 +84,8 @@ export default function Requisitions() {
       openings: Math.max(1, Number(openings) || 1),
       applicants: 0,
       status: 'Open',
+      owner: myName,
+      hiringManager: departments.find((d) => d.name === dept)?.head ?? myName,
     }
     setReqs((p) => [next, ...p])
     setOpen(false)
@@ -124,6 +131,13 @@ export default function Requisitions() {
           deltaTone="accent"
           icon={<Building2 className="h-4 w-4" />}
         />
+        <StatCard
+          label="My pipeline"
+          value={stats.myPipeline}
+          delta="reqs I own"
+          deltaTone="primary"
+          icon={<UserCheck className="h-4 w-4" />}
+        />
       </div>
 
       <Card>
@@ -148,6 +162,14 @@ export default function Requisitions() {
                 { value: 'On hold', label: 'On hold' },
               ]}
             />
+            <Segmented<PipelineFilter>
+              value={pipeline}
+              onChange={setPipeline}
+              options={[
+                { value: 'all', label: 'All requisitions' },
+                { value: 'mine', label: 'My pipeline' },
+              ]}
+            />
           </div>
         </CardHeader>
         <CardBody className="p-0">
@@ -165,6 +187,7 @@ export default function Requisitions() {
                 <tr>
                   <Th>Role</Th>
                   <Th>Department</Th>
+                  <Th>Owner</Th>
                   <Th className="text-right">Openings</Th>
                   <Th className="w-48">Applicants</Th>
                   <Th className="text-right">Status</Th>
@@ -181,6 +204,15 @@ export default function Requisitions() {
                     >
                       <Td className="font-semibold text-fg">{r.title}</Td>
                       <Td className="text-muted-fg">{r.dept}</Td>
+                      <Td>
+                        <div className="flex items-center gap-2">
+                          <Avatar name={r.owner} size="sm" />
+                          <div className="leading-tight">
+                            <div className="font-medium text-fg">{r.owner}</div>
+                            <div className="text-xs text-muted-fg">HM · {r.hiringManager}</div>
+                          </div>
+                        </div>
+                      </Td>
                       <Td className="text-right tnum font-semibold">{r.openings}</Td>
                       <Td>
                         <div className="flex items-center gap-2">

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   Clock, LogIn, LogOut, CalendarCheck, Timer, Laptop, Fingerprint,
-  Plug, Upload, Hand, MapPin,
+  Plug, Upload, Hand, MapPin, FileClock, Check, X,
 } from 'lucide-react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip } from 'recharts'
 import { useApp } from '../app/store'
@@ -9,8 +9,8 @@ import { type Employee } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
 import { useCan } from '../app/rbac'
 import {
-  Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, PageHeader,
-  StatCard, Table, Tabs, Td, Th, Tr, useToast,
+  Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field,
+  Input, Modal, PageHeader, Select, StatCard, Table, Tabs, Td, Th, Tr, useToast,
 } from '../components/ui'
 
 type StatusTone = 'success' | 'primary' | 'warning' | 'danger' | 'neutral' | 'info'
@@ -45,6 +45,52 @@ const teamToday: Record<string, { status: string; in: string; out: string }> = {
   e13: { status: 'Present', in: '08:48', out: '—' },
 }
 
+type RegStatus = 'Pending' | 'Approved' | 'Rejected'
+type RegType = 'Missed punch' | 'Late arrival' | 'WFH' | 'Wrong shift' | 'Forgot punch-out'
+
+type Regularization = {
+  id: string
+  employeeName: string
+  employeeId: string
+  date: string
+  type: RegType
+  requestedIn: string
+  requestedOut: string
+  reason: string
+  status: RegStatus
+}
+
+const regStatusTone = (status: RegStatus): StatusTone => {
+  switch (status) {
+    case 'Approved': return 'success'
+    case 'Rejected': return 'danger'
+    default: return 'warning'
+  }
+}
+
+const regTypeTone = (type: RegType): StatusTone => {
+  switch (type) {
+    case 'WFH': return 'primary'
+    case 'Late arrival': return 'warning'
+    case 'Wrong shift': return 'info'
+    default: return 'neutral'
+  }
+}
+
+const regTypeOptions: RegType[] = ['Missed punch', 'Late arrival', 'WFH', 'Wrong shift', 'Forgot punch-out']
+
+// Deterministic, page-local regularization queue. Employee ids map to the real
+// roster so people-manager team-scoping (managerId === persona.employeeId) works.
+const regularizations: Regularization[] = [
+  { id: 'reg1', employeeName: 'Meera Iyer', employeeId: 'e4', date: 'Jun 5', type: 'Missed punch', requestedIn: '09:05', requestedOut: '18:20', reason: 'Biometric failed at gate; entered via visitor desk.', status: 'Pending' },
+  { id: 'reg2', employeeName: 'Imran Khan', employeeId: 'e9', date: 'Jun 4', type: 'WFH', requestedIn: '09:30', requestedOut: '18:30', reason: 'Approved remote day not reflected in roster.', status: 'Pending' },
+  { id: 'reg3', employeeName: 'Sanjay Gupta', employeeId: 'e13', date: 'Jun 3', type: 'Forgot punch-out', requestedIn: '08:48', requestedOut: '18:45', reason: 'Left for client visit, forgot to clock out.', status: 'Pending' },
+  { id: 'reg4', employeeName: 'Divya Menon', employeeId: 'e8', date: 'Jun 2', type: 'Late arrival', requestedIn: '10:10', requestedOut: '19:00', reason: 'Local train delay; informed lead on chat.', status: 'Approved' },
+  { id: 'reg5', employeeName: 'Karan Mehta', employeeId: 'e5', date: 'Jun 5', type: 'Wrong shift', requestedIn: '07:00', requestedOut: '16:00', reason: 'Marked on general shift instead of early shift.', status: 'Pending' },
+  { id: 'reg6', employeeName: 'Fatima Sheikh', employeeId: 'e10', date: 'Jun 4', type: 'Missed punch', requestedIn: '09:12', requestedOut: '18:05', reason: 'Card reader offline on 3rd floor.', status: 'Rejected' },
+  { id: 'reg7', employeeName: 'Joseph Thomas', employeeId: 'e11', date: 'Jun 3', type: 'WFH', requestedIn: '09:00', requestedOut: '18:00', reason: 'Hub closed for maintenance; worked remotely.', status: 'Pending' },
+]
+
 export default function Attendance() {
   const { attendanceWeek, attendanceMix, employees } = useCompanyData()
   const { role, company, persona } = useApp()
@@ -61,6 +107,11 @@ export default function Attendance() {
 
   const [clockedIn, setClockedIn] = useState(true)
   const [tab, setTab] = useState('overview')
+  const [regModalOpen, setRegModalOpen] = useState(false)
+  // Local, mutable review state for the regularization queue.
+  const [regStatus, setRegStatus] = useState<Record<string, RegStatus>>(() =>
+    Object.fromEntries(regularizations.map((r) => [r.id, r.status])),
+  )
 
   const presentDays = attendanceWeek.filter((d) => d.status === 'Present').length
   const wfhDays = attendanceWeek.filter((d) => d.status === 'WFH').length
@@ -94,6 +145,25 @@ export default function Attendance() {
     return withSnapshot
   }, [employees, isManager, persona])
   const totalMix = attendanceMix.reduce((a, m) => a + m.value, 0)
+
+  // Regularization queue — scoped like the team table: managers see only their
+  // direct reports; company-wide roles see the full queue. Status comes from
+  // local review state so approve/reject persists for the session.
+  const regRows = useMemo<Regularization[]>(() => {
+    const teamIds = new Set(team.map((e) => e.id))
+    return regularizations
+      .filter((r) => (isManager ? teamIds.has(r.employeeId) : true))
+      .map((r) => ({ ...r, status: regStatus[r.id] ?? r.status }))
+  }, [team, isManager, regStatus])
+  const pendingRegCount = regRows.filter((r) => r.status === 'Pending').length
+
+  const decideReg = (r: Regularization, next: Extract<RegStatus, 'Approved' | 'Rejected'>) => {
+    setRegStatus((s) => ({ ...s, [r.id]: next }))
+    push({
+      title: `${r.employeeName} · ${next === 'Approved' ? 'regularization approved' : 'regularization rejected'}`,
+      tone: next === 'Approved' ? 'success' : 'neutral',
+    })
+  }
 
   /* ----------------------------------------------------------------- Employee view */
   if (isEmployee) {
@@ -129,6 +199,9 @@ export default function Attendance() {
               >
                 {clockedIn ? <LogOut className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
                 {clockedIn ? 'Clock out' : 'Clock in'}
+              </Button>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setRegModalOpen(true)}>
+                <FileClock className="h-4 w-4" /> Regularize attendance
               </Button>
               <span className="inline-flex items-center gap-1.5 text-xs text-muted-fg">
                 <MapPin className="h-3.5 w-3.5" /> Geo-tagged · Biometric verified
@@ -169,6 +242,41 @@ export default function Attendance() {
           <StatCard label="Avg hours / day" value={avgHours} delta="worked" deltaTone="primary" icon={<Timer className="h-4 w-4" />} />
           <StatCard label="WFH days" value={wfhDays} delta="this week" deltaTone="info" icon={<Laptop className="h-4 w-4" />} />
         </div>
+
+        <Modal
+          open={regModalOpen}
+          onClose={() => setRegModalOpen(false)}
+          title="Regularize attendance"
+          description="Raise a correction for a missed punch or wrong record (prototype)."
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setRegModalOpen(false)}>Cancel</Button>
+              <Button onClick={() => { setRegModalOpen(false); push({ title: 'Regularization request submitted', tone: 'success' }) }}>
+                Submit request
+              </Button>
+            </>
+          }
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Date" required>
+              <Input type="text" defaultValue="Jun 5" placeholder="e.g. Jun 5" />
+            </Field>
+            <Field label="Type" required>
+              <Select defaultValue="Missed punch">
+                {regTypeOptions.map((t) => <option key={t}>{t}</option>)}
+              </Select>
+            </Field>
+            <Field label="Requested in">
+              <Input type="text" defaultValue="09:00" placeholder="HH:MM" />
+            </Field>
+            <Field label="Requested out">
+              <Input type="text" defaultValue="18:00" placeholder="HH:MM" />
+            </Field>
+            <Field label="Reason" required className="sm:col-span-2">
+              <Input type="text" placeholder="Briefly explain the correction" />
+            </Field>
+          </div>
+        </Modal>
       </div>
     )
   }
@@ -200,10 +308,11 @@ export default function Attendance() {
         tabs={[
           { value: 'overview', label: 'Overview' },
           { value: 'team', label: 'Team today' },
+          { value: 'regularization', label: 'Regularization' },
         ]}
       />
 
-      {tab === 'overview' ? (
+      {tab === 'overview' && (
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Donut */}
           <Card className="lg:col-span-1">
@@ -289,7 +398,9 @@ export default function Attendance() {
             </CardBody>
           </Card>
         </div>
-      ) : (
+      )}
+
+      {tab === 'team' && (
         <Card>
           <CardHeader>
             <CardTitle>Team today</CardTitle>
@@ -329,6 +440,80 @@ export default function Attendance() {
             </Table>
           </CardBody>
         </Card>
+      )}
+
+      {tab === 'regularization' && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard label="Pending review" value={pendingRegCount} delta="needs action" deltaTone="warning" icon={<FileClock className="h-4 w-4" />} />
+            <StatCard label="Approved" value={regRows.filter((r) => r.status === 'Approved').length} delta="this week" deltaTone="success" icon={<Check className="h-4 w-4" />} />
+            <StatCard label="Rejected" value={regRows.filter((r) => r.status === 'Rejected').length} delta="this week" deltaTone="danger" icon={<X className="h-4 w-4" />} />
+            <StatCard label="Total requests" value={regRows.length} delta={isManager ? 'your team' : company.name} deltaTone="primary" icon={<CalendarCheck className="h-4 w-4" />} />
+          </div>
+
+          <Card className="overflow-hidden p-0">
+            <CardHeader>
+              <CardTitle>Regularization requests</CardTitle>
+              <Badge tone={pendingRegCount ? 'warning' : 'neutral'}>{pendingRegCount} pending</Badge>
+            </CardHeader>
+            <CardBody className="p-0">
+              {regRows.length ? (
+                <Table>
+                  <thead>
+                    <Tr className="border-t-0 hover:bg-transparent">
+                      <Th>Employee</Th>
+                      <Th>Date</Th>
+                      <Th>Type</Th>
+                      <Th className="text-right">In / Out</Th>
+                      <Th>Reason</Th>
+                      <Th>Status</Th>
+                      <Th className="text-right">Action</Th>
+                    </Tr>
+                  </thead>
+                  <tbody>
+                    {regRows.map((r) => (
+                      <Tr key={r.id}>
+                        <Td>
+                          <div className="flex items-center gap-3">
+                            <Avatar name={r.employeeName} size="sm" />
+                            <p className="truncate text-sm font-semibold">{r.employeeName}</p>
+                          </div>
+                        </Td>
+                        <Td className="tnum text-muted-fg">{r.date}</Td>
+                        <Td><Badge tone={regTypeTone(r.type)}>{r.type}</Badge></Td>
+                        <Td className="text-right tnum text-muted-fg">{r.requestedIn} / {r.requestedOut}</Td>
+                        <Td className="max-w-xs truncate text-sm text-muted-fg" title={r.reason}>{r.reason}</Td>
+                        <Td><Badge tone={regStatusTone(r.status)}>{r.status}</Badge></Td>
+                        <Td className="text-right">
+                          {r.status === 'Pending' ? (
+                            <div className="flex justify-end gap-2">
+                              <Button variant="outline" size="sm" onClick={() => decideReg(r, 'Approved')}>
+                                <Check className="h-3.5 w-3.5" /> Approve
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => decideReg(r, 'Rejected')}>
+                                <X className="h-3.5 w-3.5" /> Reject
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-fg">Reviewed</span>
+                          )}
+                        </Td>
+                      </Tr>
+                    ))}
+                  </tbody>
+                </Table>
+              ) : (
+                <div className="p-6">
+                  <EmptyState
+                    icon={<FileClock className="h-6 w-6" />}
+                    title="No regularization requests"
+                    description={isManager ? 'Your team has no attendance corrections to review.' : 'No attendance corrections have been raised.'}
+                  />
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
       )}
     </div>
   )

@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react'
 import {
   BarChart3, Users, TrendingDown, Clock3, FileSignature, Star, Play, Plus,
   LineChart as LineChartIcon, Table2, Filter, ShieldCheck, Download,
+  UserX, CalendarCheck, Laptop, Wallet, Activity,
 } from 'lucide-react'
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
-  ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
+  Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
 import { useApp } from '../app/store'
 import { useCan, useRbac, rbacRoleFor } from '../app/rbac'
@@ -38,6 +39,52 @@ const DEMO_FUNNEL = [
   { stage: 'Interviewed', value: 28 },
   { stage: 'Offered', value: 8 },
   { stage: 'Hired', value: 5 },
+]
+
+/* --------------------------------------------------------------------------
+ * HR-admin analytics — deterministic page-local series (fixed literals only).
+ * 6 months of operations data + a few categories. No randomness / wall-clock.
+ * ------------------------------------------------------------------------ */
+/** Monthly absenteeism rate (%) split by department — trend over 6 months. */
+const ABSENTEEISM_BY_MONTH = [
+  { month: 'Jan', Engineering: 3.1, Sales: 4.6, Operations: 5.2 },
+  { month: 'Feb', Engineering: 2.8, Sales: 5.1, Operations: 4.7 },
+  { month: 'Mar', Engineering: 3.6, Sales: 4.2, Operations: 5.8 },
+  { month: 'Apr', Engineering: 2.4, Sales: 3.8, Operations: 4.4 },
+  { month: 'May', Engineering: 3.0, Sales: 4.9, Operations: 5.1 },
+  { month: 'Jun', Engineering: 2.6, Sales: 3.5, Operations: 4.0 },
+]
+/** Company-wide attendance split — present / WFH / on-leave headcount by month. */
+const ATTENDANCE_BY_MONTH = [
+  { month: 'Jan', present: 198, wfh: 42, leave: 24 },
+  { month: 'Feb', present: 204, wfh: 38, leave: 22 },
+  { month: 'Mar', present: 191, wfh: 51, leave: 28 },
+  { month: 'Apr', present: 212, wfh: 44, leave: 18 },
+  { month: 'May', present: 207, wfh: 47, leave: 21 },
+  { month: 'Jun', present: 219, wfh: 40, leave: 16 },
+]
+/** Asset inventory — allocated vs available units by category. */
+const ASSETS_BY_CATEGORY = [
+  { category: 'Laptops', allocated: 248, available: 32 },
+  { category: 'Monitors', allocated: 186, available: 54 },
+  { category: 'Phones', allocated: 94, available: 21 },
+  { category: 'Access cards', allocated: 263, available: 47 },
+  { category: 'Peripherals', allocated: 412, available: 88 },
+]
+/** Asset allocation share — donut over status buckets. */
+const ASSET_STATUS = [
+  { name: 'Allocated', value: 1203, tone: 'rgb(var(--accent))' },
+  { name: 'Available', value: 242, tone: 'rgb(var(--info))' },
+  { name: 'In repair', value: 38, tone: 'rgb(var(--warning))' },
+]
+/** Monthly payroll cost (₹ lakh) — total plus a department split. */
+const PAYROLL_BY_MONTH = [
+  { month: 'Jan', total: 184, Engineering: 96, Sales: 52, Operations: 36 },
+  { month: 'Feb', total: 188, Engineering: 98, Sales: 53, Operations: 37 },
+  { month: 'Mar', total: 192, Engineering: 99, Sales: 55, Operations: 38 },
+  { month: 'Apr', total: 197, Engineering: 102, Sales: 56, Operations: 39 },
+  { month: 'May', total: 201, Engineering: 104, Sales: 57, Operations: 40 },
+  { month: 'Jun', total: 206, Engineering: 107, Sales: 58, Operations: 41 },
 ]
 
 const typeTone: Record<ReportType, Tone> = {
@@ -95,6 +142,29 @@ export default function Reports() {
     () => [...savedReports].sort((a, b) => Number(b.pinned) - Number(a.pinned)),
     [],
   )
+
+  // Headline analytics metrics, derived from the deterministic page-local series.
+  const analytics = useMemo(() => {
+    const absRates = ABSENTEEISM_BY_MONTH.map(
+      (m) => (m.Engineering + m.Sales + m.Operations) / 3,
+    )
+    const avgAbsenteeism = absRates.reduce((a, b) => a + b, 0) / absRates.length
+    const attRates = ATTENDANCE_BY_MONTH.map((m) => {
+      const total = m.present + m.wfh + m.leave
+      return ((m.present + m.wfh) / total) * 100
+    })
+    const avgAttendance = attRates.reduce((a, b) => a + b, 0) / attRates.length
+    const assetsAllocated = ASSET_STATUS.find((s) => s.name === 'Allocated')?.value ?? 0
+    const assetsTotal = ASSET_STATUS.reduce((a, s) => a + s.value, 0)
+    const latestPayroll = PAYROLL_BY_MONTH[PAYROLL_BY_MONTH.length - 1].total
+    return {
+      avgAbsenteeism: avgAbsenteeism.toFixed(1),
+      avgAttendance: avgAttendance.toFixed(1),
+      assetsAllocated,
+      assetUtil: Math.round((assetsAllocated / assetsTotal) * 100),
+      latestPayroll,
+    }
+  }, [])
 
   // The range toggle actually re-shapes the series (synthetic earlier months for 12 mo).
   const olderMonths = ['Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -226,6 +296,14 @@ export default function Reports() {
         <StatCard label="Offers out" value="4" delta="2 depts" deltaTone="warning" icon={<FileSignature className="h-4 w-4" />} />
       </div>
 
+      {/* Operations KPI row — headline metrics for the analytics section */}
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Avg absenteeism" value={`${analytics.avgAbsenteeism}%`} delta="-0.4 pt" deltaTone="success" icon={<UserX className="h-4 w-4" />} />
+        <StatCard label="Avg attendance" value={`${analytics.avgAttendance}%`} delta="+1.2 pt" deltaTone="success" icon={<CalendarCheck className="h-4 w-4" />} />
+        <StatCard label="Assets allocated" value={analytics.assetsAllocated} delta={`${analytics.assetUtil}% util`} deltaTone="info" icon={<Laptop className="h-4 w-4" />} />
+        <StatCard label="Monthly payroll" value={`₹${analytics.latestPayroll}L`} delta="+2.5%" deltaTone="warning" icon={<Wallet className="h-4 w-4" />} />
+      </div>
+
       {/* Saved views */}
       <Card className="mb-6">
         <CardHeader>
@@ -337,6 +415,134 @@ export default function Reports() {
               <RTooltip contentStyle={tooltipStyle} />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
             </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Operations analytics */}
+      <div className="mb-3 mt-8 flex items-center gap-2">
+        <Activity className="h-4 w-4 text-accent" />
+        <h2 className="text-sm font-bold tracking-tight">Operations analytics</h2>
+        <Badge tone="neutral">Last 6 months</Badge>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Absenteeism — monthly rate by department (line trend) */}
+        <ChartCard title="Absenteeism rate by department" badge={<Badge tone="warning">{analytics.avgAbsenteeism}% avg</Badge>}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={ABSENTEEISM_BY_MONTH} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+              <XAxis dataKey="month" tick={axisStyle} axisLine={false} tickLine={false} />
+              <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={36} unit="%" />
+              <RTooltip contentStyle={tooltipStyle} formatter={(v) => `${v}%`} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="Engineering" stroke="rgb(var(--accent))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Sales" stroke="rgb(var(--info))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="Operations" stroke="rgb(var(--warning))" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Attendance — present / WFH / on-leave trend (stacked area) */}
+        <ChartCard title="Attendance mix by month" badge={<Badge tone="info">{analytics.avgAttendance}% present</Badge>}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={ATTENDANCE_BY_MONTH} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+              <defs>
+                <linearGradient id="att-present" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgb(var(--accent))" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="rgb(var(--accent))" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="att-wfh" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgb(var(--info))" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="rgb(var(--info))" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="att-leave" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgb(var(--warning))" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="rgb(var(--warning))" stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+              <XAxis dataKey="month" tick={axisStyle} axisLine={false} tickLine={false} />
+              <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={36} />
+              <RTooltip contentStyle={tooltipStyle} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+              <Area type="monotone" dataKey="present" name="Present" stackId="a" stroke="rgb(var(--accent))" strokeWidth={2} fill="url(#att-present)" />
+              <Area type="monotone" dataKey="wfh" name="WFH" stackId="a" stroke="rgb(var(--info))" strokeWidth={2} fill="url(#att-wfh)" />
+              <Area type="monotone" dataKey="leave" name="On leave" stackId="a" stroke="rgb(var(--warning))" strokeWidth={2} fill="url(#att-leave)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Assets — allocated vs available by category (grouped bar) */}
+        <ChartCard title="Assets by category" badge={<Badge tone="accent">{analytics.assetUtil}% utilised</Badge>}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={ASSETS_BY_CATEGORY} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+              <XAxis dataKey="category" tick={axisStyle} axisLine={false} tickLine={false} interval={0} />
+              <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={36} />
+              <RTooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(var(--muted) / 0.4)' }} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="allocated" name="Allocated" fill="rgb(var(--accent))" radius={[6, 6, 0, 0]} maxBarSize={26} />
+              <Bar dataKey="available" name="Available" fill="rgb(var(--info))" radius={[6, 6, 0, 0]} maxBarSize={26} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Asset allocation share — donut */}
+        <ChartCard title="Asset allocation share" badge={<Badge tone="neutral">{analytics.assetsAllocated} allocated</Badge>}>
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={ASSET_STATUS}
+                dataKey="value"
+                nameKey="name"
+                innerRadius={52}
+                outerRadius={84}
+                paddingAngle={2}
+                stroke="rgb(var(--surface))"
+                strokeWidth={2}
+              >
+                {ASSET_STATUS.map((slice) => (
+                  <Cell key={slice.name} fill={slice.tone} />
+                ))}
+              </Pie>
+              <RTooltip contentStyle={tooltipStyle} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Payroll cost by department — stacked bar */}
+        <ChartCard title="Payroll cost by department" badge={<Badge tone="primary">₹ lakh / mo</Badge>}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={PAYROLL_BY_MONTH} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+              <XAxis dataKey="month" tick={axisStyle} axisLine={false} tickLine={false} />
+              <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={36} unit="L" />
+              <RTooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgb(var(--muted) / 0.4)' }} formatter={(v) => `₹${v}L`} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="Engineering" name="Engineering" stackId="p" fill="rgb(var(--accent))" maxBarSize={36} />
+              <Bar dataKey="Sales" name="Sales" stackId="p" fill="rgb(var(--info))" maxBarSize={36} />
+              <Bar dataKey="Operations" name="Operations" stackId="p" fill="rgb(var(--warning))" radius={[6, 6, 0, 0]} maxBarSize={36} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Total payroll cost trend — area */}
+        <ChartCard title="Total payroll cost trend" badge={<Badge tone="warning">₹{analytics.latestPayroll}L latest</Badge>}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={PAYROLL_BY_MONTH} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+              <defs>
+                <linearGradient id="pay-total" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgb(var(--primary))" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="rgb(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+              <XAxis dataKey="month" tick={axisStyle} axisLine={false} tickLine={false} />
+              <YAxis tick={axisStyle} axisLine={false} tickLine={false} width={36} unit="L" domain={['dataMin - 6', 'dataMax + 4']} />
+              <RTooltip contentStyle={tooltipStyle} formatter={(v) => `₹${v}L`} />
+              <Area type="monotone" dataKey="total" name="Total payroll" stroke="rgb(var(--primary))" strokeWidth={2} fill="url(#pay-total)" />
+            </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
       </div>

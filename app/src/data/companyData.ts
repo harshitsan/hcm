@@ -52,7 +52,7 @@ export type CompanyData = {
   policies: Policy[]
   documents: { id: string; name: string; type: string; owner: string; expiry: string; size: string }[]
   candidates: Candidate[]
-  requisitions: { id: string; title: string; dept: string; openings: number; applicants: number; status: string }[]
+  requisitions: { id: string; title: string; dept: string; openings: number; applicants: number; status: string; owner: string; hiringManager: string }[]
   onboardingTasks: OnboardingTask[]
   auditLog: AuditEntry[]
   attendanceWeek: { day: string; status: string; in: string; out: string }[]
@@ -216,8 +216,12 @@ function generate(company: Company): CompanyData {
     stage: stages[i % stages.length], rating: between(0, 5),
   }))
 
+  // The recruiter who owns each req: the HR Head if present, else the first head.
+  const reqOwner =
+    departments.find((d) => d.name === 'Human Resources')?.head ?? departments[1]?.head ?? names[0]
   const requisitions = departments.slice(1, 4).map((d, i) => ({
     id: `${company.id}-rq${i}`, title: pick(IC_TITLES[d.name] || ['Associate']), dept: d.name, openings: between(1, 3), applicants: between(8, 45), status: i === 2 ? 'On hold' : 'Open',
+    owner: reqOwner, hiringManager: d.head,
   }))
 
   const onboardingTasks: OnboardingTask[] = acmeOnboarding.map((t, i) => ({

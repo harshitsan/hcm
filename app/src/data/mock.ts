@@ -332,10 +332,12 @@ export const candidates: Candidate[] = [
   { id: 'cd6', name: 'Sara Ali', role: 'Data Analyst', stage: 'Hired', rating: 5 },
 ]
 export const requisitions = [
-  { id: 'rq1', title: 'Backend Engineer', dept: 'Platform', openings: 2, applicants: 24, status: 'Open' },
-  { id: 'rq2', title: 'Data Analyst', dept: 'Data', openings: 1, applicants: 17, status: 'Open' },
-  { id: 'rq3', title: 'Account Executive', dept: 'Sales', openings: 3, applicants: 41, status: 'Open' },
-  { id: 'rq4', title: 'HR Business Partner', dept: 'Human Resources', openings: 1, applicants: 12, status: 'On hold' },
+  { id: 'rq1', title: 'Backend Engineer', dept: 'Platform', openings: 2, applicants: 24, status: 'Open', owner: 'Priya Sharma', hiringManager: 'Rahul Verma' },
+  { id: 'rq2', title: 'Data Analyst', dept: 'Data', openings: 1, applicants: 17, status: 'Open', owner: 'Ananya Bose', hiringManager: 'Imran Khan' },
+  { id: 'rq3', title: 'Account Executive', dept: 'Sales', openings: 3, applicants: 41, status: 'Open', owner: 'Priya Sharma', hiringManager: 'Sneha Kapoor' },
+  { id: 'rq4', title: 'HR Business Partner', dept: 'Human Resources', openings: 1, applicants: 12, status: 'On hold', owner: 'Ananya Bose', hiringManager: 'Priya Sharma' },
+  { id: 'rq5', title: 'QA Engineer', dept: 'Quality', openings: 2, applicants: 9, status: 'Open', owner: 'Priya Sharma', hiringManager: 'Sanjay Gupta' },
+  { id: 'rq6', title: 'Finance Associate', dept: 'Finance', openings: 1, applicants: 6, status: 'Closed', owner: 'Ananya Bose', hiringManager: 'Arjun Desai' },
 ]
 
 /* ----------------------------------------------------------------- Onboarding */
