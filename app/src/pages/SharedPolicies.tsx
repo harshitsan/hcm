@@ -1,25 +1,40 @@
 /**
- * Shared Policies (platform/group console) — author a policy as clauses, enforce
- * it across member companies, allow children to override, and SEE every child
- * override (original → rewritten). Mirrors the child side via usePolicies().
+ * Shared Policies — platform/group governance console.
+ *
+ * Three governance layers on one screen:
+ *  1. Inheritance — author a policy as clauses, let children override, see every override.
+ *  2. Level precedence — the platform admin orders Platform/Portfolio/Group/Company; a
+ *     same-category policy at a higher-priority level SHADOWS lower ones.
+ *  3. Approval gate — a policy moves Draft → Pending → Approved → Enforced; it can only be
+ *     enforced after its approval chain clears.
  */
 import { useState } from 'react'
 import {
-  ShieldCheck, Plus, Layers, Lock, Users, FileText, ArrowRight, Trash2, ListChecks,
-  CheckCircle2, Pencil,
+  ShieldCheck, Plus, Layers, Lock, FileText, ArrowRight, Trash2, ListChecks,
+  CheckCircle2, Pencil, ChevronUp, ChevronDown, GitBranch, Check, X, Clock, EyeOff,
+  Rocket, Undo2,
 } from 'lucide-react'
 import { useToast } from '../components/ui'
 import {
   Badge, Button, Card, CardBody, Drawer, EmptyState, Field, IconButton,
   Input, Modal, PageHeader, Select, StatCard, Switch, Textarea,
 } from '../components/ui'
-import { usePolicies, type SharedPolicy, type Clause } from '../app/policies'
+import {
+  usePolicies, POLICY_LEVELS,
+  type SharedPolicy, type Clause, type PolicyLevel, type PolicyStatus, type ApprovalStep,
+} from '../app/policies'
+import { useApp } from '../app/store'
 import { companies } from '../data/mock'
 import { cn } from '../lib/cn'
 
 const companyName = (id: string) => companies.find((c) => c.id === id)?.name ?? id
 const catTone = (c: string) =>
   c === 'Compliance' ? 'warning' : c === 'Security' ? 'info' : c === 'HR' ? 'primary' : c === 'Finance' ? 'accent' : 'neutral'
+
+const statusTone: Record<PolicyStatus, 'neutral' | 'warning' | 'info' | 'success' | 'danger'> = {
+  Draft: 'neutral', 'Pending Approval': 'warning', Approved: 'info', Enforced: 'success', Rejected: 'danger',
+}
+const APPROVER_ROLES = ['Legal', 'HR Council', 'Finance', 'Security Office', 'Portfolio Manager', 'Platform Admin']
 
 // "paste your policy" → one clause per line (strips bullets / numbering)
 function toClauses(text: string): Clause[] {
@@ -31,72 +46,149 @@ function toClauses(text: string): Clause[] {
 }
 
 export default function SharedPolicies() {
-  const { shared, addSharedPolicy, overridesForPolicy, usageForPolicy, logForPolicy, snapshotCount } = usePolicies()
+  const {
+    shared, addSharedPolicy, overridesForPolicy, usageForPolicy, logForPolicy, snapshotCount,
+    levelPriority, moveLevel, effectiveFor, submitForApproval, decideApproval, enforcePolicy, unenforce,
+  } = usePolicies()
+  const { role, persona } = useApp()
   const { push } = useToast()
-  const [selected, setSelected] = useState<SharedPolicy | null>(null)
+  const actor = persona?.name ?? 'Admin'
+  const isPlatformAdmin = role === 'provider_admin'
+  const canActOnStep = (step: ApprovalStep) => isPlatformAdmin || (role === 'portfolio_manager' && step.role !== 'Platform Admin')
+
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = selectedId ? shared.find((p) => p.id === selectedId) ?? null : null
   const [open, setOpen] = useState(false)
 
   // authoring state
   const [name, setName] = useState('')
   const [category, setCategory] = useState('HR')
-  const [scope, setScope] = useState<'Group' | 'Portfolio' | 'Platform'>('Group')
+  const [level, setLevel] = useState<PolicyLevel>('Group')
   const [paste, setPaste] = useState('')
   const [draft, setDraft] = useState<Clause[]>([])
-  const [enforced, setEnforced] = useState(true)
   const [allowOverride, setAllowOverride] = useState(true)
+  const [chain, setChain] = useState<string[]>(['Legal', 'Platform Admin'])
 
-  const reset = () => { setName(''); setCategory('HR'); setScope('Group'); setPaste(''); setDraft([]); setEnforced(true); setAllowOverride(true) }
+  const reset = () => {
+    setName(''); setCategory('HR'); setLevel('Group'); setPaste(''); setDraft([])
+    setAllowOverride(true); setChain(['Legal', 'Platform Admin'])
+  }
   const generate = () => setDraft(toClauses(paste))
   const publish = () => {
     if (!name.trim() || draft.length === 0) { push({ title: 'Add a name and at least one clause', tone: 'warning' }); return }
     addSharedPolicy({
-      name: name.trim(), category, owner: 'Kensium Group', ownerScope: scope,
-      appliesTo: ['c1', 'c2', 'c3', 'c4', 'c5'], enforced, allowOverride, clauses: draft,
+      name: name.trim(), category, ownerScope: level, allowOverride, clauses: draft,
+      approval: chain.map((r, i) => ({ id: `ap-${i}-${r}`, role: r, state: 'pending' as const })),
     })
-    push({ title: `Published “${name.trim()}” to the group`, tone: 'success' })
+    push({ title: `“${name.trim()}” saved as draft`, tone: 'success' })
     setOpen(false); reset()
   }
 
-  const companiesCovered = new Set(shared.flatMap((p) => p.appliesTo)).size
+  // lifecycle actions
+  const onSubmit = (p: SharedPolicy) => { submitForApproval(p.id, actor); push({ title: `Submitted “${p.name}” for approval`, tone: 'info' }) }
+  const onDecide = (p: SharedPolicy, step: ApprovalStep, decision: 'approved' | 'rejected') => {
+    decideApproval(p.id, step.id, decision, actor)
+    push({ title: `${decision === 'approved' ? 'Approved' : 'Rejected'} · ${step.role}`, tone: decision === 'approved' ? 'success' : 'warning' })
+  }
+  const onEnforce = (p: SharedPolicy) => { enforcePolicy(p.id); push({ title: `“${p.name}” is now enforced`, tone: 'success' }) }
+  const onPullBack = (p: SharedPolicy) => { unenforce(p.id); push({ title: `Pulled “${p.name}” back from enforcement`, tone: 'warning' }) }
+
   const enforcedCount = shared.filter((p) => p.enforced).length
+  const pendingCount = shared.filter((p) => p.status === 'Pending Approval').length
+  const shadowedCount = shared.filter((p) => effectiveFor(p).shadowedBy).length
+
+  // the first pending step is the one that can be acted on (sequential chain)
+  const currentStep = (p: SharedPolicy) => p.approval.find((s) => s.state === 'pending') ?? null
 
   return (
     <div className="animate-fade-in">
       <PageHeader
         title="Shared Policies"
-        subtitle="Group policies enforced across member companies — children can tailor clauses where allowed."
+        subtitle="Govern policies across levels — set precedence, route approvals, and enforce only what's cleared."
         icon={<ShieldCheck className="h-5 w-5" />}
         actions={<Button onClick={() => setOpen(true)}><Plus className="h-4 w-4" /> New shared policy</Button>}
       />
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Shared policies" value={shared.length} delta="group-wide" deltaTone="primary" icon={<FileText className="h-4 w-4" />} />
-        <StatCard label="Enforced" value={enforcedCount} delta="adopted by children" deltaTone="success" icon={<CheckCircle2 className="h-4 w-4" />} />
-        <StatCard label="Companies covered" value={companiesCovered} delta="member tenants" deltaTone="info" icon={<Users className="h-4 w-4" />} />
-        <StatCard label="On own snapshot" value={snapshotCount} delta="vs group master" deltaTone="warning" icon={<Pencil className="h-4 w-4" />} />
+        <StatCard label="Enforced" value={enforcedCount} delta="live across tenants" deltaTone="success" icon={<CheckCircle2 className="h-4 w-4" />} />
+        <StatCard label="Pending approval" value={pendingCount} delta="awaiting sign-off" deltaTone="warning" icon={<Clock className="h-4 w-4" />} />
+        <StatCard label="Shadowed" value={shadowedCount} delta="overridden by precedence" deltaTone="info" icon={<EyeOff className="h-4 w-4" />} />
+        <StatCard label="On own snapshot" value={snapshotCount} delta="vs master" deltaTone="accent" icon={<Pencil className="h-4 w-4" />} />
       </div>
 
+      {/* Enforcement precedence */}
+      <Card className="mb-6">
+        <CardBody>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"><Layers className="h-4 w-4" /></span>
+              <div>
+                <p className="text-sm font-bold tracking-tight">Enforcement precedence</p>
+                <p className="text-2xs text-muted-fg">When two enforced policies of the same category overlap, the higher-priority level wins.</p>
+              </div>
+            </div>
+            {!isPlatformAdmin && <Badge tone="neutral"><Lock className="h-3 w-3" /> Platform-admin only</Badge>}
+          </div>
+          <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {levelPriority.map((lvl, i) => (
+              <li key={lvl} className="flex items-center gap-2 rounded-xl border border-border bg-surface2/40 px-3 py-2">
+                <span className={cn('flex h-6 w-6 items-center justify-center rounded-full text-2xs font-bold',
+                  i === 0 ? 'bg-primary text-primary-fg' : 'bg-muted text-muted-fg')}>{i + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-bold">{lvl}</p>
+                  <p className="text-2xs text-muted-fg">{i === 0 ? 'Wins on conflict' : i === levelPriority.length - 1 ? 'Lowest priority' : `Beats levels ${i + 2}+`}</p>
+                </div>
+                {isPlatformAdmin && (
+                  <div className="flex flex-col">
+                    <button type="button" aria-label={`Raise ${lvl}`} disabled={i === 0}
+                      onClick={() => moveLevel(lvl, -1)}
+                      className="flex h-4 w-5 items-center justify-center rounded text-muted-fg transition-colors enabled:hover:text-fg enabled:hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" aria-label={`Lower ${lvl}`} disabled={i === levelPriority.length - 1}
+                      onClick={() => moveLevel(lvl, 1)}
+                      className="flex h-4 w-5 items-center justify-center rounded text-muted-fg transition-colors enabled:hover:text-fg enabled:hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer">
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        </CardBody>
+      </Card>
+
+      {/* Policy list */}
       <div className="space-y-3">
         {shared.map((p) => {
           const customized = usageForPolicy(p.id).filter((u) => u.customized).length
+          const eff = effectiveFor(p)
+          const step = currentStep(p)
           return (
-            <Card key={p.id} className="cursor-pointer transition-colors hover:border-accent/50" onClick={() => setSelected(p)}>
+            <Card key={p.id} className="transition-colors hover:border-accent/50">
               <CardBody className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileText className="h-5 w-5" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold">{p.name} <span className="font-medium text-muted-fg">{p.version}</span></p>
-                  <p className="flex flex-wrap items-center gap-2 pt-1">
-                    <Badge tone="accent"><Layers className="h-3 w-3" /> {p.ownerScope} · {p.owner}</Badge>
-                    <Badge tone={catTone(p.category)}>{p.category}</Badge>
-                    <span className="tnum text-2xs text-muted-fg">{p.clauses.length} clauses · {p.appliesTo.length} companies</span>
-                  </p>
-                </div>
+                <button type="button" onClick={() => setSelectedId(p.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileText className="h-5 w-5" /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold">{p.name} <span className="font-medium text-muted-fg">{p.version}</span></p>
+                    <p className="flex flex-wrap items-center gap-2 pt-1">
+                      <Badge tone="accent"><Layers className="h-3 w-3" /> {p.ownerScope} · {p.owner}</Badge>
+                      <Badge tone={catTone(p.category)}>{p.category}</Badge>
+                      <span className="tnum text-2xs text-muted-fg">{p.clauses.length} clauses · {p.appliesTo.length} companies</span>
+                    </p>
+                  </div>
+                </button>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  {p.enforced && <Badge tone="success" dot>Enforced</Badge>}
-                  {p.allowOverride
-                    ? <Badge tone="neutral"><Pencil className="h-3 w-3" /> Override allowed</Badge>
-                    : <Badge tone="neutral"><Lock className="h-3 w-3" /> Locked</Badge>}
+                  <Badge tone={statusTone[p.status]} dot>{p.status}</Badge>
+                  {p.enforced && (eff.shadowedBy
+                    ? <Badge tone="info"><EyeOff className="h-3 w-3" /> Shadowed by {eff.shadowedBy.ownerScope}</Badge>
+                    : <Badge tone="success">Effective</Badge>)}
                   {customized > 0 && <Badge tone="warning">{customized} on snapshot</Badge>}
+                  {/* primary lifecycle action */}
+                  {p.status === 'Draft' && <Button size="sm" variant="outline" onClick={() => onSubmit(p)}><GitBranch className="h-4 w-4" /> Submit</Button>}
+                  {p.status === 'Pending Approval' && <Button size="sm" variant="outline" onClick={() => setSelectedId(p.id)}><Clock className="h-4 w-4" /> Review{step ? ` · ${step.role}` : ''}</Button>}
+                  {p.status === 'Approved' && <Button size="sm" onClick={() => onEnforce(p)}><Rocket className="h-4 w-4" /> Enforce</Button>}
+                  {p.status === 'Enforced' && isPlatformAdmin && <Button size="sm" variant="ghost" onClick={() => onPullBack(p)}><Undo2 className="h-4 w-4" /> Pull back</Button>}
                 </div>
               </CardBody>
             </Card>
@@ -104,18 +196,76 @@ export default function SharedPolicies() {
         })}
       </div>
 
-      {/* policy detail + child overrides */}
-      <Drawer open={!!selected} onClose={() => setSelected(null)} title={selected?.name} width="max-w-xl">
-        {selected && (
+      {/* policy detail + governance */}
+      <Drawer open={!!selected} onClose={() => setSelectedId(null)} title={selected?.name} width="max-w-xl">
+        {selected && (() => {
+          const eff = effectiveFor(selected)
+          const step = currentStep(selected)
+          return (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={statusTone[selected.status]} dot>{selected.status}</Badge>
               <Badge tone="accent"><Layers className="h-3 w-3" /> {selected.ownerScope} · {selected.owner}</Badge>
               <Badge tone={catTone(selected.category)}>{selected.category}</Badge>
               <Badge tone="neutral">{selected.version}</Badge>
-              {selected.enforced && <Badge tone="success" dot>Enforced</Badge>}
               {selected.allowOverride
                 ? <Badge tone="neutral"><Pencil className="h-3 w-3" /> Children may override</Badge>
                 : <Badge tone="neutral"><Lock className="h-3 w-3" /> Locked</Badge>}
+            </div>
+
+            {/* Precedence */}
+            <div className={cn('rounded-xl border p-3', eff.shadowedBy ? 'border-info/30 bg-info/5' : selected.enforced ? 'border-success/30 bg-success/5' : 'border-border bg-surface2/40')}>
+              <p className="mb-1 flex items-center gap-2 text-2xs font-bold uppercase tracking-wide text-muted-fg/80">
+                <Layers className="h-3 w-3" /> Precedence
+              </p>
+              {!selected.enforced ? (
+                <p className="text-[13px] text-muted-fg">Not enforced yet — precedence applies only to enforced policies.</p>
+              ) : eff.shadowedBy ? (
+                <p className="text-[13px]">Shadowed by <span className="font-semibold">{eff.shadowedBy.name}</span> ({eff.shadowedBy.ownerScope}) — a higher-priority level governs the <span className="font-semibold">{selected.category}</span> topic for overlapping companies.</p>
+              ) : (
+                <p className="text-[13px]">Effective — this is the winning <span className="font-semibold">{selected.category}</span> policy at level <span className="font-semibold">{selected.ownerScope}</span> for its companies.</p>
+              )}
+            </div>
+
+            {/* Approval timeline */}
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-2xs font-bold uppercase tracking-wide text-muted-fg/70">Approval chain ({selected.approval.length})</p>
+                {selected.status === 'Approved' && <Button size="sm" onClick={() => onEnforce(selected)}><Rocket className="h-4 w-4" /> Enforce now</Button>}
+                {selected.status === 'Draft' && <Button size="sm" variant="outline" onClick={() => onSubmit(selected)}><GitBranch className="h-4 w-4" /> Submit for approval</Button>}
+                {selected.status === 'Enforced' && isPlatformAdmin && <Button size="sm" variant="ghost" onClick={() => onPullBack(selected)}><Undo2 className="h-4 w-4" /> Pull back</Button>}
+              </div>
+              {selected.approval.length === 0 ? (
+                <p className="text-[13px] text-muted-fg">No approvers — submitting enforces directly.</p>
+              ) : (
+                <ol className="space-y-1.5">
+                  {selected.approval.map((s, i) => {
+                    const isCurrent = step?.id === s.id && selected.status === 'Pending Approval'
+                    return (
+                      <li key={s.id} className={cn('flex items-center gap-2.5 rounded-lg border px-3 py-2',
+                        s.state === 'approved' ? 'border-success/30 bg-success/5' : s.state === 'rejected' ? 'border-danger/30 bg-danger/5' : isCurrent ? 'border-warning/40 bg-warning/5' : 'border-border')}>
+                        <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-2xs font-bold',
+                          s.state === 'approved' ? 'bg-success text-white' : s.state === 'rejected' ? 'bg-danger text-white' : 'bg-muted text-muted-fg')}>
+                          {s.state === 'approved' ? <Check className="h-3 w-3" /> : s.state === 'rejected' ? <X className="h-3 w-3" /> : i + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13px] font-semibold">{s.role}</p>
+                          <p className="text-2xs text-muted-fg">
+                            {s.state === 'pending' ? (isCurrent ? 'Awaiting decision' : 'Queued') : `${s.state === 'approved' ? 'Approved' : 'Rejected'} by ${s.actor} · ${s.at}`}
+                          </p>
+                        </div>
+                        {isCurrent && canActOnStep(s) && (
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" onClick={() => onDecide(selected, s, 'approved')}><Check className="h-4 w-4" /> Approve</Button>
+                            <Button size="sm" variant="ghost" onClick={() => onDecide(selected, s, 'rejected')}><X className="h-4 w-4" /></Button>
+                          </div>
+                        )}
+                        {isCurrent && !canActOnStep(s) && <Badge tone="neutral">Not your step</Badge>}
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
             </div>
 
             <div>
@@ -186,20 +336,21 @@ export default function SharedPolicies() {
               )}
             </div>
           </div>
-        )}
+          )
+        })()}
       </Drawer>
 
-      {/* authoring: paste → clauses */}
+      {/* authoring: paste → clauses, level + approval chain */}
       <Modal
         open={open}
         onClose={() => { setOpen(false); reset() }}
         title="New shared policy"
-        description="Paste your policy text — each line becomes a clause member companies adopt."
+        description="Paste your policy text, set the level, and route an approval chain — it's saved as a draft you submit for sign-off."
         size="lg"
         footer={
           <>
             <Button variant="ghost" onClick={() => { setOpen(false); reset() }}>Cancel</Button>
-            <Button onClick={publish}>Publish to group</Button>
+            <Button onClick={publish}>Save as draft</Button>
           </>
         }
       >
@@ -207,11 +358,15 @@ export default function SharedPolicies() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Policy name" required className="sm:col-span-2"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Remote Work Policy" /></Field>
             <Field label="Category"><Select value={category} onChange={(e) => setCategory(e.target.value)}><option>HR</option><option>Compliance</option><option>Security</option><option>Finance</option></Select></Field>
-            <Field label="Owner scope"><Select value={scope} onChange={(e) => setScope(e.target.value as 'Group' | 'Portfolio' | 'Platform')}><option value="Group">Group · Kensium Group</option><option value="Portfolio">Portfolio · OpsMaven</option><option value="Platform">Platform · SatelliteHR</option></Select></Field>
+            <Field label="Level" hint="Higher levels win on conflict.">
+              <Select value={level} onChange={(e) => setLevel(e.target.value as PolicyLevel)}>
+                {POLICY_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+              </Select>
+            </Field>
           </div>
 
           <Field label="Paste your policy" hint="One clause per line. Bullets and numbering are stripped automatically.">
-            <Textarea value={paste} onChange={(e) => setPaste(e.target.value)} className="min-h-[120px]" placeholder={'- Treat colleagues with respect\n- Report conflicts of interest\n- Protect confidential information'} />
+            <Textarea value={paste} onChange={(e) => setPaste(e.target.value)} className="min-h-[110px]" placeholder={'- Treat colleagues with respect\n- Report conflicts of interest\n- Protect confidential information'} />
           </Field>
           <Button variant="outline" size="sm" onClick={generate}><ListChecks className="h-4 w-4" /> Generate clauses</Button>
 
@@ -235,9 +390,38 @@ export default function SharedPolicies() {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
-            <Switch checked={enforced} onChange={setEnforced} label="Enforce across member companies" />
+          {/* approval chain builder */}
+          <div className="rounded-xl border border-border p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wide text-muted-fg/70"><GitBranch className="h-3.5 w-3.5" /> Approval chain (in order)</p>
+              <span className="text-2xs text-muted-fg">Must clear before enforcement</span>
+            </div>
+            {chain.length === 0 ? (
+              <p className="mb-2 text-[13px] text-muted-fg">No approvers — submitting will approve directly.</p>
+            ) : (
+              <ol className="mb-2 space-y-1.5">
+                {chain.map((r, i) => (
+                  <li key={`${r}-${i}`} className="flex items-center gap-2 rounded-lg border border-border bg-surface2/40 px-2.5 py-1.5">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-2xs font-bold text-muted-fg">{i + 1}</span>
+                    <span className="flex-1 text-[13px] font-semibold">{r}</span>
+                    <IconButton size="sm" variant="ghost" aria-label={`Remove ${r}`} onClick={() => setChain((c) => c.filter((_, idx) => idx !== i))}><Trash2 className="h-4 w-4" /></IconButton>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <div className="flex flex-wrap gap-1.5">
+              {APPROVER_ROLES.map((r) => (
+                <button key={r} type="button" onClick={() => setChain((c) => [...c, r])}
+                  className="rounded-lg border border-dashed border-border px-2.5 py-1 text-2xs font-semibold text-muted-fg transition-colors hover:border-primary/40 hover:text-primary cursor-pointer">
+                  <Plus className="mr-1 inline h-3 w-3" />{r}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-border p-3">
             <Switch checked={allowOverride} onChange={setAllowOverride} label="Allow children to override clauses" />
+            <Badge tone="neutral">Saves as Draft</Badge>
           </div>
         </div>
       </Modal>
