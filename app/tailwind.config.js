@@ -25,7 +25,8 @@ export default {
         ring: 'rgb(var(--ring) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['"Source Code Pro"', '"SFMono-Regular"', 'ui-monospace', 'Menlo', 'monospace'],
+        mono: ['"Source Code Pro"', '"SFMono-Regular"', 'ui-monospace', 'Menlo', 'monospace'],
       },
       borderRadius: {
         /* tighter, enterprise — not bubbly */

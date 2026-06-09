@@ -106,8 +106,12 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-dvh w-full">
+    <div
+      className="min-h-dvh w-full"
+      style={{ background: 'linear-gradient(150deg, #15302d 0%, #16463b 48%, #2c8f72 100%)' }}
+    >
       <div className="mx-auto max-w-2xl px-4 py-12 sm:py-16">
+        <div className="rounded-3xl border border-white/10 bg-surface/95 p-5 shadow-pop backdrop-blur sm:p-7">
         {/* brand */}
         <div className="mb-8 flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-primary-fg shadow-card">
@@ -192,6 +196,7 @@ export default function Login() {
         <p className="mt-6 text-2xs text-muted-fg">
           Platform → Portfolio → Group Company → Company → people. Group companies are opt-in (enabled + audited).
         </p>
+        </div>
       </div>
     </div>
   )

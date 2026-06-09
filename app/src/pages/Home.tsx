@@ -149,14 +149,14 @@ export default function Home() {
                     <AreaChart data={headcountTrend} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
                       <defs>
                         <linearGradient id="hc" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="rgb(79 70 229)" stopOpacity={0.35} />
-                          <stop offset="100%" stopColor="rgb(79 70 229)" stopOpacity={0} />
+                          <stop offset="0%" stopColor="rgb(var(--accent))" stopOpacity={0.35} />
+                          <stop offset="100%" stopColor="rgb(var(--accent))" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <RTooltip
                         contentStyle={{ borderRadius: 10, border: '1px solid rgb(var(--border))', fontSize: 12, background: 'rgb(var(--surface))' }}
                       />
-                      <Area type="monotone" dataKey="value" stroke="rgb(79 70 229)" strokeWidth={2} fill="url(#hc)" />
+                      <Area type="monotone" dataKey="value" stroke="rgb(var(--accent))" strokeWidth={2} fill="url(#hc)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

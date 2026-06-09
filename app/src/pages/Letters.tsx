@@ -149,7 +149,7 @@ const ISSUED_TREND = [
 ]
 
 const CHANNEL_MIX = [
-  { name: 'Email', value: 58, tone: '#2563eb' },
+  { name: 'Email', value: 58, tone: 'rgb(var(--accent))' },
   { name: 'In-app', value: 31, tone: '#f97316' },
   { name: 'Print', value: 11, tone: '#64748b' },
 ]

@@ -203,7 +203,7 @@ export default function Portfolio() {
     const draft = rows.filter((r) => r.company.status === 'Draft').length
     return [
       { name: 'Active', value: active, tone: '#16a34a' },
-      { name: 'Suspended', value: suspended, tone: '#d97706' },
+      { name: 'Suspended', value: suspended, tone: 'rgb(var(--warning))' },
       { name: 'Draft', value: draft, tone: '#64748b' },
     ].filter((s) => s.value > 0)
   }, [rows])

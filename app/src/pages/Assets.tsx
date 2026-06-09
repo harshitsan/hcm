@@ -58,9 +58,9 @@ const STATE_TONE: Record<LifecycleState, 'neutral' | 'info' | 'accent' | 'accent
 
 const STATE_HEX: Record<LifecycleState, string> = {
   Available: '#16a34a',
-  Allocated: '#4f46e5',
+  Allocated: 'rgb(var(--accent))',
   Issued: 'rgb(var(--accent))',
-  'In Repair': '#d97706',
+  'In Repair': 'rgb(var(--warning))',
   Returned: 'rgb(var(--accent2))',
   Retired: '#94a3b8',
 }
