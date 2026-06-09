@@ -258,3 +258,28 @@ export function useCan(action: string): boolean {
   const { effAction } = useRbac()
   return effAction(rbacRoleFor(role ?? 'employee'), action)
 }
+
+export type FieldDecision = { level: FieldLevel; value: string }
+
+/** Mask a raw sensitive value according to a field's effective level. */
+export function maskFieldValue(raw: string, level: FieldLevel): string {
+  if (level === 'visible') return raw
+  if (level === 'hidden') return '——'
+  // masked: reveal only a trailing hint so the record stays identifiable but PII is protected
+  const tail = raw.replace(/\s+/g, '').slice(-4)
+  return tail ? `•••• ${tail}` : '••••'
+}
+
+/**
+ * Resolve a sensitive employee field for the currently logged-in persona, honoring the
+ * governed field-access matrix (and any live policy edits). Returns the effective level plus a
+ * render-ready value so data pages can enforce hidden/masked/visible centrally instead of
+ * hard-coding their own masks. `self` short-circuits to visible for own-record self-service.
+ */
+export function useField(key: string, raw: string, self = false): FieldDecision {
+  const { role } = useApp()
+  const { effField } = useRbac()
+  if (self) return { level: 'visible', value: raw }
+  const level = effField(rbacRoleFor(role ?? 'employee'), key)
+  return { level, value: maskFieldValue(raw, level) }
+}

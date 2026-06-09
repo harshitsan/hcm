@@ -153,7 +153,7 @@ function NotifRow({
 
 /* ----------------------------------------------------------------- page */
 export default function Notifications() {
-  const { role, company } = useApp()
+  const { role, company, persona } = useApp()
   const { employees } = useCompanyData()
   const { push } = useToast()
 
@@ -161,8 +161,23 @@ export default function Notifications() {
   // Preferences are company-controlled — gated by RBAC, not a hardcoded role.
   const canManage = useCan('notifications.manage')
 
+  // Platform "landlord" view: a provider/portfolio persona with no employee record has no
+  // personal HR lifecycle (no leave/mentions/policy acks/letters) in any tenant. Keyed on the
+  // absence of an employee identity — not scope — so entering a company does not re-expose the
+  // first-person employee feed to a provider who is not an employee. Drive their feed from
+  // platform/governance events only, and drop the "your company context" framing they don't have.
+  const isPlatformOnly = !persona?.employeeId
+
   // Shared store — read state is in sync with the top-bar bell.
-  const { feed, unreadCount, mentionCount, toggleRead, markAllRead } = useNotifications()
+  const { feed: rawFeed, toggleRead, markAllRead } = useNotifications()
+
+  // Governance/platform notification kinds (sign-ins, tenant context switches).
+  const feed = useMemo(
+    () => (isPlatformOnly ? rawFeed.filter((n) => n.kind === 'security' || n.kind === 'context') : rawFeed),
+    [rawFeed, isPlatformOnly],
+  )
+  const unreadCount = useMemo(() => feed.filter((n) => !n.read).length, [feed])
+  const mentionCount = useMemo(() => feed.filter((n) => n.mention).length, [feed])
 
   const names = useMemo(() => employees.map((e) => e.name), [employees])
   const actorFor = (idx: number | null): string | null =>
@@ -199,7 +214,11 @@ export default function Notifications() {
     <div className="animate-fade-in">
       <PageHeader
         title="Notifications"
-        subtitle={`Your in-app alerts and delivery preferences for ${company.name}.`}
+        subtitle={
+          isPlatformOnly
+            ? 'Platform sign-in and tenant-governance alerts, with your delivery preferences.'
+            : `Your in-app alerts and delivery preferences for ${company.name}.`
+        }
         icon={<Bell className="h-5 w-5" />}
         actions={
           <>
@@ -256,7 +275,9 @@ export default function Notifications() {
                 description={
                   tab === 'mentions'
                     ? 'You have no mentions in this view.'
-                    : 'New alerts about your leave, attendance, policies and documents will appear here.'
+                    : isPlatformOnly
+                      ? 'Platform sign-in and tenant-governance alerts will appear here.'
+                      : 'New alerts about your leave, attendance, policies and documents will appear here.'
                 }
               />
             ) : (
@@ -269,8 +290,9 @@ export default function Notifications() {
 
             <p className="flex items-center gap-1.5 border-t border-border pt-3 text-2xs text-muted-fg">
               <ShieldCheck className="h-3.5 w-3.5 text-success" />
-              This feed is scoped to your company context only — it never shows other people&apos;s notifications, and is
-              separate from your policy inbox.
+              {isPlatformOnly
+                ? 'This feed shows platform sign-in and tenant-governance alerts only — never any tenant employee’s personal notifications.'
+                : 'This feed is scoped to your company context only — it never shows other people’s notifications, and is separate from your policy inbox.'}
             </p>
           </CardBody>
         </Card>
@@ -439,7 +461,9 @@ export default function Notifications() {
             </div>
             <p className="mt-3 flex items-center gap-1.5 text-2xs text-muted-fg">
               <ShieldCheck className="h-3.5 w-3.5 text-success" />
-              Routing metrics are tenant-isolated to {company.name} and visible to admins only.
+              {isPlatformOnly
+                ? 'Platform-wide delivery metrics, visible to platform admins only.'
+                : `Routing metrics are tenant-isolated to ${company.name} and visible to admins only.`}
             </p>
           </CardBody>
         </Card>

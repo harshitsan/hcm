@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Building2, Plus, Search, Eye, Download, Ban, Users, CheckCircle2, AlertTriangle,
-  MapPin, Layers, LogIn,
+  MapPin, Layers, LogIn, Lock,
 } from 'lucide-react'
 import { useApp } from '../app/store'
+import { useCan } from '../app/rbac'
 import { portfolios, groups, type Company } from '../data/mock'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Input, PageHeader,
@@ -33,9 +34,12 @@ function lifecycleStep(status: Company['status']): number {
 }
 
 export default function Companies() {
-  const { authorizedCompanies, enterCompany, company: current } = useApp()
+  const { authorizedCompanies, enterCompany, company: current, role } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()
+  const canProvision = useCan('company.provision')
+  const canSuspend = useCan('company.suspend')
+  const canExport = useCan('report.export')
 
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
@@ -114,6 +118,21 @@ export default function Companies() {
     </thead>
   )
 
+  // Tenant directory is a platform/portfolio surface. Single-company HR admins,
+  // managers and employees who reach this route by URL get a locked state.
+  if (role && role !== 'provider_admin' && role !== 'portfolio_manager') {
+    return (
+      <div className="animate-fade-in">
+        <PageHeader title="Companies" subtitle="Tenant directory." icon={<Building2 className="h-5 w-5" />} />
+        <EmptyState
+          icon={<Lock className="h-5 w-5" />}
+          title="Restricted to platform administrators"
+          description="Managing tenants across the platform is handled by the provider and portfolio team. Reach out to your platform admin for company-level changes."
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -121,9 +140,11 @@ export default function Companies() {
         subtitle="Every tenant you're authorized to manage, grouped by portfolio."
         icon={<Building2 className="h-5 w-5" />}
         actions={
-          <Button onClick={() => navigate('/admin/company-setup')}>
-            <Plus className="h-4 w-4" /> Create company
-          </Button>
+          canProvision ? (
+            <Button onClick={() => navigate('/admin/company-setup')}>
+              <Plus className="h-4 w-4" /> Create company
+            </Button>
+          ) : undefined
         }
       />
 
@@ -229,8 +250,12 @@ export default function Companies() {
 
             <div className="flex flex-wrap gap-2 border-t border-border pt-4">
               <Button size="sm" onClick={() => { openCompany(selected); setSelected(null) }}><LogIn className="h-4 w-4" /> Open company</Button>
-              <Button size="sm" variant="outline" onClick={() => push({ title: 'Data export queued', tone: 'info' })}><Download className="h-4 w-4" /> Export data</Button>
-              <Button size="sm" variant="ghost" onClick={() => push({ title: `${selected.name} suspended`, tone: 'warning' })}><Ban className="h-4 w-4" /> Suspend</Button>
+              {canExport && (
+                <Button size="sm" variant="outline" onClick={() => push({ title: 'Data export queued', tone: 'info' })}><Download className="h-4 w-4" /> Export data</Button>
+              )}
+              {canSuspend && (
+                <Button size="sm" variant="ghost" onClick={() => push({ title: `${selected.name} suspended`, tone: 'warning' })}><Ban className="h-4 w-4" /> Suspend</Button>
+              )}
             </div>
           </div>
         )}

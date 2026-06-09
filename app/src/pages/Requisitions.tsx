@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Briefcase, Users, Building2, Plus, Search } from 'lucide-react'
 import { useApp } from '../app/store'
+import { rbacRoleFor, useRbac } from '../app/rbac'
 import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, Input,
@@ -21,8 +22,12 @@ const fillTone = (pct: number): 'success' | 'primary' | 'warning' =>
 export default function Requisitions() {
   const { requisitions: reqSeed, departments } = useCompanyData()
   const { role, company } = useApp()
+  const { effModule } = useRbac()
   const { push } = useToast()
-  const isEmployee = role === 'employee'
+  // Opening a requisition is a write affordance — only roles with edit access to
+  // the requisitions module (Company HR Admin, Portfolio Manager, Platform admin)
+  // may create. People Manager / Employee get a read-only view.
+  const canCreate = effModule(rbacRoleFor(role ?? 'employee'), 'requisitions') === 'edit'
 
   const [reqs, setReqs] = useState<Requisition[]>(reqSeed)
   const [filter, setFilter] = useState<StatusFilter>('all')
@@ -88,7 +93,7 @@ export default function Requisitions() {
         subtitle={`Open roles and hiring pipeline at ${company.name}`}
         icon={<Briefcase className="h-5 w-5" />}
         actions={
-          !isEmployee && (
+          canCreate && (
             <Button onClick={() => setOpen(true)}>
               <Plus className="h-4 w-4" /> New requisition
             </Button>

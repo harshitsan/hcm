@@ -9,6 +9,7 @@ import {
   Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip,
 } from 'recharts'
 import { useApp } from '../app/store'
+import { useCan } from '../app/rbac'
 import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, IconButton,
@@ -366,11 +367,20 @@ function ImportWizard({
 
 /* ----------------------------------------------------------------- main page */
 export default function DataPorting() {
-  const { role, company } = useApp()
+  const { role, company, scope, authorizedCompanies } = useApp()
   const { employees } = useCompanyData()
   const { push } = useToast()
 
-  const isAdmin = role === 'provider_admin' || role === 'company_hr_admin'
+  // Roles that legitimately reach the governance Import/Export console (vs. the
+  // employee/manager personal data-portability screen). Portfolio managers are
+  // granted read:import_export, so they see the console — scoped to their
+  // authorized companies — but consequential actions are gated below by useCan.
+  const isConsole =
+    role === 'provider_admin' || role === 'company_hr_admin' || role === 'portfolio_manager'
+  // Action authority: import requires data.import; export requires report.export.
+  const canImport = useCan('data.import')
+  const canExport = useCan('report.export')
+  const isPortfolio = role === 'portfolio_manager' && scope === 'platform'
 
   /* wizard / export modal state */
   const [wizardOpen, setWizardOpen] = useState(false)
@@ -432,8 +442,8 @@ export default function DataPorting() {
     setExportOpen(false)
   }
 
-  /* ---------- employee self-service view (non-admins) ---------- */
-  if (!isAdmin) {
+  /* ---------- employee self-service view (non-console roles) ---------- */
+  if (!isConsole) {
     return (
       <div className="animate-fade-in">
         <PageHeader
@@ -507,20 +517,28 @@ export default function DataPorting() {
     <div className="animate-fade-in">
       <PageHeader
         title="Data Import / Export"
-        subtitle={`Bulk migrate, validate & port ${company.name}'s data — sandbox-first, rollback-safe.`}
+        subtitle={
+          isPortfolio
+            ? `Migration & portability across your ${authorizedCompanies.length} authorized companies — sandbox-first, rollback-safe.`
+            : `Bulk migrate, validate & port ${company.name}'s data — sandbox-first, rollback-safe.`
+        }
         icon={<ArrowLeftRight className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">
-            <Tooltip label="New export">
-              <IconButton variant="outline" aria-label="New export" onClick={() => setExportOpen(true)}>
-                <Download className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip label="New import">
-              <IconButton variant="solid" aria-label="New import" onClick={() => { setStep(0); setWizardOpen(true) }}>
-                <Plus className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
+            {canExport && (
+              <Tooltip label="New export">
+                <IconButton variant="outline" aria-label="New export" onClick={() => setExportOpen(true)}>
+                  <Download className="h-[18px] w-[18px]" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {canImport && (
+              <Tooltip label="New import">
+                <IconButton variant="solid" aria-label="New import" onClick={() => { setStep(0); setWizardOpen(true) }}>
+                  <Plus className="h-[18px] w-[18px]" />
+                </IconButton>
+              </Tooltip>
+            )}
           </div>
         }
       />
@@ -699,7 +717,7 @@ export default function DataPorting() {
                     <Td className="text-muted-fg">{j.actor}</Td>
                     <Td className="text-right tnum text-2xs text-muted-fg">{j.when}</Td>
                     <Td className="text-right">
-                      {j.status === 'Completed' || j.status === 'Partially completed' ? (
+                      {canImport && (j.status === 'Completed' || j.status === 'Partially completed') ? (
                         <Tooltip label="Roll back this job">
                           <Button
                             size="icon"

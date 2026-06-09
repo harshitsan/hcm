@@ -182,13 +182,23 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 /* ------------------------------------------------------------------ page */
 export default function Performance() {
-  const { role, company } = useApp()
-  const { employees, getEmployee, getDepartment } = useCompanyData()
+  const { role, company, persona } = useApp()
+  const { employees, getEmployee, getDepartment, reportsOf } = useCompanyData()
   const { push } = useToast()
 
   // STAFFPLUS = anyone except a plain employee. Employees get a self-service view.
   const isEmployee = role === 'employee'
   const isManagerOnly = role === 'people_manager'
+
+  // A people_manager is scoped to their own team: only employees whose
+  // managerId === the manager's own employee id (persona.employeeId). Keyed off a
+  // stable primitive (the manager's own id) so memoized data can depend on it cleanly.
+  const scopeManagerId = isManagerOnly ? persona?.employeeId ?? null : null
+  const teamMemberIds = useMemo(
+    () => (scopeManagerId ? new Set(reportsOf(scopeManagerId).map((e) => e.id)) : null),
+    [scopeManagerId, reportsOf],
+  )
+  const inTeam = (employeeId: string) => !teamMemberIds || teamMemberIds.has(employeeId)
 
   const [tab, setTab] = useState<'probation' | 'cycles' | 'milestones'>('probation')
   const [outcomeFilter, setOutcomeFilter] = useState<'all' | Outcome>('all')
@@ -205,7 +215,7 @@ export default function Performance() {
     const e3 = pick('e11', 10)
     const e4 = pick('e8', 7)
     const mgrName = (id: string) => getEmployee(id)?.name ?? 'Manager'
-    return [
+    const all: Probation[] = [
       {
         id: 'pr1',
         employeeId: e1.id,
@@ -299,10 +309,14 @@ export default function Performance() {
         ],
       },
     ]
-  }, [employees, getEmployee, getDepartment])
+    // People managers only see/act on their own team's probations.
+    return teamMemberIds ? all.filter((p) => teamMemberIds.has(p.employeeId)) : all
+  }, [employees, getEmployee, getDepartment, teamMemberIds])
 
   const cycles: Cycle[] = useMemo(() => {
-    const names = employees.map((e) => e.name)
+    // People managers only see their own team's participants in a cycle.
+    const pool = teamMemberIds ? employees.filter((e) => teamMemberIds.has(e.id)) : employees
+    const names = pool.map((e) => e.name)
     return [
       {
         id: 'cy1',
@@ -351,11 +365,11 @@ export default function Performance() {
         ],
       },
     ]
-  }, [employees])
+  }, [employees, teamMemberIds])
 
   const milestones: Milestone[] = useMemo(() => {
     const nm = (id: string, fb: string) => getEmployee(id)?.name ?? fb
-    return [
+    const all: Milestone[] = [
       { id: 'm1', employeeId: 'e9', kind: 'Review', label: `90-day review cleared for ${nm('e9', 'Imran Khan')}`, date: 'Jun 5', feeds: 'Confirmation', status: 'Recorded' },
       { id: 'm2', employeeId: 'e9', kind: 'Confirmation', label: 'Confirmation recommendation submitted', date: 'Jun 6', feeds: 'Confirmation', status: 'Triggered' },
       { id: 'm3', employeeId: 'e8', kind: 'Review', label: `Mid-cycle rating set for ${nm('e8', 'Divya Menon')}`, date: 'Jun 4', feeds: 'Transfer', status: 'Recorded' },
@@ -363,7 +377,9 @@ export default function Performance() {
       { id: 'm5', employeeId: 'e11', kind: 'Review', label: `Below-bar rating recorded for ${nm('e11', 'Joseph Thomas')}`, date: 'Jun 2', feeds: 'Exit', status: 'Recorded' },
       { id: 'm6', employeeId: 'e11', kind: 'Exit', label: 'Separation lifecycle initiated', date: 'Jun 8', feeds: 'Exit', status: 'Triggered' },
     ]
-  }, [getEmployee])
+    // People managers only see lifecycle milestones for their own team.
+    return teamMemberIds ? all.filter((m) => teamMemberIds.has(m.employeeId)) : all
+  }, [getEmployee, teamMemberIds])
 
   /* derived */
   const [probationState, setProbationState] = useState<Probation[]>(probations)
@@ -945,11 +961,11 @@ export default function Performance() {
           <Field label="Employee" required>
             <Select aria-label="Select employee">
               {employees
-                .filter((e) => e.status === 'Probation' || e.status === 'Onboarding')
+                .filter((e) => (e.status === 'Probation' || e.status === 'Onboarding') && inTeam(e.id))
                 .map((e) => (
                   <option key={e.id} value={e.id}>{e.name} · {e.title}</option>
                 ))}
-              {employees.filter((e) => e.status === 'Probation' || e.status === 'Onboarding').length === 0 && (
+              {employees.filter((e) => (e.status === 'Probation' || e.status === 'Onboarding') && inTeam(e.id)).length === 0 && (
                 <option>No employees in probation</option>
               )}
             </Select>

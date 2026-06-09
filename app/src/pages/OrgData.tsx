@@ -8,6 +8,7 @@ import {
 } from 'recharts'
 import { useApp } from '../app/store'
 import { useCompanyData } from '../data/companyData'
+import type { Department, Employee } from '../data/mock'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field,
   IconButton, Input, Modal, PageHeader, Select, StatCard, Switch, Table, Tabs,
@@ -67,9 +68,9 @@ const TONE_FOR_BAND: Record<string, 'info' | 'accent' | 'accent2' | 'success' | 
   Entry: 'neutral',
 }
 
-/* ---------------------------------------------------- deterministic mock data */
+/* ---------------------------------------------------- deterministic mock data (Kensium Pvt Ltd / c1) */
 // Departments — n-level tree (BRD 6.7) with head + headcount.
-const DEPARTMENTS: DeptNode[] = [
+const C1_DEPARTMENTS: DeptNode[] = [
   {
     id: 'd1', name: 'Executive', head: 'Vikram Nair', headcount: 6,
     children: [
@@ -96,7 +97,7 @@ const DEPARTMENTS: DeptNode[] = [
 ]
 
 // Positions — grades / titles, each belongs to exactly one department (BRD 6.8).
-const POSITIONS: Position[] = [
+const C1_POSITIONS: Position[] = [
   { id: 'p1', title: 'Chief Executive Officer', dept: 'Executive', grade: 'E1', band: 'Leadership', filled: 1, open: 0 },
   { id: 'p2', title: 'Engineering Lead', dept: 'Engineering', grade: 'M3', band: 'Senior', filled: 4, open: 1 },
   { id: 'p3', title: 'Backend Engineer', dept: 'Platform', grade: 'IC4', band: 'Mid', filled: 18, open: 2 },
@@ -110,7 +111,7 @@ const POSITIONS: Position[] = [
 ]
 
 // Locations tied to a jurisdiction, with "shared across group" flag (BRD 6.5).
-const LOCATIONS: Location[] = [
+const C1_LOCATIONS: Location[] = [
   { id: 'loc1', name: 'Hyderabad HQ', city: 'Hyderabad', jurisdiction: 'India · Telangana', headcount: 184, shared: true, type: 'HQ' },
   { id: 'loc2', name: 'Mumbai Office', city: 'Mumbai', jurisdiction: 'India · Maharashtra', headcount: 46, shared: false, type: 'Office' },
   { id: 'loc3', name: 'Pune Office', city: 'Pune', jurisdiction: 'India · Maharashtra', headcount: 38, shared: false, type: 'Office' },
@@ -120,7 +121,7 @@ const LOCATIONS: Location[] = [
 ]
 
 // Jurisdictions catalog with statutory targeting (BRD 6.4). `assigned` = operating in.
-const JURISDICTIONS: Jurisdiction[] = [
+const C1_JURISDICTIONS: Jurisdiction[] = [
   { id: 'j1', name: 'India · Telangana', region: 'South Asia', employees: 189, statutory: ['PF', 'ESIC', 'PT', 'LWF'], assigned: true },
   { id: 'j2', name: 'India · Maharashtra', region: 'South Asia', employees: 84, statutory: ['PF', 'ESIC', 'PT'], assigned: true },
   { id: 'j3', name: 'India · Tamil Nadu', region: 'South Asia', employees: 21, statutory: ['PF', 'ESIC', 'PT', 'LWF'], assigned: true },
@@ -130,7 +131,7 @@ const JURISDICTIONS: Jurisdiction[] = [
 ]
 
 // Groups — global + company-specific, n-level nesting (BRD 6.6).
-const GROUPS: GroupNode[] = [
+const C1_GROUPS: GroupNode[] = [
   {
     id: 'g1', name: 'All Employees', scope: 'Global', members: 312,
     children: [
@@ -154,7 +155,7 @@ const GROUPS: GroupNode[] = [
   { id: 'g9', name: 'Wellness Champions', scope: 'Company', members: 19 },
 ]
 
-const PEOPLE_SAMPLE = [
+const C1_PEOPLE_SAMPLE = [
   'Vikram Nair', 'Rahul Verma', 'Priya Sharma', 'Sneha Kapoor', 'Arjun Desai',
   'Karan Mehta', 'Divya Menon', 'Imran Khan', 'Sanjay Gupta', 'Fatima Sheikh',
 ]
@@ -181,6 +182,98 @@ function flattenDepts(nodes: DeptNode[]): DeptNode[] {
 }
 function flattenGroups(nodes: GroupNode[]): GroupNode[] {
   return nodes.flatMap((n) => [n, ...(n.children ? flattenGroups(n.children) : [])])
+}
+
+/* ----------------------------------------------------------- per-company derivation
+ * Companies other than Kensium Pvt Ltd (c1) don't have a hand-authored org-structure
+ * dataset. Deriving the org tree, positions, locations, jurisdictions & groups from the
+ * company's REAL departments + employees keeps every screen scoped to the active tenant,
+ * so a portfolio manager who switches companies never sees c1's chart attributed to
+ * another company. */
+const BAND_BY_TITLE = (title: string): string => {
+  const t = title.toLowerCase()
+  if (t.includes('chief') || t.includes('head') || t.includes('director')) return 'Leadership'
+  if (t.includes('lead') || t.includes('principal') || t.includes('manager') || t.includes('controller') || t.includes('partner')) return 'Senior'
+  if (t.includes('senior') || t.includes('business')) return 'Mid'
+  if (t.includes('new hire') || t.includes('associate') || t.includes('intern')) return 'Entry'
+  return 'Junior'
+}
+
+function buildDeptTree(departments: Department[]): DeptNode[] {
+  const byParent = new Map<string | null, Department[]>()
+  departments.forEach((d) => {
+    const k = d.parentId
+    byParent.set(k, [...(byParent.get(k) ?? []), d])
+  })
+  const build = (d: Department): DeptNode => {
+    const kids = byParent.get(d.id) ?? []
+    const node: DeptNode = { id: d.id, name: d.name, head: d.head, headcount: d.headcount }
+    if (kids.length) node.children = kids.map(build)
+    return node
+  }
+  const roots = byParent.get(null) ?? departments
+  return roots.map(build)
+}
+
+function buildPositions(departments: Department[], employees: Employee[]): Position[] {
+  const deptName = new Map(departments.map((d) => [d.id, d.name]))
+  const byTitle = new Map<string, { title: string; dept: string; filled: number }>()
+  employees.forEach((e) => {
+    const key = `${e.title}__${e.departmentId}`
+    const prev = byTitle.get(key)
+    if (prev) prev.filled += 1
+    else byTitle.set(key, { title: e.title, dept: deptName.get(e.departmentId) ?? '—', filled: 1 })
+  })
+  return [...byTitle.values()].map((p, i) => ({
+    id: `pos${i + 1}`,
+    title: p.title,
+    dept: p.dept,
+    grade: '—',
+    band: BAND_BY_TITLE(p.title),
+    filled: p.filled,
+    open: 0,
+  }))
+}
+
+function buildLocations(employees: Employee[], jurisdiction: string): Location[] {
+  const counts = new Map<string, number>()
+  employees.forEach((e) => counts.set(e.location, (counts.get(e.location) ?? 0) + 1))
+  return [...counts.entries()].map(([name, headcount], i) => ({
+    id: `loc${i + 1}`,
+    name,
+    city: name.replace(/\s+(HQ|Office|Hub)$/i, '').trim() || name,
+    jurisdiction,
+    headcount,
+    shared: false,
+    type: /HQ/i.test(name) ? 'HQ' : /Hub/i.test(name) ? 'Hub' : /Remote/i.test(name) ? 'Remote' : 'Office',
+  }))
+}
+
+function buildJurisdictions(jurisdiction: string, total: number): Jurisdiction[] {
+  const statutory = /United States|Delaware/i.test(jurisdiction)
+    ? ['FICA', 'SUTA']
+    : /Sri Lanka/i.test(jurisdiction)
+      ? ['EPF', 'ETF']
+      : ['PF', 'ESIC', 'PT']
+  const region = /United States/i.test(jurisdiction)
+    ? 'North America'
+    : /Europe|United Kingdom/i.test(jurisdiction)
+      ? 'Europe'
+      : 'South Asia'
+  return [{ id: 'jur1', name: jurisdiction, region, employees: total, statutory, assigned: true }]
+}
+
+function buildGroups(companyName: string, total: number): GroupNode[] {
+  return [
+    {
+      id: 'grp1', name: 'All Employees', scope: 'Company', members: total,
+      children: [
+        { id: 'grp2', name: 'Full-time', scope: 'Company', members: Math.round(total * 0.9) },
+        { id: 'grp3', name: 'Contractors', scope: 'Company', members: Math.max(0, total - Math.round(total * 0.9)) },
+      ],
+    },
+    { id: 'grp4', name: `${companyName} Leadership`, scope: 'Company', members: Math.max(1, Math.round(total * 0.04)) },
+  ]
 }
 
 /* ----------------------------------------------------------------- Dept tree row */
@@ -334,9 +427,33 @@ const ADD_LABEL: Record<TabKey, string> = {
 
 /* ================================================================ Page */
 export default function OrgData() {
-  const { role, company } = useApp()
-  const { employees } = useCompanyData()
+  const { role, company, companyId } = useApp()
+  const { employees, departments } = useCompanyData()
   const { push } = useToast()
+
+  // Resolve the org-structure dataset for the ACTIVE company. c1 keeps its rich
+  // hand-authored tree; every other tenant gets data derived from its own
+  // departments + employees so nothing is attributed to the wrong company.
+  const org = useMemo(() => {
+    if (companyId === 'c1') {
+      return {
+        depts: C1_DEPARTMENTS,
+        positions: C1_POSITIONS,
+        locations: C1_LOCATIONS,
+        jurisdictions: C1_JURISDICTIONS,
+        groups: C1_GROUPS,
+        people: C1_PEOPLE_SAMPLE,
+      }
+    }
+    return {
+      depts: buildDeptTree(departments),
+      positions: buildPositions(departments, employees),
+      locations: buildLocations(employees, company.jurisdiction),
+      jurisdictions: buildJurisdictions(company.jurisdiction, company.employees),
+      groups: buildGroups(company.name, company.employees),
+      people: employees.slice(0, 10).map((e) => e.name),
+    }
+  }, [companyId, departments, employees, company.jurisdiction, company.name, company.employees])
 
   const canEdit = role === 'company_hr_admin' || role === 'provider_admin' || role === 'portfolio_manager'
 
@@ -364,41 +481,41 @@ export default function OrgData() {
     setOpen(false)
   }
 
-  // Top-line stats (deterministic counts derived from module mock data).
+  // Top-line stats (counts derived from the active company's org data).
   const stats = useMemo(() => {
-    const deptCount = flattenDepts(DEPARTMENTS).length
-    const openSeats = POSITIONS.reduce((a, p) => a + p.open, 0)
-    const sharedLocs = LOCATIONS.filter((l) => l.shared).length
-    const activeJur = JURISDICTIONS.filter((j) => j.assigned).length
+    const deptCount = flattenDepts(org.depts).length
+    const openSeats = org.positions.reduce((a, p) => a + p.open, 0)
+    const sharedLocs = org.locations.filter((l) => l.shared).length
+    const activeJur = org.jurisdictions.filter((j) => j.assigned).length
     return { deptCount, openSeats, sharedLocs, activeJur }
-  }, [])
+  }, [org])
 
-  // Grade-band distribution donut (deterministic from POSITIONS).
+  // Grade-band distribution donut (from the active company's positions).
   const bandData = useMemo(() => {
     const order = ['Leadership', 'Senior', 'Mid', 'Junior', 'Entry']
     return order
       .map((band) => ({
         name: band,
-        value: POSITIONS.filter((p) => p.band === band).reduce((a, p) => a + p.filled, 0),
+        value: org.positions.filter((p) => p.band === band).reduce((a, p) => a + p.filled, 0),
       }))
       .filter((d) => d.value > 0)
-  }, [])
+  }, [org])
 
   const filteredPositions = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return POSITIONS
-    return POSITIONS.filter(
+    if (!q) return org.positions
+    return org.positions.filter(
       (p) => p.title.toLowerCase().includes(q) || p.dept.toLowerCase().includes(q) || p.grade.toLowerCase().includes(q),
     )
-  }, [query])
+  }, [query, org.positions])
 
   const filteredLocations = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return LOCATIONS
-    return LOCATIONS.filter(
+    if (!q) return org.locations
+    return org.locations.filter(
       (l) => l.name.toLowerCase().includes(q) || l.city.toLowerCase().includes(q) || l.jurisdiction.toLowerCase().includes(q),
     )
-  }, [query])
+  }, [query, org.locations])
 
   const showSearch = tab === 'positions' || tab === 'locations'
 
@@ -468,7 +585,7 @@ export default function OrgData() {
               }
             >
               <ul className="-mx-1">
-                {DEPARTMENTS.map((d) => (
+                {org.depts.map((d) => (
                   <DeptRow key={d.id} node={d} depth={0} onAdd={(p) => openAdd(p)} canEdit={canEdit} />
                 ))}
               </ul>
@@ -477,7 +594,7 @@ export default function OrgData() {
           <div>
             <SectionCard title="Department heads" subtitle="Approvals & reporting route to these owners.">
               <ul className="space-y-3">
-                {flattenDepts(DEPARTMENTS)
+                {flattenDepts(org.depts)
                   .filter((d) => d.name !== 'Executive')
                   .slice(0, 6)
                   .map((d) => (
@@ -491,7 +608,7 @@ export default function OrgData() {
                   ))}
               </ul>
               <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
-                <AvatarStack names={PEOPLE_SAMPLE} max={5} size="sm" />
+                <AvatarStack names={org.people} max={5} size="sm" />
                 <span className="text-xs text-muted-fg">{employees.length} people mapped to this tree</span>
               </div>
             </SectionCard>
@@ -668,7 +785,7 @@ export default function OrgData() {
                 </Tr>
               </thead>
               <tbody>
-                {JURISDICTIONS.map((j) => (
+                {org.jurisdictions.map((j) => (
                   <Tr key={j.id}>
                     <Td>
                       <div className="flex items-center gap-2.5">
@@ -722,7 +839,7 @@ export default function OrgData() {
               }
             >
               <ul className="-mx-1">
-                {GROUPS.map((g) => (
+                {org.groups.map((g) => (
                   <GroupRow key={g.id} node={g} depth={0} />
                 ))}
               </ul>
@@ -746,7 +863,7 @@ export default function OrgData() {
               <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
                 <Globe2 className="h-4 w-4 text-accent" />
                 <span className="text-xs text-muted-fg">
-                  {flattenGroups(GROUPS).filter((g) => g.scope === 'Global').length} global · {flattenGroups(GROUPS).filter((g) => g.scope === 'Company').length} company groups
+                  {flattenGroups(org.groups).filter((g) => g.scope === 'Global').length} global · {flattenGroups(org.groups).filter((g) => g.scope === 'Company').length} company groups
                 </span>
               </div>
             </SectionCard>
@@ -800,7 +917,7 @@ export default function OrgData() {
             <Field label="Department head">
               <Select value={draftMeta} onChange={(e) => setDraftMeta(e.target.value)} aria-label="Department head">
                 <option value="">Select a head…</option>
-                {PEOPLE_SAMPLE.map((n) => (
+                {org.people.map((n) => (
                   <option key={n} value={n}>{n}</option>
                 ))}
               </Select>
@@ -811,7 +928,7 @@ export default function OrgData() {
             <Field label="Parent department" required hint="A position belongs to exactly one department (BRD §6.8.1).">
               <Select value={draftMeta} onChange={(e) => setDraftMeta(e.target.value)} aria-label="Parent department">
                 <option value="">Select a department…</option>
-                {flattenDepts(DEPARTMENTS).map((d) => (
+                {flattenDepts(org.depts).map((d) => (
                   <option key={d.id} value={d.name}>{d.name}</option>
                 ))}
               </Select>
@@ -823,7 +940,7 @@ export default function OrgData() {
               <Field label="Jurisdiction" required>
                 <Select value={draftMeta} onChange={(e) => setDraftMeta(e.target.value)} aria-label="Jurisdiction">
                   <option value="">Select a jurisdiction…</option>
-                  {JURISDICTIONS.map((j) => (
+                  {org.jurisdictions.map((j) => (
                     <option key={j.id} value={j.name}>{j.name}</option>
                   ))}
                 </Select>

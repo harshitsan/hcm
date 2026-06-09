@@ -7,6 +7,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip } from 'r
 import { useApp } from '../app/store'
 import { type Employee } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
+import { useCan } from '../app/rbac'
 import {
   Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, PageHeader,
   StatCard, Table, Tabs, Td, Th, Tr, useToast,
@@ -46,9 +47,17 @@ const teamToday: Record<string, { status: string; in: string; out: string }> = {
 
 export default function Attendance() {
   const { attendanceWeek, attendanceMix, employees } = useCompanyData()
-  const { role, company } = useApp()
+  const { role, company, persona } = useApp()
   const { push } = useToast()
   const isEmployee = role === 'employee'
+  const isManager = role === 'people_manager'
+  // Resolve the logged-in employee strictly from the persona (never employees[0]).
+  const me = useMemo(
+    () => (persona?.employeeId ? employees.find((e) => e.id === persona.employeeId) ?? null : null),
+    [persona, employees],
+  )
+  // Export covers the whole company register — only company-wide roles may run it.
+  const canExport = useCan('report.export')
 
   const [clockedIn, setClockedIn] = useState(true)
   const [tab, setTab] = useState('overview')
@@ -74,10 +83,16 @@ export default function Attendance() {
     })
   }
 
-  const team = useMemo<Employee[]>(
-    () => employees.filter((e) => teamToday[e.id]),
-    [employees],
-  )
+  const team = useMemo<Employee[]>(() => {
+    // People managers see only their own direct reports; company-wide roles
+    // (HR admin / portfolio manager) see the full register.
+    const withSnapshot = employees.filter((e) => teamToday[e.id])
+    if (isManager) {
+      const myId = persona?.employeeId
+      return myId ? withSnapshot.filter((e) => e.managerId === myId) : []
+    }
+    return withSnapshot
+  }, [employees, isManager, persona])
   const totalMix = attendanceMix.reduce((a, m) => a + m.value, 0)
 
   /* ----------------------------------------------------------------- Employee view */
@@ -103,7 +118,7 @@ export default function Attendance() {
                   {clockedIn ? 'Clocked in' : 'Clocked out'}
                 </p>
                 <p className="mt-0.5 text-sm text-muted-fg">
-                  {clockedIn ? 'Since 09:12 · Mumbai HQ' : 'Last out 18:30 yesterday'}
+                  {clockedIn ? `Since 09:12${me ? ` · ${me.location}` : ''}` : 'Last out 18:30 yesterday'}
                 </p>
               </div>
               <Button
@@ -163,12 +178,18 @@ export default function Attendance() {
     <div className="animate-fade-in">
       <PageHeader
         title="Attendance"
-        subtitle={`Today across ${company.name} · ${totalMix} on roll`}
+        subtitle={
+          isManager
+            ? `Your team today · ${team.length} ${team.length === 1 ? 'report' : 'reports'}`
+            : `Today across ${company.name} · ${totalMix} on roll`
+        }
         icon={<Clock className="h-5 w-5" />}
         actions={
-          <Button variant="outline" size="sm" onClick={() => push({ title: 'Register exported', tone: 'success' })}>
-            <Upload className="h-4 w-4" /> Export register
-          </Button>
+          canExport ? (
+            <Button variant="outline" size="sm" onClick={() => push({ title: 'Register exported', tone: 'success' })}>
+              <Upload className="h-4 w-4" /> Export register
+            </Button>
+          ) : undefined
         }
       />
 

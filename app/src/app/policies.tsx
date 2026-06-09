@@ -8,6 +8,8 @@
  * so a child's edit is visible to the parent immediately.
  */
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { useApp } from './store'
+import { portfolios } from '../data/mock'
 
 export type Clause = { id: string; text: string; mandatory: boolean }
 export type SharedPolicy = {
@@ -97,16 +99,60 @@ const Ctx = createContext<PoliciesState | null>(null)
 const k = (c: string, p: string, cl: string) => `${c}|${p}|${cl}`
 
 export function PoliciesProvider({ children }: { children: ReactNode }) {
-  const [shared, setShared] = useState<SharedPolicy[]>(SEED)
+  // The raw master list. Selectors that are already keyed by a single companyId
+  // (policiesForCompany / resolveClauses / override*) read this directly; the
+  // PARENT console's `shared` list is scoped to the caller's portfolio below.
+  const [allShared, setAllShared] = useState<SharedPolicy[]>(SEED)
   const [overrides, setOverrides] = useState<Record<string, string>>(SEED_OVERRIDES)
   const [log, setLog] = useState<PolicyLogEntry[]>(SEED_LOG)
+  const { authorizedCompanies, persona } = useApp()
+
+  // Authorization scope: which company tenants this persona may see. An empty
+  // persona.companyIds means full access (provider/platform) → no filtering.
+  const authorizedIds = useMemo(
+    () => (persona && persona.companyIds.length > 0
+      ? new Set(authorizedCompanies.map((c) => c.id))
+      : null),
+    [authorizedCompanies, persona],
+  )
+
+  // Derive the publishing owner/scope/appliesTo from the persona's own portfolio
+  // instead of hard-coding Kensium Group / c1..c5 in the screen.
+  const publishScope = useMemo(() => {
+    const ids = authorizedCompanies.map((c) => c.id)
+    const groupLabels = new Set(authorizedCompanies.map((c) => c.group).filter(Boolean) as string[])
+    const portfolio = portfolios.find((pf) =>
+      ids.length > 0 && pf.companyIds.length === ids.length && pf.companyIds.every((id) => ids.includes(id)),
+    )
+    if (groupLabels.size === 1) {
+      return { owner: [...groupLabels][0], ownerScope: 'Group' as const, appliesTo: ids }
+    }
+    if (portfolio) {
+      return { owner: portfolio.name, ownerScope: 'Portfolio' as const, appliesTo: ids }
+    }
+    return { owner: 'SatelliteHR', ownerScope: 'Platform' as const, appliesTo: ids }
+  }, [authorizedCompanies])
+
+  // What the PARENT console renders: only policies that touch an authorized company.
+  const shared = useMemo(
+    () => (authorizedIds ? allShared.filter((p) => p.appliesTo.some((id) => authorizedIds.has(id))) : allShared),
+    [allShared, authorizedIds],
+  )
 
   const value = useMemo<PoliciesState>(() => ({
     shared,
     log,
+    // owner / appliesTo come from the publisher's portfolio, never the caller's literals.
     addSharedPolicy: (p) =>
-      setShared((list) => [{ ...p, id: `sp-new-${list.length + 1}`, version: 'v1.0' }, ...list]),
-    policiesForCompany: (companyId) => shared.filter((p) => p.appliesTo.includes(companyId)),
+      setAllShared((list) => [{
+        ...p,
+        owner: publishScope.owner,
+        ownerScope: publishScope.ownerScope,
+        appliesTo: publishScope.appliesTo,
+        id: `sp-new-${list.length + 1}`,
+        version: 'v1.0',
+      }, ...list]),
+    policiesForCompany: (companyId) => allShared.filter((p) => p.appliesTo.includes(companyId)),
     resolveClauses: (companyId, policy) =>
       policy.clauses.map((cl) => {
         const o = overrides[k(companyId, policy.id, cl.id)]
@@ -130,13 +176,13 @@ export function PoliciesProvider({ children }: { children: ReactNode }) {
         .map(([key, text]) => {
           const [companyId, pid, clauseId] = key.split('|')
           if (pid !== policyId) return null
-          const original = shared.find((p) => p.id === pid)?.clauses.find((c) => c.id === clauseId)?.text ?? ''
+          const original = allShared.find((p) => p.id === pid)?.clauses.find((c) => c.id === clauseId)?.text ?? ''
           return { companyId, policyId: pid, clauseId, original, text }
         })
         .filter((r): r is OverrideRow => r !== null),
     // Per applies-to company: are they on the group master, or their own snapshot?
     usageForPolicy: (policyId) => {
-      const policy = shared.find((p) => p.id === policyId)
+      const policy = allShared.find((p) => p.id === policyId)
       if (!policy) return []
       return policy.appliesTo.map((companyId) => {
         const n = policy.clauses.filter((cl) => overrides[k(companyId, policyId, cl.id)] != null).length
@@ -145,13 +191,13 @@ export function PoliciesProvider({ children }: { children: ReactNode }) {
     },
     logForPolicy: (policyId) => log.filter((e) => e.policyId === policyId),
     hasSnapshot: (companyId, policyId) => {
-      const policy = shared.find((p) => p.id === policyId)
+      const policy = allShared.find((p) => p.id === policyId)
       return !!policy && policy.clauses.some((cl) => overrides[k(companyId, policyId, cl.id)] != null)
     },
     // distinct (company, policy) pairs that have forked their own snapshot
     snapshotCount: new Set(Object.keys(overrides).map((key) => key.split('|').slice(0, 2).join('|'))).size,
     totalOverrides: Object.keys(overrides).length,
-  }), [shared, overrides, log])
+  }), [shared, allShared, overrides, log, publishScope])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

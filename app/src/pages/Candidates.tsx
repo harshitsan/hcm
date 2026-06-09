@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Users2, Plus, Star, ArrowRight, Briefcase, Search } from 'lucide-react'
 import { useApp } from '../app/store'
+import { useRbac, rbacRoleFor } from '../app/rbac'
 import { type Candidate } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
 import {
@@ -48,9 +49,14 @@ function Stars({ rating }: { rating: number }) {
 export default function Candidates() {
   const { candidates: candidateSeed, requisitions } = useCompanyData()
   const { role, company } = useApp()
+  const { effModule } = useRbac()
   const { push } = useToast()
   const navigate = useNavigate()
-  const readOnly = role === 'employee'
+  // Pipeline ownership (add/advance candidates, create requisitions) belongs to
+  // roles with edit access to the Candidates module — Company HR Admin / Portfolio
+  // Manager. People Managers and Employees have read-only access here (their hiring
+  // role is approve/scorecard, surfaced on Requisitions/Interviews).
+  const readOnly = effModule(rbacRoleFor(role ?? 'employee'), 'candidates') !== 'edit'
 
   const [board, setBoard] = useState<Candidate[]>(candidateSeed)
   const [query, setQuery] = useState('')

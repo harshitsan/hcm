@@ -38,19 +38,19 @@ type MyAsset = { id: string; name: string; tag: string; issued: string; state: A
 
 type QuickDoc = { id: string; name: string; kind: 'Letter' | 'Document'; date: string; new?: boolean }
 
-const SENSITIVE_FIELDS: SensitiveField[] = [
-  { label: 'Legal name', value: '—', note: 'Statutory · HR-managed' },
-  { label: 'Date of birth', value: '14 Feb 1992', note: 'Statutory · HR-managed' },
-  { label: 'Bank account', value: '•••• •••• 4821', note: 'Sensitive · change request' },
-  { label: 'PAN', value: 'ABXP•••• 7K', note: 'Statutory · change request' },
-  { label: 'Aadhaar', value: '•••• •••• 9032', note: 'Statutory · change request' },
-]
-
-const CHANGE_REQUESTS: ChangeRequest[] = [
-  { id: 'cr-1', field: 'Bank account', from: '•••• 1190', to: '•••• 4821', raised: '02 Jun 2026', status: 'Pending' },
-  { id: 'cr-2', field: 'Legal name', from: 'Meera Iyer', to: 'Meera Iyer-Rao', raised: '21 May 2026', status: 'Approved' },
-  { id: 'cr-3', field: 'PAN', from: 'ABXP•••• 1A', to: 'ABXP•••• 7K', raised: '08 May 2026', status: 'Rejected' },
-]
+// Sensitive statutory fields are derived per-persona from the resolved `me` record
+// (see sensitiveFields() in the component). The mock Employee type carries no real
+// DOB/PAN/Aadhaar/bank values, so masked placeholders are used — never a specific
+// named individual's statutory PII shared across every persona.
+function sensitiveFieldsFor(legalName: string): SensitiveField[] {
+  return [
+    { label: 'Legal name', value: legalName, note: 'Statutory · HR-managed' },
+    { label: 'Date of birth', value: '•• ••• ••••', note: 'Statutory · HR-managed' },
+    { label: 'Bank account', value: '•••• •••• ••••', note: 'Sensitive · change request' },
+    { label: 'PAN', value: '••••• •••• ••', note: 'Statutory · change request' },
+    { label: 'Aadhaar', value: '•••• •••• ••••', note: 'Statutory · change request' },
+  ]
+}
 
 const MY_ASSETS: MyAsset[] = [
   { id: 'as-1', name: 'MacBook Pro 14"', tag: 'KEN-LAP-2291', issued: '12 Jan 2026', state: 'Acknowledged', icon: Laptop },
@@ -183,6 +183,9 @@ export default function Profile() {
   const manager = useMemo(() => (me?.managerId ? getEmployee(me.managerId) : null), [me, getEmployee])
   const department = useMemo(() => (me ? getDepartment(me.departmentId) : null), [me, getDepartment])
 
+  // Statutory/sensitive fields scoped to the resolved persona — never a fixed individual's PII.
+  const sensitiveFields = useMemo(() => sensitiveFieldsFor(me?.name ?? '—'), [me])
+
   // Peers in my department for the avatar cluster (exclude me).
   const teamNames = useMemo(
     () => employees.filter((e) => me && e.departmentId === me.departmentId && e.id !== me.id).map((e) => e.name),
@@ -190,13 +193,16 @@ export default function Profile() {
   )
 
   // Editable (non-sensitive) fields seeded from my record — employee-editable per US-EMP-02.
+  // Derived strictly from the resolved `me` record. The mock Employee type has no
+  // personal-email/emergency/address fields, so those render as empty placeholders
+  // rather than embedding a specific individual's PII as everyone's default.
   const editableSeed: EditableField[] = useMemo(
     () => [
-      { key: 'phone', label: 'Personal phone', icon: Phone, value: me?.phone ?? '+91 90000 00000' },
-      { key: 'personalEmail', label: 'Personal email', icon: Mail, value: 'meera.personal@gmail.com' },
-      { key: 'emergencyName', label: 'Emergency contact', icon: UserRound, value: 'Lakshmi Iyer (Mother)' },
-      { key: 'emergencyPhone', label: 'Emergency phone', icon: Phone, value: '+91 90123 45678' },
-      { key: 'address', label: 'Current address', icon: MapPin, value: '14 Brigade Road, Bengaluru 560001' },
+      { key: 'phone', label: 'Personal phone', icon: Phone, value: me?.phone ?? '—' },
+      { key: 'personalEmail', label: 'Personal email', icon: Mail, value: '—' },
+      { key: 'emergencyName', label: 'Emergency contact', icon: UserRound, value: '—' },
+      { key: 'emergencyPhone', label: 'Emergency phone', icon: Phone, value: '—' },
+      { key: 'address', label: 'Current address', icon: MapPin, value: '—' },
     ],
     [me],
   )
@@ -220,17 +226,18 @@ export default function Profile() {
 
   // Sensitive-field change request modal (US-EMP-03).
   const [crOpen, setCrOpen] = useState(false)
-  const [crField, setCrField] = useState(SENSITIVE_FIELDS[2].label)
+  const [crField, setCrField] = useState('Bank account')
   const [crValue, setCrValue] = useState('')
   const [crReason, setCrReason] = useState('')
-  const [requests, setRequests] = useState<ChangeRequest[]>(CHANGE_REQUESTS)
+  // Change-request history is per-persona; never seed a named individual's history for everyone.
+  const [requests, setRequests] = useState<ChangeRequest[]>([])
 
   const submitCr = () => {
     if (!crValue.trim()) {
       push({ title: 'Enter the requested new value', tone: 'warning' })
       return
     }
-    const current = SENSITIVE_FIELDS.find((f) => f.label === crField)?.value ?? '—'
+    const current = sensitiveFields.find((f) => f.label === crField)?.value ?? '—'
     setRequests((prev) => [
       { id: `cr-${prev.length + 1}`, field: crField, from: current, to: crValue.trim(), raised: '09 Jun 2026', status: 'Pending' },
       ...prev,
@@ -389,7 +396,7 @@ export default function Profile() {
             </CardHeader>
             <CardBody className="space-y-5">
               <div className="grid gap-5 sm:grid-cols-2">
-                {SENSITIVE_FIELDS.map((f) => (
+                {sensitiveFields.map((f) => (
                   <div key={f.label} className="flex items-start gap-3">
                     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-fg">
                       <Lock className="h-4 w-4" />
@@ -640,13 +647,13 @@ export default function Profile() {
         <div className="space-y-4">
           <Field label="Field" required>
             <Select value={crField} onChange={(e) => setCrField(e.target.value)}>
-              {SENSITIVE_FIELDS.map((f) => (
+              {sensitiveFields.map((f) => (
                 <option key={f.label} value={f.label}>{f.label}</option>
               ))}
             </Select>
           </Field>
           <Field label="Current value">
-            <Input value={SENSITIVE_FIELDS.find((f) => f.label === crField)?.value ?? '—'} readOnly disabled />
+            <Input value={sensitiveFields.find((f) => f.label === crField)?.value ?? '—'} readOnly disabled />
           </Field>
           <Field label="Requested new value" required>
             <Input value={crValue} onChange={(e) => setCrValue(e.target.value)} placeholder="Enter the corrected value" autoFocus />

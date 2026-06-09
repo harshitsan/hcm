@@ -95,7 +95,10 @@ export const navConfig: NavGroup[] = [
     group: 'Admin & Setup',
     items: [
       { label: 'Companies', path: '/admin/companies', icon: Building2, roles: PORTFOLIO },
-      { label: 'Company Setup', path: '/admin/company-setup', icon: SlidersHorizontal, roles: ADMINS },
+      // Company provisioning is a platform/provider function (CompanySetup.tsx blocks
+      // company_hr_admin). Restrict the nav entry to PORTFOLIO to match the internal gate;
+      // the company-level setup screens an HR admin owns have their own entries below.
+      { label: 'Company Setup', path: '/admin/company-setup', icon: SlidersHorizontal, roles: PORTFOLIO },
       { label: 'Org & Master Data', path: '/admin/org-data', icon: FolderTree, roles: HRPLUS },
       { label: 'Workflow Builder', path: '/admin/workflow-builder', icon: GitBranch, roles: HRPLUS },
       { label: 'Roles & Security', path: '/admin/roles', icon: ShieldCheck, roles: HRPLUS },
@@ -138,6 +141,9 @@ export const platformNav: NavGroup[] = [
     ],
   },
   {
+    // Account surface for the platform roles. Both provider_admin and
+    // portfolio_manager keep My Profile + Notifications here (a platform admin's
+    // profile shows an account/no-employee-record state rather than a tenant's PII).
     group: 'My Space',
     items: [
       { label: 'My Profile', path: '/me/profile', icon: UserCircle, roles: PORTFOLIO },

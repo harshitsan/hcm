@@ -4,6 +4,7 @@ import {
   Users, Search, Plus, Download, UserX, MoreHorizontal, Eye, Pencil, X,
 } from 'lucide-react'
 import { useApp } from '../app/store'
+import { useCan } from '../app/rbac'
 import {
   type Employee,
 } from '../data/mock'
@@ -24,10 +25,14 @@ const statusTone: Record<Employee['status'], StatusTone> = {
 
 export default function Employees() {
   const { employees: employeeSeed, departments, getDepartment } = useCompanyData()
-  const { role, company } = useApp()
+  const { company } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()
-  const readOnly = role === 'employee'
+  // Write capability is governed by RBAC actions, not by "is this an employee".
+  // A People Manager has Employee Records as read-only with no employee.create/edit.
+  const canCreate = useCan('employee.create')
+  const canEdit = useCan('employee.edit')
+  const canExport = useCan('report.export')
 
   const [query, setQuery] = useState('')
   const [dept, setDept] = useState('all')
@@ -67,6 +72,7 @@ export default function Employees() {
 
   const submitAdd = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canCreate) return
     setAddOpen(false)
     push({ title: 'Employee added to ' + company.name, tone: 'success' })
   }
@@ -78,7 +84,7 @@ export default function Employees() {
         subtitle={`${employeeSeed.length} people at ${company.name}`}
         icon={<Users className="h-5 w-5" />}
         actions={
-          !readOnly && (
+          canCreate && (
             <Button onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" /> Add employee
             </Button>
@@ -131,10 +137,12 @@ export default function Employees() {
               {selected.length} selected
             </span>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={() => bulk('Exported', 'info')}>
-                <Download className="h-3.5 w-3.5" /> Export
-              </Button>
-              {!readOnly && (
+              {canExport && (
+                <Button size="sm" variant="outline" onClick={() => bulk('Exported', 'info')}>
+                  <Download className="h-3.5 w-3.5" /> Export
+                </Button>
+              )}
+              {canEdit && (
                 <Button size="sm" variant="outline" onClick={() => bulk('Deactivated', 'warning')}>
                   <UserX className="h-3.5 w-3.5" /> Deactivate
                 </Button>
@@ -221,7 +229,7 @@ export default function Employees() {
                           >
                             <Eye className="h-3.5 w-3.5" /> View profile
                           </button>
-                          {!readOnly && (
+                          {canEdit && (
                             <button
                               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-fg hover:bg-muted"
                               onClick={() => { setMenuFor(null); push({ title: `Editing ${e.name}`, tone: 'info' }) }}
@@ -229,7 +237,7 @@ export default function Employees() {
                               <Pencil className="h-3.5 w-3.5" /> Edit
                             </button>
                           )}
-                          {!readOnly && (
+                          {canEdit && (
                             <button
                               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-danger hover:bg-danger/10"
                               onClick={() => { setMenuFor(null); push({ title: `Deactivated ${e.name}`, tone: 'warning' }) }}

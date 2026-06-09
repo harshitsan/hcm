@@ -17,12 +17,15 @@ import { cn } from '../lib/cn'
 
 const statusTone = (s: Company['status']) => (s === 'Active' ? 'success' : s === 'Suspended' ? 'warning' : 'neutral')
 
-// recent cross-tenant activity (deterministic mock)
+// recent cross-tenant activity (deterministic mock).
+// Each entry is tagged with the company ids it concerns so the feed can be
+// scoped to the persona's authorizedCompanies — a portfolio manager must never
+// learn that out-of-portfolio tenants exist (or their lifecycle status).
 const ACTIVITY = [
-  { actor: 'Anita Rao', action: 'Created', tone: 'success' as const, entity: 'Company · Orbit Media', detail: 'Status: Draft', time: '2 days ago' },
-  { actor: 'OpsMaven', action: 'Enabled', tone: 'accent' as const, entity: 'Group · Kensium Group', detail: 'Cross-company sharing (opt-in)', time: '4 days ago' },
-  { actor: 'OpsMaven', action: 'Context switch', tone: 'neutral' as const, entity: 'Company', detail: 'Kensium LLC → Kensium Pvt Ltd', time: '4 days ago' },
-  { actor: 'System', action: 'Suspended', tone: 'warning' as const, entity: 'Company · Delta Logistics', detail: 'Non-payment — data retained', time: '6 days ago' },
+  { actor: 'Anita Rao', action: 'Created', tone: 'success' as const, entity: 'Company · Orbit Media', detail: 'Status: Draft', time: '2 days ago', companyIds: ['c7'] },
+  { actor: 'OpsMaven', action: 'Enabled', tone: 'accent' as const, entity: 'Group · Kensium Group', detail: 'Cross-company sharing (opt-in)', time: '4 days ago', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
+  { actor: 'OpsMaven', action: 'Context switch', tone: 'neutral' as const, entity: 'Company', detail: 'Kensium LLC → Kensium Pvt Ltd', time: '4 days ago', companyIds: ['c1', 'c2'] },
+  { actor: 'System', action: 'Suspended', tone: 'warning' as const, entity: 'Company · Delta Logistics', detail: 'Non-payment — data retained', time: '6 days ago', companyIds: ['c6'] },
 ]
 
 export default function PlatformHome() {
@@ -34,6 +37,13 @@ export default function PlatformHome() {
     const attention = authorizedCompanies.filter((c) => c.status !== 'Active')
     const headcount = authorizedCompanies.reduce((s, c) => s + c.employees, 0)
     return { total: authorizedCompanies.length, active, attention, headcount }
+  }, [authorizedCompanies])
+
+  // Scope the activity feed to the persona's portfolio — only surface entries
+  // that concern a company the persona is authorized to see.
+  const activity = useMemo(() => {
+    const authorizedIds = new Set(authorizedCompanies.map((c) => c.id))
+    return ACTIVITY.filter((a) => a.companyIds.some((id) => authorizedIds.has(id)))
   }, [authorizedCompanies])
 
   const open = (c: Company) => { enterCompany(c.id); navigate('/') }
@@ -113,7 +123,9 @@ export default function PlatformHome() {
               <IconButton size="sm" variant="ghost" aria-label="Open audit log" onClick={() => navigate('/admin/audit')}><ScrollText className="h-4 w-4" /></IconButton>
             </CardHeader>
             <CardBody className="space-y-3">
-              {ACTIVITY.map((a, i) => (
+              {activity.length === 0 ? (
+                <p className="py-2 text-sm text-muted-fg">No recent activity in your portfolio.</p>
+              ) : activity.map((a, i) => (
                 <div key={i} className="flex items-start gap-2.5">
                   <Avatar name={a.actor} size="sm" />
                   <div className="min-w-0 flex-1">

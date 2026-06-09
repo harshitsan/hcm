@@ -131,12 +131,21 @@ const DISTRIBUTION: DistributionRow[] = [
   { id: 'dt8', employee: 'Ananya Bose', template: 'noc', channel: 'In-app', status: 'Sent', issued: 'Jun 2', signed: true },
 ]
 
-const MY_LETTERS: MyLetter[] = [
-  { id: 'ml1', template: 'appointment', issued: 'Sep 6, 2021', channel: 'In-app', status: 'Viewed', size: '142 KB' },
-  { id: 'ml2', template: 'confirmation', issued: 'Mar 8, 2022', channel: 'Email', status: 'Delivered', size: '128 KB' },
-  { id: 'ml3', template: 'salary', issued: 'Jun 6, 2026', channel: 'Email', status: 'Delivered', size: '96 KB' },
-  { id: 'ml4', template: 'noc', issued: 'Apr 18, 2026', channel: 'In-app', status: 'Sent', size: '88 KB' },
-]
+// Self-scoped letter history, derived from the resolved own-employee record so it
+// reflects the logged-in persona (never a hard-coded individual's history).
+function myLettersFor(joinDate: string): MyLetter[] {
+  const joined = new Date(joinDate)
+  const fmt = (d: Date) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const confirmed = new Date(joined.getTime())
+  confirmed.setMonth(confirmed.getMonth() + 6)
+  return [
+    { id: 'ml1', template: 'appointment', issued: fmt(joined), channel: 'In-app', status: 'Viewed', size: '142 KB' },
+    { id: 'ml2', template: 'confirmation', issued: fmt(confirmed), channel: 'Email', status: 'Delivered', size: '128 KB' },
+    { id: 'ml3', template: 'salary', issued: 'Jun 6, 2026', channel: 'Email', status: 'Delivered', size: '96 KB' },
+    { id: 'ml4', template: 'noc', issued: 'Apr 18, 2026', channel: 'In-app', status: 'Sent', size: '88 KB' },
+  ]
+}
 
 // generated trend over the last six months (fixed, deterministic)
 const ISSUED_TREND = [
@@ -275,9 +284,18 @@ function FlowItemCard({
 
 /* ----------------------------------------------------------------- page */
 export default function Letters() {
-  const { role, company } = useApp()
-  const { employees } = useCompanyData()
+  const { role, company, persona } = useApp()
+  const { employees, getEmployee } = useCompanyData()
   const { push } = useToast()
+
+  // 'My letters' is strictly self-scoped: resolve the logged-in persona's own
+  // employee record (never employees[0]). Platform/portfolio personas without an
+  // own record see the empty state — no one else's letter history.
+  const me = persona?.employeeId ? getEmployee(persona.employeeId) : null
+  const myLetters = useMemo<MyLetter[]>(
+    () => (me ? myLettersFor(me.joinDate) : []),
+    [me],
+  )
   // Issuing letters (incl. CTC-bearing Salary/Appointment templates) and the
   // company-wide distribution log are HR-tier only. Managers & employees see
   // ONLY their own letters — never others' compensation or distribution data.
@@ -676,7 +694,7 @@ export default function Letters() {
             </div>
           </Card>
 
-          {MY_LETTERS.length === 0 ? (
+          {myLetters.length === 0 ? (
             <EmptyState
               icon={<FileSignature className="h-5 w-5" />}
               title="No letters yet"
@@ -684,7 +702,7 @@ export default function Letters() {
             />
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {MY_LETTERS.map((l) => {
+              {myLetters.map((l) => {
                 const Icon = TEMPLATE_ICON[l.template]
                 const Channel = CHANNEL_ICON[l.channel]
                 return (

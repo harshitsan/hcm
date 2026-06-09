@@ -34,13 +34,25 @@ const EMP_TODOS: EmpTodo[] = [
 ]
 
 export default function Home() {
-  const { inbox: inboxSeed, leaveBalances, headcountTrend, policies } = useCompanyData()
+  const { inbox: inboxSeed, leaveBalances, headcountTrend, policies, reportsOf } = useCompanyData()
   const { persona, role, company, scope } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()
-  const [items, setItems] = useState(inboxSeed)
-  const [empItems, setEmpItems] = useState(EMP_TODOS)
   const isEmployee = role === 'employee'
+
+  // A People Manager may only act on THEIR team's requests — never the whole company
+  // queue. Scope the inbox to the manager's direct reports (matched by name) plus any
+  // self-directed item. HR admins / portfolio managers keep the company-wide queue.
+  const scopedSeed =
+    role === 'people_manager' && persona?.employeeId
+      ? (() => {
+          const teamNames = new Set(reportsOf(persona.employeeId!).map((e) => e.name))
+          return inboxSeed.filter((i) => i.requester === 'You' || teamNames.has(i.requester))
+        })()
+      : inboxSeed
+
+  const [items, setItems] = useState(scopedSeed)
+  const [empItems, setEmpItems] = useState(EMP_TODOS)
 
   // Provider/portfolio at platform scope get the platform console, not the HR inbox.
   if (scope === 'platform') return <PlatformHome />

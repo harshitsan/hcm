@@ -4,6 +4,7 @@ import {
   CheckCircle2, Circle, AlertTriangle, CalendarClock, Info,
 } from 'lucide-react'
 import { useApp } from '../app/store'
+import { useCan } from '../app/rbac'
 import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, Field, Input, Modal,
@@ -54,10 +55,13 @@ const statusTone: Record<TransferStatus, 'warning' | 'info' | 'success'> = {
 
 export default function TransfersExit() {
   const { departments, employees } = useCompanyData()
-  const { role, company } = useApp()
+  const { company } = useApp()
   const deptNames = departments.map((d) => d.name)
   const { push } = useToast()
-  const isEmployee = role === 'employee'
+  // Consequential lifecycle actions are gated by the governed RBAC matrix, not by a
+  // blunt role check: 'transfer.initiate' (HR Admin / Portfolio) and 'exit.run' (HR Admin).
+  const canInitiateTransfer = useCan('transfer.initiate')
+  const canRunExit = useCan('exit.run')
 
   const [tab, setTab] = useState('transfers')
   const [transfers, setTransfers] = useState(seedTransfers)
@@ -108,7 +112,7 @@ export default function TransfersExit() {
         subtitle={`Lifecycle moves and clearances at ${company.name}.`}
         icon={<ArrowLeftRight className="h-5 w-5" />}
         actions={
-          !isEmployee && tab === 'transfers' ? (
+          canInitiateTransfer && tab === 'transfers' ? (
             <Button onClick={() => setOpen(true)}>
               <Plus className="h-4 w-4" /> Initiate transfer
             </Button>
@@ -270,11 +274,7 @@ export default function TransfersExit() {
                       </div>
                       <p className="truncate text-xs text-muted-fg">{c.task} · {c.owner}</p>
                     </div>
-                    {isEmployee ? (
-                      c.cleared
-                        ? <CheckCircle2 className="h-5 w-5 text-success" />
-                        : <Circle className="h-5 w-5 text-muted-fg/50" />
-                    ) : (
+                    {canRunExit ? (
                       <Button
                         size="sm"
                         variant={c.cleared ? 'ghost' : 'subtle'}
@@ -282,11 +282,15 @@ export default function TransfersExit() {
                       >
                         {c.cleared ? 'Reopen' : 'Mark cleared'}
                       </Button>
+                    ) : (
+                      c.cleared
+                        ? <CheckCircle2 className="h-5 w-5 text-success" />
+                        : <Circle className="h-5 w-5 text-muted-fg/50" />
                     )}
                   </div>
                 )
               })}
-              {allClear && !isEmployee && (
+              {allClear && canRunExit && (
                 <Button
                   className="w-full"
                   variant="primary"

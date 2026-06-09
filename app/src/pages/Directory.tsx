@@ -4,6 +4,7 @@ import {
   ChevronRight, UserCircle2, SearchX,
 } from 'lucide-react'
 import { useApp } from '../app/store'
+import { useCan } from '../app/rbac'
 import {
   type Employee,
 } from '../data/mock'
@@ -31,14 +32,21 @@ function formatJoin(iso: string): string {
 
 export default function Directory() {
   const { employees, departments, getDepartment, getEmployee, reportsOf } = useCompanyData()
-  const { role, company } = useApp()
+  const { role, persona, company } = useApp()
   const { push } = useToast()
+  const canEditAction = useCan('employee.edit')
   const [view, setView] = useState<View>('list')
   const [query, setQuery] = useState('')
   const [dept, setDept] = useState('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const canEdit = role === 'provider_admin' || role === 'company_hr_admin' || role === 'people_manager'
+  // The logged-in person's own employee record (self-service "me").
+  const selfId = persona?.employeeId ?? null
+  // Employees a people_manager directly manages (their team), resolved from persona, not employees[0].
+  const teamIds = useMemo(
+    () => (selfId ? new Set(reportsOf(selfId).map((r) => r.id)) : new Set<string>()),
+    [selfId, reportsOf],
+  )
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -52,6 +60,17 @@ export default function Directory() {
   const selected = selectedId ? getEmployee(selectedId) : null
   const manager = selected ? getEmployee(selected.managerId) : null
   const reports = selected ? reportsOf(selected.id) : []
+
+  // Is the open profile the logged-in person's own record?
+  const isSelf = !!selected && selected.id === selfId
+  // An employee may only see personal contact (phone) on their own record; everyone
+  // else's directory entry stays public-safe (name, title, dept, location, work email).
+  const showContact = role !== 'employee' || isSelf
+  // Edit is gated on the RBAC action; a people_manager may only edit their own team.
+  const canEditSelected =
+    !!selected &&
+    canEditAction &&
+    (role !== 'people_manager' || teamIds.has(selected.id))
 
   return (
     <div className="animate-fade-in">
@@ -207,7 +226,9 @@ export default function Directory() {
               <Row icon={<Building2 className="h-4 w-4" />} label="Department" value={getDepartment(selected.departmentId)?.name ?? '—'} />
               <Row icon={<MapPin className="h-4 w-4" />} label="Location" value={selected.location} />
               <Row icon={<CalendarDays className="h-4 w-4" />} label="Joined" value={formatJoin(selected.joinDate)} />
-              <Row icon={<Phone className="h-4 w-4" />} label="Phone" value={<span className="tnum">{selected.phone}</span>} />
+              {showContact && (
+                <Row icon={<Phone className="h-4 w-4" />} label="Phone" value={<span className="tnum">{selected.phone}</span>} />
+              )}
               <Row icon={<Mail className="h-4 w-4" />} label="Email" value={selected.email} />
             </dl>
 
@@ -261,7 +282,7 @@ export default function Directory() {
               )}
             </div>
 
-            {canEdit && (
+            {canEditSelected && (
               <div className="flex justify-end border-t border-border pt-4">
                 <Button
                   variant="outline"

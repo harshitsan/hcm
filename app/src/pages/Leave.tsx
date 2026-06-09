@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, Check, Plus, X, CalendarRange, Inbox, Clock, CalendarOff } from 'lucide-react'
 import { useApp } from '../app/store'
+import { useCan } from '../app/rbac'
 import { type LeaveRequest } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
 import {
@@ -35,10 +36,21 @@ const fmtShort = (iso: string) =>
   new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
 export default function Leave() {
-  const { leaveBalances, leaveRequests } = useCompanyData()
-  const { role } = useApp()
+  const { leaveBalances, leaveRequests, reportsOf } = useCompanyData()
+  const { role, persona } = useApp()
   const { push } = useToast()
   const isEmployee = role === 'employee'
+  const isManager = role === 'people_manager'
+  const canApprove = useCan('leave.approve')
+
+  // A people_manager may only see/approve leave for their own direct reports
+  // (matched by name, since leave records key on employee name). HR admins and
+  // portfolio managers see their active company's full queue.
+  const teamNames: Set<string> | null =
+    isManager && persona?.employeeId
+      ? new Set(reportsOf(persona.employeeId).map((e) => e.name))
+      : null
+  const inScope = (employeeName: string) => !teamNames || teamNames.has(employeeName)
 
   const tabs = useMemo(() => {
     if (isEmployee) {
@@ -49,10 +61,10 @@ export default function Leave() {
     }
     return [
       { value: 'mine', label: 'My leave' },
-      { value: 'approvals', label: 'Approvals' },
+      ...(canApprove ? [{ value: 'approvals', label: 'Approvals' }] : []),
       { value: 'calendar', label: 'Team calendar' },
     ]
-  }, [isEmployee])
+  }, [isEmployee, canApprove])
   const [tab, setTab] = useState('mine')
 
   // My requests (local, seeded with this user's existing items)
@@ -61,9 +73,9 @@ export default function Leave() {
     { id: 'm2', employee: 'You', type: 'Casual', from: '2026-06-03', to: '2026-06-03', days: 1, status: 'Approved', reason: 'Personal errand' },
   ])
 
-  // Approvals queue (local)
+  // Approvals queue (local) — scoped to the viewer's authority
   const [pending, setPending] = useState<LeaveRequest[]>(
-    leaveRequests.filter((r) => r.status === 'Pending'),
+    leaveRequests.filter((r) => r.status === 'Pending' && inScope(r.employee)),
   )
 
   // Request modal
@@ -176,7 +188,7 @@ export default function Leave() {
       )}
 
       {/* -------------------------------------------------------- Approvals */}
-      {tab === 'approvals' && !isEmployee && (
+      {tab === 'approvals' && canApprove && (
         <Card className="overflow-hidden p-0">
           <CardHeader>
             <CardTitle>Pending approvals</CardTitle>
@@ -232,7 +244,7 @@ export default function Leave() {
           <div className="lg:col-span-2"><MyLeaveCalendar requests={myRequests} /></div>
           <ShiftRoster />
         </div>
-      ) : <TeamCalendar />)}
+      ) : <TeamCalendar teamNames={teamNames} />)}
 
       {/* -------------------------------------------------------- Request modal */}
       <Modal
@@ -412,7 +424,7 @@ function MyLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
 }
 
 /* ----------------------------------------------------------------- Team calendar */
-function TeamCalendar() {
+function TeamCalendar({ teamNames }: { teamNames: Set<string> | null }) {
   // June 2026 — 1 Jun is a Monday. Map a few people on leave onto day numbers.
   const onLeave: Record<number, { who: string; tone: 'primary' | 'info' | 'accent' }[]> = {}
   const seed: { day: number; who: string; type: LeaveType }[] = [
@@ -422,7 +434,9 @@ function TeamCalendar() {
     { day: 9, who: 'Divya Menon', type: 'Sick' },
     { day: 3, who: 'Sanjay Gupta', type: 'Casual' },
   ]
+  // A people_manager only sees their own direct reports on the calendar.
   for (const s of seed) {
+    if (teamNames && !teamNames.has(s.who)) continue
     const tone = s.type === 'Annual' ? 'primary' : s.type === 'Sick' ? 'info' : 'accent'
     ;(onLeave[s.day] ??= []).push({ who: s.who, tone })
   }

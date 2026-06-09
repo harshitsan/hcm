@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { useApp } from '../app/store'
 import { useCompanyData, type CompanyData } from '../data/companyData'
+import { rbacRoleFor, useRbac } from '../app/rbac'
 import {
   Badge, Button, Card, CardBody, EmptyState, Field, Input, Modal, PageHeader, Segmented,
   Select, Table, Td, Th, Tr, useToast,
@@ -39,16 +40,38 @@ function fileIcon(type: string) {
   return <FileBox className="h-4 w-4 text-muted-fg" />
 }
 
+// Categories that hold general, employee-facing company records (handbook,
+// insurance, etc.). Finance / Security / Legal documents and other people's
+// personal records (e.g. offer letters) are NOT employee-facing.
+const EMPLOYEE_VISIBLE_CATEGORIES = new Set(['HR'])
+
 export default function Documents() {
-  const { documents } = useCompanyData()
-  const { role, company } = useApp()
+  const { documents, getEmployee } = useCompanyData()
+  const { role, company, persona } = useApp()
+  const { effModule } = useRbac()
   const { push } = useToast()
   const isEmployee = role === 'employee'
 
-  const seed: Doc[] = useMemo(
-    () => documents.map((d) => ({ ...d, category: docCategory(d.owner) })),
-    [documents],
-  )
+  // Resolve the logged-in person strictly from the persona link (never employees[0]).
+  const me = getEmployee(persona?.employeeId ?? null)
+
+  // Uploading is a consequential edit; only roles with edit access to the
+  // Documents module (HR admin / portfolio manager) may add to the store.
+  const canUpload = effModule(rbacRoleFor(role ?? 'employee'), 'documents') === 'edit'
+
+  const seed: Doc[] = useMemo(() => {
+    const all = documents.map((d) => ({ ...d, category: docCategory(d.owner) }))
+    if (!isEmployee) return all
+    // Employee self-service: only general employee-facing HR records + documents
+    // owned by / addressed to this employee. Never expose Finance/Security/Legal
+    // org documents or another colleague's personal documents.
+    const mine = me?.name.toLowerCase() ?? ''
+    return all.filter((d) => {
+      if (EMPLOYEE_VISIBLE_CATEGORIES.has(d.category)) return true
+      if (!mine) return false
+      return d.owner.toLowerCase() === mine || d.name.toLowerCase().includes(mine)
+    })
+  }, [documents, isEmployee, me])
   const [docs, setDocs] = useState<Doc[]>(seed)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
@@ -109,10 +132,14 @@ export default function Documents() {
     <div className="animate-fade-in">
       <PageHeader
         title="Documents"
-        subtitle={`Policies, certificates & records for ${company.name}.`}
+        subtitle={
+          isEmployee
+            ? `Your records & ${company.name} handbooks and policies.`
+            : `Policies, certificates & records for ${company.name}.`
+        }
         icon={<FolderOpen className="h-5 w-5" />}
         actions={
-          !isEmployee && (
+          canUpload && (
             <Button onClick={() => setOpen(true)}>
               <Upload className="h-4 w-4" /> Upload
             </Button>

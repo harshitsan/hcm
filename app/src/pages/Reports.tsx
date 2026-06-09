@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
 import { useApp } from '../app/store'
+import { useCan, useRbac, rbacRoleFor } from '../app/rbac'
 import { savedReports } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
 import {
@@ -79,8 +80,13 @@ function ChartCard({
 export default function Reports() {
   const { headcountByDept, headcountTrend, leaveByMonth, attendanceMix } = useCompanyData()
   const { role, company } = useApp()
+  const { effModule } = useRbac()
+  const canExport = useCan('report.export')
   const { push } = useToast()
-  const isEmployee = role === 'employee'
+  // Reports is a governed module: only roles with at least read access (HR admins,
+  // portfolio managers, provider) see company-wide analytics. People Managers are
+  // not granted the reports module, so they get the same access-denied view as employees.
+  const canSeeReports = effModule(rbacRoleFor(role ?? 'employee'), 'reports') !== 'hidden'
   const [range, setRange] = useState<'6m' | '12m'>('6m')
   const [preview, setPreview] = useState<SavedReport | null>(null)
   const [builder, setBuilder] = useState(false)
@@ -173,18 +179,18 @@ export default function Reports() {
     )
   }
 
-  if (isEmployee) {
+  if (!canSeeReports) {
     return (
       <div className="animate-fade-in">
         <PageHeader
           title="Reports & Analytics"
-          subtitle="Team and company analytics live with HR."
+          subtitle="Company analytics live with HR."
           icon={<BarChart3 className="h-5 w-5" />}
         />
         <EmptyState
           icon={<ShieldCheck className="h-5 w-5" />}
           title="Reports aren't available to you"
-          description="Analytics are scoped to HR admins and managers. You can view your own attendance and leave from the Time section."
+          description="Company-wide analytics are scoped to HR admins. You can view your own attendance and leave from the Time section."
         />
       </div>
     )
@@ -203,9 +209,11 @@ export default function Reports() {
               value={range}
               onChange={setRange}
             />
-            <Button onClick={() => setBuilder(true)}>
-              <Plus className="h-4 w-4" /> New report
-            </Button>
+            {canExport && (
+              <Button onClick={() => setBuilder(true)}>
+                <Plus className="h-4 w-4" /> New report
+              </Button>
+            )}
           </>
         }
       />
@@ -335,7 +343,7 @@ export default function Reports() {
 
       <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted-fg">
         <ShieldCheck className="h-3.5 w-3.5" />
-        Always filtered to what you're allowed to see.
+        Company-wide analytics for {company.name}.
       </p>
 
       {/* Run → report preview */}
@@ -347,9 +355,11 @@ export default function Reports() {
         description={preview ? `${preview.type} report · updated ${preview.updated} · ${company.name}` : undefined}
         footer={
           <>
-            <Button variant="outline" onClick={() => push({ title: 'Exported report.csv', tone: 'success' })}>
-              <Download className="h-4 w-4" /> Export CSV
-            </Button>
+            {canExport && (
+              <Button variant="outline" onClick={() => push({ title: 'Exported report.csv', tone: 'success' })}>
+                <Download className="h-4 w-4" /> Export CSV
+              </Button>
+            )}
             <Button onClick={() => setPreview(null)}>Close</Button>
           </>
         }

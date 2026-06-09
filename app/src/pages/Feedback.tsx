@@ -169,14 +169,18 @@ function StatusTimeline({ timeline }: { timeline: TimelineEntry[] }) {
 
 /* ----------------------------------------------------------------- page */
 export default function Feedback() {
-  const { role, company } = useApp()
-  const { employees } = useCompanyData()
+  const { role, company, persona } = useApp()
+  const { employees, getEmployee } = useCompanyData()
   const { push } = useToast()
   const isEmployee = role === 'employee'
   const isReviewer = !isEmployee
 
-  // Deterministic "me" and reviewer references from real people.
-  const me = useMemo(() => employees[employees.length - 1]?.name ?? 'You', [employees])
+  // "me" resolves strictly from the logged-in persona's linked employee record —
+  // never employees[0]/last, so a confidential grievance channel keeps identity correct.
+  const me = useMemo(() => {
+    const meRec = persona?.employeeId ? getEmployee(persona.employeeId) : null
+    return meRec?.name ?? persona?.name ?? 'You'
+  }, [persona, getEmployee])
   const hrName = useMemo(
     () => employees.find((e) => e.title.includes('HR'))?.name ?? employees[0]?.name ?? 'HR Team',
     [employees],
