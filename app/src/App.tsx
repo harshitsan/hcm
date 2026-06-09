@@ -23,6 +23,7 @@ import TransfersExit from './pages/TransfersExit'
 import Announcements from './pages/Announcements'
 import Feedback from './pages/Feedback'
 import Policies from './pages/Policies'
+import SharedPolicies from './pages/SharedPolicies'
 import Documents from './pages/Documents'
 import Reports from './pages/Reports'
 import Companies from './pages/Companies'
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/admin/companies" element={<Companies />} />
         <Route path="/admin/company-setup" element={<CompanySetup />} />
+        <Route path="/admin/shared-policies" element={<SharedPolicies />} />
         <Route path="/admin/org-data" element={<OrgData />} />
         <Route path="/admin/workflow-builder" element={<WorkflowBuilder />} />
         <Route path="/admin/roles" element={<Roles />} />

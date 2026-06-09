@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 import {
   ShieldCheck, Check, FileText, Send, Plus, Info, CalendarClock, CheckCircle2,
+  Layers, Lock, Pencil, RotateCcw,
 } from 'lucide-react'
 import { useApp } from '../app/store'
 import { type Policy } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
+import { usePolicies, type SharedPolicy } from '../app/policies'
 import {
-  Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, Input,
+  Badge, Button, Card, CardBody, CardHeader, CardTitle, Drawer, EmptyState, Field, Input,
   Modal, PageHeader, ProgressBar, Select, Table, Td, Th, Tr, Tabs, Textarea, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
@@ -34,11 +36,27 @@ export default function Policies() {
   const { policies: policySeed } = useCompanyData()
   const { role, company } = useApp()
   const { push } = useToast()
+  const { policiesForCompany, resolveClauses, overrideClause, resetClause } = usePolicies()
   const isEmployee = role === 'employee'
 
-  const [tab, setTab] = useState<'ack' | 'library'>('ack')
+  const [tab, setTab] = useState<'ack' | 'group' | 'library'>('ack')
   const [acked, setAcked] = useState<Set<string>>(new Set())
   const [newOpen, setNewOpen] = useState(false)
+  const [openPolicy, setOpenPolicy] = useState<SharedPolicy | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editText, setEditText] = useState('')
+
+  const inherited = useMemo(() => policiesForCompany(company.id), [policiesForCompany, company.id])
+  const startEdit = (text: string, id: string) => { setEditId(id); setEditText(text) }
+  const saveEdit = (policyId: string, clauseId: string) => {
+    overrideClause(company.id, policyId, clauseId, editText.trim() || '—')
+    setEditId(null)
+    push({ title: `Clause updated for ${company.name}`, tone: 'success' })
+  }
+  const resetEdit = (policyId: string, clauseId: string) => {
+    resetClause(company.id, policyId, clauseId)
+    push({ title: 'Reset to group version', tone: 'neutral' })
+  }
 
   const toAck = useMemo(
     () => policySeed.filter((p) => p.status === 'Active' && p.due !== '—'),
@@ -56,10 +74,14 @@ export default function Policies() {
       To acknowledge {pendingCount > 0 && <Badge tone="warning">{pendingCount}</Badge>}
     </span>
   )
+  const groupLabel = (
+    <span className="flex items-center gap-2">Group policies {inherited.length > 0 && <Badge tone="neutral">{inherited.length}</Badge>}</span>
+  )
   const tabs = isEmployee
     ? [{ value: 'ack', label: ackLabel }]
     : [
         { value: 'ack', label: ackLabel },
+        { value: 'group', label: groupLabel },
         { value: 'library', label: 'Library' },
       ]
 
@@ -81,7 +103,7 @@ export default function Policies() {
       <Tabs
         tabs={tabs}
         value={tab}
-        onChange={(v) => setTab(v === 'library' && !isEmployee ? 'library' : 'ack')}
+        onChange={(v) => setTab(isEmployee ? 'ack' : (v as 'ack' | 'group' | 'library'))}
         className="mb-6"
       />
 
@@ -132,6 +154,46 @@ export default function Policies() {
                           <Check className="h-3.5 w-3.5" /> Acknowledge
                         </Button>
                       )}
+                    </CardBody>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === 'group' && !isEmployee && (
+        <>
+          <div className="mb-4 flex items-start gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-muted-fg">
+            <Layers className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            <p>Inherited from your group. Enforced policies apply automatically; where override is allowed you can <span className="font-semibold text-fg">tailor a clause</span> for {company.name} — the group sees every change.</p>
+          </div>
+          {inherited.length === 0 ? (
+            <EmptyState icon={<Layers className="h-5 w-5" />} title="No group policies" description="This company isn't part of a group, or the group hasn't shared any policies yet." />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {inherited.map((p) => {
+                const clauses = resolveClauses(company.id, p)
+                const overriddenN = clauses.filter((c) => c.overridden).length
+                return (
+                  <Card key={p.id} className="flex cursor-pointer flex-col transition-colors hover:border-accent/50" onClick={() => setOpenPolicy(p)}>
+                    <CardBody className="flex flex-1 flex-col">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary"><FileText className="h-4 w-4" /></span>
+                        <Badge tone={categoryTone(p.category)}>{p.category}</Badge>
+                      </div>
+                      <h3 className="mt-3 text-sm font-bold tracking-tight">{p.name} <span className="font-medium text-muted-fg">{p.version}</span></h3>
+                      <div className="mt-2"><Badge tone="accent"><Layers className="h-3 w-3" /> Inherited · {p.owner}</Badge></div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {p.enforced && <Badge tone="success" dot>Enforced</Badge>}
+                        {p.allowOverride ? <Badge tone="neutral"><Pencil className="h-3 w-3" /> Override allowed</Badge> : <Badge tone="neutral"><Lock className="h-3 w-3" /> Locked</Badge>}
+                      </div>
+                      <div className="mt-3 flex-1" />
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="tnum text-2xs text-muted-fg">{clauses.length} clauses{overriddenN > 0 ? ` · ${overriddenN} tailored` : ''}</span>
+                        <Button size="sm" variant="subtle">Review &amp; tailor</Button>
+                      </div>
                     </CardBody>
                   </Card>
                 )
@@ -204,6 +266,69 @@ export default function Policies() {
           </CardBody>
         </Card>
       )}
+
+      {/* child: review & tailor an inherited group policy */}
+      <Drawer open={!!openPolicy} onClose={() => { setOpenPolicy(null); setEditId(null) }} title={openPolicy?.name} width="max-w-xl">
+        {openPolicy && (
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone="accent"><Layers className="h-3 w-3" /> Inherited · {openPolicy.owner}</Badge>
+              <Badge tone={categoryTone(openPolicy.category)}>{openPolicy.category}</Badge>
+              <Badge tone="neutral">{openPolicy.version}</Badge>
+              {openPolicy.enforced && <Badge tone="success" dot>Enforced</Badge>}
+              {openPolicy.allowOverride ? <Badge tone="neutral"><Pencil className="h-3 w-3" /> Override allowed</Badge> : <Badge tone="neutral"><Lock className="h-3 w-3" /> Locked</Badge>}
+            </div>
+            <div className="flex items-start gap-2 rounded-xl border border-info/30 bg-info/5 px-4 py-3 text-sm text-muted-fg">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+              <p>
+                Enforced by <span className="font-semibold text-fg">{openPolicy.owner}</span>.{' '}
+                {openPolicy.allowOverride
+                  ? <>You can rewrite a clause for <span className="font-semibold text-fg">{company.name}</span>; the group is notified of every change.</>
+                  : 'Clauses are locked by the group and can’t be changed here.'}
+              </p>
+            </div>
+            <ul className="space-y-2">
+              {resolveClauses(company.id, openPolicy).map((c, i) => (
+                <li key={c.id} className={cn('rounded-lg border px-3 py-2.5', c.overridden ? 'border-warning/40 bg-warning/5' : 'border-border')}>
+                  <div className="flex items-start gap-2.5">
+                    <span className="tnum mt-0.5 text-2xs font-bold text-muted-fg/70">{String(i + 1).padStart(2, '0')}</span>
+                    <div className="min-w-0 flex-1">
+                      {editId === c.id ? (
+                        <>
+                          <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} className="min-h-[64px] text-[13px]" />
+                          <div className="mt-2 flex items-center gap-2">
+                            <Button size="sm" onClick={() => saveEdit(openPolicy.id, c.id)}><Check className="h-3.5 w-3.5" /> Save</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditId(null)}>Cancel</Button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[13px]">{c.text}</p>
+                          {c.overridden && <p className="mt-1 text-2xs text-muted-fg">Group: <span className="line-through">{c.original}</span></p>}
+                        </>
+                      )}
+                    </div>
+                    {c.mandatory && <Badge tone="warning">Mandatory</Badge>}
+                  </div>
+                  {editId !== c.id && (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 pl-7">
+                      {c.overridden && <Badge tone="warning"><Pencil className="h-3 w-3" /> Tailored for {company.name}</Badge>}
+                      {openPolicy.allowOverride ? (
+                        <>
+                          <Button size="sm" variant="outline" onClick={() => startEdit(c.text, c.id)}><Pencil className="h-3.5 w-3.5" /> {c.overridden ? 'Edit override' : 'Override'}</Button>
+                          {c.overridden && <Button size="sm" variant="ghost" onClick={() => resetEdit(openPolicy.id, c.id)}><RotateCcw className="h-3.5 w-3.5" /> Reset to group</Button>}
+                        </>
+                      ) : (
+                        <span className="flex items-center gap-1 text-2xs text-muted-fg"><Lock className="h-3 w-3" /> Locked by group</span>
+                      )}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Drawer>
 
       <Modal
         open={newOpen}

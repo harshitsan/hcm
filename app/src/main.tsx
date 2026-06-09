@@ -5,6 +5,7 @@ import './index.css'
 import App from './App.tsx'
 import { AppProvider } from './app/store'
 import { NotificationsProvider } from './app/notifications'
+import { PoliciesProvider } from './app/policies'
 import { ToastProvider } from './components/ui'
 
 createRoot(document.getElementById('root')!).render(
@@ -12,9 +13,11 @@ createRoot(document.getElementById('root')!).render(
     <HashRouter>
       <AppProvider>
         <NotificationsProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
+          <PoliciesProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </PoliciesProvider>
         </NotificationsProvider>
       </AppProvider>
     </HashRouter>

@@ -130,6 +130,7 @@ export const platformNav: NavGroup[] = [
   {
     group: 'Governance',
     items: [
+      { label: 'Shared Policies', path: '/admin/shared-policies', icon: FileText, roles: PORTFOLIO },
       { label: 'Org & Master Data', path: '/admin/org-data', icon: FolderTree, roles: PORTFOLIO },
       { label: 'Roles & Security', path: '/admin/roles', icon: ShieldCheck, roles: PORTFOLIO },
       { label: 'Import / Export', path: '/admin/data', icon: Database, roles: PORTFOLIO },
