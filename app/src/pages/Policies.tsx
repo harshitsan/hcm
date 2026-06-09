@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import {
   ShieldCheck, Check, FileText, Send, Plus, Info, CalendarClock, CheckCircle2,
-  Layers, Lock, Pencil, RotateCcw,
+  Layers, Lock, Pencil, RotateCcw, Eye,
 } from 'lucide-react'
 import { useApp } from '../app/store'
 import { type Policy } from '../data/mock'
@@ -45,6 +45,7 @@ export default function Policies() {
   const [openPolicy, setOpenPolicy] = useState<SharedPolicy | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [previewP, setPreviewP] = useState<Policy | null>(null)
 
   const inherited = useMemo(() => policiesForCompany(company.id), [policiesForCompany, company.id])
   const startEdit = (text: string, id: string) => { setEditId(id); setEditText(text) }
@@ -145,15 +146,20 @@ export default function Policies() {
                         Due <span className="tnum text-fg">{p.due}</span>
                       </div>
                       <div className="mt-4 flex-1" />
-                      {done ? (
-                        <Badge tone="success" className="w-full justify-center py-1.5">
-                          <Check className="h-3.5 w-3.5" /> Acknowledged
-                        </Badge>
-                      ) : (
-                        <Button size="sm" className="w-full" onClick={() => acknowledge(p)}>
-                          <Check className="h-3.5 w-3.5" /> Acknowledge
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setPreviewP(p)}>
+                          <Eye className="h-3.5 w-3.5" /> Preview
                         </Button>
-                      )}
+                        {done ? (
+                          <Badge tone="success" className="justify-center py-1.5">
+                            <Check className="h-3.5 w-3.5" /> Done
+                          </Badge>
+                        ) : (
+                          <Button size="sm" onClick={() => acknowledge(p)}>
+                            <Check className="h-3.5 w-3.5" /> Acknowledge
+                          </Button>
+                        )}
+                      </div>
                     </CardBody>
                   </Card>
                 )
@@ -266,6 +272,64 @@ export default function Policies() {
           </CardBody>
         </Card>
       )}
+
+      {/* preview a policy before acknowledging */}
+      <Modal
+        open={!!previewP}
+        onClose={() => setPreviewP(null)}
+        size="lg"
+        title={previewP ? `${previewP.name} ${previewP.version}` : ''}
+        description={previewP ? `${previewP.category} · ${previewP.appliesTo} · due ${previewP.due}` : undefined}
+        footer={
+          previewP && (
+            <>
+              <Button variant="ghost" onClick={() => setPreviewP(null)}>Close</Button>
+              {!acked.has(previewP.id) && (
+                <Button onClick={() => { acknowledge(previewP); setPreviewP(null) }}>
+                  <Check className="h-4 w-4" /> Acknowledge
+                </Button>
+              )}
+            </>
+          )
+        }
+      >
+        {previewP && (() => {
+          const shared = inherited.find((sp) => sp.name.toLowerCase() === previewP.name.toLowerCase())
+          return (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge tone={categoryTone(previewP.category)}>{previewP.category}</Badge>
+                {shared && <Badge tone="accent"><Layers className="h-3 w-3" /> Inherited · {shared.owner}</Badge>}
+                <Badge tone="neutral">{previewP.version}</Badge>
+              </div>
+              {shared ? (
+                <ol className="space-y-1.5">
+                  {resolveClauses(company.id, shared).map((c, i) => (
+                    <li key={c.id} className="flex items-start gap-2.5 rounded-lg border border-border bg-surface px-3 py-2">
+                      <span className="tnum mt-0.5 text-2xs font-bold text-muted-fg/70">{String(i + 1).padStart(2, '0')}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px]">{c.text}</p>
+                        {c.overridden && <p className="mt-0.5 text-2xs text-muted-fg">Tailored for {company.name}</p>}
+                      </div>
+                      {c.mandatory && <Badge tone="warning">Mandatory</Badge>}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <div className="space-y-2 text-sm text-muted-fg">
+                  <p>This {previewP.category.toLowerCase()} policy applies to <span className="font-semibold text-fg">{previewP.appliesTo.toLowerCase()}</span>. Please read it in full before acknowledging.</p>
+                  <ul className="list-disc space-y-1 pl-5">
+                    <li>Follow the standards described in this policy in your day-to-day work.</li>
+                    <li>Raise questions with your HR administrator.</li>
+                    <li>You'll be asked to re-acknowledge when the version changes.</li>
+                  </ul>
+                  <p className="flex items-center gap-1.5 text-2xs"><FileText className="h-3.5 w-3.5" /> Full document available in the Library.</p>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+      </Modal>
 
       {/* child: review & tailor an inherited group policy */}
       <Drawer open={!!openPolicy} onClose={() => { setOpenPolicy(null); setEditId(null) }} title={openPolicy?.name} width="max-w-xl">
