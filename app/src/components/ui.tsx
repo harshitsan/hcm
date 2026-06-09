@@ -111,19 +111,51 @@ export function Badge({
 }
 
 /* ----------------------------------------------------------------- Avatar */
-const avatarColors = [
-  'bg-indigo-500', 'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
-  'bg-sky-500', 'bg-violet-500', 'bg-teal-500', 'bg-fuchsia-500',
+/* Muted, on-theme fallback tints (only shown if the photo fails to load). */
+const avatarTints = [
+  'bg-teal-700', 'bg-emerald-700', 'bg-slate-600', 'bg-cyan-700', 'bg-green-700', 'bg-stone-600',
 ]
+const hashStr = (s: string) => {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return h
+}
+const AV_PX: Record<'xs' | 'sm' | 'md' | 'lg', number> = { xs: 48, sm: 64, md: 72, lg: 96 }
+const AV_SIZE: Record<'xs' | 'sm' | 'md' | 'lg', string> = {
+  xs: 'h-6 w-6 text-[10px]',
+  sm: 'h-8 w-8 text-xs',
+  md: 'h-9 w-9 text-sm',
+  lg: 'h-12 w-12 text-base',
+}
+
 export function Avatar({
   name,
   size = 'md',
   className,
+  src,
 }: {
   name: string
   size?: 'xs' | 'sm' | 'md' | 'lg'
   className?: string
+  src?: string
 }) {
+  const [failed, setFailed] = useState(false)
+  const h = hashStr(name)
+  // deterministic photo placeholder per person (pravatar has ~70 portraits)
+  const url = src ?? `https://i.pravatar.cc/${AV_PX[size]}?img=${(h % 70) + 1}`
+
+  if (!failed) {
+    return (
+      <img
+        src={url}
+        alt={name}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className={cn('inline-block shrink-0 rounded-full bg-muted object-cover', AV_SIZE[size], className)}
+      />
+    )
+  }
+
   const initials = name
     .split(' ')
     .map((p) => p[0])
@@ -131,19 +163,12 @@ export function Avatar({
     .slice(0, 2)
     .join('')
     .toUpperCase()
-  const colorIdx = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % avatarColors.length
-  const sizes = {
-    xs: 'h-6 w-6 text-[10px]',
-    sm: 'h-8 w-8 text-xs',
-    md: 'h-9 w-9 text-sm',
-    lg: 'h-12 w-12 text-base',
-  }
   return (
     <span
       className={cn(
         'inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white',
-        avatarColors[colorIdx],
-        sizes[size],
+        avatarTints[h % avatarTints.length],
+        AV_SIZE[size],
         className,
       )}
     >
