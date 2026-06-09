@@ -16,9 +16,10 @@ import {
 
 const slaTone = (pct: number): 'danger' | 'warning' | 'neutral' =>
   pct >= 80 ? 'danger' : pct >= 60 ? 'warning' : 'neutral'
-const typeTone: Record<InboxItem['type'], 'primary' | 'info' | 'accent' | 'warning' | 'neutral'> = {
-  Leave: 'primary', Onboarding: 'accent', 'Policy Ack': 'info', Transfer: 'warning',
-  Offer: 'primary', Timesheet: 'info', Asset: 'neutral',
+// One consistent chip style; type is cued by a small colored dot only.
+const dotFor: Record<InboxItem['type'], string> = {
+  Leave: 'bg-success', Onboarding: 'bg-accent', 'Policy Ack': 'bg-info', Transfer: 'bg-warning',
+  Offer: 'bg-primary', Timesheet: 'bg-info', Asset: 'bg-muted-fg',
 }
 
 export default function Home() {
@@ -89,8 +90,13 @@ export default function Home() {
             ) : (
               <ul className="divide-y divide-border">
                 {items.map((it) => (
-                  <li key={it.id} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
-                    <span className="hidden w-24 shrink-0 sm:block"><Badge tone={typeTone[it.type]}>{it.type}</Badge></span>
+                  <li key={it.id} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-muted/40">
+                    <span className="hidden w-28 shrink-0 sm:flex">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-2xs font-semibold text-fg">
+                        <span className={`h-1.5 w-1.5 rounded-full ${dotFor[it.type]}`} />
+                        {it.type}
+                      </span>
+                    </span>
                     <Avatar name={it.requester} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{it.title}</p>
