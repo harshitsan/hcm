@@ -304,18 +304,21 @@ export function Switch({
   checked,
   onChange,
   label,
+  disabled,
 }: {
   checked: boolean
   onChange: (v: boolean) => void
   label?: string
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="inline-flex items-center gap-2.5 cursor-pointer"
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      className={cn('inline-flex items-center gap-2.5', disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer')}
     >
       <span
         className={cn(

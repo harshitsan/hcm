@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react'
 import {
   Bell, BellRing, CheckCheck, Settings2, Filter, AtSign, Inbox, Mail,
   Smartphone, CalendarCheck2, FileSignature, ShieldCheck, Megaphone, Clock3,
-  UserCog, RefreshCw, AlarmClock, type LucideIcon,
+  UserCog, RefreshCw, AlarmClock, Lock, type LucideIcon,
 } from 'lucide-react'
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis,
 } from 'recharts'
 import { useApp } from '../app/store'
 import { useNotifications, type Notif } from '../app/notifications'
+import { useCan } from '../app/rbac'
 import { useCompanyData } from '../data/companyData'
 import {
   Avatar, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field,
@@ -157,6 +158,8 @@ export default function Notifications() {
   const { push } = useToast()
 
   const isAdmin = role === 'company_hr_admin' || role === 'provider_admin' || role === 'portfolio_manager'
+  // Preferences are company-controlled — gated by RBAC, not a hardcoded role.
+  const canManage = useCan('notifications.manage')
 
   // Shared store — read state is in sync with the top-bar bell.
   const { feed, unreadCount, mentionCount, toggleRead, markAllRead } = useNotifications()
@@ -314,7 +317,7 @@ export default function Notifications() {
             </CardHeader>
             <CardBody className="space-y-3">
               <Field label="How often to bundle non-urgent alerts" hint="Urgent and security alerts are always delivered immediately.">
-                <Select value={digest} onChange={(e) => setDigest(e.target.value as Digest)}>
+                <Select value={digest} onChange={(e) => setDigest(e.target.value as Digest)} disabled={!canManage}>
                   <option value="event">Event-driven · as it happens</option>
                   <option value="daily">Daily digest · one summary email</option>
                   <option value="weekly">Weekly digest · Monday morning</option>
@@ -338,11 +341,18 @@ export default function Notifications() {
         <CardHeader>
           <CardTitle>Notification preferences</CardTitle>
           <div className="flex items-center gap-2">
+            {!canManage && <Badge tone="neutral"><Lock className="h-3 w-3" /> View only</Badge>}
             <Badge tone="neutral"><Smartphone className="h-3 w-3" /> In-app</Badge>
             <Badge tone="info"><Mail className="h-3 w-3" /> Email</Badge>
           </div>
         </CardHeader>
         <CardBody className="space-y-1">
+          {!canManage && (
+            <div className="mb-3 flex items-start gap-2 rounded-xl border border-info/30 bg-info/5 px-4 py-3 text-sm text-muted-fg">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+              <p>Notification preferences are set by your HR admin. You can review them here, but changing them is disabled for your role.</p>
+            </div>
+          )}
           <div className="hidden grid-cols-[1fr_auto_auto] items-center gap-6 px-4 pb-2 text-2xs font-bold uppercase tracking-wide text-muted-fg sm:grid">
             <span>Event</span>
             <span className="w-16 text-center">In-app</span>
@@ -367,7 +377,7 @@ export default function Notifications() {
                 </div>
                 <div className="flex items-center gap-2 pl-11 sm:w-16 sm:justify-center sm:pl-0">
                   <span className="text-xs text-muted-fg sm:hidden">In-app</span>
-                  <Switch checked={r.inapp} onChange={(v) => setChannel(r.id, 'inapp', v)} />
+                  <Switch checked={r.inapp} onChange={(v) => setChannel(r.id, 'inapp', v)} disabled={!canManage} />
                 </div>
                 <div className="flex items-center gap-2 pl-11 sm:w-16 sm:justify-center sm:pl-0">
                   <span className="text-xs text-muted-fg sm:hidden">Email</span>
@@ -378,7 +388,7 @@ export default function Notifications() {
                       </span>
                     </Tooltip>
                   ) : (
-                    <Switch checked={r.email} onChange={(v) => setChannel(r.id, 'email', v)} />
+                    <Switch checked={r.email} onChange={(v) => setChannel(r.id, 'email', v)} disabled={!canManage} />
                   )}
                 </div>
               </div>
@@ -390,7 +400,11 @@ export default function Notifications() {
               <ShieldCheck className="h-3.5 w-3.5 text-success" />
               Email is the mandatory channel — security and account events always reach you by email.
             </p>
-            <Button onClick={savePrefs}>Save preferences</Button>
+            {canManage ? (
+              <Button onClick={savePrefs}>Save preferences</Button>
+            ) : (
+              <Badge tone="neutral"><Lock className="h-3 w-3" /> Managed by HR admin</Badge>
+            )}
           </div>
         </CardBody>
       </Card>

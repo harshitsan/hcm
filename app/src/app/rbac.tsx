@@ -9,6 +9,7 @@
  * 'Platform Super Admin' is a locked superuser (can never lose access).
  */
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { useApp } from './store'
 
 export type PermLevel = 'hidden' | 'read' | 'edit'
 export type FieldLevel = 'hidden' | 'masked' | 'visible'
@@ -70,6 +71,7 @@ export const ACTION_GROUPS: { label: string; items: { key: string; label: string
     { key: 'company.provision', label: 'Provision a company' }, { key: 'company.suspend', label: 'Suspend a company' },
     { key: 'policy.publish', label: 'Publish a policy' }, { key: 'role.assign', label: 'Assign roles' },
     { key: 'data.import', label: 'Import data' }, { key: 'report.export', label: 'Export reports' },
+    { key: 'notifications.manage', label: 'Manage notification settings' },
   ]},
 ]
 export const ALL_ACTIONS = ACTION_GROUPS.flatMap((g) => g.items)
@@ -91,7 +93,7 @@ const BUILTIN: Record<string, Def> = {
     level: 'Portfolio', users: 6, desc: 'Runs HR across authorized companies; context switching.',
     edit: ['portfolio', 'companies', 'shared_policies', 'org_data', 'employees', 'leave', 'attendance', 'requisitions', 'candidates', 'interviews', 'onboarding', 'performance', 'transfers_exit', 'announcements', 'feedback', 'policies', 'documents', 'letters', 'assets'],
     read: ['company_setup', 'roles', 'import_export', 'audit', 'directory', 'org_chart', 'reports', 'custom_fields', 'workflow_builder'],
-    actions: ['leave.approve', 'attendance.approve', 'employee.create', 'employee.edit', 'requisition.approve', 'offer.make', 'policy.publish', 'report.export', 'transfer.initiate'],
+    actions: ['leave.approve', 'attendance.approve', 'employee.create', 'employee.edit', 'requisition.approve', 'offer.make', 'policy.publish', 'report.export', 'transfer.initiate', 'notifications.manage'],
     fields: { 'employee.salary': 'masked', 'employee.bank': 'masked' },
   },
   'Group Reporting Viewer': {
@@ -104,13 +106,13 @@ const BUILTIN: Record<string, Def> = {
     level: 'Company', users: 11, desc: 'Owns people, policies & reports for one company.',
     edit: ['directory', 'org_chart', 'employees', 'assets', 'letters', 'leave', 'attendance', 'requisitions', 'candidates', 'interviews', 'onboarding', 'performance', 'transfers_exit', 'announcements', 'feedback', 'policies', 'documents', 'org_data', 'custom_fields', 'workflow_builder'],
     read: ['reports', 'audit', 'roles', 'shared_policies'],
-    actions: ['leave.approve', 'attendance.approve', 'probation.confirm', 'employee.create', 'employee.edit', 'transfer.initiate', 'exit.run', 'requisition.approve', 'offer.make', 'policy.publish', 'report.export'],
+    actions: ['leave.approve', 'attendance.approve', 'probation.confirm', 'employee.create', 'employee.edit', 'transfer.initiate', 'exit.run', 'requisition.approve', 'offer.make', 'policy.publish', 'report.export', 'notifications.manage'],
   },
   'Company IT / Security': {
     level: 'Company', users: 5, desc: 'User-role assignment, SSO, access audits.',
     edit: ['roles', 'audit', 'import_export'],
     read: ['directory', 'org_chart', 'employees', 'company_setup', 'custom_fields'],
-    actions: ['role.assign', 'data.import'],
+    actions: ['role.assign', 'data.import', 'notifications.manage'],
     fields: { 'employee.salary': 'hidden', 'employee.pan': 'masked', 'employee.aadhaar': 'masked', 'employee.bank': 'hidden' },
   },
   'People Manager': {
@@ -236,4 +238,23 @@ export function useRbac() {
   const ctx = useContext(Ctx)
   if (!ctx) throw new Error('useRbac must be used within RbacProvider')
   return ctx
+}
+
+// Map the runtime persona role → the RBAC role profile it resolves to.
+const RUNTIME_TO_RBAC: Record<string, string> = {
+  provider_admin: ADMIN_ROLE,
+  portfolio_manager: 'Portfolio Manager',
+  company_hr_admin: 'Company HR Admin',
+  people_manager: 'People Manager',
+  employee: 'Employee — Standard',
+}
+export function rbacRoleFor(role: string): string {
+  return RUNTIME_TO_RBAC[role] ?? 'Employee — Standard'
+}
+
+/** Can the currently logged-in persona perform an RBAC action? Honors live policy edits. */
+export function useCan(action: string): boolean {
+  const { role } = useApp()
+  const { effAction } = useRbac()
+  return effAction(rbacRoleFor(role ?? 'employee'), action)
 }
