@@ -23,12 +23,23 @@ const chipTone: Record<InboxItem['type'], 'accent2' | 'accent' | 'info' | 'warni
   Offer: 'primary', Timesheet: 'info', Asset: 'neutral',
 }
 
+// An employee only sees THEIR OWN to-dos — never other people's requests or approvals.
+type EmpTodo = { id: string; type: InboxItem['type']; title: string; meta: string; to: string }
+const EMP_TODOS: EmpTodo[] = [
+  { id: 't1', type: 'Policy Ack', title: 'Acknowledge: Code of Conduct v3', meta: 'Due Jun 14', to: '/policies' },
+  { id: 't2', type: 'Leave', title: 'Your annual leave · Jun 10–12', meta: 'Pending approval', to: '/time/leave' },
+  { id: 't3', type: 'Timesheet', title: 'Submit timesheet · week 23', meta: 'Due today', to: '/time/attendance' },
+  { id: 't4', type: 'Asset', title: 'Acknowledge laptop receipt', meta: 'MacBook Pro 14"', to: '/people/assets' },
+  { id: 't5', type: 'Policy Ack', title: 'Acknowledge: Remote Work Policy v1.4', meta: 'Due Jun 20', to: '/policies' },
+]
+
 export default function Home() {
   const { inbox: inboxSeed, leaveBalances, headcountTrend, policies } = useCompanyData()
   const { persona, role, company, scope } = useApp()
   const { push } = useToast()
   const navigate = useNavigate()
   const [items, setItems] = useState(inboxSeed)
+  const [empItems, setEmpItems] = useState(EMP_TODOS)
   const isEmployee = role === 'employee'
 
   // Provider/portfolio at platform scope get the platform console, not the HR inbox.
@@ -78,14 +89,40 @@ export default function Home() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <CardTitle>{isEmployee ? 'My requests & to-dos' : 'My inbox'}</CardTitle>
-              <Badge tone="primary">{items.length}</Badge>
+              <Badge tone="primary">{isEmployee ? empItems.length : items.length}</Badge>
             </div>
             <span className="text-2xs font-semibold uppercase tracking-wide text-muted-fg">
-              Everything that needs you · one list
+              {isEmployee ? 'Only items that need you' : 'Everything that needs you · one list'}
             </span>
           </CardHeader>
           <CardBody className="p-0">
-            {items.length === 0 ? (
+            {isEmployee ? (
+              empItems.length === 0 ? (
+                <div className="p-5">
+                  <EmptyState icon={<Check className="h-5 w-5" />} title="All clear" description="You have no pending to-dos right now." />
+                </div>
+              ) : (
+                <ul className="divide-y divide-border">
+                  {empItems.map((t) => (
+                    <li key={t.id} className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-muted/40">
+                      <span className="hidden w-28 shrink-0 sm:flex">
+                        <Badge tone={chipTone[t.type]} className="px-3 py-1">{t.type}</Badge>
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{t.title}</p>
+                        <p className="truncate text-xs text-muted-fg">{t.meta}</p>
+                      </div>
+                      <Button size="sm" variant="subtle" onClick={() => navigate(t.to)}>
+                        Open <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" aria-label="Dismiss" onClick={() => setEmpItems((p) => p.filter((x) => x.id !== t.id))}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : items.length === 0 ? (
               <div className="p-5">
                 <EmptyState icon={<Check className="h-5 w-5" />} title="Inbox zero" description="Nothing needs your attention right now." />
               </div>
@@ -108,7 +145,7 @@ export default function Home() {
                     </Badge>
                     <div className="flex items-center gap-1.5">
                       <Button size="sm" variant="subtle" onClick={() => act(it.id, 'Approved')}>
-                        <Check className="h-3.5 w-3.5" /> {isEmployee ? 'Done' : 'Approve'}
+                        <Check className="h-3.5 w-3.5" /> Approve
                       </Button>
                       <Button size="icon" variant="ghost" aria-label="Dismiss" onClick={() => act(it.id, 'Dismissed')}>
                         <X className="h-4 w-4" />

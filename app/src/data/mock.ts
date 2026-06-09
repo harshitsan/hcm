@@ -189,9 +189,9 @@ export const personas: Persona[] = [
   { id: 'p1', name: 'Anita Rao', role: 'provider_admin', title: 'Platform Operations · SatelliteHR', blurb: 'Runs the whole SatelliteHR platform; provisions new companies.', companyIds: [] },
   { id: 'p2', name: 'OpsMaven', role: 'portfolio_manager', title: 'Shared-services portfolio manager', blurb: 'OpsMaven manages HR for its portfolio — the Kensium Group of companies.', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'] },
   { id: 'p6', name: 'Lim Wei', role: 'portfolio_manager', title: 'Lead · Asia-Pacific Operations', blurb: 'Runs HR for the APAC portfolio (Delta, Orbit, Nimbus).', companyIds: ['c6', 'c7', 'c8'] },
-  { id: 'p3', name: 'Priya Sharma', role: 'company_hr_admin', title: 'HR Manager · Kensium Pvt Ltd', blurb: 'Owns people, policies & reports for one company.', companyIds: ['c1'] },
-  { id: 'p4', name: 'Rahul Verma', role: 'people_manager', title: 'Engineering Lead · Kensium Pvt Ltd', blurb: 'Leads a team; approves their requests.', companyIds: ['c1'] },
-  { id: 'p5', name: 'Meera Iyer', role: 'employee', title: 'Senior Analyst · Kensium Pvt Ltd', blurb: 'Uses simple self-service every day.', companyIds: ['c1'] },
+  { id: 'p3', name: 'Priya Sharma', role: 'company_hr_admin', title: 'HR Manager · Kensium Pvt Ltd', blurb: 'Owns people, policies & reports for one company.', companyIds: ['c1'], employeeId: 'e3' },
+  { id: 'p4', name: 'Rahul Verma', role: 'people_manager', title: 'Engineering Lead · Kensium Pvt Ltd', blurb: 'Leads a team; approves their requests.', companyIds: ['c1'], employeeId: 'e2' },
+  { id: 'p5', name: 'Meera Iyer', role: 'employee', title: 'Senior Analyst · Kensium Pvt Ltd', blurb: 'Uses simple self-service every day.', companyIds: ['c1'], employeeId: 'e4' },
   { id: 'p7', name: 'Rohan Shetty', role: 'portfolio_manager', title: 'Group HR Lead · Kensium Pvt Ltd (internal)', blurb: 'Internal lead — an employee of Kensium Pvt Ltd who also runs HR across the Kensium Group. One login, two roles.', companyIds: ['c1', 'c2', 'c3', 'c4', 'c5'], employeeId: 'e15' },
 ]
 
