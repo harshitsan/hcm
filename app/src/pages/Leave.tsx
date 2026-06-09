@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, Check, Plus, X, CalendarRange, Inbox } from 'lucide-react'
+import { CalendarDays, Check, Plus, X, CalendarRange, Inbox, Clock, CalendarOff } from 'lucide-react'
 import { useApp } from '../app/store'
 import { type LeaveRequest } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
@@ -41,12 +41,17 @@ export default function Leave() {
   const isEmployee = role === 'employee'
 
   const tabs = useMemo(() => {
-    const t = [{ value: 'mine', label: 'My leave' }]
-    if (!isEmployee) {
-      t.push({ value: 'approvals', label: 'Approvals' })
-      t.push({ value: 'calendar', label: 'Team calendar' })
+    if (isEmployee) {
+      return [
+        { value: 'mine', label: 'My leave' },
+        { value: 'calendar', label: 'My calendar' },
+      ]
     }
-    return t
+    return [
+      { value: 'mine', label: 'My leave' },
+      { value: 'approvals', label: 'Approvals' },
+      { value: 'calendar', label: 'Team calendar' },
+    ]
   }, [isEmployee])
   const [tab, setTab] = useState('mine')
 
@@ -222,7 +227,12 @@ export default function Leave() {
       )}
 
       {/* -------------------------------------------------------- Team calendar */}
-      {tab === 'calendar' && !isEmployee && <TeamCalendar />}
+      {tab === 'calendar' && (isEmployee ? (
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2"><MyLeaveCalendar requests={myRequests} /></div>
+          <ShiftRoster />
+        </div>
+      ) : <TeamCalendar />)}
 
       {/* -------------------------------------------------------- Request modal */}
       <Modal
@@ -267,6 +277,137 @@ export default function Leave() {
         </div>
       </Modal>
     </div>
+  )
+}
+
+/* ----------------------------------------------------------------- Company holiday calendar (June 2026) */
+const HOLIDAYS: Record<number, string> = { 16: 'Bakrid', 26: 'Founders Day' }
+
+/* ----------------------------------------------------------------- Shift roster (employee, self) */
+function ShiftRoster() {
+  const shifts: { day: string; name: string; time: string; tone: 'primary' | 'accent' | 'neutral' }[] = [
+    { day: 'Mon', name: 'General', time: '09:00–18:00', tone: 'primary' },
+    { day: 'Tue', name: 'General', time: '09:00–18:00', tone: 'primary' },
+    { day: 'Wed', name: 'General', time: '09:00–18:00', tone: 'primary' },
+    { day: 'Thu', name: 'Late', time: '12:00–21:00', tone: 'accent' },
+    { day: 'Fri', name: 'General', time: '09:00–18:00', tone: 'primary' },
+    { day: 'Sat', name: 'Off', time: '—', tone: 'neutral' },
+    { day: 'Sun', name: 'Off', time: '—', tone: 'neutral' },
+  ]
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Shift roster</CardTitle>
+        <Badge tone="primary">This week</Badge>
+      </CardHeader>
+      <CardBody>
+        <div className="mb-3 rounded-xl border border-border bg-surface2/40 p-3">
+          <p className="text-2xs font-bold uppercase tracking-wide text-muted-fg">Current shift</p>
+          <p className="mt-1 flex items-center gap-2 text-sm font-bold"><Clock className="h-4 w-4 text-primary" /> General · 09:00–18:00 IST</p>
+          <p className="mt-0.5 text-2xs text-muted-fg">9h/day · weekly off Sat & Sun</p>
+        </div>
+        <ul className="space-y-1.5">
+          {shifts.map((s) => (
+            <li key={s.day} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+              <span className="flex items-center gap-2.5">
+                <span className="w-9 text-2xs font-bold uppercase tracking-wide text-muted-fg">{s.day}</span>
+                {s.name === 'Off'
+                  ? <Badge tone="neutral"><CalendarOff className="h-3 w-3" /> Off</Badge>
+                  : <Badge tone={s.tone}>{s.name}</Badge>}
+              </span>
+              <span className="tnum text-xs text-muted-fg">{s.time}</span>
+            </li>
+          ))}
+        </ul>
+      </CardBody>
+    </Card>
+  )
+}
+
+/* ----------------------------------------------------------------- My leave calendar (employee, self only) */
+function MyLeaveCalendar({ requests }: { requests: LeaveRequest[] }) {
+  const toneBg: Record<string, string> = {
+    primary: 'bg-primary/12 text-primary', info: 'bg-info/12 text-info', accent: 'bg-accent/12 text-accent',
+    success: 'bg-success/15 text-success', warning: 'bg-warning/15 text-warning',
+  }
+  // June 2026 — 1 Jun is a Monday. Mark only this employee's own leave days.
+  const byDay: Record<number, { type: LeaveType; status: LeaveRequest['status']; tone: string }> = {}
+  for (const r of requests) {
+    const to = new Date(`${r.to}T00:00:00`)
+    for (const d = new Date(`${r.from}T00:00:00`); d <= to; d.setDate(d.getDate() + 1)) {
+      if (d.getFullYear() === 2026 && d.getMonth() === 5) {
+        byDay[d.getDate()] = { type: r.type, status: r.status, tone: typeTone(r.type) }
+      }
+    }
+  }
+  const dows = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+  const cells: (number | null)[] = []
+  for (let i = 0; i < 35; i++) { const d = i + 1; cells.push(d <= 30 ? d : null) }
+  const totalDays = requests.reduce((a, r) => a + r.days, 0)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>My calendar · June 2026</CardTitle>
+        <div className="flex items-center gap-3 text-2xs font-semibold text-muted-fg">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> Annual</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-info" /> Sick</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-accent" /> Casual</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-danger" /> Holiday</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-muted-fg/40" /> Pending (faded)</span>
+        </div>
+      </CardHeader>
+      <CardBody>
+        <div className="grid grid-cols-7 gap-1">
+          {dows.map((d) => (
+            <div key={d} className="pb-1 text-center text-2xs font-bold uppercase tracking-wide text-muted-fg">{d}</div>
+          ))}
+          {cells.map((day, i) => {
+            const mark = day ? byDay[day] : undefined
+            const holiday = day ? HOLIDAYS[day] : undefined
+            const weekend = i % 7 >= 5
+            return (
+              <div
+                key={i}
+                className={cn(
+                  'min-h-[72px] rounded-lg border border-border p-1.5 text-left',
+                  day ? 'bg-surface' : 'border-transparent bg-transparent',
+                  weekend && day && 'bg-surface2/60',
+                )}
+              >
+                {day && (
+                  <>
+                    <span className="text-2xs font-semibold text-muted-fg tnum">{day}</span>
+                    {holiday && (
+                      <div className="mt-1 flex items-center gap-1 truncate rounded bg-danger/12 px-1 py-0.5 text-2xs font-medium text-danger" title={`Company holiday · ${holiday}`}>
+                        <CalendarOff className="h-2.5 w-2.5 shrink-0" />
+                        <span className="truncate">{holiday}</span>
+                      </div>
+                    )}
+                    {mark && (
+                      <div
+                        className={cn(
+                          'mt-1 flex items-center gap-1 truncate rounded px-1 py-0.5 text-2xs font-medium',
+                          toneBg[mark.tone],
+                          mark.status === 'Pending' && 'opacity-55',
+                        )}
+                        title={`${mark.type} leave · ${mark.status}`}
+                      >
+                        <CalendarRange className="h-2.5 w-2.5 shrink-0" />
+                        <span className="truncate">{mark.type}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
+        <p className="mt-3 text-2xs text-muted-fg">
+          {requests.length} request{requests.length === 1 ? '' : 's'} · {totalDays} day{totalDays === 1 ? '' : 's'} this period. Pending requests appear faded until approved.
+        </p>
+      </CardBody>
+    </Card>
   )
 }
 
