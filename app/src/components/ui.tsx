@@ -27,7 +27,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'outline' | 'danger' | 
 type ButtonSize = 'sm' | 'md' | 'lg' | 'icon'
 
 const btnBase =
-  'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface disabled:opacity-50 disabled:pointer-events-none cursor-pointer whitespace-nowrap'
+  'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-surface disabled:opacity-50 disabled:pointer-events-none cursor-pointer whitespace-nowrap'
 
 const btnVariants: Record<ButtonVariant, string> = {
   primary: 'bg-primary text-primary-fg hover:bg-primary/90 shadow-sm',

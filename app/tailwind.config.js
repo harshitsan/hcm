@@ -25,18 +25,19 @@ export default {
         ring: 'rgb(var(--ring) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
-        lg: '0.75rem',
-        xl: '1rem',
-        '2xl': '1.375rem',
-        '3xl': '1.75rem',
+        /* tighter, enterprise — not bubbly */
+        lg: '0.5rem',
+        xl: '0.625rem',
+        '2xl': '0.75rem',
+        '3xl': '1rem',
       },
       boxShadow: {
-        /* soft, diffuse depth like the reference */
-        card: '0 1px 2px 0 rgb(15 23 42 / 0.03), 0 6px 16px -8px rgb(15 23 42 / 0.10)',
-        pop: '0 12px 36px -12px rgb(15 23 42 / 0.28)',
+        /* refined: hairline borders carry structure, shadows stay very subtle */
+        card: '0 1px 2px 0 rgb(15 23 42 / 0.04)',
+        pop: '0 8px 28px -10px rgb(15 23 42 / 0.22), 0 2px 6px -2px rgb(15 23 42 / 0.08)',
         rail: '0 1px 2px 0 rgb(15 23 42 / 0.05)',
       },
       fontSize: {

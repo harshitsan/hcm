@@ -292,7 +292,7 @@ function CompanySwitcher() {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2.5 rounded-full border border-border bg-surface py-1.5 pl-1.5 pr-3 text-left transition-colors hover:bg-muted cursor-pointer"
+        className="flex items-center gap-2.5 rounded-lg border border-border bg-surface py-1.5 pl-1.5 pr-3 text-left transition-colors hover:bg-muted cursor-pointer"
       >
         <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-2xs font-bold text-white', company.color)}>{company.initials}</span>
         <span className="hidden min-w-0 sm:block">
@@ -382,7 +382,7 @@ function TopBar({ groups, onMenu, onSearch }: { groups: NavGroup[]; onMenu: () =
               <button
                 key={g.group}
                 onClick={() => navigate(g.items[0].path)}
-                className={cn('rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors cursor-pointer', active ? 'bg-primary text-primary-fg' : 'text-muted-fg hover:bg-muted hover:text-fg')}
+                className={cn('rounded-lg px-3 py-1.5 text-[13px] font-bold transition-colors cursor-pointer', active ? 'bg-primary text-primary-fg' : 'text-muted-fg hover:bg-muted hover:text-fg')}
               >
                 {shortLabel(g.group)}
               </button>
@@ -392,7 +392,7 @@ function TopBar({ groups, onMenu, onSearch }: { groups: NavGroup[]; onMenu: () =
 
         <button
           onClick={onSearch}
-          className="relative ml-auto hidden h-9 max-w-[14rem] flex-1 items-center gap-2 rounded-full border border-border bg-surface2 pl-9 pr-3 text-left text-sm text-muted-fg/80 transition-colors hover:border-muted-fg/30 lg:flex cursor-pointer"
+          className="relative ml-auto hidden h-9 max-w-[14rem] flex-1 items-center gap-2 rounded-lg border border-border bg-surface2 pl-9 pr-3 text-left text-sm text-muted-fg/80 transition-colors hover:border-muted-fg/30 lg:flex cursor-pointer"
         >
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
           Search…
@@ -409,7 +409,7 @@ function TopBar({ groups, onMenu, onSearch }: { groups: NavGroup[]; onMenu: () =
               to={item.path}
               end={item.path === '/'}
               className={({ isActive: a }) =>
-                cn('flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold transition-colors', a ? 'bg-accent/12 text-accent' : 'text-muted-fg hover:bg-muted hover:text-fg')
+                cn('flex items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors', a ? 'bg-accent/12 text-accent' : 'text-muted-fg hover:bg-muted hover:text-fg')
               }
             >
               <item.icon className="h-4 w-4 shrink-0" />
