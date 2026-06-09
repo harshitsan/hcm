@@ -25,7 +25,7 @@ export default {
         ring: 'rgb(var(--ring) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['"Source Code Pro"', '"SFMono-Regular"', 'ui-monospace', 'Menlo', 'monospace'],
+        sans: ['"Avenir LT Pro"', 'ui-sans-serif', 'system-ui', '-apple-system', '"Segoe UI"', 'sans-serif'],
         mono: ['"Source Code Pro"', '"SFMono-Regular"', 'ui-monospace', 'Menlo', 'monospace'],
       },
       borderRadius: {

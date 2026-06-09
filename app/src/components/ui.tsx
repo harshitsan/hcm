@@ -120,7 +120,12 @@ const hashStr = (s: string) => {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
   return h
 }
-const AV_PX: Record<'xs' | 'sm' | 'md' | 'lg', number> = { xs: 48, sm: 64, md: 72, lg: 96 }
+/* first names that map to the female placeholder; everyone else uses the male one */
+const FEMALE_NAMES = new Set([
+  'diya', 'ananya', 'aisha', 'saanvi', 'myra', 'kiara', 'anaya', 'neha', 'pooja', 'tara',
+  'isha', 'nisha', 'riya', 'sara', 'leela', 'anita', 'divya', 'fatima', 'leena', 'meera',
+  'priya', 'sneha',
+])
 const AV_SIZE: Record<'xs' | 'sm' | 'md' | 'lg', string> = {
   xs: 'h-6 w-6 text-[10px]',
   sm: 'h-8 w-8 text-xs',
@@ -141,8 +146,9 @@ export function Avatar({
 }) {
   const [failed, setFailed] = useState(false)
   const h = hashStr(name)
-  // deterministic photo placeholder per person (pravatar has ~70 portraits)
-  const url = src ?? `https://i.pravatar.cc/${AV_PX[size]}?img=${(h % 70) + 1}`
+  // local self-contained placeholder, chosen by first name (male.png / female.png)
+  const first = name.trim().split(/\s+/)[0]?.toLowerCase() ?? ''
+  const url = src ?? (FEMALE_NAMES.has(first) ? '/female.png' : '/male.png')
 
   if (!failed) {
     return (
@@ -151,7 +157,7 @@ export function Avatar({
         alt={name}
         loading="lazy"
         onError={() => setFailed(true)}
-        className={cn('inline-block shrink-0 rounded-full bg-muted object-cover', AV_SIZE[size], className)}
+        className={cn('inline-block shrink-0 rounded-full bg-muted object-cover object-top', AV_SIZE[size], className)}
       />
     )
   }
