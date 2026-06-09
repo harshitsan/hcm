@@ -6,6 +6,7 @@ import App from './App.tsx'
 import { AppProvider } from './app/store'
 import { NotificationsProvider } from './app/notifications'
 import { PoliciesProvider } from './app/policies'
+import { RbacProvider } from './app/rbac'
 import { ToastProvider } from './components/ui'
 
 createRoot(document.getElementById('root')!).render(
@@ -14,9 +15,11 @@ createRoot(document.getElementById('root')!).render(
       <AppProvider>
         <NotificationsProvider>
           <PoliciesProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
+            <RbacProvider>
+              <ToastProvider>
+                <App />
+              </ToastProvider>
+            </RbacProvider>
           </PoliciesProvider>
         </NotificationsProvider>
       </AppProvider>
