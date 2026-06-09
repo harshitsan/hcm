@@ -270,11 +270,6 @@ export default function Profile() {
         icon={<UserRound className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">
-            <Tooltip label="Documents & letters">
-              <IconButton variant="outline" aria-label="Documents and letters" onClick={() => push({ title: 'Opening Documents & Letters', tone: 'info' })}>
-                <FileText className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
             <Tooltip label="Notification preferences">
               <IconButton variant="outline" aria-label="Notification preferences" onClick={() => setPrefOpen(true)}>
                 <Bell className="h-[18px] w-[18px]" />
@@ -292,7 +287,7 @@ export default function Profile() {
       />
 
       {isLimited && (
-        <div className="mb-5 flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
+        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3">
           <Lock className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
           <div>
             <p className="text-sm font-bold text-fg">Limited Access</p>
@@ -303,9 +298,9 @@ export default function Profile() {
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Identity + employment */}
-        <div className="space-y-5 lg:col-span-2">
+        <div className="space-y-6 lg:col-span-2">
           {/* Identity card */}
           <Card>
             <CardBody>
@@ -449,7 +444,7 @@ export default function Profile() {
         </div>
 
         {/* Right rail */}
-        <div className="space-y-5">
+        <div className="space-y-6">
           {/* Leave balance summary */}
           <Card>
             <CardHeader>

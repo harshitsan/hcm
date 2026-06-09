@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  CalendarCheck, Plus, CalendarPlus, Filter, Video, Clock3, ClipboardList,
+  CalendarCheck, Plus, CalendarPlus, Video, Clock3, ClipboardList,
   Star, Check, UserPlus, PhoneCall, ShieldCheck, MessageSquare, ThumbsUp,
   ThumbsDown, MinusCircle, ArrowRight, Briefcase, CircleDot, CheckCircle2,
 } from 'lucide-react'
@@ -358,26 +358,17 @@ export default function Interviews() {
         icon={<CalendarCheck className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">
-            <Tooltip label="Filter by stage">
-              <IconButton variant="outline" aria-label="Filter interviews">
-                <Filter className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
             <Tooltip label="Add to calendar">
               <IconButton variant="outline" aria-label="Add interview to calendar">
                 <CalendarPlus className="h-[18px] w-[18px]" />
               </IconButton>
             </Tooltip>
             {isAdmin && (
-              <Tooltip label="Schedule interview">
-                <IconButton
-                  variant="solid"
-                  aria-label="Schedule interview"
-                  onClick={() => push({ title: 'Open the requisition to schedule a new interview', tone: 'info' })}
-                >
-                  <Plus className="h-[18px] w-[18px]" />
-                </IconButton>
-              </Tooltip>
+              <Button
+                onClick={() => push({ title: 'Open the requisition to schedule a new interview', tone: 'info' })}
+              >
+                <Plus className="h-4 w-4" /> Schedule
+              </Button>
             )}
           </div>
         }

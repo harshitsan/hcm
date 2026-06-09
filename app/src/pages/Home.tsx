@@ -50,6 +50,7 @@ export default function Home() {
             ? `Here's what needs you today at ${company.name}.`
             : `What needs you today at ${company.name}.`
         }
+        icon={<Inbox className="h-5 w-5" />}
       />
 
       {/* Stat row */}

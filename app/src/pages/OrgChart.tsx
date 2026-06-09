@@ -188,7 +188,7 @@ export default function OrgChart() {
           </div>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {departments.map((d) => {
             const parent = d.parentId ? getDepartment(d.parentId) : null
             const head = employees.find((e) => e.name === d.head)

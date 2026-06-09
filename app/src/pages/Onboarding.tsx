@@ -79,8 +79,9 @@ export default function Onboarding() {
         icon={<UserPlus className="h-5 w-5" />}
       />
 
+      <div className="max-w-3xl space-y-6">
       {/* Hire header card */}
-      <Card className="mb-6">
+      <Card>
         <CardBody className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
             <Avatar name={hire.name} size="lg" />
@@ -118,7 +119,7 @@ export default function Onboarding() {
       </Card>
 
       {/* Stepper across the stages */}
-      <Card className="mb-6">
+      <Card>
         <CardBody>
           <Stepper steps={STAGES} current={currentStage} />
         </CardBody>
@@ -203,6 +204,7 @@ export default function Onboarding() {
           )}
         </CardBody>
       </Card>
+      </div>
     </div>
   )
 }

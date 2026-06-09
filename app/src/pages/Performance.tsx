@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
-  Gauge, Plus, CalendarPlus, Filter, ShieldCheck, Check, X, Clock3,
+  Gauge, Plus, CalendarPlus, ShieldCheck, Check, X, Clock3,
   ArrowRightLeft, LogOut, UserCheck, CalendarClock, Milestone, ChevronRight,
   ClipboardList, TrendingUp, Users, AlertTriangle, Target,
 } from 'lucide-react'
@@ -431,7 +431,7 @@ export default function Performance() {
           subtitle={`Your review progress and confirmation status at ${company.name}.`}
           icon={<Gauge className="h-5 w-5" />}
         />
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Probation confirmation</CardTitle>
@@ -471,7 +471,7 @@ export default function Performance() {
             </CardBody>
           </Card>
         </div>
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-fg">
+        <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-fg">
           <ShieldCheck className="h-3.5 w-3.5 text-success" />
           You can see only your own review and probation status. Manager evaluations stay private until shared.
         </p>
@@ -492,11 +492,6 @@ export default function Performance() {
         icon={<Gauge className="h-5 w-5" />}
         actions={
           <>
-            <Tooltip label="Filter">
-              <IconButton variant="outline" aria-label="Filter performance items">
-                <Filter className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
             <Tooltip label="New review cycle">
               <IconButton
                 variant="outline"
@@ -506,21 +501,15 @@ export default function Performance() {
                 <CalendarPlus className="h-[18px] w-[18px]" />
               </IconButton>
             </Tooltip>
-            <Tooltip label="Start probation evaluation">
-              <IconButton
-                variant="solid"
-                aria-label="Start probation evaluation"
-                onClick={() => setOpenProbation(true)}
-              >
-                <Plus className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
+            <Button onClick={() => setOpenProbation(true)}>
+              <Plus className="h-4 w-4" /> Start evaluation
+            </Button>
           </>
         }
       />
 
       {isManagerOnly && (
-        <div className="mb-4 flex items-start gap-2 rounded-xl border border-accent/30 bg-accent/8 px-4 py-2.5 text-sm text-fg">
+        <div className="mb-6 flex items-start gap-2 rounded-xl border border-accent/30 bg-accent/8 px-4 py-2.5 text-sm text-fg">
           <Users className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
           <span>
             Manager view — limited to your team. You record evaluations and recommend an outcome;
@@ -530,14 +519,14 @@ export default function Performance() {
       )}
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
           <StatCard key={s.label} label={s.label} value={s.value} delta={s.delta} deltaTone={s.deltaTone} icon={s.icon} />
         ))}
       </div>
 
       {/* segmented switcher */}
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Segmented
           value={tab}
           onChange={setTab}
@@ -564,7 +553,7 @@ export default function Performance() {
 
       {/* ---------------------------------------------------------- CONFIRMATIONS BOARD */}
       {tab === 'probation' && (
-        <Card className="mt-4">
+        <Card className="mt-6">
           <CardHeader>
             <CardTitle>Probation confirmations board</CardTitle>
             <Badge tone="neutral">Manager → Dept Head → HR</Badge>
@@ -667,8 +656,8 @@ export default function Performance() {
 
       {/* ---------------------------------------------------------- REVIEW CYCLES */}
       {tab === 'cycles' && (
-        <div className="mt-4 grid gap-4 lg:grid-cols-3">
-          <div className="grid gap-4 lg:col-span-2 sm:grid-cols-2">
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 lg:col-span-2 sm:grid-cols-2">
             {cycles.map((c) => (
               <Card key={c.id}>
                 <CardBody className="space-y-4">
@@ -701,7 +690,7 @@ export default function Performance() {
             ))}
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>H1 cycle progress</CardTitle>
@@ -758,11 +747,11 @@ export default function Performance() {
 
       {/* ---------------------------------------------------------- MILESTONES → lifecycle journey */}
       {tab === 'milestones' && (
-        <div className="mt-4">
+        <div className="mt-6">
           <p className="mb-3 text-sm text-muted-fg">
             Performance milestones feed downstream lifecycle decisions. Each column is a lifecycle outcome the milestone is wired to.
           </p>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className="flex gap-6 overflow-x-auto pb-2">
             {(['Confirmation', 'Transfer', 'Exit'] as const).map((lane) => {
               const items = milestones.filter((m) => m.feeds === lane)
               const laneTone: Record<typeof lane, 'success' | 'accent' | 'danger'> = { Confirmation: 'success', Transfer: 'accent', Exit: 'danger' }
@@ -822,7 +811,7 @@ export default function Performance() {
         </div>
       )}
 
-      <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-fg">
+      <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-fg">
         <ShieldCheck className="h-3.5 w-3.5 text-success" />
         Every recommendation, extension and exit decision is effective-dated and written to the audit trail (actor, before/after, timestamp).
       </p>

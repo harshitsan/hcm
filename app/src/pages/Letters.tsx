@@ -13,7 +13,7 @@ import { useCompanyData } from '../data/companyData'
 import {
   AvatarStack, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState,
   Field, IconButton, Input, Modal, PageHeader, ProgressBar, Segmented, Select,
-  Stepper, Table, Tabs, Td, Th, Tooltip, Tr, useToast,
+  StatCard, Stepper, Table, Tabs, Td, Th, Tooltip, Tr, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
 
@@ -386,11 +386,11 @@ export default function Letters() {
         }
       />
 
-      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-5" />
+      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-6" />
 
       {/* ------------------------------------------------ Templates (HR only) */}
       {tab === 'templates' && !isEmployee && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative sm:max-w-xs sm:flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
@@ -420,7 +420,7 @@ export default function Letters() {
               }
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filteredTemplates.map((t) => (
                 <TemplateCard key={t.key} template={t} onGenerate={openGenerate} />
               ))}
@@ -431,37 +431,29 @@ export default function Letters() {
 
       {/* ------------------------------------------------ Distribution (HR only) */}
       {tab === 'distribution' && !isEmployee && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {/* KPI row */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-muted-fg">Issued this cycle</span>
-                <Send className="h-4 w-4 text-muted-fg" />
-              </div>
-              <span className="mt-2 block text-2xl font-extrabold tracking-tight tnum">{stats.total}</span>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-muted-fg">Delivered / viewed</span>
-                <CheckCircle2 className="h-4 w-4 text-success" />
-              </div>
-              <span className="mt-2 block text-2xl font-extrabold tracking-tight tnum text-success">{stats.delivered}</span>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-muted-fg">In transit</span>
-                <Clock3 className="h-4 w-4 text-warning" />
-              </div>
-              <span className="mt-2 block text-2xl font-extrabold tracking-tight tnum text-warning">{stats.pending}</span>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-semibold text-muted-fg">Bounced</span>
-                <Mail className="h-4 w-4 text-danger" />
-              </div>
-              <span className="mt-2 block text-2xl font-extrabold tracking-tight tnum text-danger">{stats.bounced}</span>
-            </Card>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard
+              label="Issued this cycle"
+              value={stats.total}
+              icon={<Send className="h-4 w-4" />}
+            />
+            <StatCard
+              label="Delivered / viewed"
+              value={<span className="text-success">{stats.delivered}</span>}
+              icon={<CheckCircle2 className="h-4 w-4 text-success" />}
+            />
+            <StatCard
+              label="In transit"
+              value={<span className="text-warning">{stats.pending}</span>}
+              icon={<Clock3 className="h-4 w-4 text-warning" />}
+            />
+            <StatCard
+              label="Bounced"
+              value={<span className="text-danger">{stats.bounced}</span>}
+              icon={<Mail className="h-4 w-4 text-danger" />}
+            />
           </div>
 
           {/* Charts */}
@@ -621,7 +613,7 @@ export default function Letters() {
 
       {/* ------------------------------------------------ Issuance flow / kanban (HR only) */}
       {tab === 'flow' && !isEmployee && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <Card className="p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -666,7 +658,7 @@ export default function Letters() {
 
       {/* ------------------------------------------------ My letters (everyone) */}
       {tab === 'mine' && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           <Card className="p-4">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -688,7 +680,7 @@ export default function Letters() {
               description="When HR issues a letter to you, it will be available to download here."
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {MY_LETTERS.map((l) => {
                 const Icon = TEMPLATE_ICON[l.template]
                 const Channel = CHANNEL_ICON[l.channel]

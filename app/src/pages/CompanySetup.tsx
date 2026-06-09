@@ -104,9 +104,9 @@ export default function CompanySetup() {
 
   if (created) {
     return (
-      <div className="animate-fade-in mx-auto max-w-2xl">
+      <div className="animate-fade-in">
         <PageHeader title="Company setup" subtitle="Provision a new company on SatelliteHR." icon={<Building2 className="h-5 w-5" />} />
-        <Card>
+        <Card className="max-w-3xl">
           <CardBody className="flex flex-col items-center gap-4 py-12 text-center">
             <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-success/12 text-success">
               <CheckCircle2 className="h-8 w-8" />
@@ -143,7 +143,8 @@ export default function CompanySetup() {
         actions={<Badge tone="primary"><Sparkles className="h-3 w-3" /> Guided</Badge>}
       />
 
-      <Card className="mb-6">
+      <div className="max-w-3xl space-y-6">
+      <Card>
         <CardBody className="space-y-3">
           <Stepper steps={setupSteps} current={step} onStepClick={goTo} />
           <ProgressBar value={((step + 1) / setupSteps.length) * 100} />
@@ -331,7 +332,7 @@ export default function CompanySetup() {
       </Card>
 
       {/* Footer nav */}
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Button variant="ghost" onClick={() => push({ title: 'Draft saved', tone: 'neutral' })}>
           <Save className="h-4 w-4" /> Save as draft
         </Button>
@@ -349,6 +350,7 @@ export default function CompanySetup() {
             </Button>
           )}
         </div>
+      </div>
       </div>
     </div>
   )

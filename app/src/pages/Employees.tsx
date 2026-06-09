@@ -9,7 +9,7 @@ import {
 } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
 import {
-  Avatar, Badge, Button, Card, Field, Input, Modal, PageHeader, Select, Table, Td, Th, Tr,
+  Avatar, Badge, Button, Card, CardHeader, CardTitle, Field, Input, Modal, PageHeader, Select, Table, Td, Th, Tr,
   useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
@@ -87,6 +87,11 @@ export default function Employees() {
       />
 
       <Card className="overflow-visible">
+        <CardHeader>
+          <CardTitle>Directory</CardTitle>
+          <Badge tone="neutral">{rows.length} shown</Badge>
+        </CardHeader>
+
         {/* Toolbar */}
         <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center">
           <div className="relative flex-1 lg:max-w-xs">

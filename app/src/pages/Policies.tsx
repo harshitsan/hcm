@@ -110,7 +110,7 @@ export default function Policies() {
 
       {tab === 'ack' && (
         <>
-          <div className="mb-4 flex items-start gap-2 rounded-xl border border-info/30 bg-info/5 px-4 py-3 text-sm text-muted-fg">
+          <div className="mb-6 flex items-start gap-2 rounded-xl border border-info/30 bg-info/5 px-4 py-3 text-sm text-muted-fg">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
             <p>
               Acknowledge each active policy before its due date. When a policy changes version,
@@ -171,7 +171,7 @@ export default function Policies() {
 
       {tab === 'group' && !isEmployee && (
         <>
-          <div className="mb-4 flex items-start gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-muted-fg">
+          <div className="mb-6 flex items-start gap-2 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-sm text-muted-fg">
             <Layers className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <p>Inherited from your group. Enforced policies apply automatically; where override is allowed you can <span className="font-semibold text-fg">tailor a clause</span> for {company.name} — the group sees every change.</p>
           </div>
@@ -210,7 +210,7 @@ export default function Policies() {
       )}
 
       {tab === 'library' && !isEmployee && (
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader>
             <div className="flex items-center gap-2">
               <CardTitle>Policy library</CardTitle>

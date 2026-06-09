@@ -75,7 +75,7 @@ export default function Audit() {
         }
       />
 
-      <div className="mb-5 flex items-start gap-2.5 rounded-xl border border-border bg-surface2/60 px-4 py-3">
+      <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-border bg-surface2/60 px-4 py-3">
         <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" />
         <p className="text-sm text-muted-fg">
           <span className="font-semibold text-fg">Tamper-resistant.</span>{' '}

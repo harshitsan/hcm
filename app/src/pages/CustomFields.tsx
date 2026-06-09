@@ -80,7 +80,7 @@ export default function CustomFields() {
         }
       />
 
-      <div className="mb-5 flex items-center gap-2 overflow-x-auto rounded-xl border border-border bg-surface p-1">
+      <div className="mb-6 flex items-center gap-2 overflow-x-auto rounded-xl border border-border bg-surface p-1">
         {ENTITIES.map((e) => {
           const count = customFields.filter((f) => f.entity === e).length
           const active = tab === e
@@ -102,7 +102,7 @@ export default function CustomFields() {
         })}
       </div>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader>
           <div className="flex items-center gap-2">
             <CardTitle>{tab} fields</CardTitle>
@@ -206,7 +206,7 @@ export default function CustomFields() {
         </CardBody>
       </Card>
 
-      <p className="mt-4 flex items-center justify-center gap-2 text-center text-xs text-muted-fg">
+      <p className="mt-6 flex items-center justify-center gap-2 text-center text-xs text-muted-fg">
         <Info className="h-3.5 w-3.5 shrink-0" />
         Custom fields flow into search, workflows, reports, imports, and the API.
       </p>

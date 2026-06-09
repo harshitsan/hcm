@@ -210,15 +210,6 @@ export default function Notifications() {
                 <CheckCheck className="h-[18px] w-[18px]" />
               </IconButton>
             </Tooltip>
-            <Tooltip label="Refresh feed">
-              <IconButton
-                variant="outline"
-                aria-label="Refresh notifications"
-                onClick={() => push({ title: 'Feed up to date', tone: 'info' })}
-              >
-                <RefreshCw className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
             <Tooltip label="Preferences">
               <IconButton
                 variant="outline"

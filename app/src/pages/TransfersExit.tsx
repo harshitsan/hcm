@@ -128,7 +128,7 @@ export default function TransfersExit() {
 
       {tab === 'transfers' ? (
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
+          <Card className="overflow-hidden lg:col-span-2">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CardTitle>Transfer records</CardTitle>

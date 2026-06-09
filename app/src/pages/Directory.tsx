@@ -72,7 +72,7 @@ export default function Directory() {
       />
 
       {/* Filters */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
           <Input
@@ -107,7 +107,7 @@ export default function Directory() {
           }
         />
       ) : view === 'list' ? (
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden p-0">
           <Table>
             <thead>
               <tr>

@@ -6,7 +6,7 @@ import {
 import { useApp } from '../app/store'
 import { useCompanyData, type CompanyData } from '../data/companyData'
 import {
-  Badge, Button, Card, EmptyState, Field, Input, Modal, PageHeader, Segmented,
+  Badge, Button, Card, CardBody, EmptyState, Field, Input, Modal, PageHeader, Segmented,
   Select, Table, Td, Th, Tr, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
@@ -120,7 +120,8 @@ export default function Documents() {
         }
       />
 
-      <Card className="p-4">
+      <Card>
+        <CardBody>
         {/* Toolbar */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
@@ -262,6 +263,7 @@ export default function Documents() {
             </div>
           )}
         </div>
+        </CardBody>
       </Card>
 
       <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-fg">

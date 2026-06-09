@@ -233,9 +233,7 @@ export default function Attendance() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Capture & this week</CardTitle>
-              <span className="text-2xs font-semibold uppercase tracking-wide text-muted-fg">
-                {presentDays} present · {wfhDays} WFH
-              </span>
+              <Badge tone="neutral">{presentDays} present · {wfhDays} WFH</Badge>
             </CardHeader>
             <CardBody className="space-y-5">
               <div>

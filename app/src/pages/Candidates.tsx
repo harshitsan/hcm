@@ -114,7 +114,7 @@ export default function Candidates() {
       </div>
 
       {/* Search */}
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-6 flex items-center gap-3">
         <div className="relative w-full max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
           <Input
@@ -130,7 +130,7 @@ export default function Candidates() {
       </div>
 
       {/* Kanban board */}
-      <div className="flex gap-4 overflow-x-auto pb-2">
+      <div className="flex gap-6 overflow-x-auto pb-2">
         {STAGES.map((stage) => {
           const col = byStage[stage]
           return (

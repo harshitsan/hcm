@@ -129,7 +129,7 @@ export default function Leave() {
             })}
           </div>
 
-          <Card>
+          <Card className="overflow-hidden p-0">
             <CardHeader>
               <CardTitle>My requests</CardTitle>
               <Badge tone="primary">{myRequests.length}</Badge>
@@ -172,7 +172,7 @@ export default function Leave() {
 
       {/* -------------------------------------------------------- Approvals */}
       {tab === 'approvals' && !isEmployee && (
-        <Card>
+        <Card className="overflow-hidden p-0">
           <CardHeader>
             <CardTitle>Pending approvals</CardTitle>
             <Badge tone="warning">{pending.length} waiting</Badge>

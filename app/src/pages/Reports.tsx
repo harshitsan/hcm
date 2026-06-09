@@ -333,7 +333,7 @@ export default function Reports() {
         </ChartCard>
       </div>
 
-      <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-fg">
+      <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted-fg">
         <ShieldCheck className="h-3.5 w-3.5" />
         Always filtered to what you're allowed to see.
       </p>

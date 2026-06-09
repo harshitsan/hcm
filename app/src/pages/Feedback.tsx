@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   MessageSquareWarning, Plus, Lock, ShieldCheck, Send, Inbox, ListChecks,
   CircleDot, CheckCircle2, Clock3, ArrowRight, UserPlus, Tag, Reply,
-  ThumbsUp, AlertTriangle, Lightbulb, MessageCircle, Filter,
+  ThumbsUp, AlertTriangle, Lightbulb, MessageCircle,
 } from 'lucide-react'
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip, Legend,
@@ -12,7 +12,7 @@ import { useCompanyData } from '../data/companyData'
 import {
   Avatar, AvatarStack, Badge, Button, Card, CardBody, CardHeader, CardTitle,
   Drawer, EmptyState, Field, IconButton, Input, Modal, PageHeader, ProgressBar,
-  Segmented, Select, Switch, Table, Td, Textarea, Th, Tooltip, Tr, useToast,
+  Segmented, Select, StatCard, Switch, Table, Td, Textarea, Th, Tr, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
 
@@ -120,9 +120,9 @@ function KindTag({ kind }: { kind: Kind }) {
 
 function ConfidentialChip() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-2xs font-bold uppercase tracking-wide text-primary">
+    <Badge tone="primary">
       <Lock className="h-3 w-3" /> Confidential
-    </span>
+    </Badge>
   )
 }
 
@@ -340,78 +340,46 @@ export default function Feedback() {
         title="Feedback & Grievance"
         subtitle={`Raise and track feedback, suggestions and grievances at ${company.name}.`}
         icon={<MessageSquareWarning className="h-5 w-5" />}
-        actions={
-          <>
-            <Tooltip label="Filter">
-              <IconButton variant="outline" aria-label="Filter submissions">
-                <Filter className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
-            {isReviewer && (
-              <Tooltip label="Reviewer inbox">
-                <IconButton variant="outline" aria-label="Reviewer inbox">
-                  <Inbox className="h-[18px] w-[18px]" />
-                </IconButton>
-              </Tooltip>
-            )}
-            <Tooltip label="New submission">
-              <IconButton variant="solid" aria-label="New submission" onClick={() => setOpen(true)}>
-                <Plus className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
-          </>
-        }
+        actions={newButton}
       />
 
       {/* Reviewer-only stat row */}
       {isReviewer && (
-        <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-muted-fg">Open cases</span>
-              <Inbox className="h-4 w-4 text-muted-fg" />
-            </div>
-            <div className="mt-2 flex items-end gap-2">
-              <span className="tnum text-2xl font-extrabold tracking-tight">{openCount}</span>
-              <Badge tone="accent2" className="mb-1">needs action</Badge>
-            </div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-muted-fg">Unassigned</span>
-              <UserPlus className="h-4 w-4 text-muted-fg" />
-            </div>
-            <div className="mt-2 flex items-end gap-2">
-              <span className="tnum text-2xl font-extrabold tracking-tight">{unassignedCount}</span>
-              <Badge tone="warning" className="mb-1">to route</Badge>
-            </div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-muted-fg">Resolved · 30d</span>
-              <CheckCircle2 className="h-4 w-4 text-muted-fg" />
-            </div>
-            <div className="mt-2 flex items-end gap-2">
-              <span className="tnum text-2xl font-extrabold tracking-tight">{resolvedCount}</span>
-              <Badge tone="success" className="mb-1">closed loop</Badge>
-            </div>
-          </Card>
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-muted-fg">Avg resolution</span>
-              <Clock3 className="h-4 w-4 text-muted-fg" />
-            </div>
-            <div className="mt-2 flex items-end gap-2">
-              <span className="tnum text-2xl font-extrabold tracking-tight">5.2d</span>
-              <Badge tone="success" className="mb-1">-0.8d</Badge>
-            </div>
-          </Card>
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            label="Open cases"
+            value={openCount}
+            delta="needs action"
+            deltaTone="accent2"
+            icon={<Inbox className="h-4 w-4" />}
+          />
+          <StatCard
+            label="Unassigned"
+            value={unassignedCount}
+            delta="to route"
+            deltaTone="warning"
+            icon={<UserPlus className="h-4 w-4" />}
+          />
+          <StatCard
+            label="Resolved · 30d"
+            value={resolvedCount}
+            delta="closed loop"
+            deltaTone="success"
+            icon={<CheckCircle2 className="h-4 w-4" />}
+          />
+          <StatCard
+            label="Avg resolution"
+            value="5.2d"
+            delta="-0.8d"
+            deltaTone="success"
+            icon={<Clock3 className="h-4 w-4" />}
+          />
         </div>
       )}
 
       {/* Scope switch (only HR can flip between own + queue) */}
       {isReviewer && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Segmented<'mine' | 'queue'>
             value={scope}
             onChange={setScope}
@@ -494,7 +462,7 @@ export default function Feedback() {
           </div>
 
           {/* Full queue table */}
-          <Card>
+          <Card className="overflow-hidden p-0">
             <CardHeader>
               <CardTitle>All cases · {company.name}</CardTitle>
               <div className="flex items-center gap-2">

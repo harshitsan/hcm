@@ -9,7 +9,7 @@ import { useApp } from '../app/store'
 import { useCompanyData } from '../data/companyData'
 import {
   Avatar, AvatarStack, Badge, Button, Card, CardBody, CardHeader, CardTitle,
-  EmptyState, Field, IconButton, Input, Modal, PageHeader, Segmented, Select,
+  EmptyState, Field, Input, Modal, PageHeader, Segmented, Select,
   StatCard, Table, Td, Th, Tr, Textarea, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
@@ -233,7 +233,7 @@ export default function Assets() {
           icon={<Boxes className="h-5 w-5" />}
         />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
           <StatCard label="Assets held" value={myAssets.length} icon={<Boxes className="h-4 w-4" />} />
           <StatCard
             label="Pending acknowledgement"
@@ -245,7 +245,7 @@ export default function Assets() {
           <StatCard label="In repair" value={myAssets.filter((a) => a.state === 'In Repair').length} icon={<AlertTriangle className="h-4 w-4" />} />
         </div>
 
-        <Card className="mt-6">
+        <Card>
           <CardHeader>
             <CardTitle>Assets assigned to me</CardTitle>
             <Badge tone="info" dot>Self-service</Badge>
@@ -309,25 +309,14 @@ export default function Assets() {
         subtitle={`Inventory, allocation & acknowledgements for ${company.name}.`}
         icon={<Boxes className="h-5 w-5" />}
         actions={
-          <div className="flex items-center gap-2">
-            <IconButton variant="outline" aria-label="Issue asset" onClick={() => openTxn('Issue')}>
-              <PackageCheck className="h-[18px] w-[18px]" />
-            </IconButton>
-            <IconButton variant="outline" aria-label="Transfer asset" onClick={() => openTxn('Transfer')}>
-              <ArrowLeftRight className="h-[18px] w-[18px]" />
-            </IconButton>
-            <IconButton variant="outline" aria-label="Recover asset" onClick={() => openTxn('Recovery')}>
-              <ShieldCheck className="h-[18px] w-[18px]" />
-            </IconButton>
-            <Button onClick={() => openTxn('Issue')}>
-              <Plus className="h-4 w-4" /> New transaction
-            </Button>
-          </div>
+          <Button onClick={() => openTxn('Issue')}>
+            <Plus className="h-4 w-4" /> New transaction
+          </Button>
         }
       />
 
       {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Total inventory" value={totalCount} icon={<Boxes className="h-4 w-4" />} />
         <StatCard
           label="Pending acknowledgements"
@@ -347,7 +336,7 @@ export default function Assets() {
       </div>
 
       {/* Status donut + lifecycle journey */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mb-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Inventory by state</CardTitle>
@@ -426,7 +415,7 @@ export default function Assets() {
       </div>
 
       {/* Inventory table */}
-      <Card className="mt-6">
+      <Card className="mb-6">
         <CardHeader className="flex-col items-stretch gap-3 sm:flex-row sm:items-center">
           <CardTitle>Inventory</CardTitle>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -546,7 +535,7 @@ export default function Assets() {
       </Card>
 
       {/* Pending acknowledgements panel */}
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
           <CardTitle>Pending acknowledgements</CardTitle>
           {pendingAck > 0 && (

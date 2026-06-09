@@ -134,7 +134,7 @@ export default function Companies() {
         <StatCard label="Total employees" value={totalEmployees.toLocaleString()} deltaTone="info" icon={<Users className="h-4 w-4" />} />
       </div>
 
-      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative max-w-xs flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-fg" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name or code…" className="pl-9" />

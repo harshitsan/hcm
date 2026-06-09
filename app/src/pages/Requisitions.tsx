@@ -97,7 +97,7 @@ export default function Requisitions() {
       />
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard
           label="Open roles"
           value={stats.openRoles}

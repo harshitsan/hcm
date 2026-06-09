@@ -352,11 +352,6 @@ function AdminView({
                 <Mail className="h-[18px] w-[18px]" />
               </IconButton>
             </Tooltip>
-            <Tooltip label="View pinned">
-              <IconButton variant="outline" aria-label="View pinned announcements">
-                <Pin className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
             <Button onClick={() => setComposeOpen(true)}>
               <Plus className="h-4 w-4" /> Compose
             </Button>
@@ -365,7 +360,7 @@ function AdminView({
       />
 
       {/* KPI row */}
-      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Active now" value={metrics.active} delta="live" deltaTone="success" icon={<CircleDot className="h-4 w-4" />} />
         <StatCard label="Scheduled" value={metrics.scheduled} delta="upcoming" deltaTone="info" icon={<CalendarClock className="h-4 w-4" />} />
         <StatCard label="Avg acknowledgement" value={`${metrics.ackPct}%`} delta="required msgs" deltaTone={metrics.ackPct >= 85 ? 'success' : 'warning'} icon={<CheckCheck className="h-4 w-4" />} />

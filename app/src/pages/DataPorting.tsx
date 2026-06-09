@@ -511,11 +511,6 @@ export default function DataPorting() {
         icon={<ArrowLeftRight className="h-5 w-5" />}
         actions={
           <div className="flex items-center gap-2">
-            <Tooltip label="View job history">
-              <IconButton variant="outline" aria-label="View job history" onClick={() => push({ title: 'Showing recent jobs', tone: 'neutral' })}>
-                <History className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
             <Tooltip label="New export">
               <IconButton variant="outline" aria-label="New export" onClick={() => setExportOpen(true)}>
                 <Download className="h-[18px] w-[18px]" />

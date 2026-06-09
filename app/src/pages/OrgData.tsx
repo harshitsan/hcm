@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import {
   Network, Plus, ChevronRight, Building2, Briefcase, MapPin, Scale, Boxes,
-  Users, Search, Lock, ShieldCheck, Share2, Globe2, CornerDownRight, History,
+  Search, Lock, ShieldCheck, Share2, Globe2, CornerDownRight, History,
 } from 'lucide-react'
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RTooltip,
@@ -415,11 +415,6 @@ export default function OrgData() {
                 <History className="h-[18px] w-[18px]" />
               </IconButton>
             </Tooltip>
-            <Tooltip label="Org members">
-              <IconButton variant="outline" aria-label="Org members">
-                <Users className="h-[18px] w-[18px]" />
-              </IconButton>
-            </Tooltip>
             {canEdit && (
               <Tooltip label={`Add ${ADD_LABEL[tab]}`}>
                 <IconButton variant="solid" aria-label={`Add ${ADD_LABEL[tab]}`} onClick={() => openAdd()}>
@@ -432,7 +427,7 @@ export default function OrgData() {
       />
 
       {/* Stat row */}
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard label="Departments" value={stats.deptCount} delta="n-level" deltaTone="accent" icon={<Building2 className="h-4 w-4" />} />
         <StatCard label="Open positions" value={stats.openSeats} delta="hiring" deltaTone="accent2" icon={<Briefcase className="h-4 w-4" />} />
         <StatCard label="Shared locations" value={stats.sharedLocs} delta="group" deltaTone="info" icon={<Share2 className="h-4 w-4" />} />
@@ -440,7 +435,7 @@ export default function OrgData() {
       </div>
 
       {/* Tabs + optional search */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <Tabs tabs={TABS} value={tab} onChange={(v) => setTab(v as TabKey)} />
         {showSearch && (
           <div className="relative sm:max-w-xs sm:flex-1">
@@ -457,7 +452,7 @@ export default function OrgData() {
 
       {/* -------------------------------------------------- Departments tab */}
       {tab === 'departments' && (
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <SectionCard
               title="Department hierarchy"
@@ -506,7 +501,7 @@ export default function OrgData() {
 
       {/* -------------------------------------------------- Positions tab */}
       {tab === 'positions' && (
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <SectionCard
               title="Positions"
@@ -711,7 +706,7 @@ export default function OrgData() {
 
       {/* -------------------------------------------------- Groups tab */}
       {tab === 'groups' && (
-        <div className="grid gap-5 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <SectionCard
               title="Groups"
@@ -760,7 +755,7 @@ export default function OrgData() {
       )}
 
       {!canEdit && (
-        <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-fg">
+        <p className="mt-6 flex items-center gap-1.5 text-xs text-muted-fg">
           <Lock className="h-3.5 w-3.5" />
           Read-only view — org structure and master data are maintained by your company's HR administrator.
         </p>
