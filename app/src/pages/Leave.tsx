@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
-import { CalendarDays, Check, Plus, X, CalendarRange, Inbox, Clock, CalendarOff } from 'lucide-react'
+import { CalendarDays, Check, Plus, X, CalendarRange, Inbox, Clock, CalendarOff, SlidersHorizontal, Save, GitBranch, ShieldCheck } from 'lucide-react'
 import { useApp } from '../app/store'
 import { useCan } from '../app/rbac'
 import { type LeaveRequest } from '../data/mock'
 import { useCompanyData } from '../data/companyData'
 import {
   Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState, Field, Input,
-  Modal, PageHeader, ProgressBar, Select, Table, Td, Th, Tr, Textarea, Tabs, useToast,
+  Modal, PageHeader, ProgressBar, Select, Switch, Table, Td, Th, Tr, Textarea, Tabs, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
 
@@ -42,6 +42,8 @@ export default function Leave() {
   const isEmployee = role === 'employee'
   const isManager = role === 'people_manager'
   const canApprove = useCan('leave.approve')
+  // Configure / Automation surfaces are HR-tier only.
+  const isHrTier = role === 'company_hr_admin' || role === 'provider_admin' || role === 'portfolio_manager'
 
   // A people_manager may only see/approve leave for their own direct reports
   // (matched by name, since leave records key on employee name). HR admins and
@@ -63,8 +65,9 @@ export default function Leave() {
       { value: 'mine', label: 'My leave' },
       ...(canApprove ? [{ value: 'approvals', label: 'Approvals' }] : []),
       { value: 'calendar', label: 'Team calendar' },
+      ...(isHrTier ? [{ value: 'configure', label: 'Configure' }] : []),
     ]
-  }, [isEmployee, canApprove])
+  }, [isEmployee, canApprove, isHrTier])
   const [tab, setTab] = useState('mine')
 
   // My requests (local, seeded with this user's existing items)
@@ -245,6 +248,9 @@ export default function Leave() {
           <ShiftRoster />
         </div>
       ) : <TeamCalendar teamNames={teamNames} />)}
+
+      {/* -------------------------------------------------------- Configure (HR-tier only) */}
+      {tab === 'configure' && isHrTier && <LeaveConfigure />}
 
       {/* -------------------------------------------------------- Request modal */}
       <Modal
@@ -503,5 +509,208 @@ function TeamCalendar({ teamNames }: { teamNames: Set<string> | null }) {
         </div>
       </CardBody>
     </Card>
+  )
+}
+
+/* ----------------------------------------------------------------- Configure (HR-tier leave-policy setup) */
+type ConfigType = 'Annual' | 'Sick' | 'Casual' | 'Comp-off' | 'Maternity' | 'Paternity'
+type TypeRule = {
+  type: ConfigType
+  accrual: number
+  quota: number
+  carryCap: number
+  paid: boolean
+  encashable: boolean
+}
+type Approver = 'Reporting Manager' | 'Dept Head' | 'HR'
+const APPROVERS: Approver[] = ['Reporting Manager', 'Dept Head', 'HR']
+
+const DEFAULT_TYPE_RULES: TypeRule[] = [
+  { type: 'Annual', accrual: 1.5, quota: 18, carryCap: 9, paid: true, encashable: true },
+  { type: 'Sick', accrual: 1, quota: 12, carryCap: 6, paid: true, encashable: false },
+  { type: 'Casual', accrual: 0.5, quota: 6, carryCap: 0, paid: true, encashable: false },
+  { type: 'Comp-off', accrual: 0, quota: 0, carryCap: 0, paid: true, encashable: true },
+  { type: 'Maternity', accrual: 0, quota: 182, carryCap: 0, paid: true, encashable: false },
+  { type: 'Paternity', accrual: 0, quota: 15, carryCap: 0, paid: true, encashable: false },
+]
+
+function LeaveConfigure() {
+  const { push } = useToast()
+
+  // 1) Leave types & accrual
+  const [typeRules, setTypeRules] = useState<TypeRule[]>(DEFAULT_TYPE_RULES)
+  const setRule = (type: ConfigType, patch: Partial<TypeRule>) =>
+    setTypeRules((rows) => rows.map((r) => (r.type === type ? { ...r, ...patch } : r)))
+  const num = (v: string) => (v === '' ? 0 : Math.max(0, Number(v)))
+
+  // 2) Approval routing
+  const [firstApprover, setFirstApprover] = useState<Approver>('Reporting Manager')
+  const [twoLevel, setTwoLevel] = useState(true)
+  const [secondApprover, setSecondApprover] = useState<Approver>('HR')
+  const [autoApproveDays, setAutoApproveDays] = useState(1)
+
+  // 3) Considerations
+  const [sandwich, setSandwich] = useState(true)
+  const [allowNegative, setAllowNegative] = useState(false)
+  const [allowHalfDay, setAllowHalfDay] = useState(true)
+  const [blackout, setBlackout] = useState(true)
+  const [minNotice, setMinNotice] = useState(3)
+  const [maxConsecutive, setMaxConsecutive] = useState(15)
+
+  const save = () => push({ title: 'Leave configuration saved', tone: 'success' })
+
+  return (
+    <div className="space-y-6">
+      {/* Leave types & accrual */}
+      <Card className="overflow-hidden p-0">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <SlidersHorizontal className="h-4 w-4 text-primary" /> Leave types &amp; accrual
+          </CardTitle>
+          <Badge tone="primary">{typeRules.length} types</Badge>
+        </CardHeader>
+        <CardBody className="p-0">
+          <Table>
+            <thead>
+              <tr>
+                <Th>Type</Th>
+                <Th className="text-right">Accrual / month</Th>
+                <Th className="text-right">Annual quota</Th>
+                <Th className="text-right">Carry-forward cap</Th>
+                <Th>Paid</Th>
+                <Th>Encashable</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {typeRules.map((r) => (
+                <Tr key={r.type}>
+                  <Td><Badge tone={typeTone(r.type === 'Paternity' ? 'Maternity' : (r.type as LeaveType))}>{r.type}</Badge></Td>
+                  <Td className="text-right">
+                    <Input
+                      type="number" min={0} step={0.5} value={r.accrual}
+                      onChange={(e) => setRule(r.type, { accrual: num(e.target.value) })}
+                      className="ml-auto w-24 text-right tnum"
+                    />
+                  </Td>
+                  <Td className="text-right">
+                    <Input
+                      type="number" min={0} value={r.quota}
+                      onChange={(e) => setRule(r.type, { quota: num(e.target.value) })}
+                      className="ml-auto w-24 text-right tnum"
+                    />
+                  </Td>
+                  <Td className="text-right">
+                    <Input
+                      type="number" min={0} value={r.carryCap}
+                      onChange={(e) => setRule(r.type, { carryCap: num(e.target.value) })}
+                      className="ml-auto w-24 text-right tnum"
+                    />
+                  </Td>
+                  <Td><Switch checked={r.paid} onChange={(v) => setRule(r.type, { paid: v })} /></Td>
+                  <Td><Switch checked={r.encashable} onChange={(v) => setRule(r.type, { encashable: v })} /></Td>
+                </Tr>
+              ))}
+            </tbody>
+          </Table>
+        </CardBody>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Approval routing */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-primary" /> Approval routing
+            </CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-4">
+            <Field label="1st approver">
+              <Select value={firstApprover} onChange={(e) => setFirstApprover(e.target.value as Approver)}>
+                {APPROVERS.map((a) => <option key={a} value={a}>{a}</option>)}
+              </Select>
+            </Field>
+            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+              <div>
+                <p className="text-sm font-semibold text-fg">Enable 2-level approval</p>
+                <p className="text-xs text-muted-fg">Route to a second approver after the first.</p>
+              </div>
+              <Switch checked={twoLevel} onChange={setTwoLevel} />
+            </div>
+            <Field label="2nd approver">
+              <Select
+                value={secondApprover}
+                disabled={!twoLevel}
+                onChange={(e) => setSecondApprover(e.target.value as Approver)}
+              >
+                {APPROVERS.map((a) => <option key={a} value={a}>{a}</option>)}
+              </Select>
+            </Field>
+            <Field label="Auto-approve if ≤ N days" hint="Requests at or below this length skip approval.">
+              <Input
+                type="number" min={0} value={autoApproveDays}
+                onChange={(e) => setAutoApproveDays(num(e.target.value))}
+                className="w-28 tnum"
+              />
+            </Field>
+          </CardBody>
+        </Card>
+
+        {/* Considerations */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" /> Considerations
+            </CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-3">
+            <ToggleRow label="Sandwich leave counts weekends" desc="Weekends between leave days are deducted." checked={sandwich} onChange={setSandwich} />
+            <ToggleRow label="Allow negative balance" desc="Permit booking beyond the accrued balance." checked={allowNegative} onChange={setAllowNegative} />
+            <ToggleRow label="Allow half-day" desc="Employees can request 0.5-day leave." checked={allowHalfDay} onChange={setAllowHalfDay} />
+            <ToggleRow label="Blackout periods enforced" desc="Block leave during defined freeze windows." checked={blackout} onChange={setBlackout} />
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <Field label="Minimum notice (days)">
+                <Input
+                  type="number" min={0} value={minNotice}
+                  onChange={(e) => setMinNotice(num(e.target.value))}
+                  className="w-full tnum"
+                />
+              </Field>
+              <Field label="Max consecutive days">
+                <Input
+                  type="number" min={0} value={maxConsecutive}
+                  onChange={(e) => setMaxConsecutive(num(e.target.value))}
+                  className="w-full tnum"
+                />
+              </Field>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={save}>
+          <Save className="h-4 w-4" /> Save configuration
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function ToggleRow({
+  label, desc, checked, onChange,
+}: {
+  label: string
+  desc: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5">
+      <div>
+        <p className="text-sm font-semibold text-fg">{label}</p>
+        <p className="text-xs text-muted-fg">{desc}</p>
+      </div>
+      <Switch checked={checked} onChange={onChange} />
+    </div>
   )
 }

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   FileSignature, Plus, Sparkles, Layers, Search, Download, Mail, MonitorSmartphone,
   Printer, CheckCircle2, Clock3, Send, Stamp, ShieldCheck, FileText, Workflow,
-  ChevronRight, Users,
+  ChevronRight, Users, Settings2, Save, Zap,
 } from 'lucide-react'
 import {
   Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer,
@@ -13,7 +13,7 @@ import { useCompanyData } from '../data/companyData'
 import {
   AvatarStack, Badge, Button, Card, CardBody, CardHeader, CardTitle, EmptyState,
   Field, IconButton, Input, Modal, PageHeader, ProgressBar, Segmented, Select,
-  StatCard, Stepper, Table, Tabs, Td, Th, Tooltip, Tr, useToast,
+  StatCard, Stepper, Switch, Table, Tabs, Td, Th, Tooltip, Tr, useToast,
 } from '../components/ui'
 import { cn } from '../lib/cn'
 
@@ -33,6 +33,23 @@ type LetterTemplate = {
 
 type DeliveryChannel = 'Email' | 'In-app' | 'Print'
 type DeliveryStatus = 'Delivered' | 'Viewed' | 'Sent' | 'Queued' | 'Bounced'
+
+type TriggerEvent =
+  | 'Candidate → employee conversion'
+  | 'Probation outcome = Confirm'
+  | 'Transfer effective date'
+  | 'Exit clearance complete'
+  | 'Manual only'
+type GeneratedByRole = 'HR Admin' | 'People Ops' | 'Reporting Manager'
+type ApproverRole = 'Reporting Manager' | 'HR Head' | 'No approval'
+
+type AutomationRule = {
+  trigger: TriggerEvent
+  autoGenerate: boolean
+  generatedBy: GeneratedByRole
+  approver: ApproverRole
+  channel: DeliveryChannel
+}
 
 type DistributionRow = {
   id: string
@@ -118,6 +135,39 @@ const STATUS_TONE: Record<DeliveryStatus, 'success' | 'accent' | 'info' | 'warni
 }
 
 const GENERATE_STEPS = ['Pick template', 'Merge data', 'Approve & sign', 'Distribute']
+
+const TRIGGER_EVENTS: TriggerEvent[] = [
+  'Candidate → employee conversion',
+  'Probation outcome = Confirm',
+  'Transfer effective date',
+  'Exit clearance complete',
+  'Manual only',
+]
+const GENERATED_BY_ROLES: GeneratedByRole[] = ['HR Admin', 'People Ops', 'Reporting Manager']
+const APPROVER_ROLES: ApproverRole[] = ['Reporting Manager', 'HR Head', 'No approval']
+
+// Map a template's free-text autoTrigger to a canonical trigger event.
+function triggerFromAuto(autoTrigger: string | null): TriggerEvent {
+  if (!autoTrigger) return 'Manual only'
+  const a = autoTrigger.toLowerCase()
+  if (a.includes('conversion')) return 'Candidate → employee conversion'
+  if (a.includes('probation') || a.includes('confirm')) return 'Probation outcome = Confirm'
+  if (a.includes('transfer')) return 'Transfer effective date'
+  if (a.includes('exit') || a.includes('clearance')) return 'Exit clearance complete'
+  return 'Manual only'
+}
+
+// Deterministic seed for each template's automation rule.
+function seedAutomation(template: LetterTemplate): AutomationRule {
+  const trigger = triggerFromAuto(template.autoTrigger)
+  return {
+    trigger,
+    autoGenerate: trigger !== 'Manual only',
+    generatedBy: 'HR Admin',
+    approver: trigger === 'Transfer effective date' ? 'Reporting Manager' : 'HR Head',
+    channel: template.key === 'relieving' || template.key === 'experience' ? 'Print' : 'Email',
+  }
+}
 
 /* ----------------------------------------------------------------- deterministic mock data */
 const DISTRIBUTION: DistributionRow[] = [
@@ -307,6 +357,7 @@ export default function Letters() {
       t.unshift({ value: 'templates', label: 'Templates' })
       t.push({ value: 'distribution', label: 'Distribution' })
       t.push({ value: 'flow', label: 'Issuance flow' })
+      t.push({ value: 'automation', label: 'Automation' })
     }
     return t
   }, [canIssue])
@@ -365,6 +416,25 @@ export default function Letters() {
     const bounced = DISTRIBUTION.filter((r) => r.status === 'Bounced').length
     return { total, delivered, pending, bounced }
   }, [])
+
+  // automation rules — local config, seeded deterministically from each template's autoTrigger
+  const [automation, setAutomation] = useState<Record<TemplateKey, AutomationRule>>(() =>
+    TEMPLATES.reduce(
+      (acc, t) => ({ ...acc, [t.key]: seedAutomation(t) }),
+      {} as Record<TemplateKey, AutomationRule>,
+    ),
+  )
+  const updateAutomation = (key: TemplateKey, patch: Partial<AutomationRule>) =>
+    setAutomation((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }))
+  const autoCount = useMemo(
+    () => TEMPLATES.filter((t) => automation[t.key]?.autoGenerate).length,
+    [automation],
+  )
+  const saveAutomation = () =>
+    push({
+      title: `Automation saved · ${autoCount} of ${TEMPLATES.length} templates auto-generate`,
+      tone: 'success',
+    })
 
   return (
     <div className="animate-fade-in">
@@ -674,6 +744,140 @@ export default function Letters() {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------ Automation (HR only) */}
+      {tab === 'automation' && canIssue && (
+        <div className="space-y-6">
+          <Card className="p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent2/15 text-accent2">
+                  <Settings2 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="text-sm font-bold tracking-tight text-fg">Automated letter generation</h3>
+                  <p className="mt-0.5 text-xs text-muted-fg">
+                    Define a trigger, owner, approver and delivery channel for each template.
+                    Auto rules generate &amp; route letters on lifecycle events — no manual step.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Badge tone="accent2">
+                  <Zap className="h-3 w-3" /> {autoCount} of {TEMPLATES.length} auto-generate
+                </Badge>
+                <Button onClick={saveAutomation}>
+                  <Save className="h-4 w-4" /> Save automation
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="overflow-hidden p-0">
+            <Table>
+              <thead>
+                <Tr className="border-t-0 hover:bg-transparent">
+                  <Th>Template</Th>
+                  <Th>Trigger event</Th>
+                  <Th>Auto-generate</Th>
+                  <Th>Generated by</Th>
+                  <Th>Approver</Th>
+                  <Th>Channel</Th>
+                </Tr>
+              </thead>
+              <tbody>
+                {TEMPLATES.map((t) => {
+                  const rule = automation[t.key]
+                  const Icon = TEMPLATE_ICON[t.key]
+                  return (
+                    <Tr key={t.key} className="align-top">
+                      <Td>
+                        <span className="flex items-center gap-2">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <Icon className="h-4 w-4" />
+                          </span>
+                          <span className="font-semibold text-fg">{t.name}</span>
+                        </span>
+                      </Td>
+                      <Td>
+                        <Select
+                          aria-label={`Trigger event for ${t.name}`}
+                          value={rule.trigger}
+                          onChange={(e) =>
+                            updateAutomation(t.key, {
+                              trigger: e.target.value as TriggerEvent,
+                              autoGenerate:
+                                (e.target.value as TriggerEvent) === 'Manual only'
+                                  ? false
+                                  : rule.autoGenerate,
+                            })
+                          }
+                          className="min-w-[14rem]"
+                        >
+                          {TRIGGER_EVENTS.map((ev) => (
+                            <option key={ev} value={ev}>{ev}</option>
+                          ))}
+                        </Select>
+                      </Td>
+                      <Td>
+                        <Switch
+                          checked={rule.autoGenerate}
+                          disabled={rule.trigger === 'Manual only'}
+                          onChange={(v) => updateAutomation(t.key, { autoGenerate: v })}
+                        />
+                      </Td>
+                      <Td>
+                        <Select
+                          aria-label={`Generated by for ${t.name}`}
+                          value={rule.generatedBy}
+                          onChange={(e) =>
+                            updateAutomation(t.key, { generatedBy: e.target.value as GeneratedByRole })
+                          }
+                        >
+                          {GENERATED_BY_ROLES.map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </Select>
+                      </Td>
+                      <Td>
+                        <Select
+                          aria-label={`Approver for ${t.name}`}
+                          value={rule.approver}
+                          onChange={(e) =>
+                            updateAutomation(t.key, { approver: e.target.value as ApproverRole })
+                          }
+                        >
+                          {APPROVER_ROLES.map((r) => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </Select>
+                      </Td>
+                      <Td>
+                        <Select
+                          aria-label={`Delivery channel for ${t.name}`}
+                          value={rule.channel}
+                          onChange={(e) =>
+                            updateAutomation(t.key, { channel: e.target.value as DeliveryChannel })
+                          }
+                        >
+                          <option value="Email">Email</option>
+                          <option value="In-app">In-app</option>
+                          <option value="Print">Print</option>
+                        </Select>
+                      </Td>
+                    </Tr>
+                  )
+                })}
+              </tbody>
+            </Table>
+          </Card>
+
+          <p className="flex items-center gap-1.5 text-xs text-muted-fg">
+            <Workflow className="h-3.5 w-3.5 text-accent2" />
+            Auto rules respect the same approval &amp; signing-authority workflow as manually issued letters.
+          </p>
         </div>
       )}
 
