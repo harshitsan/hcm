@@ -31,7 +31,7 @@ function toClauses(text: string): Clause[] {
 }
 
 export default function SharedPolicies() {
-  const { shared, addSharedPolicy, overridesForPolicy, totalOverrides } = usePolicies()
+  const { shared, addSharedPolicy, overridesForPolicy, usageForPolicy, logForPolicy, snapshotCount } = usePolicies()
   const { push } = useToast()
   const [selected, setSelected] = useState<SharedPolicy | null>(null)
   const [open, setOpen] = useState(false)
@@ -73,12 +73,12 @@ export default function SharedPolicies() {
         <StatCard label="Shared policies" value={shared.length} delta="group-wide" deltaTone="primary" icon={<FileText className="h-4 w-4" />} />
         <StatCard label="Enforced" value={enforcedCount} delta="adopted by children" deltaTone="success" icon={<CheckCircle2 className="h-4 w-4" />} />
         <StatCard label="Companies covered" value={companiesCovered} delta="member tenants" deltaTone="info" icon={<Users className="h-4 w-4" />} />
-        <StatCard label="Child overrides" value={totalOverrides} delta="clauses tailored" deltaTone="warning" icon={<Pencil className="h-4 w-4" />} />
+        <StatCard label="On own snapshot" value={snapshotCount} delta="vs group master" deltaTone="warning" icon={<Pencil className="h-4 w-4" />} />
       </div>
 
       <div className="space-y-3">
         {shared.map((p) => {
-          const ov = overridesForPolicy(p.id)
+          const customized = usageForPolicy(p.id).filter((u) => u.customized).length
           return (
             <Card key={p.id} className="cursor-pointer transition-colors hover:border-accent/50" onClick={() => setSelected(p)}>
               <CardBody className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -96,7 +96,7 @@ export default function SharedPolicies() {
                   {p.allowOverride
                     ? <Badge tone="neutral"><Pencil className="h-3 w-3" /> Override allowed</Badge>
                     : <Badge tone="neutral"><Lock className="h-3 w-3" /> Locked</Badge>}
-                  {ov.length > 0 && <Badge tone="warning">{ov.length} override{ov.length > 1 ? 's' : ''}</Badge>}
+                  {customized > 0 && <Badge tone="warning">{customized} on snapshot</Badge>}
                 </div>
               </CardBody>
             </Card>
@@ -132,12 +132,24 @@ export default function SharedPolicies() {
             </div>
 
             <div>
-              <p className="mb-2 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">
-                Child overrides ({overridesForPolicy(selected.id).length})
-              </p>
-              {overridesForPolicy(selected.id).length === 0 ? (
-                <EmptyState icon={<CheckCircle2 className="h-5 w-5" />} title="No overrides" description="Every member company is using the group version of this policy." />
-              ) : (
+              <p className="mb-2 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">Who's using this policy</p>
+              <ul className="space-y-1.5">
+                {usageForPolicy(selected.id).map((u) => (
+                  <li key={u.companyId} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                    <span className="text-[13px] font-semibold">{companyName(u.companyId)}</span>
+                    {u.customized
+                      ? <Badge tone="warning"><Pencil className="h-3 w-3" /> Own snapshot · {u.overrides} change{u.overrides > 1 ? 's' : ''}</Badge>
+                      : <Badge tone="success" dot>Group master</Badge>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {overridesForPolicy(selected.id).length > 0 && (
+              <div>
+                <p className="mb-2 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">
+                  Snapshot differences ({overridesForPolicy(selected.id).length})
+                </p>
                 <ul className="space-y-2.5">
                   {overridesForPolicy(selected.id).map((o) => (
                     <li key={o.companyId + o.clauseId} className="rounded-lg border border-warning/30 bg-warning/5 p-3">
@@ -148,6 +160,26 @@ export default function SharedPolicies() {
                       <p className="mt-1 flex items-start gap-1.5 text-[13px] font-medium">
                         <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" /> {o.text}
                       </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div>
+              <p className="mb-2 text-2xs font-bold uppercase tracking-wide text-muted-fg/70">Change log ({logForPolicy(selected.id).length})</p>
+              {logForPolicy(selected.id).length === 0 ? (
+                <EmptyState icon={<CheckCircle2 className="h-5 w-5" />} title="No changes yet" description="Every member company is on the group master." />
+              ) : (
+                <ul className="space-y-1.5">
+                  {logForPolicy(selected.id).map((e) => (
+                    <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+                      <span className="flex items-center gap-2 text-2xs">
+                        <Badge tone={e.action === 'Customized' ? 'warning' : 'neutral'}>{e.action}</Badge>
+                        <span className="font-semibold text-fg">{companyName(e.companyId)}</span>
+                        <span className="text-muted-fg">clause {e.clauseId}</span>
+                      </span>
+                      <span className="text-2xs text-muted-fg">{e.at}</span>
                     </li>
                   ))}
                 </ul>

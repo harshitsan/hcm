@@ -24,6 +24,9 @@ export type SharedPolicy = {
 }
 export type ResolvedClause = Clause & { overridden: boolean; original: string }
 export type OverrideRow = { companyId: string; policyId: string; clauseId: string; original: string; text: string }
+// A child override is a SNAPSHOT for that company only — the parent master is never mutated.
+export type PolicyLogEntry = { id: string; companyId: string; policyId: string; clauseId: string; action: 'Customized' | 'Reverted'; at: string }
+export type PolicyUsage = { companyId: string; overrides: number; customized: boolean }
 
 const SEED: SharedPolicy[] = [
   {
@@ -69,6 +72,10 @@ const SEED_OVERRIDES: Record<string, string> = {
   'c1|sp-coc|cl3': 'Standard working hours are 10:00–19:00 IST, Monday to Friday (Kensium Pvt Ltd).',
   'c3|sp-leave|cl1': 'Employees accrue 24 days of annual leave per year (Readywire).',
 }
+const SEED_LOG: PolicyLogEntry[] = [
+  { id: 'pl1', companyId: 'c1', policyId: 'sp-coc', clauseId: 'cl3', action: 'Customized', at: '2 days ago' },
+  { id: 'pl2', companyId: 'c3', policyId: 'sp-leave', clauseId: 'cl1', action: 'Customized', at: 'yesterday' },
+]
 
 type PoliciesState = {
   shared: SharedPolicy[]
@@ -78,6 +85,11 @@ type PoliciesState = {
   overrideClause: (companyId: string, policyId: string, clauseId: string, text: string) => void
   resetClause: (companyId: string, policyId: string, clauseId: string) => void
   overridesForPolicy: (policyId: string) => OverrideRow[]
+  usageForPolicy: (policyId: string) => PolicyUsage[]
+  logForPolicy: (policyId: string) => PolicyLogEntry[]
+  hasSnapshot: (companyId: string, policyId: string) => boolean
+  log: PolicyLogEntry[]
+  snapshotCount: number
   totalOverrides: number
 }
 
@@ -87,9 +99,11 @@ const k = (c: string, p: string, cl: string) => `${c}|${p}|${cl}`
 export function PoliciesProvider({ children }: { children: ReactNode }) {
   const [shared, setShared] = useState<SharedPolicy[]>(SEED)
   const [overrides, setOverrides] = useState<Record<string, string>>(SEED_OVERRIDES)
+  const [log, setLog] = useState<PolicyLogEntry[]>(SEED_LOG)
 
   const value = useMemo<PoliciesState>(() => ({
     shared,
+    log,
     addSharedPolicy: (p) =>
       setShared((list) => [{ ...p, id: `sp-new-${list.length + 1}`, version: 'v1.0' }, ...list]),
     policiesForCompany: (companyId) => shared.filter((p) => p.appliesTo.includes(companyId)),
@@ -98,14 +112,19 @@ export function PoliciesProvider({ children }: { children: ReactNode }) {
         const o = overrides[k(companyId, policy.id, cl.id)]
         return { ...cl, original: cl.text, text: o ?? cl.text, overridden: o != null }
       }),
-    overrideClause: (companyId, policyId, clauseId, text) =>
-      setOverrides((o) => ({ ...o, [k(companyId, policyId, clauseId)]: text })),
-    resetClause: (companyId, policyId, clauseId) =>
+    // Overriding writes ONLY to this company's snapshot; the parent master is untouched.
+    overrideClause: (companyId, policyId, clauseId, text) => {
+      setOverrides((o) => ({ ...o, [k(companyId, policyId, clauseId)]: text }))
+      setLog((l) => [{ id: `pl${l.length + 1}`, companyId, policyId, clauseId, action: 'Customized', at: 'just now' }, ...l])
+    },
+    resetClause: (companyId, policyId, clauseId) => {
       setOverrides((o) => {
         const next = { ...o }
         delete next[k(companyId, policyId, clauseId)]
         return next
-      }),
+      })
+      setLog((l) => [{ id: `pl${l.length + 1}`, companyId, policyId, clauseId, action: 'Reverted', at: 'just now' }, ...l])
+    },
     overridesForPolicy: (policyId) =>
       Object.entries(overrides)
         .map(([key, text]) => {
@@ -115,8 +134,24 @@ export function PoliciesProvider({ children }: { children: ReactNode }) {
           return { companyId, policyId: pid, clauseId, original, text }
         })
         .filter((r): r is OverrideRow => r !== null),
+    // Per applies-to company: are they on the group master, or their own snapshot?
+    usageForPolicy: (policyId) => {
+      const policy = shared.find((p) => p.id === policyId)
+      if (!policy) return []
+      return policy.appliesTo.map((companyId) => {
+        const n = policy.clauses.filter((cl) => overrides[k(companyId, policyId, cl.id)] != null).length
+        return { companyId, overrides: n, customized: n > 0 }
+      })
+    },
+    logForPolicy: (policyId) => log.filter((e) => e.policyId === policyId),
+    hasSnapshot: (companyId, policyId) => {
+      const policy = shared.find((p) => p.id === policyId)
+      return !!policy && policy.clauses.some((cl) => overrides[k(companyId, policyId, cl.id)] != null)
+    },
+    // distinct (company, policy) pairs that have forked their own snapshot
+    snapshotCount: new Set(Object.keys(overrides).map((key) => key.split('|').slice(0, 2).join('|'))).size,
     totalOverrides: Object.keys(overrides).length,
-  }), [shared, overrides])
+  }), [shared, overrides, log])
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

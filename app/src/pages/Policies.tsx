@@ -52,7 +52,7 @@ export default function Policies() {
   const saveEdit = (policyId: string, clauseId: string) => {
     overrideClause(company.id, policyId, clauseId, editText.trim() || '—')
     setEditId(null)
-    push({ title: `Clause updated for ${company.name}`, tone: 'success' })
+    push({ title: `Saved to ${company.name}'s snapshot`, tone: 'success' })
   }
   const resetEdit = (policyId: string, clauseId: string) => {
     resetClause(company.id, policyId, clauseId)
@@ -347,7 +347,7 @@ export default function Policies() {
               <p>
                 Enforced by <span className="font-semibold text-fg">{openPolicy.owner}</span>.{' '}
                 {openPolicy.allowOverride
-                  ? <>You can rewrite a clause for <span className="font-semibold text-fg">{company.name}</span>; the group is notified of every change.</>
+                  ? <>Editing a clause saves a <span className="font-semibold text-fg">snapshot for {company.name}</span> — the group's master policy is unchanged, but they can see you've customized it.</>
                   : 'Clauses are locked by the group and can’t be changed here.'}
               </p>
             </div>
