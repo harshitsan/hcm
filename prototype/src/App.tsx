@@ -17,6 +17,7 @@ import Reports from './pages/Reports'
 import Access from './pages/Access'
 import Activity from './pages/Activity'
 import Hiring from './pages/Hiring'
+import PolicyGenerator from './pages/PolicyGenerator'
 
 function Toasts() {
   const { toasts, dismissToast } = useApp()
@@ -71,6 +72,7 @@ function Shell() {
             <Route path="/reports" element={<Reports />} />
             <Route path="/access" element={<Access />} />
             <Route path="/hiring" element={<Hiring />} />
+            <Route path="/policies/new" element={<PolicyGenerator />} />
             <Route path="/activity" element={<Activity />} />
           </Routes>
         </main>
