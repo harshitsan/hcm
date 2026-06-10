@@ -812,8 +812,9 @@ export default function Rules() {
               {also.map((c) => {
                 const dim = EXTRA_DIMENSIONS.find((d) => d.id === c.dim)
                 return (
-                  <span key={c.dim} className="whitespace-nowrap">
+                  <Fragment key={c.dim}>
                     {' '}
+                    <span className="inline-block">
                     <span className="text-muted">and</span>{' '}
                     <SentenceChip
                       onClick={() => {
@@ -833,7 +834,8 @@ export default function Rules() {
                     >
                       <X className="inline h-3 w-3" />
                     </button>
-                  </span>
+                    </span>
+                  </Fragment>
                 )
               })}
             </p>
@@ -852,7 +854,7 @@ export default function Rules() {
             </div>
             <div className="mt-3 font-display text-[30px] font-medium leading-none tracking-tight">
               → {composerReach.companies} {composerReach.companies === 1 ? 'company' : 'companies'} ·{' '}
-              {composerReach.people} people
+              {composerReach.people} {composerReach.people === 1 ? 'person' : 'people'}
             </div>
             <p className="mt-1.5 text-[12px] text-muted">
               live reach — every clause narrows it, so you always see exactly who's covered
