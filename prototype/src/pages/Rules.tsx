@@ -310,11 +310,28 @@ export default function Rules() {
   }
 
   /** every lifecycle click goes on the record */
+  /** the audit names the scope: subsets list companies, never just a count */
+  const scopeNames = (r: Rule): string => {
+    const inScope =
+      r.level === 'Platform'
+        ? companies
+        : r.level === 'Portfolio'
+          ? companies.filter((c) => c.inPortfolio)
+          : companies.filter((c) => c.id === (r.ownerCompanyId ?? 'acme'))
+    if (r.level === 'Platform') return `all ${inScope.length} companies`
+    return inScope.map((c) => c.name).join(', ')
+  }
+
   const act = (r: Rule, status: RuleStatus, what: string, msg: string) => {
+    const reach = reachFor(r, companies)
+    const event =
+      status === 'Running'
+        ? `${what} — in ${scopeNames(r)} · ${reach.people} people`
+        : what
     updateRule(r.id, {
       status,
       updated: 'just now',
-      history: [...r.history, { who: persona.name, what, when: 'just now' }],
+      history: [...r.history, { who: persona.name, what: event, when: 'just now' }],
     })
     toast(msg)
   }

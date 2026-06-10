@@ -376,7 +376,7 @@ export const RULES: Rule[] = [
     history: [
       { who: 'Maya Kapoor', what: 'Created at platform level', when: '8 Jan' },
       { who: 'Legal council', what: 'Approved', when: '10 Jan' },
-      { who: 'SatelliteHR', what: 'Enforced in 3 companies · 251 people', when: '10 Jan' },
+      { who: 'SatelliteHR', what: 'Enforced in Acme Tech, Beta Foods & Epsilon Studios · 251 people', when: '10 Jan' },
       { who: 'SatelliteHR', what: 'Delta Health joined — inherited automatically', when: '20 Jan' },
       { who: 'SatelliteHR', what: 'Gamma Retail joined — inherited automatically', when: '12 May' },
     ],
@@ -389,7 +389,7 @@ export const RULES: Rule[] = [
     history: [
       { who: 'Maya Kapoor', what: 'Created at platform level', when: '12 Jan' },
       { who: 'Legal council', what: 'Approved', when: '14 Jan' },
-      { who: 'SatelliteHR', what: 'Enforced everywhere · 508 people', when: '14 Jan' },
+      { who: 'SatelliteHR', what: 'Enforced in all 5 companies · 508 people', when: '14 Jan' },
       { who: 'Maya Kapoor', what: 'Changed: added AI-tools clause (re-approved)', when: '2 May' },
       { who: 'SatelliteHR', what: 'Gamma Retail joined — inherited automatically', when: '12 May' },
     ],
