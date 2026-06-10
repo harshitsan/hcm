@@ -9,6 +9,7 @@ import {
   BarChart3,
   Check,
   FileText,
+  ShieldCheck,
   UploadCloud,
   Users,
   X,
@@ -49,7 +50,7 @@ function PipeBox({ children, hollow }: { children: React.ReactNode; hollow?: boo
 }
 
 export default function AddCompany() {
-  const { companies, addCompany, setCompanyId, toast } = useApp()
+  const { companies, addCompany, setCompanyId, rules, toast } = useApp()
   const navigate = useNavigate()
 
   const [stage, setStage] = useState<'pick' | 'wizard' | 'live'>('pick')
@@ -166,6 +167,7 @@ export default function AddCompany() {
     const next = [
       { icon: <Users className="h-4 w-4" />, text: 'People sign in and meet their day-one checklist' },
       { icon: <FileText className="h-4 w-4" />, text: 'Policies go out for acknowledgment automatically' },
+      { icon: <ShieldCheck className="h-4 w-4" />, text: 'Platform rules were enforced the moment it went live — see them under Rules & flows' },
       { icon: <BarChart3 className="h-4 w-4" />, text: 'You watch it all from Reports' },
     ]
     return (
@@ -425,12 +427,15 @@ export default function AddCompany() {
           </div>
         )
       case 6: {
+        // born compliant: parent rules land the moment it exists — nothing to set up
+        const inherited = rules.filter((r) => r.level !== 'Company' && r.status === 'Running').length
         const checks = [
           'Company profile',
           `${locations.length} location${locations.length === 1 ? '' : 's'}`,
           `${teams.length} teams`,
           `${rulesOnCount} time-off rules`,
           '24 people ready to invite',
+          `${inherited} platform rules apply automatically — nothing to set up`,
         ]
         return (
           <div>

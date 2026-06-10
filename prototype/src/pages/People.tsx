@@ -1,6 +1,8 @@
 /**
  * People — directory cards + a clean org chart, with a profile drawer
  * showing the 6 facts people actually check (ux-research §5.1).
+ * In the all-companies view every card says which company (and group) a
+ * person belongs to, and a chip row narrows the list per company.
  */
 import { useState } from 'react'
 import { MapPin, Network, UserPlus, Users } from 'lucide-react'
@@ -10,10 +12,10 @@ import { MY_BALANCES, PEOPLE, type Person } from '../data'
 import { useApp } from '../store'
 import { cn } from '../lib'
 
-const DEPTS = ['Everyone', 'Engineering', 'Design', 'Sales', 'People', 'Finance'] as const
 const VIEWS = ['Cards', 'Org chart'] as const
 
-const reportsOf = (id: string) => PEOPLE.filter((p) => p.managerId === id)
+/** org chart is per company — the tree here is always Acme's */
+const reportsOf = (id: string) => PEOPLE.filter((p) => p.managerId === id && p.companyId === 'acme')
 
 /* compact card used in the org chart */
 function OrgCard({
@@ -60,25 +62,44 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 export default function People() {
-  const { company } = useApp()
+  const { company, myCompanies, companies } = useApp()
   const [query, setQuery] = useState('')
-  const [dept, setDept] = useState<(typeof DEPTS)[number]>('Everyone')
+  const [dept, setDept] = useState('Everyone')
+  const [companyFilter, setCompanyFilter] = useState('all')
   const [view, setView] = useState<(typeof VIEWS)[number]>('Cards')
   const [selected, setSelected] = useState<Person | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>('p2')
 
+  const global = company.id === 'all'
+
+  // everyone this persona can see — the single source for counts and filters
+  const visible = global
+    ? PEOPLE.filter((p) => myCompanies.some((c) => c.id === p.companyId))
+    : PEOPLE.filter((p) => p.companyId === company.id)
+
+  const scoped =
+    global && companyFilter !== 'all' ? visible.filter((p) => p.companyId === companyFilter) : visible
+
+  const deptOptions = ['Everyone', ...Array.from(new Set(scoped.map((p) => p.dept)))]
+  const activeDept = deptOptions.includes(dept) ? dept : 'Everyone'
+
   const q = query.trim().toLowerCase()
-  const filtered = PEOPLE.filter(
+  const filtered = scoped.filter(
     (p) =>
-      (dept === 'Everyone' || p.dept === dept) &&
+      (activeDept === 'Everyone' || p.dept === activeDept) &&
       (q === '' || p.name.toLowerCase().includes(q) || p.role.toLowerCase().includes(q)),
   )
 
+  const teamCount = new Set(visible.map((p) => p.dept)).size
+  const joiningCount = visible.filter((p) => p.status === 'Joining soon').length
+
+  const acme = companies.find((c) => c.id === 'acme')
   const root = PEOPLE.find((p) => p.id === 'p1')!
   const directs = reportsOf(root.id)
   const expanded = expandedId ? PEOPLE.find((p) => p.id === expandedId) : undefined
   const expandedKids = expandedId ? reportsOf(expandedId) : []
   const manager = selected?.managerId ? PEOPLE.find((p) => p.id === selected.managerId) : undefined
+  const selectedCompany = selected ? companies.find((c) => c.id === selected.companyId) : undefined
 
   return (
     <div className="mx-auto max-w-6xl animate-fade-in">
@@ -88,7 +109,7 @@ export default function People() {
           <div>
             <div className="mb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">People</div>
             <h1 className="font-display text-[32px] font-medium leading-tight tracking-tight">
-              Everyone at {company.id === 'all' ? 'your companies' : company.name}
+              Everyone at {global ? 'your companies' : company.name}
             </h1>
             <p className="mt-1.5 max-w-md text-[13.5px] text-muted">
               Find a teammate, see who reports to whom — click anyone for the full picture.
@@ -96,21 +117,55 @@ export default function People() {
           </div>
           <div className="flex items-center gap-6 pb-1">
             <Stat icon={<Users />} value={company.employees} label="People" />
-            <Stat icon={<Network />} value="6" label="Teams" />
-            <Stat icon={<UserPlus />} value="1" label="Joining" />
+            <Stat icon={<Network />} value={teamCount} label="Teams" />
+            <Stat icon={<UserPlus />} value={joiningCount} label="Joining" />
           </div>
         </div>
       </Card>
+
+      {/* company chips — only in the all-companies view */}
+      {global && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCompanyFilter('all')}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-all',
+              companyFilter === 'all'
+                ? 'border-transparent bg-ink text-card shadow-sm'
+                : 'border-line bg-card text-muted hover:text-ink',
+            )}
+          >
+            All companies
+          </button>
+          {myCompanies.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setCompanyFilter(c.id)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-all',
+                companyFilter === c.id
+                  ? 'border-transparent bg-ink text-card shadow-sm'
+                  : 'border-line bg-card text-muted hover:text-ink',
+              )}
+            >
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.accent }} />
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* controls */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by name or role…"
+          placeholder={global ? 'Search across your companies…' : 'Search by name or role…'}
           className="w-72"
         />
-        <Segmented options={DEPTS} value={dept} onChange={setDept} />
+        <Segmented options={deptOptions} value={activeDept} onChange={setDept} />
         <Segmented options={VIEWS} value={view} onChange={setView} className="ml-auto" />
       </div>
 
@@ -121,36 +176,52 @@ export default function People() {
             title="No one matches"
             body="Try a different name, role, or team — everyone at the company is in here."
             action={
-              <Btn variant="outline" size="sm" onClick={() => { setQuery(''); setDept('Everyone') }}>
+              <Btn
+                variant="outline"
+                size="sm"
+                onClick={() => { setQuery(''); setDept('Everyone'); setCompanyFilter('all') }}
+              >
                 Clear search
               </Btn>
             }
           />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((p) => (
-              <Card key={p.id} className="p-5" onClick={() => setSelected(p)}>
-                <div className="flex items-center gap-3.5">
-                  <Avatar name={p.name} hue={p.hue} size="lg" />
-                  <div className="min-w-0">
-                    <div className="truncate text-[14.5px] font-bold tracking-tight">{p.name}</div>
-                    <div className="truncate text-[12.5px] text-muted">{p.role}</div>
+            {filtered.map((p) => {
+              const pc = companies.find((c) => c.id === p.companyId)
+              return (
+                <Card key={p.id} className="p-5" onClick={() => setSelected(p)}>
+                  <div className="flex items-center gap-3.5">
+                    <Avatar name={p.name} hue={p.hue} size="lg" />
+                    <div className="min-w-0">
+                      <div className="truncate text-[14.5px] font-bold tracking-tight">{p.name}</div>
+                      <div className="truncate text-[12.5px] text-muted">{p.role}</div>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <Pill tone="outline">{p.dept}</Pill>
-                  <span className="inline-flex items-center gap-1 text-[12px] font-medium text-muted">
-                    <MapPin className="h-3 w-3" />
-                    {p.location}
-                  </span>
-                  {p.status !== 'Active' && (
-                    <Pill tone={statusTone(p.status)} dot>
-                      {p.status}
-                    </Pill>
+                  {global && pc && (
+                    <div className="mt-3.5 flex items-center gap-1.5 text-[11.5px] text-muted">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: pc.accent }} />
+                      <span className="truncate">
+                        {pc.name}
+                        {pc.group ? ` · ${pc.group}` : ''}
+                      </span>
+                    </div>
                   )}
-                </div>
-              </Card>
-            ))}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Pill tone="outline">{p.dept}</Pill>
+                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-muted">
+                      <MapPin className="h-3 w-3" />
+                      {p.location}
+                    </span>
+                    {p.status !== 'Active' && (
+                      <Pill tone={statusTone(p.status)} dot>
+                        {p.status}
+                      </Pill>
+                    )}
+                  </div>
+                </Card>
+              )
+            })}
           </div>
         )
       ) : (
@@ -159,6 +230,12 @@ export default function People() {
           <SectionTitle hint="Click a manager to open their team, or anyone else for their profile">
             Reporting lines
           </SectionTitle>
+          {global && (
+            <div className="mb-4 flex items-center gap-1.5 text-[12px] text-muted">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: acme?.accent }} />
+              Org charts are per company — showing Acme Tech. Pick a company to see its own.
+            </div>
+          )}
           <div className="flex flex-col items-center pb-2">
             <OrgCard person={root} reports={directs.length} onClick={() => setSelected(root)} />
             <div className="h-6 w-px bg-line" />
@@ -199,7 +276,7 @@ export default function People() {
         </Card>
       )}
 
-      {/* profile drawer — the 6 facts people check */}
+      {/* profile drawer — the facts people check */}
       <Drawer open={!!selected} onClose={() => setSelected(null)} title="Profile">
         {selected && (
           <>
@@ -221,7 +298,10 @@ export default function People() {
                   {selected.status}
                 </Pill>
               </Fact>
-              <Fact label={`At ${company.id === 'all' ? 'Acme Tech' : company.name} since`}>Feb 2026</Fact>
+              <Fact label="Company">
+                {selectedCompany ? `${selectedCompany.name} · since Feb 2026` : '—'}
+              </Fact>
+              <Fact label="Part of">{selectedCompany?.group ?? 'Standalone'}</Fact>
             </div>
 
             <div className="mt-7">

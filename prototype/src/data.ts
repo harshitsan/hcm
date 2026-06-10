@@ -77,7 +77,7 @@ export const PERSONAS: Persona[] = [
     sub: 'SatelliteHR',
     multiCompany: true,
     homeCompany: 'acme',
-    nav: ['home', 'companies', 'reports'],
+    nav: ['home', 'companies', 'rules', 'reports'],
     hue: 4,
   },
 ]
@@ -99,12 +99,14 @@ export type Company = {
   plan: 'Basic' | 'Standard' | 'Enterprise'
   setupProgress?: number // 0-100, when status = Getting set up
   inPortfolio: boolean // part of David's portfolio
+  /** group-company affiliation (sister concerns etc.) — undefined = standalone */
+  group?: string
 }
 
 export const COMPANIES: Company[] = [
   { id: 'acme', name: 'Acme Tech', short: 'A', city: 'Bengaluru', employees: 142, status: 'Live', accent: '#F0B940', since: 'Feb 2026', plan: 'Enterprise', inPortfolio: true },
-  { id: 'beta', name: 'Beta Foods', short: 'B', city: 'Mumbai', employees: 86, status: 'Live', accent: '#E08A63', since: 'Mar 2026', plan: 'Standard', inPortfolio: true },
-  { id: 'gamma', name: 'Gamma Retail', short: 'G', city: 'Delhi', employees: 47, status: 'Getting set up', accent: '#8FA876', since: 'May 2026', plan: 'Standard', setupProgress: 68, inPortfolio: true },
+  { id: 'beta', name: 'Beta Foods', short: 'B', city: 'Mumbai', employees: 86, status: 'Live', accent: '#E08A63', since: 'Mar 2026', plan: 'Standard', inPortfolio: true, group: 'Meridian Group' },
+  { id: 'gamma', name: 'Gamma Retail', short: 'G', city: 'Delhi', employees: 47, status: 'Getting set up', accent: '#8FA876', since: 'May 2026', plan: 'Standard', setupProgress: 68, inPortfolio: true, group: 'Meridian Group' },
   { id: 'delta', name: 'Delta Health', short: 'D', city: 'Pune', employees: 210, status: 'Live', accent: '#6FA3A0', since: 'Jan 2026', plan: 'Enterprise', inPortfolio: false },
   { id: 'epsilon', name: 'Epsilon Studios', short: 'E', city: 'Goa', employees: 23, status: 'Paused', accent: '#B58BAE', since: 'Apr 2026', plan: 'Basic', inPortfolio: false },
 ]
@@ -115,27 +117,34 @@ export type Person = {
   id: string
   name: string
   role: string
-  dept: 'Engineering' | 'Design' | 'People' | 'Sales' | 'Finance' | 'Leadership'
+  dept: 'Engineering' | 'Design' | 'People' | 'Sales' | 'Finance' | 'Leadership' | 'Operations'
   location: string
   email: string
   status: 'Active' | 'On leave' | 'Joining soon'
   managerId?: string
   hue: number
+  /** which company employs them — employee records are always company-specific */
+  companyId: string
 }
 
 export const PEOPLE: Person[] = [
-  { id: 'p1', name: 'Ananya Rao', role: 'Chief Executive', dept: 'Leadership', location: 'Bengaluru', email: 'ananya@acme.in', status: 'Active', hue: 0 },
-  { id: 'p2', name: 'Arjun Mehta', role: 'Engineering Manager', dept: 'Engineering', location: 'Bengaluru', email: 'arjun@acme.in', status: 'Active', managerId: 'p1', hue: 1 },
-  { id: 'p3', name: 'Sara Iyer', role: 'HR Admin', dept: 'People', location: 'Bengaluru', email: 'sara@acme.in', status: 'Active', managerId: 'p1', hue: 2 },
-  { id: 'p4', name: 'Vikram Shah', role: 'Sales Director', dept: 'Sales', location: 'Mumbai', email: 'vikram@acme.in', status: 'Active', managerId: 'p1', hue: 3 },
-  { id: 'p5', name: 'Priya Nair', role: 'Product Designer', dept: 'Design', location: 'Bengaluru', email: 'priya@acme.in', status: 'Active', managerId: 'p2', hue: 4 },
-  { id: 'p6', name: 'Rohan Gupta', role: 'Senior Engineer', dept: 'Engineering', location: 'Bengaluru', email: 'rohan@acme.in', status: 'Active', managerId: 'p2', hue: 5 },
-  { id: 'p7', name: 'Meera Pillai', role: 'Frontend Engineer', dept: 'Engineering', location: 'Remote', email: 'meera@acme.in', status: 'On leave', managerId: 'p2', hue: 0 },
-  { id: 'p8', name: 'Kabir Singh', role: 'Data Engineer', dept: 'Engineering', location: 'Hyderabad', email: 'kabir@acme.in', status: 'Active', managerId: 'p2', hue: 1 },
-  { id: 'p9', name: 'Tara Menon', role: 'People Partner', dept: 'People', location: 'Bengaluru', email: 'tara@acme.in', status: 'Active', managerId: 'p3', hue: 2 },
-  { id: 'p10', name: 'Dev Patel', role: 'Account Executive', dept: 'Sales', location: 'Mumbai', email: 'dev@acme.in', status: 'Active', managerId: 'p4', hue: 3 },
-  { id: 'p11', name: 'Isha Reddy', role: 'Finance Analyst', dept: 'Finance', location: 'Bengaluru', email: 'isha@acme.in', status: 'Active', managerId: 'p1', hue: 4 },
-  { id: 'p12', name: 'Nikhil Bose', role: 'QA Engineer', dept: 'Engineering', location: 'Bengaluru', email: 'nikhil@acme.in', status: 'Joining soon', managerId: 'p2', hue: 5 },
+  { id: 'p1', name: 'Ananya Rao', role: 'Chief Executive', dept: 'Leadership', location: 'Bengaluru', email: 'ananya@acme.in', status: 'Active', hue: 0, companyId: 'acme' },
+  { id: 'p2', name: 'Arjun Mehta', role: 'Engineering Manager', dept: 'Engineering', location: 'Bengaluru', email: 'arjun@acme.in', status: 'Active', managerId: 'p1', hue: 1, companyId: 'acme' },
+  { id: 'p3', name: 'Sara Iyer', role: 'HR Admin', dept: 'People', location: 'Bengaluru', email: 'sara@acme.in', status: 'Active', managerId: 'p1', hue: 2, companyId: 'acme' },
+  { id: 'p4', name: 'Vikram Shah', role: 'Sales Director', dept: 'Sales', location: 'Mumbai', email: 'vikram@acme.in', status: 'Active', managerId: 'p1', hue: 3, companyId: 'acme' },
+  { id: 'p5', name: 'Priya Nair', role: 'Product Designer', dept: 'Design', location: 'Bengaluru', email: 'priya@acme.in', status: 'Active', managerId: 'p2', hue: 4, companyId: 'acme' },
+  { id: 'p6', name: 'Rohan Gupta', role: 'Senior Engineer', dept: 'Engineering', location: 'Bengaluru', email: 'rohan@acme.in', status: 'Active', managerId: 'p2', hue: 5, companyId: 'acme' },
+  { id: 'p7', name: 'Meera Pillai', role: 'Frontend Engineer', dept: 'Engineering', location: 'Remote', email: 'meera@acme.in', status: 'On leave', managerId: 'p2', hue: 0, companyId: 'acme' },
+  { id: 'p8', name: 'Kabir Singh', role: 'Data Engineer', dept: 'Engineering', location: 'Hyderabad', email: 'kabir@acme.in', status: 'Active', managerId: 'p2', hue: 1, companyId: 'acme' },
+  { id: 'p9', name: 'Tara Menon', role: 'People Partner', dept: 'People', location: 'Bengaluru', email: 'tara@acme.in', status: 'Active', managerId: 'p3', hue: 2, companyId: 'acme' },
+  { id: 'p10', name: 'Dev Patel', role: 'Account Executive', dept: 'Sales', location: 'Mumbai', email: 'dev@acme.in', status: 'Active', managerId: 'p4', hue: 3, companyId: 'acme' },
+  { id: 'p11', name: 'Isha Reddy', role: 'Finance Analyst', dept: 'Finance', location: 'Bengaluru', email: 'isha@acme.in', status: 'Active', managerId: 'p1', hue: 4, companyId: 'acme' },
+  { id: 'p12', name: 'Nikhil Bose', role: 'QA Engineer', dept: 'Engineering', location: 'Bengaluru', email: 'nikhil@acme.in', status: 'Joining soon', managerId: 'p2', hue: 5, companyId: 'acme' },
+  { id: 'p13', name: 'Farhan Ali', role: 'Plant Manager', dept: 'Operations', location: 'Mumbai', email: 'farhan@beta.in', status: 'Active', hue: 0, companyId: 'beta' },
+  { id: 'p14', name: 'Lakshmi Iyer', role: 'Quality Lead', dept: 'Operations', location: 'Mumbai', email: 'lakshmi@beta.in', status: 'Active', managerId: 'p13', hue: 2, companyId: 'beta' },
+  { id: 'p15', name: 'Joseph K', role: 'Finance Manager', dept: 'Finance', location: 'Mumbai', email: 'joseph@beta.in', status: 'Active', managerId: 'p13', hue: 3, companyId: 'beta' },
+  { id: 'p16', name: 'Ritu Sharma', role: 'Store Operations', dept: 'Operations', location: 'Delhi', email: 'ritu@gamma.in', status: 'Active', hue: 4, companyId: 'gamma' },
+  { id: 'p17', name: 'Manav Joshi', role: 'Head of Buying', dept: 'Sales', location: 'Delhi', email: 'manav@gamma.in', status: 'Active', managerId: 'p16', hue: 5, companyId: 'gamma' },
 ]
 
 /* ───────────────────────────────────────────── time off (Journey 5) */
@@ -269,11 +278,27 @@ export const INBOX: InboxItem[] = [
 
 export type RuleStatus = 'Running' | 'Draft' | 'Waiting for approval' | 'Paused'
 
+/**
+ * The enforcement chain (docs/policy-enforcement-model.md): a rule LIVES at one
+ * level and LANDS on every company in scope below — live, never copied.
+ */
+export type RuleLevel = 'Platform' | 'Portfolio' | 'Company'
+/** what children may do with a parent rule */
+export type ChildControl = 'locked' | 'adjustable' | 'optional'
+/** one entry in the change audit — who · what · when */
+export type RuleEvent = { who: string; what: string; when: string }
+
 export type Rule = {
   id: string
   name: string
   category: 'Time off' | 'Attendance' | 'Documents' | 'Onboarding'
   status: RuleStatus
+  /** where the rule lives — who controls it */
+  level: RuleLevel
+  /** owning company when level === 'Company' */
+  ownerCompanyId?: string
+  /** posture toward descendants (meaningful when level !== 'Company') */
+  childControl: ChildControl
   /** sentence-builder chunks: "Applies to {who} in {where} in {team}" */
   appliesTo: { who: string; where: string; team: string }
   headcount: number
@@ -283,39 +308,111 @@ export type Rule = {
   /** plain-language precedence outcome (never make users compute it) */
   shadowedBy?: string
   updated: string
+  /** append-only change audit, newest last */
+  history: RuleEvent[]
+}
+
+/** live blast radius: which companies a rule lands on, and roughly how many people */
+export function reachFor(
+  rule: Pick<Rule, 'level' | 'ownerCompanyId' | 'headcount'>,
+  companies: { id: string; employees: number; inPortfolio: boolean }[],
+): { companies: number; people: number } {
+  const inScope =
+    rule.level === 'Platform'
+      ? companies
+      : rule.level === 'Portfolio'
+        ? companies.filter((c) => c.inPortfolio)
+        : companies.filter((c) => c.id === (rule.ownerCompanyId ?? 'acme'))
+  const people = Math.round(inScope.reduce((n, c) => n + c.employees, 0) * (rule.headcount / 142))
+  return { companies: inScope.length, people: Math.max(1, people) }
 }
 
 export const RULES: Rule[] = [
   {
-    id: 'r1', name: 'Casual & sick leave', category: 'Time off', status: 'Running',
+    id: 'r8', name: 'Respect at work (POSH)', category: 'Documents', status: 'Running',
+    level: 'Platform', childControl: 'locked',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: ['Manager'], notify: ['Person', 'Manager'], updated: '2w ago',
+    headcount: 142, chain: ['HR'], notify: ['Person', 'HR'], updated: '4mo ago',
+    history: [
+      { who: 'Maya Kapoor', what: 'Created at platform level', when: '8 Jan' },
+      { who: 'Legal council', what: 'Approved', when: '10 Jan' },
+      { who: 'SatelliteHR', what: 'Enforced in 3 companies · 251 people', when: '10 Jan' },
+      { who: 'SatelliteHR', what: 'Delta Health joined — inherited automatically', when: '20 Jan' },
+      { who: 'SatelliteHR', what: 'Gamma Retail joined — inherited automatically', when: '12 May' },
+    ],
   },
   {
-    id: 'r2', name: 'Earned leave (3+ days)', category: 'Time off', status: 'Running',
+    id: 'r4', name: 'Global data protection', category: 'Documents', status: 'Running',
+    level: 'Platform', childControl: 'locked',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: ['Manager', 'HR'], notify: ['Person', 'Manager', 'HR'], updated: '2w ago',
-  },
-  {
-    id: 'r3', name: 'Work from anywhere', category: 'Attendance', status: 'Waiting for approval',
-    appliesTo: { who: 'all employees', where: 'Bengaluru', team: 'Engineering' },
-    headcount: 64, chain: ['Dept head', 'HR'], notify: ['Person', 'Manager'], updated: 'yesterday',
-  },
-  {
-    id: 'r4', name: 'Data protection acknowledgment', category: 'Documents', status: 'Running',
-    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: [], notify: ['Person', 'HR'],
-    shadowedBy: 'Global data policy set at platform level', updated: '1mo ago',
-  },
-  {
-    id: 'r5', name: 'Day-one equipment checklist', category: 'Onboarding', status: 'Running',
-    appliesTo: { who: 'new joiners', where: 'everywhere', team: 'every team' },
-    headcount: 3, chain: ['Manager', 'IT'], notify: ['Manager', 'IT'], updated: '3w ago',
+    headcount: 142, chain: ['Legal council'], notify: ['Person', 'HR'], updated: '1mo ago',
+    history: [
+      { who: 'Maya Kapoor', what: 'Created at platform level', when: '12 Jan' },
+      { who: 'Legal council', what: 'Approved', when: '14 Jan' },
+      { who: 'SatelliteHR', what: 'Enforced everywhere · 508 people', when: '14 Jan' },
+      { who: 'Maya Kapoor', what: 'Changed: added AI-tools clause (re-approved)', when: '2 May' },
+      { who: 'SatelliteHR', what: 'Gamma Retail joined — inherited automatically', when: '12 May' },
+    ],
   },
   {
     id: 'r6', name: 'Festive bonus letters', category: 'Documents', status: 'Draft',
-    appliesTo: { who: 'all employees', where: 'Bengaluru', team: 'every team' },
-    headcount: 98, chain: ['Finance', 'HR'], notify: ['Person'], updated: 'today',
+    level: 'Portfolio', childControl: 'adjustable',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    headcount: 142, chain: ['Finance', 'HR'], notify: ['Person'], updated: 'today',
+    history: [{ who: 'David Chen', what: 'Drafted for the portfolio', when: 'today' }],
+  },
+  {
+    id: 'r1', name: 'Casual & sick leave', category: 'Time off', status: 'Running',
+    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    headcount: 142, chain: ['Manager'], notify: ['Person', 'Manager'], updated: '2w ago',
+    history: [
+      { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '20 Feb' },
+      { who: 'Ananya Rao', what: 'Approved', when: '21 Feb' },
+      { who: 'SatelliteHR', what: 'Running · 142 people', when: '21 Feb' },
+    ],
+  },
+  {
+    id: 'r2', name: 'Earned leave (3+ days)', category: 'Time off', status: 'Running',
+    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    headcount: 142, chain: ['Manager', 'HR'], notify: ['Person', 'Manager', 'HR'], updated: '2w ago',
+    history: [
+      { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '20 Feb' },
+      { who: 'Ananya Rao', what: 'Approved', when: '22 Feb' },
+      { who: 'SatelliteHR', what: 'Running · 142 people', when: '22 Feb' },
+    ],
+  },
+  {
+    id: 'r3', name: 'Work from anywhere', category: 'Attendance', status: 'Waiting for approval',
+    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    appliesTo: { who: 'all employees', where: 'Bengaluru', team: 'Engineering' },
+    headcount: 64, chain: ['Dept head', 'HR'], notify: ['Person', 'Manager'], updated: 'yesterday',
+    history: [
+      { who: 'Sara Iyer', what: 'Created for Acme Tech', when: 'Mon' },
+      { who: 'Sara Iyer', what: 'Sent for approval', when: 'yesterday' },
+    ],
+  },
+  {
+    id: 'r7', name: 'Data handling (Acme addendum)', category: 'Documents', status: 'Running',
+    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    headcount: 142, chain: [], notify: ['Person', 'HR'],
+    shadowedBy: 'Global data protection — set at platform level', updated: '1mo ago',
+    history: [
+      { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '2 Mar' },
+      { who: 'SatelliteHR', what: 'Shadowed by Global data protection (platform wins)', when: '2 Mar' },
+    ],
+  },
+  {
+    id: 'r5', name: 'Day-one equipment checklist', category: 'Onboarding', status: 'Running',
+    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    appliesTo: { who: 'new joiners', where: 'everywhere', team: 'every team' },
+    headcount: 3, chain: ['Manager', 'IT'], notify: ['Manager', 'IT'], updated: '3w ago',
+    history: [
+      { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '1 Mar' },
+      { who: 'SatelliteHR', what: 'Running · every new joiner', when: '1 Mar' },
+    ],
   },
 ]
 

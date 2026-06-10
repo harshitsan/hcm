@@ -227,6 +227,7 @@ export default function Companies() {
                 [
                   ['People', `${open.employees}`],
                   ['City', open.city || '—'],
+                  ['Part of', open.group ?? 'Standalone — no group'],
                   ['On the platform since', open.since || 'this month'],
                   ['Plan', `${open.plan} · up to ${Math.max(250, Math.ceil(open.employees / 50) * 50)} people`],
                   ['Primary contact', `admin@${open.id}.in`],
