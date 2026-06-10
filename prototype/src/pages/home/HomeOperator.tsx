@@ -9,15 +9,8 @@ import { Gauge } from '../../charts'
 import { Avatar, Btn, Card, Pill, Progress, SectionTitle, Stat, statusTone } from '../../ui'
 import { useApp } from '../../store'
 
-const ACTIVITY = [
-  { who: 'Sara Iyer', hue: 2, line: 'Sara updated a time-off rule', meta: 'Acme Tech · 2h ago' },
-  { who: 'Gamma Retail', hue: 3, line: 'Gamma Retail finished its holiday calendar', meta: 'yesterday' },
-  { who: 'David Chen', hue: 4, line: "David rolled out 'Code of conduct' to 3 companies", meta: 'Mon' },
-  { who: 'Gamma Retail', hue: 3, line: 'Gamma Retail created from the Retail template', meta: '12 May' },
-]
-
 export default function HomeOperator() {
-  const { companies, company, setCompanyId, updateCompany, toast } = useApp()
+  const { companies, company, setCompanyId, updateCompany, toast, audit } = useApp()
   const navigate = useNavigate()
 
   const totalPeople = companies.reduce((sum, c) => sum + c.employees, 0)
@@ -183,11 +176,7 @@ export default function HomeOperator() {
           <SectionTitle
             hint="What changed across the platform, in plain words"
             right={
-              <Btn
-                variant="ghost"
-                size="sm"
-                onClick={() => toast('The real thing keeps every change — who, what, when — for 7 years')}
-              >
+              <Btn variant="ghost" size="sm" onClick={() => navigate('/activity')}>
                 Full history <ChevronRight className="h-4 w-4" />
               </Btn>
             }
@@ -195,13 +184,13 @@ export default function HomeOperator() {
             Recent activity
           </SectionTitle>
           <ul className="space-y-1">
-            {ACTIVITY.map((a) => (
-              <li key={a.line} className="flex items-center gap-3 rounded-2xl px-2.5 py-2.5">
+            {audit.slice(0, 4).map((a) => (
+              <li key={a.id} className="flex items-center gap-3 rounded-2xl px-2.5 py-2.5">
                 <Avatar name={a.who} hue={a.hue} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-semibold">{a.line}</div>
+                  <div className="truncate text-[13px] font-semibold">{a.what}</div>
                 </div>
-                <span className="shrink-0 text-[11.5px] font-medium text-muted">{a.meta}</span>
+                <span className="shrink-0 text-[11.5px] font-medium text-muted">{a.where + ' · ' + a.when}</span>
               </li>
             ))}
           </ul>

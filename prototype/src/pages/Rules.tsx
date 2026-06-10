@@ -35,11 +35,13 @@ import {
   statusTone,
 } from '../ui'
 import { useApp } from '../store'
+import FlowsView from './Flows'
 import {
   APPROVER_OPTIONS,
   TEAM_OPTIONS,
   WHERE_OPTIONS,
   WHO_OPTIONS,
+  coverageFor,
   headcountFor,
   reachFor,
   type ChildControl,
@@ -140,6 +142,9 @@ export default function Rules() {
       : persona.id === 'portfolio'
         ? ['Your portfolio', 'This company']
         : []
+
+  /* ── view switch: the rules themselves vs the flows that route them ── */
+  const [view, setView] = useState<'Rules' | 'Approval flows'>('Rules')
 
   /* ── composer state ── */
   const [open, setOpen] = useState(false)
@@ -262,6 +267,9 @@ export default function Rules() {
 
   const fromAbove = rules.filter((r) => r.level !== 'Company')
   const ownRules = rules.filter((r) => r.level === 'Company')
+
+  /* parent rules whose landing we can measure — running only, drafts excluded */
+  const landing = rules.filter((r) => r.level !== 'Company' && r.status === 'Running')
 
   const ruleCard = (r: Rule) => {
     const editable = canEdit(r)
@@ -407,6 +415,9 @@ export default function Rules() {
             <p className="mt-1.5 max-w-md text-[13.5px] text-muted">
               Every rule has the same shape — who it covers, who approves, who hears about it.
             </p>
+            <div className="mt-4">
+              <Segmented options={['Rules', 'Approval flows'] as const} value={view} onChange={setView} />
+            </div>
           </div>
           <div className="flex items-center gap-6 pb-1">
             <Stat icon={<Play />} value={running} label="Running" />
@@ -423,27 +434,71 @@ export default function Rules() {
         </div>
       </Card>
 
-      {/* rules from a higher level — they land here live, never copied */}
-      {fromAbove.length > 0 && (
-        <div className="mb-8">
-          <SectionTitle
-            hint={
-              persona.id === 'operator'
-                ? 'One rule here lands on every company in scope — live, never copied.'
-                : 'Set at a higher level — they run here automatically, nothing to install.'
-            }
-          >
-            {persona.id === 'operator' ? 'Platform & portfolio' : 'From above'}
-          </SectionTitle>
-          <div className="space-y-4">{fromAbove.map(ruleCard)}</div>
-        </div>
-      )}
+      {view === 'Approval flows' ? (
+        <FlowsView />
+      ) : (
+        <>
+          {/* how parent rules are landing — per company, measured live */}
+          {(persona.id === 'operator' || persona.id === 'portfolio') && landing.length > 0 && (
+            <Card className="mb-8 p-6">
+              <SectionTitle hint="Inheritance and every local change, measured — not assumed.">
+                Where they land
+              </SectionTitle>
+              <div className="space-y-3">
+                {landing.map((r) => (
+                  <div key={r.id} className="grid items-center gap-2 sm:grid-cols-[260px,1fr]">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-[13px] font-bold tracking-tight">{r.name}</span>
+                      <SetAtPill level={r.level} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {coverageFor(r, companies).map((cv) => {
+                        const co = companies.find((c) => c.id === cv.companyId)
+                        if (!co) return null
+                        return (
+                          <span
+                            key={cv.companyId}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card py-1 pl-2 pr-1"
+                          >
+                            <span className="h-2 w-2 rounded-full" style={{ background: co.accent }} />
+                            <span className="text-[11px] font-bold">{co.short}</span>
+                            {cv.state === 'Enforced' && <Pill tone="green">✓ {cv.ack}%</Pill>}
+                            {cv.state === 'Adjusted' && <Pill tone="amber">△ adjusted · {cv.ack}%</Pill>}
+                            {cv.state === 'Pending' && <Pill tone="neutral">… {cv.ack}%</Pill>}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-[11.5px] text-muted">✓ enforced · △ child adjusted it · % read-and-confirmed</p>
+            </Card>
+          )}
 
-      {/* rules owned here */}
-      <div>
-        <SectionTitle hint="Made here — yours to change.">This company's rules</SectionTitle>
-        <div className="space-y-4">{ownRules.map(ruleCard)}</div>
-      </div>
+          {/* rules from a higher level — they land here live, never copied */}
+          {fromAbove.length > 0 && (
+            <div className="mb-8">
+              <SectionTitle
+                hint={
+                  persona.id === 'operator'
+                    ? 'One rule here lands on every company in scope — live, never copied.'
+                    : 'Set at a higher level — they run here automatically, nothing to install.'
+                }
+              >
+                {persona.id === 'operator' ? 'Platform & portfolio' : 'From above'}
+              </SectionTitle>
+              <div className="space-y-4">{fromAbove.map(ruleCard)}</div>
+            </div>
+          )}
+
+          {/* rules owned here */}
+          <div>
+            <SectionTitle hint="Made here — yours to change.">This company's rules</SectionTitle>
+            <div className="space-y-4">{ownRules.map(ruleCard)}</div>
+          </div>
+        </>
+      )}
 
       {/* ── the composer ── */}
       <Drawer

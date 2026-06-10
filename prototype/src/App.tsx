@@ -14,6 +14,8 @@ import Documents from './pages/Documents'
 import Companies from './pages/Companies'
 import AddCompany from './pages/AddCompany'
 import Reports from './pages/Reports'
+import Access from './pages/Access'
+import Activity from './pages/Activity'
 
 function Toasts() {
   const { toasts, dismissToast } = useApp()
@@ -66,6 +68,8 @@ function Shell() {
             <Route path="/companies" element={<Companies />} />
             <Route path="/companies/new" element={<AddCompany />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/access" element={<Access />} />
+            <Route path="/activity" element={<Activity />} />
           </Routes>
         </main>
       </div>

@@ -13,6 +13,8 @@ export type NavKey =
   | 'inbox'
   | 'people'
   | 'rules'
+  | 'access'
+  | 'activity'
   | 'documents'
   | 'companies'
   | 'reports'
@@ -57,7 +59,7 @@ export const PERSONAS: Persona[] = [
     sub: 'Acme Tech',
     multiCompany: false,
     homeCompany: 'acme',
-    nav: ['home', 'people', 'timeoff', 'rules', 'documents', 'reports'],
+    nav: ['home', 'people', 'timeoff', 'rules', 'access', 'documents', 'activity', 'reports'],
     hue: 2,
   },
   {
@@ -67,7 +69,7 @@ export const PERSONAS: Persona[] = [
     sub: 'Helix Shared Services',
     multiCompany: true,
     homeCompany: 'acme',
-    nav: ['home', 'companies', 'people', 'rules', 'reports'],
+    nav: ['home', 'companies', 'people', 'rules', 'activity', 'reports'],
     hue: 3,
   },
   {
@@ -77,7 +79,7 @@ export const PERSONAS: Persona[] = [
     sub: 'SatelliteHR',
     multiCompany: true,
     homeCompany: 'acme',
-    nav: ['home', 'companies', 'rules', 'reports'],
+    nav: ['home', 'companies', 'rules', 'access', 'activity', 'reports'],
     hue: 4,
   },
 ]
@@ -430,6 +432,233 @@ export function headcountFor(who: string, where: string, team: string): number {
   if (where !== 'everywhere') n = Math.round(n * (where === 'Bengaluru' ? 0.69 : where === 'Mumbai' ? 0.18 : 0.09))
   if (team !== 'every team') n = Math.round(n * (team === 'Engineering' ? 0.45 : team === 'Sales' ? 0.2 : 0.12))
   return Math.max(1, n)
+}
+
+/* ───────────────────────────────────── approval flows (BRD §6.25, jargon-free) */
+
+/** one approval step — several roles on a step = they decide in parallel */
+export type FlowStep = {
+  id: string
+  roles: string[]
+  /** 'one' = any of them can approve · 'all' = every one must */
+  mode: 'one' | 'all'
+  /** plain-language deadline */
+  sla: string
+  /** when the deadline passes, it moves here */
+  escalateTo?: string
+}
+
+export type Flow = {
+  id: string
+  name: string
+  /** what it routes, in plain words */
+  routes: string
+  level: RuleLevel
+  ownerCompanyId?: string
+  status: 'Running' | 'Draft'
+  steps: FlowStep[]
+  /** how many rules / events use this flow */
+  usedBy: number
+  /** approvers can hand off while away */
+  delegation: boolean
+  history: RuleEvent[]
+}
+
+export const FLOWS: Flow[] = [
+  {
+    id: 'f1', name: 'Time-off approvals', routes: 'Every time-off request', level: 'Company', ownerCompanyId: 'acme',
+    status: 'Running', usedBy: 2, delegation: true,
+    steps: [
+      { id: 's1', roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: 'Dept head' },
+    ],
+    history: [
+      { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '20 Feb' },
+      { who: 'SatelliteHR', what: 'Running — routes every time-off request', when: '21 Feb' },
+    ],
+  },
+  {
+    id: 'f2', name: 'Job offers', routes: 'Every offer before it goes out', level: 'Company', ownerCompanyId: 'acme',
+    status: 'Running', usedBy: 1, delegation: true,
+    steps: [
+      { id: 's1', roles: ['Finance', 'HR'], mode: 'all', sla: 'within 2 days', escalateTo: 'Chief executive' },
+      { id: 's2', roles: ['Chief executive'], mode: 'one', sla: 'within 1 day' },
+    ],
+    history: [
+      { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '3 Mar' },
+      { who: 'Ananya Rao', what: 'Approved', when: '4 Mar' },
+    ],
+  },
+  {
+    id: 'f3', name: 'Rule changes', routes: 'Any change to a platform rule', level: 'Platform',
+    status: 'Running', usedBy: 2, delegation: false,
+    steps: [
+      { id: 's1', roles: ['Legal council'], mode: 'one', sla: 'within 3 days', escalateTo: 'Platform operator' },
+    ],
+    history: [
+      { who: 'Maya Kapoor', what: 'Created at platform level', when: '8 Jan' },
+      { who: 'SatelliteHR', what: 'Gamma Retail joined — flow applies there automatically', when: '12 May' },
+    ],
+  },
+  {
+    id: 'f4', name: 'Exit clearance', routes: 'Every departure, before the last day', level: 'Company', ownerCompanyId: 'acme',
+    status: 'Draft', usedBy: 0, delegation: true,
+    steps: [
+      { id: 's1', roles: ['IT', 'Finance', 'HR'], mode: 'all', sla: 'within 5 days', escalateTo: 'Dept head' },
+    ],
+    history: [{ who: 'Sara Iyer', what: 'Drafted', when: 'yesterday' }],
+  },
+]
+
+export const FLOW_ROLE_OPTIONS = ['Manager', 'Dept head', 'HR', 'Finance', 'IT', 'Legal council', 'Chief executive'] as const
+
+/* ───────────────────────────────────── roles & permissions (BRD §6.12, §5) */
+
+export type RoleLevelName = 'Platform' | 'Portfolio' | 'Group' | 'Company'
+
+export type PermGroup = { area: string; items: { id: string; label: string; on: boolean }[] }
+
+export type Role = {
+  id: string
+  name: string
+  level: RoleLevelName
+  desc: string
+  people: number
+  /** built-ins can be viewed but not edited */
+  builtIn: boolean
+  perms: PermGroup[]
+  clonedFrom?: string
+}
+
+const can = (id: string, label: string, on: boolean) => ({ id, label, on })
+
+export const ROLES: Role[] = [
+  {
+    id: 'ro1', name: 'Platform operator', level: 'Platform', people: 2, builtIn: true,
+    desc: 'Runs the whole platform — companies, platform rules, access.',
+    perms: [
+      { area: 'Companies', items: [can('c1', 'Create new companies', true), can('c2', 'Pause or resume any company', true), can('c3', 'See every company', true)] },
+      { area: 'Rules & flows', items: [can('r1', 'Set platform-wide rules', true), can('r2', 'Approve rule changes', true)] },
+      { area: 'Access', items: [can('a1', 'Create and edit roles', true), can('a2', 'See the full activity log', true)] },
+    ],
+  },
+  {
+    id: 'ro2', name: 'Support engineer', level: 'Platform', people: 4, builtIn: false, clonedFrom: 'Platform operator',
+    desc: 'Helps companies get set up — looks, never touches.',
+    perms: [
+      { area: 'Companies', items: [can('c1', 'Create new companies', false), can('c2', 'Pause or resume any company', false), can('c3', 'See every company', true)] },
+      { area: 'Rules & flows', items: [can('r1', 'Set platform-wide rules', false), can('r2', 'Approve rule changes', false)] },
+      { area: 'Access', items: [can('a1', 'Create and edit roles', false), can('a2', 'See the full activity log', true)] },
+    ],
+  },
+  {
+    id: 'ro3', name: 'Portfolio manager', level: 'Portfolio', people: 3, builtIn: true,
+    desc: 'Runs several companies from one seat — switch, standardize, report.',
+    perms: [
+      { area: 'Companies', items: [can('c3', 'See portfolio companies', true), can('c4', 'Switch between them', true), can('c2', 'Pause or resume a company', false)] },
+      { area: 'Rules & flows', items: [can('r3', 'Roll out rules across the portfolio', true), can('r2', 'Approve rule changes', true)] },
+      { area: 'Reports', items: [can('p1', 'Cross-company reports', true)] },
+    ],
+  },
+  {
+    id: 'ro4', name: 'Portfolio auditor', level: 'Portfolio', people: 1, builtIn: false, clonedFrom: 'Portfolio manager',
+    desc: 'Oversight only — reads everything, changes nothing.',
+    perms: [
+      { area: 'Companies', items: [can('c3', 'See portfolio companies', true), can('c4', 'Switch between them', true), can('c2', 'Pause or resume a company', false)] },
+      { area: 'Rules & flows', items: [can('r3', 'Roll out rules across the portfolio', false), can('r2', 'Approve rule changes', false)] },
+      { area: 'Reports', items: [can('p1', 'Cross-company reports', true)] },
+    ],
+  },
+  {
+    id: 'ro5', name: 'Group admin', level: 'Group', people: 1, builtIn: true,
+    desc: 'Looks after Meridian Group — shared offices, shared reporting.',
+    perms: [
+      { area: 'Companies', items: [can('c5', 'Manage group membership', true), can('c6', 'Share offices across the group', true)] },
+      { area: 'Reports', items: [can('p2', 'Group-wide reports', true)] },
+    ],
+  },
+  {
+    id: 'ro6', name: 'HR admin', level: 'Company', people: 8, builtIn: true,
+    desc: 'Owns people operations — rules, time off, documents, letters.',
+    perms: [
+      { area: 'People', items: [can('pe1', 'Add and edit people', true), can('pe2', 'See pay details', false)] },
+      { area: 'Rules & flows', items: [can('r4', 'Create company rules', true), can('r5', 'Edit approval flows', true)] },
+      { area: 'Time off', items: [can('t1', 'Fix balances with a reason', true)] },
+    ],
+  },
+  {
+    id: 'ro7', name: 'People manager', level: 'Company', people: 23, builtIn: true,
+    desc: 'Leads a team — approves their requests, sees their basics.',
+    perms: [
+      { area: 'People', items: [can('pe3', 'See their team', true), can('pe1', 'Add and edit people', false)] },
+      { area: 'Time off', items: [can('t2', 'Approve team time off', true), can('t3', 'Hand approvals to someone while away', true)] },
+    ],
+  },
+  {
+    id: 'ro8', name: 'Employee', level: 'Company', people: 470, builtIn: true,
+    desc: 'Self-service — their own profile, time off, and documents.',
+    perms: [
+      { area: 'People', items: [can('pe4', 'Edit their own profile', true)] },
+      { area: 'Time off', items: [can('t4', 'Request time off', true)] },
+      { area: 'Documents', items: [can('d1', 'Read and confirm documents', true)] },
+    ],
+  },
+]
+
+/* ───────────────────────────────────── the activity log (BRD §6.29 — everything) */
+
+export type AuditKind = 'Company' | 'Rule' | 'Flow' | 'Access' | 'People' | 'Time off' | 'Documents'
+
+export type AuditEvent = {
+  id: string
+  who: string
+  hue: number
+  what: string
+  detail?: string
+  /** company name, group, or 'Platform' */
+  where: string
+  kind: AuditKind
+  when: string
+}
+
+export const AUDIT_SEED: AuditEvent[] = [
+  { id: 'ev1', who: 'Sara Iyer', hue: 2, what: 'Changed “Earned leave (3+ days)”', detail: 'Approval steps: Manager → Manager, then HR', where: 'Acme Tech', kind: 'Rule', when: '2h ago' },
+  { id: 'ev2', who: 'Arjun Mehta', hue: 1, what: "Approved Rohan's casual leave", detail: 'Fri 13 Jun · within balance', where: 'Acme Tech', kind: 'Time off', when: '3h ago' },
+  { id: 'ev3', who: 'SatelliteHR', hue: 5, what: 'Reminder sent: Code of conduct 2026', detail: '23 people still to confirm · due 20 Jun', where: 'Acme Tech', kind: 'Documents', when: '6h ago' },
+  { id: 'ev4', who: 'David Chen', hue: 3, what: 'Drafted “Festive bonus letters” for the portfolio', detail: 'Will cover 3 companies · 275 people', where: 'Helix portfolio', kind: 'Rule', when: 'yesterday' },
+  { id: 'ev5', who: 'Maya Kapoor', hue: 4, what: 'Created the “Support engineer” role', detail: 'Cloned from Platform operator · 3 permissions removed', where: 'Platform', kind: 'Access', when: 'yesterday' },
+  { id: 'ev6', who: 'Gamma Retail', hue: 3, what: 'Finished its holiday calendar', detail: 'Setup now 68% done', where: 'Gamma Retail', kind: 'Company', when: 'yesterday' },
+  { id: 'ev7', who: 'Lakshmi Iyer', hue: 2, what: 'Confirmed reading Global data protection', where: 'Beta Foods', kind: 'Documents', when: 'Mon' },
+  { id: 'ev8', who: 'SatelliteHR', hue: 5, what: 'Gamma Retail inherited 2 platform rules', detail: 'Respect at work · Global data protection — automatic on joining', where: 'Gamma Retail', kind: 'Rule', when: '12 May' },
+  { id: 'ev9', who: 'Maya Kapoor', hue: 4, what: 'Changed “Global data protection”', detail: 'Added AI-tools clause · re-approved by Legal council', where: 'Platform', kind: 'Rule', when: '2 May' },
+  { id: 'ev10', who: 'Farhan Ali', hue: 0, what: 'Joined as Plant Manager', where: 'Beta Foods', kind: 'People', when: '28 Apr' },
+  { id: 'ev11', who: 'Maya Kapoor', hue: 4, what: 'Paused Epsilon Studios', detail: '23 people lost sign-in · admins emailed', where: 'Epsilon Studios', kind: 'Company', when: '15 Apr' },
+  { id: 'ev12', who: 'Sara Iyer', hue: 2, what: 'Created the “Job offers” flow', detail: 'Finance + HR together, then Chief executive', where: 'Acme Tech', kind: 'Flow', when: '3 Mar' },
+]
+
+/* ───────────────────────── inheritance & mutation coverage (per parent rule) */
+
+export type CoverageState = 'Enforced' | 'Adjusted' | 'Pending'
+
+export type CompanyCoverage = { companyId: string; state: CoverageState; ack: number }
+
+/** how a parent rule is landing in each company in scope — mock but consistent */
+export function coverageFor(
+  rule: Pick<Rule, 'id' | 'level' | 'childControl'>,
+  companies: { id: string; inPortfolio: boolean }[],
+): CompanyCoverage[] {
+  const inScope =
+    rule.level === 'Platform' ? companies : rule.level === 'Portfolio' ? companies.filter((c) => c.inPortfolio) : []
+  const ackById: Record<string, number> = { acme: 92, beta: 78, gamma: 64, delta: 88, epsilon: 51 }
+  return inScope.map((c) => ({
+    companyId: c.id,
+    state:
+      rule.childControl === 'adjustable' && c.id === 'beta'
+        ? 'Adjusted'
+        : (ackById[c.id] ?? 70) < 60
+          ? 'Pending'
+          : 'Enforced',
+    ack: ackById[c.id] ?? 70,
+  }))
 }
 
 /* ───────────────────────────────────────────── documents & acknowledgments */
