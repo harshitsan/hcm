@@ -9,6 +9,7 @@ import { Fragment, useState, type ReactNode } from 'react'
 import {
   AlertTriangle,
   ArrowRight,
+  ChevronRight,
   History,
   Landmark,
   Layers,
@@ -21,6 +22,8 @@ import {
   SlidersHorizontal,
   Users,
   X,
+  Zap,
+  Calculator,
 } from 'lucide-react'
 import {
   Avatar,
@@ -30,12 +33,14 @@ import {
   Field,
   Input,
   Pill,
+  Progress,
   SectionTitle,
   Segmented,
   Select,
   SentenceChip,
   Stat,
   Timeline,
+  Toggle,
   statusTone,
 } from '../ui'
 import { useApp } from '../store'
@@ -43,6 +48,7 @@ import FlowsView from './Flows'
 import {
   APPROVER_OPTIONS,
   TEAM_OPTIONS,
+  TEAM_SIGN_SPLIT,
   WHERE_OPTIONS,
   WHO_OPTIONS,
   centralTeamLabel,
@@ -50,6 +56,7 @@ import {
   headcountFor,
   holderFor,
   reachFor,
+  signStatsFor,
   unroutableFor,
   type ChainResolution,
   type ChildControl,
@@ -59,7 +66,7 @@ import {
 } from '../data'
 import { cn } from '../lib'
 
-const CATEGORIES = ['Time off', 'Attendance', 'Documents', 'Onboarding'] as const
+const CATEGORIES = ['Time off', 'Attendance', 'Documents', 'Onboarding', 'Pay', 'Exits'] as const
 const NOTIFY_OPTIONS = ['Person', 'Manager', 'HR'] as const
 
 /* ── plain-language labels ⇄ data values ── */
@@ -173,7 +180,7 @@ function ChildControlPill({ control }: { control: ChildControl }) {
 }
 
 export default function Rules() {
-  const { persona, company, companies, rules, updateRule, addRule, toast } = useApp()
+  const { persona, company, companies, myCompanies, rules, updateRule, addRule, toast } = useApp()
 
   /* who may touch what: operator edits anything; portfolio edits portfolio +
      company; everyone else edits only their own company's rules */
@@ -203,10 +210,23 @@ export default function Rules() {
   const [chain, setChain] = useState<string[]>([])
   const [notify, setNotify] = useState<string[]>([])
   const [decide, setDecide] = useState<ChainResolution>('local')
+  const [docText, setDocText] = useState('')
+  const [signRequired, setSignRequired] = useState(false)
 
   /* ── history drawer ── */
   const [historyId, setHistoryId] = useState<string | null>(null)
   const historyRule = rules.find((r) => r.id === historyId) ?? null
+
+  /* ── rule detail drawer — the full picture: policy text + who has signed ── */
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const detailRule = rules.find((r) => r.id === detailId) ?? null
+  /* signing stats, scoped to what the viewer governs */
+  const detailStats = detailRule
+    ? signStatsFor(detailRule, companies).filter((s) => myCompanies.some((c) => c.id === s.companyId))
+    : []
+  const detailSigned = detailStats.reduce((n, s) => n + s.signed, 0)
+  const detailTotal = detailStats.reduce((n, s) => n + s.total, 0)
+  const detailPct = detailTotal > 0 ? Math.round((detailSigned / detailTotal) * 100) : 0
 
   /* ── who-wears-the-hat drawer ── */
   const [hat, setHat] = useState<{ ruleId: string; role: string } | null>(null)
@@ -229,6 +249,8 @@ export default function Rules() {
     setChain([])
     setNotify([])
     setDecide('local')
+    setDocText('')
+    setSignRequired(false)
     setOpen(true)
   }
 
@@ -244,6 +266,8 @@ export default function Rules() {
     setChain(r.chain)
     setNotify(r.notify)
     setDecide(r.resolution)
+    setDocText(r.doc?.summary ?? '')
+    setSignRequired(r.doc?.requiresSignature ?? false)
     setOpen(true)
   }
 
@@ -275,6 +299,14 @@ export default function Rules() {
       resolution: level === 'Company' ? ('local' as const) : decide,
       notify,
       updated: 'just now',
+      /* with policy text attached, the rule IS a document people read & sign */
+      doc: docText.trim()
+        ? {
+            summary: docText.trim(),
+            sections: [{ title: 'The policy', body: docText.trim() }],
+            requiresSignature: signRequired,
+          }
+        : undefined,
     }
     if (editingId) {
       const existing = rules.find((r) => r.id === editingId)
@@ -355,7 +387,7 @@ export default function Rules() {
     const stuckNames = stuck.map((id) => companies.find((c) => c.id === id)?.name ?? id).join(', ')
     const stuckRoles = r.chain.filter((role) => stuck.some((id) => !holderFor(id, role))).join(' + ')
     return (
-      <Card key={r.id} className="p-5">
+      <Card key={r.id} className="p-5" onClick={() => setDetailId(r.id)}>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[15px] font-bold tracking-tight">{r.name}</span>
           <SetAtPill
@@ -369,6 +401,7 @@ export default function Rules() {
           </Pill>
           {r.level !== 'Company' && <ChildControlPill control={r.childControl} />}
           <span className="ml-auto text-[12px] text-muted">updated {r.updated}</span>
+          <ChevronRight className="h-4 w-4 text-muted/60" />
         </div>
 
         {/* the sentence — always visible; reach is live from store companies */}
@@ -385,26 +418,63 @@ export default function Rules() {
           )}
         </p>
 
-        {/* the pipeline */}
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <StepChip>Person asks</StepChip>
-          <ArrowRight className="h-3 w-3 text-muted" />
-          {r.chain.length === 0 ? (
-            <>
-              <span className="text-[12px] italic text-muted">runs instantly — no approvals</span>
-              <ArrowRight className="h-3 w-3 text-muted" />
-            </>
-          ) : (
-            r.chain.map((step) => (
-              <Fragment key={step}>
-                <StepChip onClick={hatsClickable ? () => setHat({ ruleId: r.id, role: step }) : undefined}>
-                  {step}
-                </StepChip>
+        {/* the rule as a TRIGGER: when X → then Y; every firing opens a ticket */}
+        {r.automation && (
+          <div className="mt-3 rounded-2xl bg-card2/70 px-4 py-3">
+            <p className="text-[12.5px] leading-relaxed">
+              <Zap className="mr-1 inline h-3.5 w-3.5 text-accent-ink" />
+              <b>When</b> {r.automation.when} → {r.automation.then[0]}
+              {r.automation.then.length > 1 && (
+                <span className="text-muted"> · +{r.automation.then.length - 1} more steps</span>
+              )}
+            </p>
+            <p className="mt-1 text-[11.5px] font-semibold text-accent-ink">
+              Fired {r.automation.firedThisWeek}× this week → {r.automation.firedThisWeek}{' '}
+              {r.automation.firedThisWeek === 1 ? 'ticket' : 'tickets'} to {r.chain[0] ?? 'no one'} — nothing
+              happens without a yes.
+            </p>
+          </div>
+        )}
+
+        {/* the rule as a NUMBER: it sets a value the rest of the system reads */}
+        {r.computes && (
+          <div className="mt-3 rounded-2xl bg-card2/70 px-4 py-3">
+            <p className="text-[12.5px] leading-relaxed">
+              <Calculator className="mr-1 inline h-3.5 w-3.5 text-accent-ink" />
+              Sets <b>{r.computes.what}</b>:{' '}
+              {r.computes.variants.map((v, i) => (
+                <span key={v.where}>
+                  {i > 0 && <span className="text-muted"> · </span>}
+                  <b className="text-accent-ink">{v.where}</b> → <b>{v.value}</b>
+                </span>
+              ))}
+            </p>
+            <p className="mt-1 text-[11.5px] text-muted">Read by: {r.computes.feeds.join(' · ')}</p>
+          </div>
+        )}
+
+        {/* the pipeline — its chips act on their own, never open the detail */}
+        <div onClick={(e) => e.stopPropagation()}>
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <StepChip>{r.automation ? 'Rule fires' : 'Person asks'}</StepChip>
+            <ArrowRight className="h-3 w-3 text-muted" />
+            {r.chain.length === 0 ? (
+              <>
+                <span className="text-[12px] italic text-muted">runs instantly — no approvals</span>
                 <ArrowRight className="h-3 w-3 text-muted" />
-              </Fragment>
-            ))
-          )}
-          <StepChip>Done ✓</StepChip>
+              </>
+            ) : (
+              r.chain.map((step) => (
+                <Fragment key={step}>
+                  <StepChip onClick={hatsClickable ? () => setHat({ ruleId: r.id, role: step }) : undefined}>
+                    {step}
+                  </StepChip>
+                  <ArrowRight className="h-3 w-3 text-muted" />
+                </Fragment>
+              ))
+            )}
+            <StepChip>Done ✓</StepChip>
+          </div>
         </div>
 
         {/* who fills the hats — each company's own people, or one central desk */}
@@ -446,6 +516,8 @@ export default function Rules() {
           </div>
         )}
 
+        {/* actions act on their own, never open the detail */}
+        <div onClick={(e) => e.stopPropagation()}>
         {editable ? (
           /* one primary action per state */
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -513,6 +585,7 @@ export default function Rules() {
             </Btn>
           </div>
         )}
+        </div>
       </Card>
     )
   }
@@ -553,51 +626,69 @@ export default function Rules() {
         <FlowsView />
       ) : (
         <>
-          {/* how parent rules are landing — per company, measured live */}
+          {/* how parent rules are landing — companies as rows with FULL NAMES,
+              same geometry as the flow map: never make anyone decode an initial */}
           {(persona.id === 'operator' || persona.id === 'portfolio') && landing.length > 0 && (
             <Card className="mb-8 p-6">
               <SectionTitle hint="Inheritance and every local change, measured — not assumed.">
                 Where they land
               </SectionTitle>
-              <div className="space-y-3">
-                {landing.map((r) => {
-                  const noApprover = new Set(unroutableFor(r, companies))
-                  return (
-                    <div key={r.id} className="grid items-center gap-2 sm:grid-cols-[260px,1fr]">
-                      <div className="flex items-center gap-2">
-                        <span className="truncate text-[13px] font-bold tracking-tight">{r.name}</span>
-                        <SetAtPill level={r.level} />
+              <div className="overflow-x-auto">
+                <div className="min-w-[560px]">
+                  <div
+                    className="grid items-center gap-2 border-b border-line/60 pb-2"
+                    style={{ gridTemplateColumns: `1.3fr repeat(${landing.length}, 1fr)` }}
+                  >
+                    <div />
+                    {landing.map((r) => (
+                      <div
+                        key={r.id}
+                        className="px-1 text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-muted"
+                      >
+                        {r.name}
                       </div>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {coverageFor(r, companies).map((cv) => {
-                          const co = companies.find((c) => c.id === cv.companyId)
-                          if (!co) return null
-                          return (
-                            <span
-                              key={cv.companyId}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card py-1 pl-2 pr-1"
-                            >
-                              <span className="h-2 w-2 rounded-full" style={{ background: co.accent }} />
-                              <span className="text-[11px] font-bold">{co.short}</span>
-                              {noApprover.has(cv.companyId) ? (
-                                <Pill tone="amber">no approver</Pill>
-                              ) : (
-                                <>
-                                  {cv.state === 'Enforced' && <Pill tone="green">✓ {cv.ack}%</Pill>}
-                                  {cv.state === 'Adjusted' && <Pill tone="amber">△ adjusted · {cv.ack}%</Pill>}
-                                  {cv.state === 'Pending' && <Pill tone="neutral">… {cv.ack}%</Pill>}
-                                </>
-                              )}
-                            </span>
-                          )
-                        })}
+                    ))}
+                  </div>
+                  {myCompanies.map((co) => (
+                    <div
+                      key={co.id}
+                      className="grid items-center gap-2 border-b border-line/40 py-2.5 last:border-b-0"
+                      style={{ gridTemplateColumns: `1.3fr repeat(${landing.length}, 1fr)` }}
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: co.accent }} />
+                        <span className="truncate text-[12.5px] font-bold">{co.name}</span>
+                        {co.status !== 'Live' && (
+                          <Pill tone={statusTone(co.status)} className="shrink-0">
+                            {co.status === 'Getting set up' ? 'setting up' : 'paused'}
+                          </Pill>
+                        )}
                       </div>
+                      {landing.map((r) => {
+                        const cv = coverageFor(r, companies).find((x) => x.companyId === co.id)
+                        const noApprover = unroutableFor(r, companies).includes(co.id)
+                        return (
+                          <div key={r.id} className="flex justify-center">
+                            {!cv ? (
+                              <span className="text-[11px] text-muted">—</span>
+                            ) : noApprover ? (
+                              <Pill tone="amber">no approver</Pill>
+                            ) : cv.state === 'Enforced' ? (
+                              <Pill tone="green">✓ {cv.ack}%</Pill>
+                            ) : cv.state === 'Adjusted' ? (
+                              <Pill tone="amber">△ adjusted · {cv.ack}%</Pill>
+                            ) : (
+                              <Pill tone="neutral">… {cv.ack}%</Pill>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
               </div>
               <p className="mt-4 text-[11.5px] text-muted">
-                ✓ enforced · △ child adjusted it · % read-and-confirmed · “no approver” = a hat with no head there
+                ✓ enforced · △ child adjusted it · % read-and-signed · “no approver” = a hat with no head there
               </p>
             </Card>
           )}
@@ -784,6 +875,31 @@ export default function Rules() {
             </div>
           </section>
 
+          {/* the policy itself — a rule can BE a document people read & sign */}
+          <section>
+            <SectionLabel hint="Optional — attach the actual policy text and it becomes a document people read.">
+              The policy itself
+            </SectionLabel>
+            <textarea
+              rows={3}
+              value={docText}
+              onChange={(e) => setDocText(e.target.value)}
+              placeholder="What does the policy say? One short paragraph is enough for the prototype."
+              className="w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[13.5px] placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            />
+            {docText.trim() !== '' && (
+              <div className="mt-3">
+                <Toggle on={signRequired} onChange={setSignRequired} label="Every employee must sign it" />
+                {signRequired && (
+                  <p className="mt-2 text-[12px] text-muted">
+                    It will land in every employee's Documents inbox across {composerReach.companies}{' '}
+                    {composerReach.companies === 1 ? 'company' : 'companies'} — signing is tracked per company.
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+
           {/* simulate before publish */}
           <section>
             <Card glow className="p-5">
@@ -816,6 +932,242 @@ export default function Rules() {
             </Card>
           </section>
         </div>
+      </Drawer>
+
+      {/* ── the rule's full picture: the policy text + who has signed ── */}
+      <Drawer
+        wide
+        open={detailRule != null}
+        onClose={() => setDetailId(null)}
+        title={detailRule?.name ?? ''}
+        footer={
+          detailRule != null && (
+            <div className="flex items-center justify-end gap-2">
+              <Btn
+                variant="ghost"
+                onClick={() => {
+                  const id = detailRule.id
+                  setDetailId(null)
+                  setHistoryId(id)
+                }}
+              >
+                <History className="h-3.5 w-3.5" /> History
+              </Btn>
+              {canEdit(detailRule) && detailRule.status === 'Draft' && (
+                <Btn
+                  variant="dark"
+                  onClick={() =>
+                    act(
+                      detailRule,
+                      'Waiting for approval',
+                      'Sent for approval',
+                      'Sent — reviewers usually reply within 2 days',
+                    )
+                  }
+                >
+                  Send for approval
+                </Btn>
+              )}
+              {canEdit(detailRule) && detailRule.status === 'Waiting for approval' && (
+                <Btn
+                  variant="amber"
+                  onClick={() => act(detailRule, 'Running', 'Approved and running', 'Running — applies from today')}
+                >
+                  Approve &amp; run
+                </Btn>
+              )}
+              {canEdit(detailRule) && detailRule.status === 'Running' && (
+                <Btn
+                  variant="outline"
+                  onClick={() =>
+                    act(detailRule, 'Paused', 'Paused — nothing new will trigger', 'Paused — nothing new will trigger')
+                  }
+                >
+                  Pause
+                </Btn>
+              )}
+              {canEdit(detailRule) && detailRule.status === 'Paused' && (
+                <Btn variant="outline" onClick={() => act(detailRule, 'Running', 'Resumed', 'Back on')}>
+                  Resume
+                </Btn>
+              )}
+            </div>
+          )
+        }
+      >
+        {detailRule && (
+          <div className="space-y-7">
+            <div className="flex flex-wrap items-center gap-2">
+              <SetAtPill
+                level={detailRule.level}
+                named={persona.multiCompany}
+                owner={companies.find((c) => c.id === detailRule.ownerCompanyId)}
+              />
+              <Pill tone={statusTone(detailRule.status)} dot>
+                {detailRule.status}
+              </Pill>
+              <Pill tone="outline">{detailRule.category}</Pill>
+            </div>
+
+            {/* the policy text — when the rule IS a document */}
+            <section>
+              <SectionLabel>What it says</SectionLabel>
+              {detailRule.doc ? (
+                <div className="space-y-4">
+                  <p className="text-[13.5px] font-semibold">{detailRule.doc.summary}</p>
+                  {detailRule.doc.whatChanged && (
+                    <div className="flex items-start gap-2 rounded-2xl bg-accent-soft/60 p-3.5 text-[12.5px] font-medium text-accent-ink">
+                      <Sparkles className="h-4 w-4 shrink-0" />
+                      <span>{detailRule.doc.whatChanged}</span>
+                    </div>
+                  )}
+                  {detailRule.doc.sections.map((s) => (
+                    <div key={s.title}>
+                      <div className="mb-1 text-[13px] font-bold">{s.title}</div>
+                      <p className="text-[13px] leading-relaxed text-muted">{s.body}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : detailRule.automation || detailRule.computes ? null : (
+                <p className="text-[13px] text-muted">No document attached — this rule is pure automation.</p>
+              )}
+
+              {/* the rule as a trigger — the full playbook, step by step */}
+              {detailRule.automation && (
+                <div className="space-y-3">
+                  <p className="text-[13.5px] font-semibold">
+                    <Zap className="mr-1 inline h-4 w-4 text-accent-ink" />
+                    When {detailRule.automation.when}:
+                  </p>
+                  <ol className="space-y-2">
+                    {detailRule.automation.then.map((step, i) => (
+                      <li key={i} className="flex items-start gap-2.5 rounded-2xl bg-card2 px-4 py-3 text-[13px] font-medium">
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-[10px] font-bold text-card">
+                          {i + 1}
+                        </span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="text-[12px] text-muted">
+                    Every firing opens a ticket in {detailRule.chain[0] ?? 'the approver'}'s inbox — fired{' '}
+                    {detailRule.automation.firedThisWeek}× this week. Nothing happens without a yes.
+                  </p>
+                </div>
+              )}
+
+              {/* the rule as a number — variants by region, and who reads it */}
+              {detailRule.computes && (
+                <div className="space-y-3">
+                  <p className="text-[13.5px] font-semibold">
+                    <Calculator className="mr-1 inline h-4 w-4 text-accent-ink" />
+                    {detailRule.computes.what}
+                  </p>
+                  <div className="space-y-2">
+                    {detailRule.computes.variants.map((v) => (
+                      <div key={v.where} className="flex items-center justify-between rounded-2xl bg-card2 px-4 py-3">
+                        <span className="text-[13px] font-semibold">{v.where}</span>
+                        <span className="text-[13px] font-bold text-accent-ink">{v.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[12px] text-muted">
+                    Other parts of the system read this number — {detailRule.computes.feeds.join(', ')} — so
+                    changing it here changes them everywhere, after approval.
+                  </p>
+                </div>
+              )}
+            </section>
+
+            {/* who has signed — scoped to what the viewer governs */}
+            {detailRule.doc?.requiresSignature && (
+              <section>
+                <SectionLabel>Who has signed</SectionLabel>
+                <div className="font-display text-[34px] font-medium leading-none tracking-tight">{detailPct}%</div>
+                <p className="mt-1.5 text-[12px] text-muted">
+                  {detailSigned} of {detailTotal} signed across{' '}
+                  {detailStats.length === 1 ? 'your company' : `your ${detailStats.length} companies`}
+                </p>
+                {detailStats.length > 1 ? (
+                  /* the parent's view — one row per company */
+                  <div className="mt-4 space-y-2.5">
+                    {detailStats.map((s) => {
+                      const co = companies.find((c) => c.id === s.companyId)
+                      if (!co) return null
+                      return (
+                        <div key={s.companyId} className="flex items-center gap-3">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: co.accent }} />
+                          <span className="w-24 shrink-0 truncate text-[13px] font-bold tracking-tight">{co.name}</span>
+                          <Progress value={s.pct} tone={s.pct >= 80 ? 'green' : 'amber'} className="flex-1" />
+                          <span className="text-[12px] font-bold">
+                            {s.signed}/{s.total}
+                          </span>
+                          <Btn
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toast(`Reminder queued for ${s.total - s.signed} people at ${co.name}`)}
+                          >
+                            Nudge
+                          </Btn>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  /* the HR-admin view — one row per team */
+                  <div className="mt-4 space-y-2.5">
+                    {TEAM_SIGN_SPLIT.map((t) => (
+                      <div key={t.team} className="flex items-center gap-3">
+                        <span className="w-24 shrink-0 truncate text-[13px] font-bold tracking-tight">{t.team}</span>
+                        <Progress value={t.pct} tone={t.pct >= 80 ? 'green' : 'amber'} className="flex-1" />
+                        <span className="text-[12px] font-bold">{t.pct}%</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-end">
+                      <Btn
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          toast(
+                            `Reminder queued for ${detailTotal - detailSigned} people at ${
+                              companies.find((c) => c.id === detailStats[0]?.companyId)?.name ?? 'your company'
+                            }`,
+                          )
+                        }
+                      >
+                        Nudge
+                      </Btn>
+                    </div>
+                  </div>
+                )}
+                <p className="mt-4 text-[11.5px] text-muted">
+                  People sign from their Documents inbox — every receipt lands in Activity.
+                </p>
+              </section>
+            )}
+
+            {/* where it runs — the live blast radius */}
+            <section>
+              <SectionLabel>Where it runs</SectionLabel>
+              {(() => {
+                const reach = reachFor(detailRule, companies)
+                return (
+                  <p className="text-[13.5px]">
+                    Runs in <b>{reach.companies} {reach.companies === 1 ? 'company' : 'companies'}</b> →{' '}
+                    <b>{reach.people} people</b>
+                  </p>
+                )
+              })()}
+              <p className="mt-1.5 text-[12.5px] text-muted">
+                {detailRule.chain.length === 0
+                  ? 'No approval steps — it runs instantly.'
+                  : detailRule.resolution === 'central'
+                    ? `One desk decides for everyone — ${centralTeamLabel(detailRule.level)}.`
+                    : `Approvals go to ${detailRule.chain.join(', then ')} — each company's own people.`}
+              </p>
+            </section>
+          </div>
+        )}
       </Drawer>
 
       {/* ── the change record — who · what · when, on every rule ── */}

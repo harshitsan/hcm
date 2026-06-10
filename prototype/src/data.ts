@@ -235,9 +235,25 @@ export type InboxItem = {
   /** flagged low-risk: within balance, no conflicts → eligible for bulk approve */
   safe: boolean
   status: 'waiting' | 'approved' | 'declined'
+  /** set when a RULE created this ticket automatically */
+  source?: string
 }
 
 export const INBOX: InboxItem[] = [
+  {
+    id: 'in7', kind: 'Attendance fix', who: 'Kabir Singh', whoHue: 1, whoRole: 'Data Engineer',
+    title: 'Half day proposed — 3rd late check-in this month',
+    facts: ['Checked in 9:07, 9:08, 9:06', 'Rule fired automatically', 'HR decides — nothing applied yet'],
+    due: 'due in 1d', dueTone: 'amber', safe: false, status: 'waiting',
+    source: 'Late check-in → half day',
+  },
+  {
+    id: 'in8', kind: 'Probation', who: 'Dev Patel', whoHue: 3, whoRole: 'Account Executive',
+    title: 'Day 3, no contact — please try to reach him',
+    facts: ['Absent Mon–Wed, phone off', 'Step 1 of the absconding playbook', 'Day 5: HR ticket + letter, automatically'],
+    due: 'due today', dueTone: 'red', safe: false, status: 'waiting',
+    source: 'When someone absconds',
+  },
   {
     id: 'in1', kind: 'Time off', who: 'Priya Nair', whoHue: 4, whoRole: 'Product Designer',
     title: '3 days earned leave · 22–24 Jun',
@@ -328,7 +344,7 @@ export type RuleEvent = { who: string; what: string; when: string }
 export type Rule = {
   id: string
   name: string
-  category: 'Time off' | 'Attendance' | 'Documents' | 'Onboarding'
+  category: 'Time off' | 'Attendance' | 'Documents' | 'Onboarding' | 'Pay' | 'Exits'
   status: RuleStatus
   /** where the rule lives — who controls it */
   level: RuleLevel
@@ -350,7 +366,54 @@ export type Rule = {
   updated: string
   /** append-only change audit, newest last */
   history: RuleEvent[]
+  /** the policy itself, when the rule IS a document people must read/sign */
+  doc?: RuleDoc
+  /** the rule as a TRIGGER: when X happens, do Y — each firing opens a ticket
+   *  in the approver's inbox (nothing happens silently) */
+  automation?: { when: string; then: string[]; firedThisWeek: number }
+  /** the rule as a NUMBER: it sets a value other parts of the system read,
+   *  varying by region/jurisdiction */
+  computes?: { what: string; variants: { where: string; value: string }[]; feeds: string[] }
 }
+
+export type RuleDoc = {
+  /** one line of what it says */
+  summary: string
+  sections: { title: string; body: string }[]
+  /** every employee in scope must read & sign — it lands in their Documents inbox */
+  requiresSignature: boolean
+  /** highlight of the latest change, if any */
+  whatChanged?: string
+}
+
+/* per-company signature rates (mock, consistent with coverageFor) */
+const SIGN_RATES: Record<string, number> = { acme: 92, beta: 78, gamma: 64, delta: 88, epsilon: 51 }
+
+/** who has signed, per company in MY scope — the analytics behind every policy */
+export function signStatsFor(
+  rule: Pick<Rule, 'level' | 'ownerCompanyId'>,
+  companies: { id: string; employees: number; inPortfolio: boolean }[],
+): { companyId: string; signed: number; total: number; pct: number }[] {
+  const inScope =
+    rule.level === 'Platform'
+      ? companies
+      : rule.level === 'Portfolio'
+        ? companies.filter((c) => c.inPortfolio)
+        : companies.filter((c) => c.id === (rule.ownerCompanyId ?? 'acme'))
+  return inScope.map((c) => {
+    const pct = SIGN_RATES[c.id] ?? 70
+    return { companyId: c.id, signed: Math.round((c.employees * pct) / 100), total: c.employees, pct }
+  })
+}
+
+/** inside one company: how signing splits by team (for the HR-admin view) */
+export const TEAM_SIGN_SPLIT: { team: string; pct: number }[] = [
+  { team: 'Engineering', pct: 96 },
+  { team: 'Design', pct: 100 },
+  { team: 'People', pct: 100 },
+  { team: 'Sales', pct: 81 },
+  { team: 'Finance', pct: 88 },
+]
 
 /** live blast radius: which companies a rule lands on, and roughly how many people */
 export function reachFor(
@@ -380,6 +443,15 @@ export const RULES: Rule[] = [
       { who: 'SatelliteHR', what: 'Delta Health joined — inherited automatically', when: '20 Jan' },
       { who: 'SatelliteHR', what: 'Gamma Retail joined — inherited automatically', when: '12 May' },
     ],
+    doc: {
+      summary: 'How we keep every workplace respectful — and exactly what happens when someone crosses the line.',
+      requiresSignature: true,
+      sections: [
+        { title: 'What counts', body: 'Harassment is any unwelcome behaviour — verbal, physical, or written — that makes someone feel unsafe or small at work. Intent does not matter; impact does.' },
+        { title: 'How to raise it', body: 'Tell your HR partner, any manager you trust, or use the anonymous form. Every report is logged, acknowledged within one working day, and handled by the internal committee.' },
+        { title: 'What happens next', body: 'The committee investigates within 10 working days. Retaliation against anyone who reports is itself a violation, treated with the same severity.' },
+      ],
+    },
   },
   {
     id: 'r4', name: 'Global data protection', category: 'Documents', status: 'Running',
@@ -393,6 +465,16 @@ export const RULES: Rule[] = [
       { who: 'Maya Kapoor', what: 'Changed: added AI-tools clause (re-approved)', when: '2 May' },
       { who: 'SatelliteHR', what: 'Gamma Retail joined — inherited automatically', when: '12 May' },
     ],
+    doc: {
+      summary: 'How we handle customer and employee data — what we collect, where it lives, and what never leaves.',
+      requiresSignature: true,
+      whatChanged: 'New in May: rules for using AI tools with company data.',
+      sections: [
+        { title: 'Customer data', body: 'We collect only what the product needs. It stays in-region, encrypted, and is never sold or shared without a contract that says so.' },
+        { title: 'Employee data', body: 'Your records belong to your employing company. Access is role-based and every view of sensitive fields is on the record.' },
+        { title: 'AI tools at work', body: 'Public AI tools must never see customer or employee data. Use the approved internal tools — they keep everything inside our walls.' },
+      ],
+    },
   },
   {
     id: 'r6', name: 'Festive bonus letters', category: 'Documents', status: 'Draft',
@@ -442,6 +524,62 @@ export const RULES: Rule[] = [
     history: [
       { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '2 Mar' },
       { who: 'SatelliteHR', what: 'Shadowed by Global data protection (platform wins)', when: '2 Mar' },
+    ],
+  },
+  {
+    id: 'r9', name: 'Late check-in → half day', category: 'Attendance', status: 'Running',
+    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    headcount: 142, chain: ['HR'], resolution: 'local', notify: ['Person', 'Manager', 'HR'], updated: '1w ago',
+    automation: {
+      when: 'Someone checks in 5–10 minutes late, three times in a month',
+      then: ['A half day is marked against their balance — but only after HR says yes', 'The person and their manager are told why'],
+      firedThisWeek: 3,
+    },
+    history: [
+      { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '1 Jun' },
+      { who: 'Ananya Rao', what: 'Approved', when: '2 Jun' },
+      { who: 'SatelliteHR', what: 'Fired 3 times this week — 3 tickets to HR', when: 'this week' },
+    ],
+  },
+  {
+    id: 'r10', name: 'House rent allowance (HRA)', category: 'Pay', status: 'Running',
+    level: 'Platform', childControl: 'locked',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    headcount: 142, chain: ['Finance'], resolution: 'central', notify: ['HR'], updated: '2mo ago',
+    computes: {
+      what: 'House rent allowance, as a share of basic pay',
+      variants: [
+        { where: 'Metro cities', value: '50% of basic pay' },
+        { where: 'Everywhere else', value: '40% of basic pay' },
+      ],
+      feeds: ['Payroll (Phase II)', 'Offer letters', 'Tax statements'],
+    },
+    history: [
+      { who: 'Maya Kapoor', what: 'Created at platform level', when: '2 Apr' },
+      { who: 'Finance', what: 'Approved', when: '4 Apr' },
+      { who: 'SatelliteHR', what: 'Enforced in all 5 companies — every payslip reads from it', when: '4 Apr' },
+    ],
+  },
+  {
+    id: 'r11', name: 'When someone absconds', category: 'Exits', status: 'Running',
+    level: 'Portfolio', childControl: 'adjustable',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    headcount: 142, chain: ['HR'], resolution: 'local', notify: ['Manager', 'HR'], updated: '3w ago',
+    automation: {
+      when: 'Someone is absent 3 working days with no contact',
+      then: [
+        'Day 3 — their manager is asked to make contact',
+        'Day 5 — an HR ticket opens and the official letter goes out',
+        'Day 10 — exit process and laptop recovery begin — after HR approves',
+      ],
+      firedThisWeek: 1,
+    },
+    history: [
+      { who: 'David Chen', what: 'Created for the portfolio', when: '12 May' },
+      { who: 'HR council', what: 'Approved', when: '14 May' },
+      { who: 'SatelliteHR', what: 'Enforced in Acme Tech, Beta Foods, Gamma Retail · 275 people', when: '14 May' },
+      { who: 'SatelliteHR', what: 'Fired once — Dev Patel, day 3 today', when: 'yesterday' },
     ],
   },
   {

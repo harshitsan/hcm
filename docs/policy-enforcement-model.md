@@ -26,6 +26,21 @@ company in its scope below**. Owner level answers "who controls it"; scope answe
 | Group company | Group admin | Every member of the group |
 | Company | Company HR admin | That company only |
 
+## 1b. What a rule can BE — three effects, one artifact
+
+A rule is the universal artifact: **who it covers × where it lives × what it does**. The
+"what it does" comes in three kinds (BRD grounding in brackets):
+
+| Kind | Shape | Example | BRD |
+|---|---|---|---|
+| **Paper** | A document people must read & sign; signatures tracked per company | Respect at work (POSH), Global data protection | §6.11 distribution & acknowledgment |
+| **Trigger** | When X happens → do Y — every firing opens a *ticket* in the approver's inbox; multi-step playbooks supported | Late check-in ×3 → half day, after HR approves; absconding: day 3 contact → day 5 letter → day 10 exit | §6.18.5 attendance exception workflows, §6.15 lifecycle/exit workflows, §6.25 workflow engine, §6.28 event-triggered letters |
+| **Number** | Sets a value the rest of the system reads, varying by region/jurisdiction | HRA = 50% of basic in metros, 40% elsewhere → read by payroll, offer letters, tax statements | §6.4 jurisdictions drive applicability; §6.10 policies integrate with modules; payroll computation itself is Phase II |
+
+All three kinds share the same machinery: levels & inheritance, child-controls, approval
+gates, role hats, and the change audit. Nothing a trigger does happens silently — every
+firing is a ticket someone approves, and every approval lands in the activity log.
+
 ## 2. Enforcement is a relationship, not a copy
 
 This is the load-bearing decision. A parent rule is **never duplicated into** child

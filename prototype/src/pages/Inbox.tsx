@@ -104,6 +104,11 @@ export default function Inbox() {
                   </div>
                   <div className="mt-0.5 text-[15px] font-semibold tracking-tight">{i.title}</div>
                   <div className="mt-1 text-[12.5px] text-muted">{i.facts.join(' · ')}</div>
+                  {i.source && (
+                    <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-accent-soft/70 px-2.5 py-1 text-[11px] font-semibold text-accent-ink">
+                      ⚡ Auto-created by the rule “{i.source}” — your yes is the approval step
+                    </div>
+                  )}
                   <div className="mt-3.5 flex items-center gap-2">
                     <Btn size="sm" onClick={() => approve(i)}>
                       Approve
