@@ -7,8 +7,10 @@
  */
 import { Fragment, useState, type ReactNode } from 'react'
 import {
+  AlertTriangle,
   ArrowRight,
   History,
+  Landmark,
   Layers,
   Lock,
   Pencil,
@@ -17,9 +19,11 @@ import {
   Plus,
   Sparkles,
   SlidersHorizontal,
+  Users,
   X,
 } from 'lucide-react'
 import {
+  Avatar,
   Btn,
   Card,
   Drawer,
@@ -41,9 +45,13 @@ import {
   TEAM_OPTIONS,
   WHERE_OPTIONS,
   WHO_OPTIONS,
+  centralTeamLabel,
   coverageFor,
   headcountFor,
+  holderFor,
   reachFor,
+  unroutableFor,
+  type ChainResolution,
   type ChildControl,
   type Rule,
   type RuleLevel,
@@ -86,13 +94,32 @@ const CONTROL_EXPLAINER: Record<ChildControl, string> = {
   optional: 'A starting point. Nothing runs until a company adopts it.',
 }
 
+/* whose people fill the approver hats — plain labels ⇄ data values */
+type DecideLabel = 'Their own people' | 'Your central team'
+const DECIDE_CHOICES = ['Their own people', 'Your central team'] as const
+const DECIDE_OF_LABEL: Record<DecideLabel, ChainResolution> = {
+  'Their own people': 'local',
+  'Your central team': 'central',
+}
+const LABEL_OF_DECIDE: Record<ChainResolution, DecideLabel> = {
+  local: 'Their own people',
+  central: 'Your central team',
+}
+
 /** click-to-cycle through a chip's options */
 function next(options: readonly string[], current: string): string {
   return options[(options.indexOf(current) + 1) % options.length]
 }
 
-function StepChip({ children }: { children: ReactNode }) {
-  return <span className="rounded-full bg-card2 px-2.5 py-1 text-[11.5px] font-bold leading-none">{children}</span>
+function StepChip({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
+  const look = 'rounded-full bg-card2 px-2.5 py-1 text-[11.5px] font-bold leading-none'
+  if (onClick)
+    return (
+      <button type="button" onClick={onClick} className={cn(look, 'cursor-pointer transition-colors hover:bg-accent-soft')}>
+        {children}
+      </button>
+    )
+  return <span className={look}>{children}</span>
 }
 
 function SectionLabel({ children, hint }: { children: string; hint?: string }) {
@@ -175,10 +202,20 @@ export default function Rules() {
   const [team, setTeam] = useState<string>(TEAM_OPTIONS[0])
   const [chain, setChain] = useState<string[]>([])
   const [notify, setNotify] = useState<string[]>([])
+  const [decide, setDecide] = useState<ChainResolution>('local')
 
   /* ── history drawer ── */
   const [historyId, setHistoryId] = useState<string | null>(null)
   const historyRule = rules.find((r) => r.id === historyId) ?? null
+
+  /* ── who-wears-the-hat drawer ── */
+  const [hat, setHat] = useState<{ ruleId: string; role: string } | null>(null)
+  const hatRule = rules.find((r) => r.id === hat?.ruleId) ?? null
+  const hatScope = hatRule
+    ? hatRule.level === 'Platform'
+      ? companies
+      : companies.filter((c) => c.inPortfolio)
+    : []
 
   const openNew = () => {
     setEditingId(null)
@@ -191,6 +228,7 @@ export default function Rules() {
     setTeam(TEAM_OPTIONS[0])
     setChain([])
     setNotify([])
+    setDecide('local')
     setOpen(true)
   }
 
@@ -205,6 +243,7 @@ export default function Rules() {
     setTeam(r.appliesTo.team)
     setChain(r.chain)
     setNotify(r.notify)
+    setDecide(r.resolution)
     setOpen(true)
   }
 
@@ -232,6 +271,8 @@ export default function Rules() {
       appliesTo: { who, where, team },
       headcount: headcountFor(who, where, team),
       chain,
+      /* company-level rules: always the company's own people */
+      resolution: level === 'Company' ? ('local' as const) : decide,
       notify,
       updated: 'just now',
     }
@@ -291,6 +332,11 @@ export default function Rules() {
   const ruleCard = (r: Rule) => {
     const editable = canEdit(r)
     const reach = reachFor(r, companies)
+    /* hats are clickable for multi-company viewers when each company fills them itself */
+    const hatsClickable = persona.multiCompany && r.level !== 'Company' && r.resolution === 'local'
+    const stuck = persona.multiCompany ? unroutableFor(r, companies) : []
+    const stuckNames = stuck.map((id) => companies.find((c) => c.id === id)?.name ?? id).join(', ')
+    const stuckRoles = r.chain.filter((role) => stuck.some((id) => !holderFor(id, role))).join(' + ')
     return (
       <Card key={r.id} className="p-5">
         <div className="flex flex-wrap items-center gap-2">
@@ -334,13 +380,44 @@ export default function Rules() {
           ) : (
             r.chain.map((step) => (
               <Fragment key={step}>
-                <StepChip>{step}</StepChip>
+                <StepChip onClick={hatsClickable ? () => setHat({ ruleId: r.id, role: step }) : undefined}>
+                  {step}
+                </StepChip>
                 <ArrowRight className="h-3 w-3 text-muted" />
               </Fragment>
             ))
           )}
           <StepChip>Done ✓</StepChip>
         </div>
+
+        {/* who fills the hats — each company's own people, or one central desk */}
+        {r.chain.length > 0 && r.level !== 'Company' && (
+          <p className="mt-2 flex items-center gap-1.5 text-[12px] text-muted">
+            {r.resolution === 'local' ? (
+              <>
+                <Users className="h-4 w-4 shrink-0" />
+                <span>
+                  Hats filled by each company — Beta asks → Beta's {r.chain[0]} decides.
+                </span>
+              </>
+            ) : (
+              <>
+                <Landmark className="h-4 w-4 shrink-0" />
+                <span>One desk for everyone — {centralTeamLabel(r.level)} decides.</span>
+              </>
+            )}
+          </p>
+        )}
+
+        {/* somewhere in scope, a hat has no head — the rule can't run there */}
+        {stuck.length > 0 && (
+          <div className="mt-2 flex min-w-0 items-center gap-1.5 rounded-xl bg-accent-soft px-3 py-2 text-[12px] font-medium text-accent-ink">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="truncate">
+              Can't run in {stuckNames} yet — nobody wears the {stuckRoles} hat there.
+            </span>
+          </div>
+        )}
 
         {/* precedence outcome, never the mechanism */}
         {r.shadowedBy && (
@@ -466,34 +543,45 @@ export default function Rules() {
                 Where they land
               </SectionTitle>
               <div className="space-y-3">
-                {landing.map((r) => (
-                  <div key={r.id} className="grid items-center gap-2 sm:grid-cols-[260px,1fr]">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-[13px] font-bold tracking-tight">{r.name}</span>
-                      <SetAtPill level={r.level} />
+                {landing.map((r) => {
+                  const noApprover = new Set(unroutableFor(r, companies))
+                  return (
+                    <div key={r.id} className="grid items-center gap-2 sm:grid-cols-[260px,1fr]">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-[13px] font-bold tracking-tight">{r.name}</span>
+                        <SetAtPill level={r.level} />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {coverageFor(r, companies).map((cv) => {
+                          const co = companies.find((c) => c.id === cv.companyId)
+                          if (!co) return null
+                          return (
+                            <span
+                              key={cv.companyId}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card py-1 pl-2 pr-1"
+                            >
+                              <span className="h-2 w-2 rounded-full" style={{ background: co.accent }} />
+                              <span className="text-[11px] font-bold">{co.short}</span>
+                              {noApprover.has(cv.companyId) ? (
+                                <Pill tone="amber">no approver</Pill>
+                              ) : (
+                                <>
+                                  {cv.state === 'Enforced' && <Pill tone="green">✓ {cv.ack}%</Pill>}
+                                  {cv.state === 'Adjusted' && <Pill tone="amber">△ adjusted · {cv.ack}%</Pill>}
+                                  {cv.state === 'Pending' && <Pill tone="neutral">… {cv.ack}%</Pill>}
+                                </>
+                              )}
+                            </span>
+                          )
+                        })}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {coverageFor(r, companies).map((cv) => {
-                        const co = companies.find((c) => c.id === cv.companyId)
-                        if (!co) return null
-                        return (
-                          <span
-                            key={cv.companyId}
-                            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-card py-1 pl-2 pr-1"
-                          >
-                            <span className="h-2 w-2 rounded-full" style={{ background: co.accent }} />
-                            <span className="text-[11px] font-bold">{co.short}</span>
-                            {cv.state === 'Enforced' && <Pill tone="green">✓ {cv.ack}%</Pill>}
-                            {cv.state === 'Adjusted' && <Pill tone="amber">△ adjusted · {cv.ack}%</Pill>}
-                            {cv.state === 'Pending' && <Pill tone="neutral">… {cv.ack}%</Pill>}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
-              <p className="mt-4 text-[11.5px] text-muted">✓ enforced · △ child adjusted it · % read-and-confirmed</p>
+              <p className="mt-4 text-[11.5px] text-muted">
+                ✓ enforced · △ child adjusted it · % read-and-confirmed · “no approver” = a hat with no head there
+              </p>
             </Card>
           )}
 
@@ -640,6 +728,23 @@ export default function Rules() {
             )}
           </section>
 
+          {/* whose people fill those hats — only meaningful above company level */}
+          {level !== 'Company' && chain.length > 0 && (
+            <section>
+              <SectionLabel hint="The steps above are hats, not people.">Whose people decide?</SectionLabel>
+              <Segmented
+                options={DECIDE_CHOICES}
+                value={LABEL_OF_DECIDE[decide]}
+                onChange={(v) => setDecide(DECIDE_OF_LABEL[v])}
+              />
+              <p className="mt-2 text-[12px] text-muted">
+                {decide === 'local'
+                  ? "Each company fills the hats itself — Acme asks, Acme's Finance decides."
+                  : `One team decides for everyone — ${centralTeamLabel(level)}.`}
+              </p>
+            </section>
+          )}
+
           {/* who hears */}
           <section>
             <SectionLabel>Who hears about it</SectionLabel>
@@ -714,6 +819,58 @@ export default function Rules() {
             <p className="mt-6 text-[12px] leading-relaxed text-muted">
               Children inherit live — when a company joins, rules apply by themselves. That's why you see
               “joined — inherited automatically” here.
+            </p>
+          </div>
+        )}
+      </Drawer>
+
+      {/* ── who wears this hat, company by company ── */}
+      <Drawer
+        open={hat != null && hatRule != null}
+        onClose={() => setHat(null)}
+        title={`Who wears the ${hat?.role ?? ''} hat?`}
+      >
+        {hat && hatRule && (
+          <div>
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="text-[14px] font-bold tracking-tight">{hatRule.name}</span>
+              <SetAtPill level={hatRule.level} />
+            </div>
+            <ul className="space-y-2.5">
+              {hatScope.map((c, i) => {
+                const holder = holderFor(c.id, hat.role)
+                return (
+                  <li
+                    key={c.id}
+                    className="flex items-center gap-3 rounded-2xl border border-line/70 bg-card px-4 py-3"
+                  >
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.accent }} />
+                    <span className="w-28 shrink-0 text-[13px] font-bold tracking-tight">{c.name}</span>
+                    {holder ? (
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <Avatar name={holder} hue={i} size="sm" />
+                        <span className="truncate text-[13px] font-semibold">{holder}</span>
+                        <Pill tone="green" className="ml-auto shrink-0">
+                          ready
+                        </Pill>
+                      </span>
+                    ) : (
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <Pill tone="amber" className="shrink-0">
+                          no one yet
+                        </Pill>
+                        <span className="truncate text-[12px] text-muted">
+                          this rule can't run here until someone takes the hat
+                        </span>
+                      </span>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+            <p className="mt-5 text-[12px] leading-relaxed text-muted">
+              One rule, many hats — each company fills the role with its own person. New people inherit the
+              hat with the role, not by name.
             </p>
           </div>
         )}

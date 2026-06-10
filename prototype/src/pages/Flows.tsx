@@ -6,12 +6,15 @@
  * lives there.
  */
 import { Fragment, useState } from 'react'
-import { ArrowRight, History, Lock, Plus, Sparkles, X } from 'lucide-react'
+import { AlertTriangle, ArrowRight, History, Landmark, Lock, Plus, Sparkles, Users, X } from 'lucide-react'
 import { Btn, Card, Drawer, Field, Input, Pill, Segmented, Select, SectionTitle, Timeline, Toggle, statusTone } from '../ui'
 import { useApp } from '../store'
 import {
   FLOW_PURPOSES,
   FLOW_ROLE_OPTIONS,
+  centralTeamLabel,
+  unroutableFor,
+  type ChainResolution,
   type Company,
   type Flow,
   type FlowPurpose,
@@ -21,6 +24,7 @@ import {
 
 const DEADLINES = ['within 1 day', 'within 2 days', 'within 3 days', 'within 5 days'] as const
 const MODE_CHOICES = ['any one', 'all of them'] as const
+const DECIDER_CHOICES = ['Their own people', 'Your central team'] as const
 
 /** a step being built in the composer — escalateTo '' means "no one" */
 type DraftStep = { roles: string[]; mode: 'one' | 'all'; sla: string; escalateTo: string }
@@ -102,7 +106,7 @@ function Pipeline({ steps }: { steps: FlowStep[] }) {
 }
 
 /** the worked example under the live preview */
-function workedSentence(routes: string, steps: DraftStep[]): string {
+function workedSentence(routes: string, steps: DraftStep[], resolution: ChainResolution): string {
   const what = routes.trim() || 'A request'
   const parts = steps
     .filter((s) => s.roles.length > 0)
@@ -114,7 +118,11 @@ function workedSentence(routes: string, steps: DraftStep[]): string {
       const quiet = s.escalateTo ? `; quiet → ${s.escalateTo}` : ''
       return `${who} (${bits.join(', ')}${quiet})`
     })
-  return `${what} → ${parts.length > 0 ? parts.join(' → ') + ' → ' : ''}Done.`
+  const flavor =
+    resolution === 'central'
+      ? ` ${centralTeamLabel('Platform')} decides for everyone.`
+      : " Each company's own people decide."
+  return `${what} → ${parts.length > 0 ? parts.join(' → ') + ' → ' : ''}Done.${flavor}`
 }
 
 export default function FlowsView() {
@@ -153,6 +161,8 @@ export default function FlowsView() {
   const [steps, setSteps] = useState<DraftStep[]>([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
   const [delegation, setDelegation] = useState(true)
   const [levelLabel, setLevelLabel] = useState<'Platform-wide' | 'This company'>('This company')
+  /** whose people fill the hats — only a real choice for platform-wide flows */
+  const [deciderLabel, setDeciderLabel] = useState<(typeof DECIDER_CHOICES)[number]>('Their own people')
   /** set when filling a gap from the map — the new flow belongs to that company */
   const [ownerForNew, setOwnerForNew] = useState<Company | null>(null)
 
@@ -163,6 +173,7 @@ export default function FlowsView() {
     setSteps([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
     setDelegation(true)
     setLevelLabel('This company')
+    setDeciderLabel('Their own people')
     setOwnerForNew(null)
     setOpen(true)
   }
@@ -181,6 +192,7 @@ export default function FlowsView() {
     setSteps([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
     setDelegation(true)
     setLevelLabel('This company')
+    setDeciderLabel('Their own people')
     setOwnerForNew(c)
     setOpen(true)
   }
@@ -208,8 +220,13 @@ export default function FlowsView() {
     escalateTo: s.escalateTo || undefined,
   }))
 
+  /* the level the draft will save at, and who fills its hats — company flows
+     are always filled by the company's own people */
+  const draftIsPlatform = persona.id === 'operator' && levelLabel === 'Platform-wide'
+  const draftResolution: ChainResolution = draftIsPlatform && deciderLabel === 'Your central team' ? 'central' : 'local'
+
   const save = (status: 'Draft' | 'Running') => {
-    const level: RuleLevel = persona.id === 'operator' && levelLabel === 'Platform-wide' ? 'Platform' : 'Company'
+    const level: RuleLevel = draftIsPlatform ? 'Platform' : 'Company'
     addFlow({
       id: 'f' + (flows.length + 1),
       name: name.trim() || 'Untitled flow',
@@ -226,6 +243,7 @@ export default function FlowsView() {
         sla: s.sla,
         escalateTo: s.escalateTo || undefined,
       })),
+      resolution: draftResolution,
       usedBy: 0,
       delegation,
       history: [{ who: persona.name, what: 'Created', when: 'today' }],
@@ -256,6 +274,16 @@ export default function FlowsView() {
 
   const flowCard = (f: Flow) => {
     const editable = canEdit(f)
+    /* shared flows whose hats are filled locally can hit a company where a
+       hat has no head — say so, plainly */
+    const stuckIn =
+      f.level !== 'Company' && f.resolution === 'local'
+        ? unroutableFor(
+            { level: f.level, ownerCompanyId: f.ownerCompanyId, chain: f.steps.flatMap((s) => s.roles), resolution: f.resolution },
+            companies,
+          )
+        : []
+    const stuckNames = stuckIn.map((id) => companies.find((c) => c.id === id)?.name ?? id).join(', ')
     return (
       <Card key={f.id} className="p-5">
         <div className="flex flex-wrap items-center gap-2">
@@ -272,6 +300,35 @@ export default function FlowsView() {
         <div className="mt-4">
           <Pipeline steps={f.steps} />
         </div>
+
+        {/* whose people wear the hats — only worth saying on shared flows */}
+        {f.level !== 'Company' && (
+          <p className="mt-2.5 flex items-center gap-1.5 text-[12px] text-muted">
+            {f.resolution === 'local' ? (
+              <>
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Hats filled by each company — Beta asks → Beta's {f.steps[0]?.roles[0] ?? 'Manager'} decides.
+                </span>
+              </>
+            ) : (
+              <>
+                <Landmark className="h-3.5 w-3.5 shrink-0" />
+                <span>One desk for everyone — {centralTeamLabel(f.level)} decides.</span>
+              </>
+            )}
+          </p>
+        )}
+
+        {/* somewhere in scope, a hat has no one in it */}
+        {stuckIn.length > 0 && (
+          <div className="mt-3 flex items-start gap-2 rounded-2xl bg-accent-soft/70 px-3.5 py-2.5 text-[12px] font-semibold text-accent-ink">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Can't run in {stuckNames} yet — those hats have no one in them.
+            </span>
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           {f.delegation && <Pill tone="neutral">Approvers can hand off when away</Pill>}
@@ -488,6 +545,20 @@ export default function FlowsView() {
             </section>
           )}
 
+          {/* whose people fill the hats — only a choice when the flow is platform-wide;
+              a company flow is always decided by its own people */}
+          {draftIsPlatform && (
+            <section>
+              <SectionLabel>Whose people decide?</SectionLabel>
+              <Segmented options={DECIDER_CHOICES} value={deciderLabel} onChange={setDeciderLabel} />
+              <p className="mt-2 text-[12px] text-muted">
+                {draftResolution === 'local'
+                  ? 'Each company fills the hats itself.'
+                  : `One team decides for everyone — ${centralTeamLabel('Platform')}.`}
+              </p>
+            </section>
+          )}
+
           {/* steps builder */}
           <section>
             <SectionLabel hint="Several people on one step decide side by side.">
@@ -605,7 +676,7 @@ export default function FlowsView() {
                 <Sparkles className="h-4 w-4" /> How it will run
               </div>
               <Pipeline steps={previewSteps} />
-              <p className="mt-3 text-[13.5px] font-semibold leading-relaxed">{workedSentence(routes, steps)}</p>
+              <p className="mt-3 text-[13.5px] font-semibold leading-relaxed">{workedSentence(routes, steps, draftResolution)}</p>
               <p className="mt-1.5 text-[11.5px] text-muted">A worked example — it updates live as you build.</p>
             </Card>
           </section>

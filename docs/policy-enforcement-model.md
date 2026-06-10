@@ -49,6 +49,24 @@ Every parent-level rule declares its posture toward descendants, in plain words:
 | **Can adjust** | Children may tighten or localize, never weaken below the parent baseline | "Adjust for your company" affordance; the parent baseline stays visible |
 | **Optional** | A template/starting point; children opt in | "Adopt this" affordance; nothing runs until adopted |
 
+## 3b. Who approves — role hats and how they're filled
+
+Approval steps name **roles, never people** ("Finance", "HR" are *hats*). A parent rule
+declares how the hats get filled, and this is what makes one chain work across N children:
+
+| Mode | Meaning | Example |
+|---|---|---|
+| **Their own people** (local, default) | The hat is filled *in the company where the request starts* | Festive bonus letters: Acme asks → Acme's Finance (Isha) decides; Beta asks → Beta's Finance (Joseph) decides |
+| **Your central team** | The owner level's own team decides for everyone (shared-services / compliance) | Rule changes: the platform's Legal council reviews every company's changes |
+
+Consequences the system must surface:
+- **People churn never breaks chains** — hats attach to roles; a new Finance lead inherits
+  the hat the moment the role is assigned.
+- **An empty hat is an enforcement gap**: if a company in scope has nobody wearing a
+  required hat, the rule *cannot route there*. This must be visible to the parent
+  ("Can't run in Gamma Retail yet — nobody wears the Finance hat there"), not discovered
+  when a request silently stalls.
+
 ## 4. When levels collide — precedence and shadowing
 
 Same topic, multiple levels → the **precedence order** decides (default: higher

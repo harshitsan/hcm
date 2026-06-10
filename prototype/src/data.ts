@@ -285,6 +285,41 @@ export type RuleStatus = 'Running' | 'Draft' | 'Waiting for approval' | 'Paused'
  * level and LANDS on every company in scope below — live, never copied.
  */
 export type RuleLevel = 'Platform' | 'Portfolio' | 'Company'
+export type ChainResolution = 'local' | 'central'
+
+/** who actually wears each approver hat, per company — undefined = nobody yet */
+export const ROLE_HOLDERS: Record<string, Record<string, string | undefined>> = {
+  acme: { Manager: 'Arjun Mehta', 'Dept head': 'Vikram Shah', HR: 'Sara Iyer', Finance: 'Isha Reddy', IT: 'Rohan Gupta', 'Chief executive': 'Ananya Rao' },
+  beta: { Manager: 'Farhan Ali', 'Dept head': 'Farhan Ali', HR: 'Lakshmi Iyer', Finance: 'Joseph K' },
+  gamma: { Manager: 'Ritu Sharma', 'Dept head': 'Ritu Sharma' }, // mid-setup: no HR or Finance yet
+  delta: { Manager: 'Team leads', 'Dept head': 'Dept heads', HR: 'Their HR desk', Finance: 'Their finance desk', IT: 'Their IT desk', 'Chief executive': 'Their CEO' },
+  epsilon: {},
+}
+
+export function holderFor(companyId: string, role: string): string | undefined {
+  return ROLE_HOLDERS[companyId]?.[role]
+}
+
+/** when resolution is 'central', the owner level's own team decides */
+export function centralTeamLabel(level: RuleLevel): string {
+  return level === 'Platform' ? "the platform's own team" : level === 'Portfolio' ? 'Helix shared services' : 'the company team'
+}
+
+/** companies in scope where a hat has no head — the rule can't route there */
+export function unroutableFor(
+  rule: { level: RuleLevel; ownerCompanyId?: string; chain: string[]; resolution: ChainResolution },
+  companies: { id: string; inPortfolio: boolean }[],
+): string[] {
+  if (rule.resolution === 'central' || rule.chain.length === 0) return []
+  const inScope =
+    rule.level === 'Platform'
+      ? companies
+      : rule.level === 'Portfolio'
+        ? companies.filter((c) => c.inPortfolio)
+        : companies.filter((c) => c.id === (rule.ownerCompanyId ?? 'acme'))
+  return inScope.filter((c) => rule.chain.some((role) => !holderFor(c.id, role))).map((c) => c.id)
+}
+
 /** what children may do with a parent rule */
 export type ChildControl = 'locked' | 'adjustable' | 'optional'
 /** one entry in the change audit — who · what · when */
@@ -304,8 +339,11 @@ export type Rule = {
   /** sentence-builder chunks: "Applies to {who} in {where} in {team}" */
   appliesTo: { who: string; where: string; team: string }
   headcount: number
-  /** approval pipeline, in order */
+  /** approval pipeline, in order — ROLE HATS, not people */
   chain: string[]
+  /** who fills the hats: 'local' = the requester's own company's people;
+   *  'central' = the owner level's team decides for everyone */
+  resolution: ChainResolution
   notify: string[]
   /** plain-language precedence outcome (never make users compute it) */
   shadowedBy?: string
@@ -334,7 +372,7 @@ export const RULES: Rule[] = [
     id: 'r8', name: 'Respect at work (POSH)', category: 'Documents', status: 'Running',
     level: 'Platform', childControl: 'locked',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: ['HR'], notify: ['Person', 'HR'], updated: '4mo ago',
+    headcount: 142, chain: ['HR'], resolution: 'local', notify: ['Person', 'HR'], updated: '4mo ago',
     history: [
       { who: 'Maya Kapoor', what: 'Created at platform level', when: '8 Jan' },
       { who: 'Legal council', what: 'Approved', when: '10 Jan' },
@@ -347,7 +385,7 @@ export const RULES: Rule[] = [
     id: 'r4', name: 'Global data protection', category: 'Documents', status: 'Running',
     level: 'Platform', childControl: 'locked',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: ['Legal council'], notify: ['Person', 'HR'], updated: '1mo ago',
+    headcount: 142, chain: ['Legal council'], resolution: 'central', notify: ['Person', 'HR'], updated: '1mo ago',
     history: [
       { who: 'Maya Kapoor', what: 'Created at platform level', when: '12 Jan' },
       { who: 'Legal council', what: 'Approved', when: '14 Jan' },
@@ -360,14 +398,14 @@ export const RULES: Rule[] = [
     id: 'r6', name: 'Festive bonus letters', category: 'Documents', status: 'Draft',
     level: 'Portfolio', childControl: 'adjustable',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: ['Finance', 'HR'], notify: ['Person'], updated: 'today',
+    headcount: 142, chain: ['Finance', 'HR'], resolution: 'local', notify: ['Person'], updated: 'today',
     history: [{ who: 'David Chen', what: 'Drafted for the portfolio', when: 'today' }],
   },
   {
     id: 'r1', name: 'Casual & sick leave', category: 'Time off', status: 'Running',
     level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: ['Manager'], notify: ['Person', 'Manager'], updated: '2w ago',
+    headcount: 142, chain: ['Manager'], resolution: 'local', notify: ['Person', 'Manager'], updated: '2w ago',
     history: [
       { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '20 Feb' },
       { who: 'Ananya Rao', what: 'Approved', when: '21 Feb' },
@@ -378,7 +416,7 @@ export const RULES: Rule[] = [
     id: 'r2', name: 'Earned leave (3+ days)', category: 'Time off', status: 'Running',
     level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: ['Manager', 'HR'], notify: ['Person', 'Manager', 'HR'], updated: '2w ago',
+    headcount: 142, chain: ['Manager', 'HR'], resolution: 'local', notify: ['Person', 'Manager', 'HR'], updated: '2w ago',
     history: [
       { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '20 Feb' },
       { who: 'Ananya Rao', what: 'Approved', when: '22 Feb' },
@@ -389,7 +427,7 @@ export const RULES: Rule[] = [
     id: 'r3', name: 'Work from anywhere', category: 'Attendance', status: 'Waiting for approval',
     level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
     appliesTo: { who: 'all employees', where: 'Bengaluru', team: 'Engineering' },
-    headcount: 64, chain: ['Dept head', 'HR'], notify: ['Person', 'Manager'], updated: 'yesterday',
+    headcount: 64, chain: ['Dept head', 'HR'], resolution: 'local', notify: ['Person', 'Manager'], updated: 'yesterday',
     history: [
       { who: 'Sara Iyer', what: 'Created for Acme Tech', when: 'Mon' },
       { who: 'Sara Iyer', what: 'Sent for approval', when: 'yesterday' },
@@ -399,7 +437,7 @@ export const RULES: Rule[] = [
     id: 'r7', name: 'Data handling (Acme addendum)', category: 'Documents', status: 'Running',
     level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
-    headcount: 142, chain: [], notify: ['Person', 'HR'],
+    headcount: 142, chain: [], resolution: 'local', notify: ['Person', 'HR'],
     shadowedBy: 'Global data protection — set at platform level', updated: '1mo ago',
     history: [
       { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '2 Mar' },
@@ -410,7 +448,7 @@ export const RULES: Rule[] = [
     id: 'r5', name: 'Day-one equipment checklist', category: 'Onboarding', status: 'Running',
     level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
     appliesTo: { who: 'new joiners', where: 'everywhere', team: 'every team' },
-    headcount: 3, chain: ['Manager', 'IT'], notify: ['Manager', 'IT'], updated: '3w ago',
+    headcount: 3, chain: ['Manager', 'IT'], resolution: 'local', notify: ['Manager', 'IT'], updated: '3w ago',
     history: [
       { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '1 Mar' },
       { who: 'SatelliteHR', what: 'Running · every new joiner', when: '1 Mar' },
@@ -463,6 +501,8 @@ export type Flow = {
   ownerCompanyId?: string
   status: 'Running' | 'Draft'
   steps: FlowStep[]
+  /** who fills the hats — see ChainResolution on rules */
+  resolution: ChainResolution
   /** how many rules / events use this flow */
   usedBy: number
   /** approvers can hand off while away */
@@ -473,7 +513,7 @@ export type Flow = {
 export const FLOWS: Flow[] = [
   {
     id: 'f1', name: 'Time-off approvals', purpose: 'Time off', routes: 'Every time-off request', level: 'Company', ownerCompanyId: 'acme',
-    status: 'Running', usedBy: 2, delegation: true,
+    status: 'Running', resolution: 'local', usedBy: 2, delegation: true,
     steps: [
       { id: 's1', roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: 'Dept head' },
     ],
@@ -484,7 +524,7 @@ export const FLOWS: Flow[] = [
   },
   {
     id: 'f2', name: 'Job offers', purpose: 'Hiring', routes: 'Every offer before it goes out', level: 'Company', ownerCompanyId: 'acme',
-    status: 'Running', usedBy: 1, delegation: true,
+    status: 'Running', resolution: 'local', usedBy: 1, delegation: true,
     steps: [
       { id: 's1', roles: ['Finance', 'HR'], mode: 'all', sla: 'within 2 days', escalateTo: 'Chief executive' },
       { id: 's2', roles: ['Chief executive'], mode: 'one', sla: 'within 1 day' },
@@ -496,7 +536,7 @@ export const FLOWS: Flow[] = [
   },
   {
     id: 'f3', name: 'Rule changes', purpose: 'Rule changes', routes: 'Any change to a platform rule', level: 'Platform',
-    status: 'Running', usedBy: 2, delegation: false,
+    status: 'Running', resolution: 'central', usedBy: 2, delegation: false,
     steps: [
       { id: 's1', roles: ['Legal council'], mode: 'one', sla: 'within 3 days', escalateTo: 'Platform operator' },
     ],
@@ -507,7 +547,7 @@ export const FLOWS: Flow[] = [
   },
   {
     id: 'f4', name: 'Exit clearance', purpose: 'Exits', routes: 'Every departure, before the last day', level: 'Company', ownerCompanyId: 'acme',
-    status: 'Draft', usedBy: 0, delegation: true,
+    status: 'Draft', resolution: 'local', usedBy: 0, delegation: true,
     steps: [
       { id: 's1', roles: ['IT', 'Finance', 'HR'], mode: 'all', sla: 'within 5 days', escalateTo: 'Dept head' },
     ],
@@ -515,7 +555,7 @@ export const FLOWS: Flow[] = [
   },
   {
     id: 'f5', name: 'Time-off approvals', purpose: 'Time off', routes: 'Every time-off request', level: 'Company', ownerCompanyId: 'beta',
-    status: 'Running', usedBy: 1, delegation: true,
+    status: 'Running', resolution: 'local', usedBy: 1, delegation: true,
     steps: [
       { id: 's1', roles: ['Manager'], mode: 'one', sla: 'within 2 days', escalateTo: 'HR' },
     ],
@@ -526,7 +566,7 @@ export const FLOWS: Flow[] = [
   },
   {
     id: 'f6', name: 'Time-off approvals', purpose: 'Time off', routes: 'Every time-off request', level: 'Company', ownerCompanyId: 'delta',
-    status: 'Running', usedBy: 2, delegation: true,
+    status: 'Running', resolution: 'local', usedBy: 2, delegation: true,
     steps: [
       { id: 's1', roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: 'HR' },
     ],
@@ -534,7 +574,7 @@ export const FLOWS: Flow[] = [
   },
   {
     id: 'f7', name: 'Exit clearance', purpose: 'Exits', routes: 'Every departure, before the last day', level: 'Company', ownerCompanyId: 'delta',
-    status: 'Running', usedBy: 1, delegation: true,
+    status: 'Running', resolution: 'local', usedBy: 1, delegation: true,
     steps: [
       { id: 's1', roles: ['IT', 'Finance', 'HR'], mode: 'all', sla: 'within 5 days', escalateTo: 'Dept head' },
     ],
