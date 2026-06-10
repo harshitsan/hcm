@@ -7,9 +7,17 @@
  */
 import { Fragment, useState } from 'react'
 import { ArrowRight, History, Lock, Plus, Sparkles, X } from 'lucide-react'
-import { Btn, Card, Drawer, Field, Input, Pill, Segmented, Select, Timeline, Toggle, statusTone } from '../ui'
+import { Btn, Card, Drawer, Field, Input, Pill, Segmented, Select, SectionTitle, Timeline, Toggle, statusTone } from '../ui'
 import { useApp } from '../store'
-import { FLOW_ROLE_OPTIONS, type Flow, type FlowStep, type RuleLevel } from '../data'
+import {
+  FLOW_PURPOSES,
+  FLOW_ROLE_OPTIONS,
+  type Company,
+  type Flow,
+  type FlowPurpose,
+  type FlowStep,
+  type RuleLevel,
+} from '../data'
 
 const DEADLINES = ['within 1 day', 'within 2 days', 'within 3 days', 'within 5 days'] as const
 const MODE_CHOICES = ['any one', 'all of them'] as const
@@ -26,10 +34,18 @@ function SectionLabel({ children, hint }: { children: string; hint?: string }) {
   )
 }
 
-/** where the flow is set — who controls it */
-function FlowLevelPill({ level }: { level: RuleLevel }) {
+/** where the flow is set — who controls it. For multi-company viewers a
+ *  company-level flow NAMES its company (never an ambiguous "this company"). */
+function FlowLevelPill({ level, owner, named }: { level: RuleLevel; owner?: Company; named?: boolean }) {
   if (level === 'Platform') return <Pill tone="ink">Platform-wide</Pill>
   if (level === 'Portfolio') return <Pill tone="amber">Your portfolio</Pill>
+  if (named && owner)
+    return (
+      <Pill tone="outline">
+        <span className="h-2 w-2 rounded-full" style={{ background: owner.accent }} />
+        {owner.name}
+      </Pill>
+    )
   return <Pill tone="outline">This company</Pill>
 }
 
@@ -102,12 +118,28 @@ function workedSentence(routes: string, steps: DraftStep[]): string {
 }
 
 export default function FlowsView() {
-  const { flows, updateFlow, addFlow, persona, company, toast } = useApp()
+  const { flows, updateFlow, addFlow, persona, company, companies, myCompanies, toast } = useApp()
 
   /* who may touch what — same posture as rules: things set above you run
      here automatically, read-only by design */
   const canEdit = (f: Flow): boolean =>
     persona.id === 'operator' ? true : persona.id === 'portfolio' ? f.level !== 'Platform' : f.level === 'Company'
+
+  const multi = persona.multiCompany
+  const ownerOf = (f: Flow) => companies.find((c) => c.id === f.ownerCompanyId)
+
+  /** the parent's lens: for one company + one purpose, which flow covers it?
+   *  Own flow beats portfolio beats platform — same precedence as rules. */
+  const coverFor = (c: Company, p: FlowPurpose): { flow: Flow; via: 'own' | 'inherited' } | null => {
+    const running = flows.filter((f) => f.purpose === p && f.status === 'Running')
+    const own = running.find((f) => f.level === 'Company' && f.ownerCompanyId === c.id)
+    if (own) return { flow: own, via: 'own' }
+    const portfolio = running.find((f) => f.level === 'Portfolio' && c.inPortfolio)
+    if (portfolio) return { flow: portfolio, via: 'inherited' }
+    const platform = running.find((f) => f.level === 'Platform')
+    if (platform) return { flow: platform, via: 'inherited' }
+    return null
+  }
 
   /* ── history drawer ── */
   const [historyId, setHistoryId] = useState<string | null>(null)
@@ -117,16 +149,39 @@ export default function FlowsView() {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [routes, setRoutes] = useState('')
+  const [purpose, setPurpose] = useState<FlowPurpose>('Time off')
   const [steps, setSteps] = useState<DraftStep[]>([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
   const [delegation, setDelegation] = useState(true)
   const [levelLabel, setLevelLabel] = useState<'Platform-wide' | 'This company'>('This company')
+  /** set when filling a gap from the map — the new flow belongs to that company */
+  const [ownerForNew, setOwnerForNew] = useState<Company | null>(null)
 
   const openNew = () => {
     setName('')
     setRoutes('')
+    setPurpose('Time off')
     setSteps([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
     setDelegation(true)
     setLevelLabel('This company')
+    setOwnerForNew(null)
+    setOpen(true)
+  }
+
+  /** clicked an amber gap in the map → composer arrives pre-filled for that company */
+  const openGap = (c: Company, p: FlowPurpose) => {
+    const names: Record<FlowPurpose, string> = {
+      'Time off': 'Time-off approvals',
+      Hiring: 'Job offers',
+      Exits: 'Exit clearance',
+      'Rule changes': 'Rule changes',
+    }
+    setName(names[p])
+    setRoutes(p === 'Time off' ? 'Every time-off request' : p === 'Hiring' ? 'Every offer before it goes out' : p === 'Exits' ? 'Every departure, before the last day' : 'Any rule change')
+    setPurpose(p)
+    setSteps([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
+    setDelegation(true)
+    setLevelLabel('This company')
+    setOwnerForNew(c)
     setOpen(true)
   }
 
@@ -158,9 +213,11 @@ export default function FlowsView() {
     addFlow({
       id: 'f' + (flows.length + 1),
       name: name.trim() || 'Untitled flow',
+      purpose,
       routes: routes.trim() || 'Requests',
       level,
-      ownerCompanyId: level === 'Company' ? (company.id === 'all' ? 'acme' : company.id) : undefined,
+      ownerCompanyId:
+        level === 'Company' ? (ownerForNew?.id ?? (company.id === 'all' ? 'acme' : company.id)) : undefined,
       status,
       steps: steps.map((s, i) => ({
         id: 's' + (i + 1),
@@ -203,7 +260,7 @@ export default function FlowsView() {
       <Card key={f.id} className="p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[15px] font-bold tracking-tight">{f.name}</span>
-          <FlowLevelPill level={f.level} />
+          <FlowLevelPill level={f.level} owner={ownerOf(f)} named={multi} />
           <Pill tone={statusTone(f.status)} dot>
             {f.status}
           </Pill>
@@ -249,6 +306,16 @@ export default function FlowsView() {
     )
   }
 
+  /* what this viewer can see: parents see everything; a company admin sees
+     flows set above plus their own — never a sibling's */
+  const homeId = company.id === 'all' ? persona.homeCompany : company.id
+  const visibleFlows = multi ? flows : flows.filter((f) => f.level !== 'Company' || f.ownerCompanyId === homeId)
+  const platformFlows = visibleFlows.filter((f) => f.level === 'Platform')
+  const portfolioFlows = visibleFlows.filter((f) => f.level === 'Portfolio')
+  const byCompany = myCompanies
+    .map((c) => ({ c, items: visibleFlows.filter((f) => f.level === 'Company' && f.ownerCompanyId === c.id) }))
+    .filter((x) => x.items.length > 0)
+
   return (
     <div>
       {/* intro + new flow */}
@@ -261,7 +328,100 @@ export default function FlowsView() {
         </Btn>
       </div>
 
-      <div className="space-y-4">{flows.map(flowCard)}</div>
+      {/* ── THE PARENT'S LENS: every child × every kind of approval ── */}
+      {multi && (
+        <Card className="mb-5 p-6">
+          <SectionTitle hint="Every company × every kind of approval. Amber = nothing routes it there yet — click to fix.">
+            Who's covered, at a glance
+          </SectionTitle>
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              {/* header row */}
+              <div className="grid items-center gap-2 border-b border-line/60 pb-2" style={{ gridTemplateColumns: '1.3fr repeat(4, 1fr)' }}>
+                <div />
+                {FLOW_PURPOSES.map((p) => (
+                  <div key={p} className="text-center text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
+                    {p}
+                  </div>
+                ))}
+              </div>
+              {myCompanies.map((c) => (
+                <div
+                  key={c.id}
+                  className="grid items-center gap-2 border-b border-line/40 py-2.5 last:border-b-0"
+                  style={{ gridTemplateColumns: '1.3fr repeat(4, 1fr)' }}
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.accent }} />
+                    <span className="truncate text-[12.5px] font-bold">{c.name}</span>
+                    {c.status !== 'Live' && (
+                      <Pill tone={statusTone(c.status)} className="shrink-0">
+                        {c.status === 'Getting set up' ? 'setting up' : 'paused'}
+                      </Pill>
+                    )}
+                  </div>
+                  {FLOW_PURPOSES.map((p) => {
+                    const cov = coverFor(c, p)
+                    return (
+                      <div key={p} className="flex justify-center">
+                        {cov?.via === 'own' ? (
+                          <Pill tone="green">✓ own flow</Pill>
+                        ) : cov ? (
+                          <Pill tone="ink">from {cov.flow.level === 'Platform' ? 'platform' : 'portfolio'}</Pill>
+                        ) : (
+                          <button type="button" onClick={() => openGap(c, p)}>
+                            <Pill tone="amber" className="transition-transform hover:scale-105">
+                              none yet +
+                            </Pill>
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-3 text-[11.5px] text-muted">
+            ✓ its own flow · dark = covered from above (live, never copied) · amber = a gap worth closing
+          </p>
+        </Card>
+      )}
+
+      {/* ── the flows, grouped by where they live ── */}
+      {multi ? (
+        <div className="space-y-6">
+          {platformFlows.length > 0 && (
+            <section>
+              <SectionTitle hint="Route in every company automatically.">Platform-wide</SectionTitle>
+              <div className="space-y-4">{platformFlows.map(flowCard)}</div>
+            </section>
+          )}
+          {portfolioFlows.length > 0 && (
+            <section>
+              <SectionTitle hint="Route across the portfolio.">Your portfolio</SectionTitle>
+              <div className="space-y-4">{portfolioFlows.map(flowCard)}</div>
+            </section>
+          )}
+          {byCompany.map(({ c, items }) => (
+            <section key={c.id}>
+              <div className="mb-4 flex items-center gap-2.5">
+                <span
+                  className="grid h-7 w-7 place-items-center rounded-full text-[11px] font-extrabold text-ink"
+                  style={{ background: c.accent }}
+                >
+                  {c.short}
+                </span>
+                <h3 className="text-[15px] font-bold tracking-tight">{c.name}</h3>
+                <span className="text-[12px] text-muted">— its own flows</span>
+              </div>
+              <div className="space-y-4">{items.map(flowCard)}</div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-4">{visibleFlows.map(flowCard)}</div>
+      )}
 
       {/* ── the composer ── */}
       <Drawer
@@ -281,6 +441,21 @@ export default function FlowsView() {
         }
       >
         <div className="space-y-7">
+          {/* filling a gap from the map — say which company this lands in */}
+          {ownerForNew && (
+            <div className="flex items-center gap-2.5 rounded-2xl bg-accent-soft/60 px-4 py-3">
+              <span
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-extrabold text-ink"
+                style={{ background: ownerForNew.accent }}
+              >
+                {ownerForNew.short}
+              </span>
+              <span className="text-[13px] font-semibold">
+                Closing a gap: {ownerForNew.name} has nothing routing {purpose.toLowerCase()} yet.
+              </span>
+            </div>
+          )}
+
           {/* what is it */}
           <section>
             <SectionLabel>What is it</SectionLabel>
@@ -290,6 +465,11 @@ export default function FlowsView() {
               </Field>
               <Field label="What does it route?">
                 <Input value={routes} onChange={(e) => setRoutes(e.target.value)} placeholder="e.g. Expense claims" />
+              </Field>
+            </div>
+            <div className="mt-4">
+              <Field label="What kind of thing is it?">
+                <Segmented options={FLOW_PURPOSES} value={purpose} onChange={setPurpose} />
               </Field>
             </div>
           </section>

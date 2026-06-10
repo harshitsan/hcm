@@ -104,10 +104,27 @@ function SectionLabel({ children, hint }: { children: string; hint?: string }) {
   )
 }
 
-/** where the rule is set — who controls it */
-function SetAtPill({ level }: { level: RuleLevel }) {
+/** where the rule is set — who controls it. Multi-company viewers see the
+ *  owning company by NAME (an ambiguous "this company" means nothing in the
+ *  all-companies view). */
+function SetAtPill({
+  level,
+  owner,
+  named,
+}: {
+  level: RuleLevel
+  owner?: { name: string; accent: string }
+  named?: boolean
+}) {
   if (level === 'Platform') return <Pill tone="ink">Platform-wide</Pill>
   if (level === 'Portfolio') return <Pill tone="amber">Your portfolio</Pill>
+  if (named && owner)
+    return (
+      <Pill tone="outline">
+        <span className="h-2 w-2 rounded-full" style={{ background: owner.accent }} />
+        {owner.name}
+      </Pill>
+    )
   return <Pill tone="outline">This company</Pill>
 }
 
@@ -278,7 +295,11 @@ export default function Rules() {
       <Card key={r.id} className="p-5">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-[15px] font-bold tracking-tight">{r.name}</span>
-          <SetAtPill level={r.level} />
+          <SetAtPill
+            level={r.level}
+            named={persona.multiCompany}
+            owner={companies.find((c) => c.id === r.ownerCompanyId)}
+          />
           <Pill tone="outline">{r.category}</Pill>
           <Pill tone={statusTone(r.status)} dot>
             {r.status}
@@ -492,9 +513,13 @@ export default function Rules() {
             </div>
           )}
 
-          {/* rules owned here */}
+          {/* rules owned at company level — for a parent, each one names its company */}
           <div>
-            <SectionTitle hint="Made here — yours to change.">This company's rules</SectionTitle>
+            <SectionTitle
+              hint={persona.multiCompany ? 'Each rule names the company it belongs to.' : 'Made here — yours to change.'}
+            >
+              {persona.multiCompany ? 'Company rules' : `${company.id === 'all' ? 'Acme Tech' : company.name}'s rules`}
+            </SectionTitle>
             <div className="space-y-4">{ownRules.map(ruleCard)}</div>
           </div>
         </>

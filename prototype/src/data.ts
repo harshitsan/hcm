@@ -448,9 +448,15 @@ export type FlowStep = {
   escalateTo?: string
 }
 
+/** the kind of thing a flow routes — the columns of the parent's flow map */
+export type FlowPurpose = 'Time off' | 'Hiring' | 'Exits' | 'Rule changes'
+export const FLOW_PURPOSES: FlowPurpose[] = ['Time off', 'Hiring', 'Exits', 'Rule changes']
+
 export type Flow = {
   id: string
   name: string
+  /** the kind of thing it routes */
+  purpose: FlowPurpose
   /** what it routes, in plain words */
   routes: string
   level: RuleLevel
@@ -466,7 +472,7 @@ export type Flow = {
 
 export const FLOWS: Flow[] = [
   {
-    id: 'f1', name: 'Time-off approvals', routes: 'Every time-off request', level: 'Company', ownerCompanyId: 'acme',
+    id: 'f1', name: 'Time-off approvals', purpose: 'Time off', routes: 'Every time-off request', level: 'Company', ownerCompanyId: 'acme',
     status: 'Running', usedBy: 2, delegation: true,
     steps: [
       { id: 's1', roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: 'Dept head' },
@@ -477,7 +483,7 @@ export const FLOWS: Flow[] = [
     ],
   },
   {
-    id: 'f2', name: 'Job offers', routes: 'Every offer before it goes out', level: 'Company', ownerCompanyId: 'acme',
+    id: 'f2', name: 'Job offers', purpose: 'Hiring', routes: 'Every offer before it goes out', level: 'Company', ownerCompanyId: 'acme',
     status: 'Running', usedBy: 1, delegation: true,
     steps: [
       { id: 's1', roles: ['Finance', 'HR'], mode: 'all', sla: 'within 2 days', escalateTo: 'Chief executive' },
@@ -489,7 +495,7 @@ export const FLOWS: Flow[] = [
     ],
   },
   {
-    id: 'f3', name: 'Rule changes', routes: 'Any change to a platform rule', level: 'Platform',
+    id: 'f3', name: 'Rule changes', purpose: 'Rule changes', routes: 'Any change to a platform rule', level: 'Platform',
     status: 'Running', usedBy: 2, delegation: false,
     steps: [
       { id: 's1', roles: ['Legal council'], mode: 'one', sla: 'within 3 days', escalateTo: 'Platform operator' },
@@ -500,12 +506,39 @@ export const FLOWS: Flow[] = [
     ],
   },
   {
-    id: 'f4', name: 'Exit clearance', routes: 'Every departure, before the last day', level: 'Company', ownerCompanyId: 'acme',
+    id: 'f4', name: 'Exit clearance', purpose: 'Exits', routes: 'Every departure, before the last day', level: 'Company', ownerCompanyId: 'acme',
     status: 'Draft', usedBy: 0, delegation: true,
     steps: [
       { id: 's1', roles: ['IT', 'Finance', 'HR'], mode: 'all', sla: 'within 5 days', escalateTo: 'Dept head' },
     ],
     history: [{ who: 'Sara Iyer', what: 'Drafted', when: 'yesterday' }],
+  },
+  {
+    id: 'f5', name: 'Time-off approvals', purpose: 'Time off', routes: 'Every time-off request', level: 'Company', ownerCompanyId: 'beta',
+    status: 'Running', usedBy: 1, delegation: true,
+    steps: [
+      { id: 's1', roles: ['Manager'], mode: 'one', sla: 'within 2 days', escalateTo: 'HR' },
+    ],
+    history: [
+      { who: 'Farhan Ali', what: 'Created for Beta Foods', when: '18 Mar' },
+      { who: 'SatelliteHR', what: 'Running — adjusted for plant shifts', when: '19 Mar' },
+    ],
+  },
+  {
+    id: 'f6', name: 'Time-off approvals', purpose: 'Time off', routes: 'Every time-off request', level: 'Company', ownerCompanyId: 'delta',
+    status: 'Running', usedBy: 2, delegation: true,
+    steps: [
+      { id: 's1', roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: 'HR' },
+    ],
+    history: [{ who: 'Delta Health', what: 'Created from the healthcare template', when: '22 Jan' }],
+  },
+  {
+    id: 'f7', name: 'Exit clearance', purpose: 'Exits', routes: 'Every departure, before the last day', level: 'Company', ownerCompanyId: 'delta',
+    status: 'Running', usedBy: 1, delegation: true,
+    steps: [
+      { id: 's1', roles: ['IT', 'Finance', 'HR'], mode: 'all', sla: 'within 5 days', escalateTo: 'Dept head' },
+    ],
+    history: [{ who: 'Delta Health', what: 'Created from the healthcare template', when: '22 Jan' }],
   },
 ]
 
