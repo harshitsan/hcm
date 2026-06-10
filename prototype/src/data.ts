@@ -306,7 +306,7 @@ export type ChainResolution = 'local' | 'central'
 
 /** who actually wears each approver hat, per company — undefined = nobody yet */
 export const ROLE_HOLDERS: Record<string, Record<string, string | undefined>> = {
-  acme: { Manager: 'Arjun Mehta', 'Dept head': 'Vikram Shah', HR: 'Sara Iyer', Finance: 'Isha Reddy', IT: 'Rohan Gupta', 'Chief executive': 'Ananya Rao' },
+  acme: { Manager: 'Arjun Mehta', 'Dept head': 'Vikram Shah', HR: 'Sara Iyer', Finance: 'Isha Reddy', IT: 'Rohan Gupta', 'Chief executive': 'Ananya Rao', 'POSH committee': 'Committee of 3', 'Payroll desk': 'Isha Reddy', 'Portfolio manager': 'David Chen' },
   beta: { Manager: 'Farhan Ali', 'Dept head': 'Farhan Ali', HR: 'Lakshmi Iyer', Finance: 'Joseph K' },
   gamma: { Manager: 'Ritu Sharma', 'Dept head': 'Ritu Sharma' }, // mid-setup: no HR or Finance yet
   delta: { Manager: 'Team leads', 'Dept head': 'Dept heads', HR: 'Their HR desk', Finance: 'Their finance desk', IT: 'Their IT desk', 'Chief executive': 'Their CEO' },
@@ -358,8 +358,19 @@ export type Rule = {
   /** extra "and..." clauses — the sentence grows, never becomes a filter grid */
   appliesAlso?: { dim: string; value: string }[]
   headcount: number
-  /** approval pipeline, in order — ROLE HATS, not people */
+  /** approval pipeline, in order — ROLE HATS, not people.
+   *  Always populated (derived) so hats/reach/unroutable keep working. */
   chain: string[]
+  /** route via an existing flow instead of inline steps */
+  flowId?: string
+  /** full inline steps (parallel, quorums, ladders, conditions) — supersedes chain visually */
+  steps?: FlowStep[]
+  /** when it starts applying */
+  effectiveFrom?: string
+  /** review cadence — stale rules are a compliance smell */
+  reviewEvery?: string
+  /** carve-outs, in plain words */
+  exceptions?: string[]
   /** who fills the hats: 'local' = the requester's own company's people;
    *  'central' = the owner level's team decides for everyone */
   resolution: ChainResolution
@@ -458,7 +469,7 @@ export const RULES: Rule[] = [
   },
   {
     id: 'r4', name: 'Global data protection', category: 'Documents', status: 'Running',
-    level: 'Platform', childControl: 'locked',
+    level: 'Platform', childControl: 'locked', reviewEvery: 'every 12 months',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
     headcount: 142, chain: ['Legal council'], resolution: 'central', notify: ['Person', 'HR'], updated: '1mo ago',
     history: [
@@ -499,7 +510,7 @@ export const RULES: Rule[] = [
   },
   {
     id: 'r2', name: 'Earned leave (3+ days)', category: 'Time off', status: 'Running',
-    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional', flowId: 'f1',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
     headcount: 142, chain: ['Manager', 'HR'], resolution: 'local', notify: ['Person', 'Manager', 'HR'], updated: '2w ago',
     history: [
@@ -511,6 +522,7 @@ export const RULES: Rule[] = [
   {
     id: 'r3', name: 'Work from anywhere', category: 'Attendance', status: 'Waiting for approval',
     level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    effectiveFrom: '1 Aug 2026', exceptions: ['Not for interns', 'Not during a client onboarding week'],
     appliesTo: { who: 'all employees', where: 'Bengaluru', team: 'Engineering' },
     appliesAlso: [{ dim: 'tenure', value: 'who have been here over a year' }],
     headcount: 64, chain: ['Dept head', 'HR'], resolution: 'local', notify: ['Person', 'Manager'], updated: 'yesterday',
@@ -598,7 +610,7 @@ export const RULES: Rule[] = [
   },
 ]
 
-export const APPROVER_OPTIONS = ['Manager', 'Dept head', 'HR', 'Finance', 'IT'] as const
+export const APPROVER_OPTIONS = ['Manager', 'Dept head', 'HR', 'Finance', 'IT', 'Legal council', 'Chief executive', 'POSH committee', 'Payroll desk', 'Portfolio manager'] as const
 export const WHO_OPTIONS = ['all employees', 'new joiners', 'managers only', 'contract staff'] as const
 export const WHERE_OPTIONS = ['everywhere', 'Bengaluru', 'Mumbai', 'Hyderabad', 'Remote'] as const
 export const TEAM_OPTIONS = ['every team', 'Engineering', 'Design', 'Sales', 'People', 'Finance'] as const
@@ -677,22 +689,30 @@ export function extendedHeadcount(base: number, also: { dim: string; value: stri
 /* ───────────────────────────────────── approval flows (BRD §6.25, jargon-free) */
 
 /** one approval step — several roles on a step = they decide in parallel */
+export type StepEscalation = { after: string; to: string }
+
 export type FlowStep = {
   id: string
   roles: string[]
   /** 'one' = any of them can approve · 'all' = every one must */
   mode: 'one' | 'all'
+  /** with several roles: "any {quorum} of {n}" is enough */
+  quorum?: number
   /** plain-language deadline */
   sla: string
-  /** when the deadline passes, it moves here */
+  /** when the deadline passes, it moves here (first rung of the ladder) */
   escalateTo?: string
+  /** the full escalation ladder, in order */
+  escalations?: StepEscalation[]
+  /** nudges at 50% and 75% of the deadline (BRD 6.25) */
+  remind?: boolean
   /** conditional routing — the step only runs when this is true */
   onlyWhen?: string
 }
 
 /** the kind of thing a flow routes — the columns of the parent's flow map */
-export type FlowPurpose = 'Time off' | 'Hiring' | 'Exits' | 'Rule changes'
-export const FLOW_PURPOSES: FlowPurpose[] = ['Time off', 'Hiring', 'Exits', 'Rule changes']
+export type FlowPurpose = 'Time off' | 'Hiring' | 'Exits' | 'Expenses' | 'Rule changes'
+export const FLOW_PURPOSES: FlowPurpose[] = ['Time off', 'Hiring', 'Exits', 'Expenses', 'Rule changes']
 
 export type Flow = {
   id: string
@@ -707,6 +727,12 @@ export type Flow = {
   steps: FlowStep[]
   /** who fills the hats — see ChainResolution on rules */
   resolution: ChainResolution
+  /** what a rejection does */
+  onReject?: 'back to the requester' | 'it ends there' | 'up one level'
+  /** what total silence does once every deadline + ladder is spent */
+  onTimeout?: 'auto-approved' | 'auto-declined' | 'keeps waiting'
+  /** deadlines count business hours only */
+  businessHours?: boolean
   /** how many rules / events use this flow */
   usedBy: number
   /** approvers can hand off while away */
@@ -729,8 +755,9 @@ export const FLOWS: Flow[] = [
   {
     id: 'f2', name: 'Job offers', purpose: 'Hiring', routes: 'Every offer before it goes out', level: 'Company', ownerCompanyId: 'acme',
     status: 'Running', resolution: 'local', usedBy: 1, delegation: true,
+    onReject: 'it ends there', onTimeout: 'keeps waiting', businessHours: true,
     steps: [
-      { id: 's1', roles: ['Finance', 'HR'], mode: 'all', sla: 'within 2 days', escalateTo: 'Chief executive' },
+      { id: 's1', roles: ['Finance', 'HR'], mode: 'all', sla: 'within 2 days', remind: true, escalateTo: 'Chief executive', escalations: [{ after: '2 days', to: 'Chief executive' }, { after: '4 days', to: 'Portfolio manager' }] },
       { id: 's2', roles: ['Chief executive'], mode: 'one', sla: 'within 1 day', onlyWhen: 'the offer is above ₹20L' },
     ],
     history: [
@@ -784,9 +811,33 @@ export const FLOWS: Flow[] = [
     ],
     history: [{ who: 'Delta Health', what: 'Created from the healthcare template', when: '22 Jan' }],
   },
+  {
+    id: 'f8', name: 'Expense approvals', purpose: 'Expenses', routes: 'Every expense claim', level: 'Company', ownerCompanyId: 'acme',
+    status: 'Running', resolution: 'local', usedBy: 1, delegation: true,
+    onReject: 'back to the requester', onTimeout: 'auto-approved', businessHours: true,
+    steps: [
+      {
+        id: 's1', roles: ['Manager'], mode: 'one', sla: 'within 1 day', remind: true,
+        escalateTo: 'Dept head',
+        escalations: [
+          { after: '1 day', to: 'Dept head' },
+          { after: '3 days', to: 'HR' },
+        ],
+      },
+      { id: 's2', roles: ['Finance'], mode: 'one', sla: 'within 2 days', remind: true, onlyWhen: 'the claim is above ₹50,000' },
+      {
+        id: 's3', roles: ['Dept head', 'Finance', 'Chief executive'], mode: 'all', quorum: 2,
+        sla: 'within 2 days', onlyWhen: 'the claim is above ₹2,00,000',
+      },
+    ],
+    history: [
+      { who: 'Sara Iyer', what: 'Created with three tiers — small claims stay light', when: '10 Apr' },
+      { who: 'Isha Reddy', what: 'Approved', when: '11 Apr' },
+    ],
+  },
 ]
 
-export const FLOW_ROLE_OPTIONS = ['Manager', 'Dept head', 'HR', 'Finance', 'IT', 'Legal council', 'Chief executive'] as const
+export const FLOW_ROLE_OPTIONS = ['Manager', 'Dept head', 'HR', 'Finance', 'IT', 'Legal council', 'Chief executive', 'POSH committee', 'Payroll desk', 'Portfolio manager'] as const
 
 /* ───────────────────────────────────── roles & permissions (BRD §6.12, §5) */
 

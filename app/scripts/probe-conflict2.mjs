@@ -1,0 +1,23 @@
+import { chromium } from 'playwright'
+const browser = await chromium.launch()
+const page = await (await browser.newContext({ viewport: { width: 1500, height: 950 } })).newPage()
+const errs = []
+page.on('pageerror', e => errs.push(e.message))
+await page.goto('http://localhost:5174'); await page.waitForTimeout(900)
+await page.locator('aside button').last().click(); await page.waitForTimeout(250)
+await page.getByRole('button', { name: /Sara Iyer/ }).first().click(); await page.waitForTimeout(600)
+await page.goto('http://localhost:5174/#/rules'); await page.waitForTimeout(500)
+await page.getByRole('button', { name: /New rule/ }).click(); await page.waitForTimeout(500)
+const sel = page.locator('.animate-slide-in select').first()
+await sel.selectOption('Documents')
+await page.waitForTimeout(500)
+console.log('SELECT value now:', await sel.inputValue())
+const t = await page.locator('.animate-slide-in').last().innerText()
+console.log('HAS "Heads up":', t.includes('Heads up'))
+console.log('HAS "Yours will win":', t.includes('Yours will win'))
+console.log('HAS "What is it" section:', /what is it/i.test(t))
+// dump section headers to see drawer structure
+const headers = await page.locator('.animate-slide-in .uppercase').allInnerTexts()
+console.log('SECTIONS:', headers.join(' | '))
+console.log('ERRS:', errs.length ? errs : 'none')
+await browser.close()

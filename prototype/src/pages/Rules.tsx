@@ -46,9 +46,11 @@ import {
 import { useApp } from '../store'
 import FlowsView from './Flows'
 import PoliciesStudio from './PoliciesStudio'
+import { Pipeline } from '../components/Pipeline'
 import {
   APPROVER_OPTIONS,
   EXTRA_DIMENSIONS,
+  PEOPLE,
   TEAM_OPTIONS,
   TEAM_SIGN_SPLIT,
   WHERE_OPTIONS,
@@ -63,6 +65,7 @@ import {
   unroutableFor,
   type ChainResolution,
   type ChildControl,
+  type FlowStep,
   type Rule,
   type RuleLevel,
   type RuleStatus,
@@ -119,6 +122,333 @@ const LABEL_OF_DECIDE: Record<ChainResolution, DecideLabel> = {
 /** click-to-cycle through a chip's options */
 function next(options: readonly string[], current: string): string {
   return options[(options.indexOf(current) + 1) % options.length]
+}
+
+/* ── what kind of rule is it — words people sign, a trigger, or a number ── */
+
+type RuleKind = 'paper' | 'trigger' | 'number'
+const KIND_CHOICES = ['Words people sign', 'It fires on a trigger', 'It sets a number'] as const
+type KindLabel = (typeof KIND_CHOICES)[number]
+const KIND_OF_LABEL: Record<KindLabel, RuleKind> = {
+  'Words people sign': 'paper',
+  'It fires on a trigger': 'trigger',
+  'It sets a number': 'number',
+}
+const LABEL_OF_KIND: Record<RuleKind, KindLabel> = {
+  paper: 'Words people sign',
+  trigger: 'It fires on a trigger',
+  number: 'It sets a number',
+}
+
+/* ── who says yes — nothing, an existing flow, or steps built right here ── */
+
+type ApprovalMode = 'none' | 'flow' | 'steps'
+const SAYS_CHOICES = ['It just runs', 'Use a flow', 'Build the steps'] as const
+type SaysLabel = (typeof SAYS_CHOICES)[number]
+const MODE_OF_SAYS: Record<SaysLabel, ApprovalMode> = {
+  'It just runs': 'none',
+  'Use a flow': 'flow',
+  'Build the steps': 'steps',
+}
+const SAYS_OF_MODE: Record<ApprovalMode, SaysLabel> = {
+  none: 'It just runs',
+  flow: 'Use a flow',
+  steps: 'Build the steps',
+}
+
+const FEED_OPTIONS = ['Payroll (Phase II)', 'Offer letters', 'Tax statements', 'Leave balances'] as const
+const REVIEW_OPTIONS = ['—', 'every 6 months', 'every 12 months', 'every 24 months'] as const
+
+/* precedence, made visible at authoring time — higher level wins where they overlap */
+const PRECEDENCE: Record<RuleLevel, number> = { Platform: 3, Portfolio: 2, Company: 1 }
+
+const dedupe = (xs: string[]): string[] => [...new Set(xs)]
+
+/** best-effort money parse — "₹2,00,000" → 200000, "₹20L" → 2000000 */
+function moneyOf(raw: string): number {
+  const flat = raw.replace(/[,\s]/g, '')
+  const m = flat.match(/(\d+(?:\.\d+)?)(L)?/i)
+  if (!m) return NaN
+  return parseFloat(m[1]) * (m[2] ? 100000 : 1)
+}
+
+/* ── the step builder — local to this file, full sophistication ── */
+
+const DEADLINES = ['within 1 day', 'within 2 days', 'within 3 days', 'within 5 days'] as const
+const AFTER_OPTIONS: readonly string[] = ['1 day', '2 days', '3 days', '5 days']
+const COND_FACTS: readonly string[] = ['the claim', 'the offer', 'the amount', 'the request']
+const COND_OPS = ['is above', 'is below'] as const
+
+/** a step being built — decide is 'one' | 'all' | '2' | '3'… ("any k of n is enough") */
+type DraftStep = {
+  roles: string[]
+  decide: string
+  sla: string
+  remind: boolean
+  /** the if-they're-quiet ladder, in order */
+  ladder: { after: string; to: string }[]
+  /** structured only-when — fact '' means it always runs */
+  fact: string
+  op: string
+  value: string
+}
+
+function freshStep(): DraftStep {
+  return { roles: ['Manager'], decide: 'one', sla: 'within 1 day', remind: false, ladder: [], fact: '', op: 'is above', value: '' }
+}
+
+/** seed a draft back from a saved step (edit mode) */
+function stepToDraft(s: FlowStep): DraftStep {
+  const m = s.onlyWhen?.match(/^(.+?)\s+(is above|is below)\s+(.+)$/)
+  return {
+    roles: [...s.roles],
+    decide: s.quorum && s.quorum < s.roles.length ? String(s.quorum) : s.mode,
+    sla: s.sla,
+    remind: s.remind ?? false,
+    ladder: s.escalations
+      ? s.escalations.map((e) => ({ after: e.after, to: e.to }))
+      : s.escalateTo
+        ? [{ after: '1 day', to: s.escalateTo }]
+        : [],
+    fact: m ? m[1] : s.onlyWhen ? 'the claim' : '',
+    op: m ? m[2] : 'is above',
+    value: m ? m[3] : (s.onlyWhen ?? ''),
+  }
+}
+
+function draftsToSteps(drafts: DraftStep[]): FlowStep[] {
+  return drafts
+    .filter((d) => d.roles.length > 0)
+    .map((d, i) => {
+      const q = Number(d.decide)
+      const ladder = d.ladder.filter((l) => l.to !== '')
+      return {
+        id: 's' + (i + 1),
+        roles: [...d.roles],
+        mode: d.decide === 'one' ? ('one' as const) : ('all' as const),
+        quorum: !isNaN(q) && q > 0 && q < d.roles.length ? q : undefined,
+        sla: d.sla,
+        remind: d.remind || undefined,
+        escalateTo: ladder[0]?.to,
+        escalations: ladder.length > 0 ? ladder.map((l) => ({ after: l.after, to: l.to })) : undefined,
+        onlyWhen: d.fact !== '' && d.value.trim() !== '' ? `${d.fact} ${d.op} ${d.value.trim()}` : undefined,
+      }
+    })
+}
+
+/** the full builder: roles side by side, how many must say yes, deadlines,
+ *  nudges, the if-they're-quiet ladder, and an only-when condition */
+function StepBuilder({ steps, onChange }: { steps: DraftStep[]; onChange: (next: DraftStep[]) => void }) {
+  const patchStep = (i: number, p: Partial<DraftStep>) =>
+    onChange(steps.map((s, j) => (j === i ? { ...s, ...p } : s)))
+  const removeStep = (i: number) => onChange(steps.filter((_, j) => j !== i))
+  return (
+    <div>
+      {steps.map((s, i) => {
+        const nextRole = APPROVER_OPTIONS.find((o) => !s.roles.includes(o))
+        const n = s.roles.length
+        return (
+          <Fragment key={i}>
+            {i > 0 && (
+              <div className="flex justify-center py-1.5">
+                <ArrowRight className="h-3.5 w-3.5 rotate-90 text-muted" />
+              </div>
+            )}
+            <div className="rounded-2xl border border-line p-3.5">
+              <div className="mb-2.5 flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Step {i + 1}</span>
+                {steps.length > 1 && (
+                  <button
+                    type="button"
+                    aria-label={`Remove step ${i + 1}`}
+                    onClick={() => removeStep(i)}
+                    className="text-muted transition-colors hover:text-red"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* who wears the hats on this step */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {s.roles.map((r) => (
+                  <span
+                    key={r}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-card2 px-2.5 py-1 text-[11.5px] font-bold leading-none"
+                  >
+                    {r}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${r}`}
+                      onClick={() => {
+                        const roles = s.roles.filter((x) => x !== r)
+                        const q = Number(s.decide)
+                        patchStep(i, {
+                          roles,
+                          decide: roles.length <= 1 ? 'one' : !isNaN(q) && q >= roles.length ? 'all' : s.decide,
+                        })
+                      }}
+                      className="text-muted transition-colors hover:text-red"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+                {nextRole && (
+                  <button
+                    type="button"
+                    onClick={() => patchStep(i, { roles: [...s.roles, nextRole] })}
+                    className="rounded-full border border-dashed border-line px-2.5 py-1 text-[11.5px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
+                  >
+                    + role
+                  </button>
+                )}
+              </div>
+
+              {/* several people on one step — how many must say yes */}
+              {n > 1 && (
+                <div className="mt-2.5">
+                  <Field label="How many must say yes?">
+                    <Select value={s.decide} onChange={(e) => patchStep(i, { decide: e.target.value })}>
+                      <option value="one">any one of them</option>
+                      <option value="all">all of them</option>
+                      {Array.from({ length: Math.max(0, n - 2) }, (_, k) => k + 2).map((k) => (
+                        <option key={k} value={String(k)}>
+                          any {k} of {n} is enough
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+              )}
+
+              <div className="mt-3 grid items-end gap-3 sm:grid-cols-2">
+                <Field label="Deadline">
+                  <Select value={s.sla} onChange={(e) => patchStep(i, { sla: e.target.value })}>
+                    {!DEADLINES.includes(s.sla as (typeof DEADLINES)[number]) && <option value={s.sla}>{s.sla}</option>}
+                    {DEADLINES.map((d) => (
+                      <option key={d}>{d}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <div className="pb-2">
+                  <Toggle on={s.remind} onChange={(v) => patchStep(i, { remind: v })} label="Nudge at 50% and 75%" />
+                </div>
+              </div>
+
+              {/* the if-they're-quiet ladder, rung by rung */}
+              <div className="mt-3">
+                <span className="mb-1.5 block text-[12.5px] font-semibold text-ink-soft">If they're quiet</span>
+                {s.ladder.length === 0 && (
+                  <p className="text-[12px] italic text-muted">Nothing — it just waits with them.</p>
+                )}
+                <div className="space-y-2">
+                  {s.ladder.map((rung, ri) => (
+                    <div key={ri} className="flex items-center gap-2">
+                      <span className="shrink-0 text-[12px] text-muted">after</span>
+                      <div className="w-28 shrink-0">
+                        <Select
+                          value={rung.after}
+                          onChange={(e) =>
+                            patchStep(i, {
+                              ladder: s.ladder.map((l, lj) => (lj === ri ? { ...l, after: e.target.value } : l)),
+                            })
+                          }
+                        >
+                          {!AFTER_OPTIONS.includes(rung.after) && <option value={rung.after}>{rung.after}</option>}
+                          {AFTER_OPTIONS.map((a) => (
+                            <option key={a}>{a}</option>
+                          ))}
+                        </Select>
+                      </div>
+                      <span className="shrink-0 text-[12px] text-muted">it moves to</span>
+                      <div className="min-w-0 flex-1">
+                        <Select
+                          value={rung.to}
+                          onChange={(e) =>
+                            patchStep(i, {
+                              ladder: s.ladder.map((l, lj) => (lj === ri ? { ...l, to: e.target.value } : l)),
+                            })
+                          }
+                        >
+                          {APPROVER_OPTIONS.map((r) => (
+                            <option key={r}>{r}</option>
+                          ))}
+                        </Select>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Remove this hand-off"
+                        onClick={() => patchStep(i, { ladder: s.ladder.filter((_, lj) => lj !== ri) })}
+                        className="shrink-0 text-muted transition-colors hover:text-red"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    patchStep(i, {
+                      ladder: [
+                        ...s.ladder,
+                        { after: AFTER_OPTIONS[Math.min(s.ladder.length, AFTER_OPTIONS.length - 1)], to: 'Dept head' },
+                      ],
+                    })
+                  }
+                  className="mt-2 rounded-full border border-dashed border-line px-2.5 py-1 text-[11.5px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
+                >
+                  {s.ladder.length === 0 ? '+ If quiet, hand it on' : '+ If still quiet, hand it on'}
+                </button>
+              </div>
+
+              {/* only when — the step runs only if this is true */}
+              <div className="mt-3">
+                <span className="mb-1.5 block text-[12.5px] font-semibold text-ink-soft">Only when (optional)</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="w-44">
+                    <Select value={s.fact} onChange={(e) => patchStep(i, { fact: e.target.value })}>
+                      <option value="">— it always runs</option>
+                      {s.fact !== '' && !COND_FACTS.includes(s.fact) && <option value={s.fact}>{s.fact}</option>}
+                      {COND_FACTS.map((f) => (
+                        <option key={f}>{f}</option>
+                      ))}
+                    </Select>
+                  </div>
+                  {s.fact !== '' && (
+                    <>
+                      <div className="w-32">
+                        <Select value={s.op} onChange={(e) => patchStep(i, { op: e.target.value })}>
+                          {COND_OPS.map((o) => (
+                            <option key={o}>{o}</option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div className="w-32">
+                        <Input
+                          value={s.value}
+                          onChange={(e) => patchStep(i, { value: e.target.value })}
+                          placeholder="₹50,000"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Fragment>
+        )
+      })}
+      <button
+        type="button"
+        onClick={() => onChange([...steps, freshStep()])}
+        className="mt-3 rounded-full border border-dashed border-line px-3 py-1.5 text-[12px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
+      >
+        + Add a step
+      </button>
+    </div>
+  )
 }
 
 function StepChip({ children, onClick }: { children: ReactNode; onClick?: () => void }) {
@@ -183,7 +513,7 @@ function ChildControlPill({ control }: { control: ChildControl }) {
 }
 
 export default function Rules() {
-  const { persona, company, companies, myCompanies, rules, updateRule, addRule, toast } = useApp()
+  const { persona, company, companies, myCompanies, rules, updateRule, addRule, flows, toast } = useApp()
 
   /* who may touch what: operator edits anything; portfolio edits portfolio +
      company; everyone else edits only their own company's rules */
@@ -211,11 +541,28 @@ export default function Rules() {
   const [where, setWhere] = useState<string>(WHERE_OPTIONS[0])
   const [team, setTeam] = useState<string>(TEAM_OPTIONS[0])
   const [also, setAlso] = useState<{ dim: string; value: string }[]>([])
-  const [chain, setChain] = useState<string[]>([])
   const [notify, setNotify] = useState<string[]>([])
   const [decide, setDecide] = useState<ChainResolution>('local')
+  /* what kind of rule — words people sign, a trigger, or a number */
+  const [kind, setKind] = useState<RuleKind>('paper')
   const [docText, setDocText] = useState('')
   const [signRequired, setSignRequired] = useState(false)
+  const [trigWhen, setTrigWhen] = useState('')
+  const [trigThen, setTrigThen] = useState<string[]>([''])
+  const [variants, setVariants] = useState<{ where: string; value: string }[]>([{ where: '', value: '' }])
+  const [feeds, setFeeds] = useState<string[]>([])
+  /* who says yes — nothing, an existing flow, or steps built right here */
+  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('none')
+  const [flowChoice, setFlowChoice] = useState('')
+  const [draftSteps, setDraftSteps] = useState<DraftStep[]>([freshStep()])
+  /* when does it apply */
+  const [effectiveFrom, setEffectiveFrom] = useState('')
+  const [reviewEvery, setReviewEvery] = useState<string>('—')
+  const [exceptions, setExceptions] = useState<string[]>([])
+  const [exceptionInput, setExceptionInput] = useState('')
+  /* try it before you turn it on */
+  const [simPersonId, setSimPersonId] = useState('p5')
+  const [simAmount, setSimAmount] = useState('')
 
   /* ── history drawer ── */
   const [historyId, setHistoryId] = useState<string | null>(null)
@@ -251,11 +598,23 @@ export default function Rules() {
     setWhere(WHERE_OPTIONS[0])
     setTeam(TEAM_OPTIONS[0])
     setAlso([])
-    setChain([])
     setNotify([])
     setDecide('local')
+    setKind('paper')
     setDocText('')
     setSignRequired(false)
+    setTrigWhen('')
+    setTrigThen([''])
+    setVariants([{ where: '', value: '' }])
+    setFeeds([])
+    setApprovalMode('none')
+    setFlowChoice(flows[0]?.id ?? '')
+    setDraftSteps([freshStep()])
+    setEffectiveFrom('')
+    setReviewEvery('—')
+    setExceptions([])
+    setExceptionInput('')
+    setSimAmount('')
     setOpen(true)
   }
 
@@ -269,18 +628,49 @@ export default function Rules() {
     setWhere(r.appliesTo.where)
     setTeam(r.appliesTo.team)
     setAlso(r.appliesAlso ?? [])
-    setChain(r.chain)
     setNotify(r.notify)
     setDecide(r.resolution)
+    /* the kind comes back from what the rule IS */
+    setKind(r.automation ? 'trigger' : r.computes ? 'number' : 'paper')
     setDocText(r.doc?.summary ?? '')
     setSignRequired(r.doc?.requiresSignature ?? false)
+    setTrigWhen(r.automation?.when ?? '')
+    setTrigThen(r.automation && r.automation.then.length > 0 ? [...r.automation.then] : [''])
+    setVariants(
+      r.computes && r.computes.variants.length > 0
+        ? r.computes.variants.map((v) => ({ ...v }))
+        : [{ where: '', value: '' }],
+    )
+    setFeeds(r.computes ? [...r.computes.feeds] : [])
+    /* who says yes — steps win, then the flow, then a plain chain becomes steps */
+    setApprovalMode(r.steps && r.steps.length > 0 ? 'steps' : r.flowId ? 'flow' : r.chain.length > 0 ? 'steps' : 'none')
+    setFlowChoice(r.flowId ?? flows[0]?.id ?? '')
+    setDraftSteps(
+      r.steps && r.steps.length > 0
+        ? r.steps.map(stepToDraft)
+        : r.chain.length > 0
+          ? r.chain.map((role) => ({ ...freshStep(), roles: [role] }))
+          : [freshStep()],
+    )
+    setEffectiveFrom(r.effectiveFrom ?? '')
+    setReviewEvery(r.reviewEvery ?? '—')
+    setExceptions(r.exceptions ?? [])
+    setExceptionInput('')
+    setSimAmount('')
     setOpen(true)
   }
 
-  const nextApprover = APPROVER_OPTIONS.find((o) => !chain.includes(o))
-
   const toggleNotify = (n: string) =>
     setNotify((ns) => (ns.includes(n) ? ns.filter((x) => x !== n) : [...ns, n]))
+
+  const toggleFeed = (f: string) =>
+    setFeeds((fs) => (fs.includes(f) ? fs.filter((x) => x !== f) : [...fs, f]))
+
+  const addException = () => {
+    const x = exceptionInput.trim()
+    if (x !== '' && !exceptions.includes(x)) setExceptions((xs) => [...xs, x])
+    setExceptionInput('')
+  }
 
   /* composer derivations — live, so the blast radius is never a surprise.
      headcount stores the BASE sentence; every "and..." clause scales it. */
@@ -292,9 +682,62 @@ export default function Rules() {
   )
   const composerReach = { ...baseReach, people: extendedHeadcount(baseReach.people, also) }
 
+  /* who says yes, resolved live — the chain stays DERIVED so hats, reach and
+     the can't-run warning keep working no matter how the steps were authored */
+  const selectedFlow = flows.find((f) => f.id === flowChoice)
+  const builtSteps = draftsToSteps(draftSteps)
+  const liveSteps: FlowStep[] =
+    approvalMode === 'steps' ? builtSteps : approvalMode === 'flow' ? (selectedFlow?.steps ?? []) : []
+  const liveChain = dedupe(liveSteps.flatMap((s) => s.roles))
+
+  /* precedence, visible while you author: a running rule of the same category
+     at another level either sits above you (yours goes quiet) or below (yours wins) */
+  const overlapping = rules.filter(
+    (r) => r.status === 'Running' && r.category === category && r.level !== level && r.id !== editingId,
+  )
+  const aboveMe = overlapping
+    .filter((r) => PRECEDENCE[r.level] > PRECEDENCE[level])
+    .sort((a, b) => PRECEDENCE[b.level] - PRECEDENCE[a.level])[0]
+  const belowMe = overlapping.filter((r) => PRECEDENCE[r.level] < PRECEDENCE[level])[0]
+  const levelWord = (r: Rule): string =>
+    r.level === 'Platform'
+      ? 'platform-wide'
+      : r.level === 'Portfolio'
+        ? 'portfolio'
+        : (companies.find((c) => c.id === r.ownerCompanyId)?.name ?? 'company')
+
+  /* the simulation — a real person, a real amount, the resolved path */
+  const simPerson = PEOPLE.find((p) => p.id === simPersonId) ?? PEOPLE[4]
+  const companyNameOf = (id: string) => companies.find((c) => c.id === id)?.name ?? id
+  const needsAmount = liveSteps.some((s) => s.onlyWhen && /amount|claim|offer/i.test(s.onlyWhen))
+  type SimStatus = 'runs' | 'maybe' | 'skipped'
+  const resolved: { step: FlowStep; status: SimStatus }[] = liveSteps.map((step) => {
+    let status: SimStatus = 'runs'
+    if (step.onlyWhen) {
+      const threshold = moneyOf(step.onlyWhen)
+      const amt = moneyOf(simAmount)
+      if (simAmount.trim() === '' || isNaN(threshold) || isNaN(amt)) status = 'maybe'
+      else {
+        const below = /below|under/i.test(step.onlyWhen)
+        status = (below ? amt < threshold : amt > threshold) ? 'runs' : 'skipped'
+      }
+    }
+    return { step, status }
+  })
+  /* worst case before anyone is chased: each step's deadline + its first rung */
+  const worstDays = resolved
+    .filter((x) => x.status !== 'skipped')
+    .reduce((days, { step }) => {
+      const sla = Number(step.sla.match(/\d+/)?.[0] ?? 0)
+      const rung = Number(step.escalations?.[0]?.after.match(/\d+/)?.[0] ?? 0)
+      return days + sla + rung
+    }, 0)
+
   const save = (status: RuleStatus) => {
+    const existing = editingId ? rules.find((r) => r.id === editingId) : undefined
+    const ruleName = name.trim() || 'Untitled rule'
     const fields = {
-      name: name.trim() || 'Untitled rule',
+      name: ruleName,
       category,
       status,
       level,
@@ -303,22 +746,48 @@ export default function Rules() {
       appliesTo: { who, where, team },
       appliesAlso: also.length > 0 ? also : undefined,
       headcount: headcountFor(who, where, team),
-      chain,
+      /* ALWAYS derived from however the steps were authored */
+      chain: liveChain,
+      flowId: approvalMode === 'flow' && selectedFlow ? selectedFlow.id : undefined,
+      steps: approvalMode === 'steps' && builtSteps.length > 0 ? builtSteps : undefined,
+      effectiveFrom: effectiveFrom.trim() !== '' ? effectiveFrom.trim() : undefined,
+      reviewEvery: reviewEvery === '—' ? undefined : reviewEvery,
+      exceptions: exceptions.length > 0 ? exceptions : undefined,
       /* company-level rules: always the company's own people */
       resolution: level === 'Company' ? ('local' as const) : decide,
       notify,
       updated: 'just now',
       /* with policy text attached, the rule IS a document people read & sign */
-      doc: docText.trim()
-        ? {
-            summary: docText.trim(),
-            sections: [{ title: 'The policy', body: docText.trim() }],
-            requiresSignature: signRequired,
-          }
-        : undefined,
+      doc:
+        kind === 'paper' && docText.trim()
+          ? {
+              summary: docText.trim(),
+              sections: [{ title: 'The policy', body: docText.trim() }],
+              requiresSignature: signRequired,
+            }
+          : undefined,
+      /* the rule as a trigger — when X happens, do Y */
+      automation:
+        kind === 'trigger'
+          ? {
+              when: trigWhen.trim() || 'Something happens',
+              then: trigThen.map((t) => t.trim()).filter((t) => t !== ''),
+              firedThisWeek: existing?.automation?.firedThisWeek ?? 0,
+            }
+          : undefined,
+      /* the rule as a number — variants by place, read by other parts */
+      computes:
+        kind === 'number'
+          ? {
+              what: ruleName,
+              variants: variants
+                .map((v) => ({ where: v.where.trim(), value: v.value.trim() }))
+                .filter((v) => v.where !== '' || v.value !== ''),
+              feeds,
+            }
+          : undefined,
     }
     if (editingId) {
-      const existing = rules.find((r) => r.id === editingId)
       updateRule(editingId, {
         ...fields,
         history: [
@@ -390,6 +859,7 @@ export default function Rules() {
   const ruleCard = (r: Rule) => {
     const editable = canEdit(r)
     const reach = reachFor(r, companies)
+    const cardFlow = r.flowId ? flows.find((f) => f.id === r.flowId) : undefined
     /* hats are clickable for multi-company viewers when each company fills them itself */
     const hatsClickable = persona.multiCompany && r.level !== 'Company' && r.resolution === 'local'
     const stuck = persona.multiCompany ? unroutableFor(r, companies) : []
@@ -408,8 +878,11 @@ export default function Rules() {
           <Pill tone={statusTone(r.status)} dot>
             {r.status}
           </Pill>
+          {r.effectiveFrom && <Pill tone="amber">from {r.effectiveFrom}</Pill>}
           {r.level !== 'Company' && <ChildControlPill control={r.childControl} />}
-          <span className="ml-auto text-[12px] text-muted">updated {r.updated}</span>
+          <span className="ml-auto text-[12px] text-muted">
+            {r.reviewEvery && <span>review {r.reviewEvery} · </span>}updated {r.updated}
+          </span>
           <ChevronRight className="h-4 w-4 text-muted/60" />
         </div>
 
@@ -434,6 +907,11 @@ export default function Rules() {
             </span>
           )}
         </p>
+
+        {/* carve-outs, in plain words */}
+        {r.exceptions && r.exceptions.length > 0 && (
+          <p className="mt-1 text-[12px] text-muted">Except: {r.exceptions.join(' · ')}</p>
+        )}
 
         {/* the rule as a TRIGGER: when X → then Y; every firing opens a ticket */}
         {r.automation && (
@@ -472,26 +950,43 @@ export default function Rules() {
 
         {/* the pipeline — its chips act on their own, never open the detail */}
         <div onClick={(e) => e.stopPropagation()}>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <StepChip>{r.automation ? 'Rule fires' : 'Person asks'}</StepChip>
-            <ArrowRight className="h-3 w-3 text-muted" />
-            {r.chain.length === 0 ? (
-              <>
-                <span className="text-[12px] italic text-muted">runs instantly — no approvals</span>
-                <ArrowRight className="h-3 w-3 text-muted" />
-              </>
-            ) : (
-              r.chain.map((step) => (
-                <Fragment key={step}>
-                  <StepChip onClick={hatsClickable ? () => setHat({ ruleId: r.id, role: step }) : undefined}>
-                    {step}
-                  </StepChip>
+          {r.steps && r.steps.length > 0 ? (
+            <div className="mt-3">
+              <Pipeline steps={r.steps} start="It fires" />
+            </div>
+          ) : cardFlow ? (
+            <div className="mt-3">
+              <Pipeline steps={cardFlow.steps} />
+              <button
+                type="button"
+                onClick={() => setView('Approval flows')}
+                className="mt-1.5 block text-[11.5px] font-medium text-muted transition-colors hover:text-accent-ink"
+              >
+                routes via the “{cardFlow.name}” flow →
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <StepChip>{r.automation ? 'Rule fires' : 'Person asks'}</StepChip>
+              <ArrowRight className="h-3 w-3 text-muted" />
+              {r.chain.length === 0 ? (
+                <>
+                  <span className="text-[12px] italic text-muted">runs instantly — no approvals</span>
                   <ArrowRight className="h-3 w-3 text-muted" />
-                </Fragment>
-              ))
-            )}
-            <StepChip>Done ✓</StepChip>
-          </div>
+                </>
+              ) : (
+                r.chain.map((step) => (
+                  <Fragment key={step}>
+                    <StepChip onClick={hatsClickable ? () => setHat({ ruleId: r.id, role: step }) : undefined}>
+                      {step}
+                    </StepChip>
+                    <ArrowRight className="h-3 w-3 text-muted" />
+                  </Fragment>
+                ))
+              )}
+              <StepChip>Done ✓</StepChip>
+            </div>
+          )}
         </div>
 
         {/* who fills the hats — each company's own people, or one central desk */}
@@ -758,6 +1253,161 @@ export default function Rules() {
         }
       >
         <div className="space-y-7">
+          {/* what kind of rule is it — the shape decides what you fill in */}
+          <section>
+            <SectionLabel hint="Words people sign, something that fires on its own, or a number the system reads.">
+              What kind of rule is it?
+            </SectionLabel>
+            <Segmented options={KIND_CHOICES} value={LABEL_OF_KIND[kind]} onChange={(v) => setKind(KIND_OF_LABEL[v])} />
+
+            {/* words people sign — the policy text, and whether everyone signs it */}
+            {kind === 'paper' && (
+              <div className="mt-4">
+                <textarea
+                  rows={3}
+                  value={docText}
+                  onChange={(e) => setDocText(e.target.value)}
+                  placeholder="What does the policy say? One short paragraph is enough for the prototype."
+                  className="w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[13.5px] placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                />
+                {docText.trim() !== '' && (
+                  <div className="mt-3">
+                    <Toggle on={signRequired} onChange={setSignRequired} label="Every employee must sign it" />
+                    {signRequired && (
+                      <p className="mt-2 text-[12px] text-muted">
+                        It will land in every employee's Documents inbox across {composerReach.companies}{' '}
+                        {composerReach.companies === 1 ? 'company' : 'companies'} — signing is tracked per company.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* it fires on a trigger — when X happens, then Y, in order */}
+            {kind === 'trigger' && (
+              <div className="mt-4 space-y-3.5">
+                <Field label="When does it fire?">
+                  <Input
+                    value={trigWhen}
+                    onChange={(e) => setTrigWhen(e.target.value)}
+                    placeholder="e.g. someone checks in 5–10 minutes late, three times in a month"
+                  />
+                </Field>
+                <div>
+                  <span className="mb-1.5 block text-[12.5px] font-semibold text-ink-soft">
+                    Then what happens, in order
+                  </span>
+                  <div className="space-y-2">
+                    {trigThen.map((t, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink text-[10px] font-bold text-card">
+                          {i + 1}
+                        </span>
+                        <Input
+                          value={t}
+                          onChange={(e) => setTrigThen((ts) => ts.map((x, j) => (j === i ? e.target.value : x)))}
+                          placeholder={
+                            i === 0
+                              ? 'e.g. a half day is proposed — HR decides'
+                              : 'e.g. the person and their manager are told why'
+                          }
+                        />
+                        {trigThen.length > 1 && (
+                          <button
+                            type="button"
+                            aria-label={`Remove step ${i + 1}`}
+                            onClick={() => setTrigThen((ts) => ts.filter((_, j) => j !== i))}
+                            className="shrink-0 text-muted transition-colors hover:text-red"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTrigThen((ts) => [...ts, ''])}
+                    className="mt-2 rounded-full border border-dashed border-line px-2.5 py-1 text-[11.5px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
+                  >
+                    + Add a step
+                  </button>
+                  <p className="mt-2 text-[12px] text-muted">
+                    Every firing opens a ticket in the approver's inbox — nothing happens silently.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* it sets a number — the value by place, and who reads it */}
+            {kind === 'number' && (
+              <div className="mt-4 space-y-3.5">
+                <div>
+                  <span className="mb-1.5 block text-[12.5px] font-semibold text-ink-soft">The value, place by place</span>
+                  <div className="space-y-2">
+                    {variants.map((v, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Input
+                          value={v.where}
+                          onChange={(e) =>
+                            setVariants((vs) => vs.map((x, j) => (j === i ? { ...x, where: e.target.value } : x)))
+                          }
+                          placeholder="Metro cities"
+                        />
+                        <Input
+                          value={v.value}
+                          onChange={(e) =>
+                            setVariants((vs) => vs.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))
+                          }
+                          placeholder="50% of basic pay"
+                        />
+                        {variants.length > 1 && (
+                          <button
+                            type="button"
+                            aria-label={`Remove variant ${i + 1}`}
+                            onClick={() => setVariants((vs) => vs.filter((_, j) => j !== i))}
+                            className="shrink-0 text-muted transition-colors hover:text-red"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setVariants((vs) => [...vs, { where: '', value: '' }])}
+                    className="mt-2 rounded-full border border-dashed border-line px-2.5 py-1 text-[11.5px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
+                  >
+                    + Add a variant
+                  </button>
+                </div>
+                <div>
+                  <span className="mb-1.5 block text-[12.5px] font-semibold text-ink-soft">Read by</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {FEED_OPTIONS.map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => toggleFeed(f)}
+                        className={cn(
+                          'rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors',
+                          feeds.includes(f) ? 'bg-accent-soft text-accent-ink' : 'bg-card2 text-muted hover:text-ink',
+                        )}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[12px] text-muted">
+                    Other parts of the system read this number — change it here, it changes everywhere.
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+
           {/* where it lives — who controls it */}
           <section>
             <SectionLabel hint="A rule set higher up lands on every company below it — live, never copied.">
@@ -798,6 +1448,29 @@ export default function Rules() {
                 </Select>
               </Field>
             </div>
+
+            {/* precedence, visible while you author — updates live with category & level */}
+            {(aboveMe || belowMe) && (
+              <div className="mt-3 space-y-2.5">
+                {aboveMe && (
+                  <div className="flex items-start gap-2 rounded-2xl bg-accent-soft/70 px-4 py-3 text-[12.5px] font-medium text-accent-ink">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Heads up — “{aboveMe.name}” ({levelWord(aboveMe)}) already covers{' '}
+                      {category.toLowerCase()} and sits above you. Yours will stay quiet where they overlap.
+                    </span>
+                  </div>
+                )}
+                {belowMe && (
+                  <div className="flex items-start gap-2 rounded-2xl bg-card2/70 px-4 py-3 text-[12.5px] font-medium text-ink-soft">
+                    <Layers className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      Yours will win — “{belowMe.name}” ({levelWord(belowMe)}) goes quiet where you overlap.
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* who it applies to — the sentence builder. It stays a SENTENCE no
@@ -864,45 +1537,50 @@ export default function Rules() {
             </p>
           </section>
 
-          {/* approval steps */}
+          {/* who says yes — nothing, an existing flow, or steps built right here */}
           <section>
-            <SectionLabel>Approval steps</SectionLabel>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {chain.map((step, i) => (
-                <Fragment key={step}>
-                  {i > 0 && <ArrowRight className="h-3 w-3 text-muted" />}
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-card2 px-2.5 py-1 text-[11.5px] font-bold leading-none">
-                    {step}
-                    <button
-                      type="button"
-                      aria-label={`Remove ${step}`}
-                      onClick={() => setChain((c) => c.filter((_, j) => j !== i))}
-                      className="text-muted transition-colors hover:text-red"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                </Fragment>
-              ))}
-              {nextApprover && (
-                <button
-                  type="button"
-                  onClick={() => setChain((c) => [...c, nextApprover])}
-                  className="rounded-full border border-dashed border-line px-2.5 py-1 text-[11.5px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
-                >
-                  + Add step
-                </button>
-              )}
-            </div>
-            {chain.length === 0 && (
+            <SectionLabel hint="No steps at all, an existing flow, or steps built right here.">Who says yes</SectionLabel>
+            <Segmented
+              options={SAYS_CHOICES}
+              value={SAYS_OF_MODE[approvalMode]}
+              onChange={(v) => {
+                const m = MODE_OF_SAYS[v]
+                setApprovalMode(m)
+                if (m === 'flow' && !flows.some((f) => f.id === flowChoice)) setFlowChoice(flows[0]?.id ?? '')
+              }}
+            />
+            {approvalMode === 'none' && (
               <p className="mt-2 text-[12px] italic text-muted">
                 No steps — it just runs. Fine for low-stakes rules.
               </p>
             )}
+            {approvalMode === 'flow' && (
+              <div className="mt-3 space-y-3">
+                <Select value={flowChoice} onChange={(e) => setFlowChoice(e.target.value)}>
+                  {flows.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} — {f.routes}
+                    </option>
+                  ))}
+                </Select>
+                {selectedFlow ? (
+                  <div className="rounded-2xl bg-card2/50 p-3.5">
+                    <Pipeline steps={selectedFlow.steps} />
+                  </div>
+                ) : (
+                  <p className="text-[12px] italic text-muted">No flows to pick from yet.</p>
+                )}
+              </div>
+            )}
+            {approvalMode === 'steps' && (
+              <div className="mt-3">
+                <StepBuilder steps={draftSteps} onChange={setDraftSteps} />
+              </div>
+            )}
           </section>
 
           {/* whose people fill those hats — only meaningful above company level */}
-          {level !== 'Company' && chain.length > 0 && (
+          {level !== 'Company' && liveChain.length > 0 && (
             <section>
               <SectionLabel hint="The steps above are hats, not people.">Whose people decide?</SectionLabel>
               <Segmented
@@ -940,57 +1618,165 @@ export default function Rules() {
             </div>
           </section>
 
-          {/* the policy itself — a rule can BE a document people read & sign */}
+          {/* when does it apply — a start date, a review rhythm, carve-outs */}
           <section>
-            <SectionLabel hint="Optional — attach the actual policy text and it becomes a document people read.">
-              The policy itself
+            <SectionLabel hint="A start date, a review rhythm, and any carve-outs — in plain words.">
+              When does it apply
             </SectionLabel>
-            <textarea
-              rows={3}
-              value={docText}
-              onChange={(e) => setDocText(e.target.value)}
-              placeholder="What does the policy say? One short paragraph is enough for the prototype."
-              className="w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[13.5px] placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-            />
-            {docText.trim() !== '' && (
-              <div className="mt-3">
-                <Toggle on={signRequired} onChange={setSignRequired} label="Every employee must sign it" />
-                {signRequired && (
-                  <p className="mt-2 text-[12px] text-muted">
-                    It will land in every employee's Documents inbox across {composerReach.companies}{' '}
-                    {composerReach.companies === 1 ? 'company' : 'companies'} — signing is tracked per company.
-                  </p>
-                )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Effective from">
+                <Input
+                  value={effectiveFrom}
+                  onChange={(e) => setEffectiveFrom(e.target.value)}
+                  placeholder="e.g. 1 Aug 2026"
+                />
+              </Field>
+              <Field label="Review it">
+                <Select value={reviewEvery} onChange={(e) => setReviewEvery(e.target.value)}>
+                  {REVIEW_OPTIONS.map((o) => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+            <div className="mt-3">
+              <span className="mb-1.5 block text-[12.5px] font-semibold text-ink-soft">Except…</span>
+              {exceptions.length > 0 && (
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  {exceptions.map((x) => (
+                    <span
+                      key={x}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-card2 px-2.5 py-1 text-[11.5px] font-bold leading-none"
+                    >
+                      {x}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${x}`}
+                        onClick={() => setExceptions((xs) => xs.filter((y) => y !== x))}
+                        className="text-muted transition-colors hover:text-red"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Input
+                  value={exceptionInput}
+                  onChange={(e) => setExceptionInput(e.target.value)}
+                  placeholder="e.g. Not for interns"
+                />
+                <Btn variant="outline" size="sm" onClick={addException}>
+                  Add
+                </Btn>
               </div>
-            )}
+            </div>
           </section>
 
-          {/* simulate before publish */}
+          {/* simulate before publish — a real person, a real amount, the resolved path */}
           <section>
             <Card glow className="p-5">
-              <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-ink">
+              <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-ink">
                 <Sparkles className="h-4 w-4" /> Try it before you turn it on
               </div>
-              <p className="text-[13.5px] leading-relaxed">
-                <b>Priya</b> (Design · Bengaluru) triggers “<b>{name.trim() || 'this rule'}</b>”
-                {chain.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Pick a person">
+                  <Select value={simPersonId} onChange={(e) => setSimPersonId(e.target.value)}>
+                    {PEOPLE.slice(0, 8).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} — {p.dept}, {companyNameOf(p.companyId)}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                {needsAmount && (
+                  <Field label="Try an amount">
+                    <Input
+                      value={simAmount}
+                      onChange={(e) => setSimAmount(e.target.value)}
+                      placeholder="₹75,000"
+                    />
+                  </Field>
+                )}
+              </div>
+              <p className="mt-3.5 text-[13.5px] leading-relaxed">
+                <b>{simPerson.name.split(' ')[0]}</b> ({simPerson.dept} · {companyNameOf(simPerson.companyId)})
+                triggers “<b>{name.trim() || 'this rule'}</b>”
+                {liveSteps.length === 0 ? (
                   <>
                     {' '}
-                    → goes to <b>{chain.join(', then ')}</b>
+                    → <b>approved instantly</b>.
                   </>
                 ) : (
-                  <>
-                    {' '}
-                    → <b>approved instantly</b>
-                  </>
+                  <> — the path:</>
                 )}
+              </p>
+              {resolved.length > 0 && (
+                <div className="mt-2.5 space-y-2">
+                  {resolved.map(({ step, status }, i) => (
+                    <div
+                      key={step.id}
+                      className={cn(
+                        'rounded-2xl px-3.5 py-2.5',
+                        status === 'runs' && 'bg-card2/70',
+                        status === 'maybe' && 'border border-dashed border-line',
+                        status === 'skipped' && 'bg-card2/40 opacity-60',
+                      )}
+                    >
+                      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px]">
+                        <span className="font-bold">{i + 1}.</span>
+                        {step.roles.map((role) => {
+                          const holder = holderFor(simPerson.companyId, role)
+                          return (
+                            <span key={role} className="inline-flex items-center gap-1.5 font-semibold">
+                              {role}
+                              {holder ? (
+                                <span className="font-normal text-muted">— {holder}</span>
+                              ) : (
+                                <Pill tone="amber">no one yet</Pill>
+                              )}
+                            </span>
+                          )
+                        })}
+                        {step.roles.length > 1 && (
+                          <span className="text-[11.5px] font-semibold text-muted">
+                            {step.quorum && step.quorum < step.roles.length
+                              ? `any ${step.quorum} of ${step.roles.length} is enough`
+                              : step.mode === 'all'
+                                ? 'all of them'
+                                : 'any one of them'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[11.5px] text-muted">
+                        ⏱ {step.sla}
+                        {step.remind && <span> · nudges at 50/75%</span>}
+                        {step.onlyWhen &&
+                          (status === 'maybe' ? (
+                            <span className="font-semibold text-accent-ink"> · only if {step.onlyWhen}</span>
+                          ) : status === 'skipped' ? (
+                            <span> · skipped — only when {step.onlyWhen}</span>
+                          ) : (
+                            <span> · runs — {step.onlyWhen}</span>
+                          ))}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {liveSteps.length > 0 && worstDays > 0 && (
+                <p className="mt-2.5 text-[12px] font-semibold text-accent-ink">
+                  Worst case ≈ {worstDays} days before anyone is chased.
+                </p>
+              )}
+              <p className="mt-2 text-[12.5px]">
                 {notify.length > 0 ? (
                   <>
-                    {' '}
-                    → <b>{notify.join(' + ')}</b> {notify.length === 1 ? 'gets' : 'get'} told.
+                    Then <b>{notify.join(' + ')}</b> {notify.length === 1 ? 'gets' : 'get'} told.
                   </>
                 ) : (
-                  <> → no one is told yet.</>
+                  <>No one is told yet.</>
                 )}
               </p>
               <p className="mt-2 text-[11.5px] text-muted">A worked example — it updates live as you change the rule.</p>
