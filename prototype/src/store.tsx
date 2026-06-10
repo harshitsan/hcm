@@ -14,6 +14,7 @@ import {
   MY_REQUESTS,
   PERSONAS,
   RULES,
+  TEMPLATES,
   type AckDoc,
   type AuditEvent,
   type AuditKind,
@@ -24,6 +25,7 @@ import {
   type Persona,
   type PersonaId,
   type Rule,
+  type Template,
 } from './data'
 import { hexToTriple } from './lib'
 
@@ -74,6 +76,10 @@ type AppCtx = {
 
   acks: AckDoc[]
   confirmAck: (id: string) => void
+
+  /** the company-setup gallery — grows when someone saves their setup */
+  templates: Template[]
+  addTemplate: (t: Template) => void
 
   /** the platform-wide activity log — newest first; everything writes here */
   audit: AuditEvent[]
@@ -143,6 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [rules, setRules] = useState<Rule[]>(RULES)
   const [flows, setFlows] = useState<Flow[]>(FLOWS)
   const [acks, setAcks] = useState<AckDoc[]>(ACK_DOCS)
+  const [templates, setTemplates] = useState<Template[]>(TEMPLATES)
   const [audit, setAudit] = useState<AuditEvent[]>(AUDIT_SEED)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [cmdOpen, setCmdOpen] = useState(false)
@@ -273,6 +280,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [acks, logEvent],
   )
 
+  const addTemplate = useCallback(
+    (t: Template) => {
+      setTemplates((ts) => [...ts, t])
+      logEvent('Company', `Saved “${t.name}” as a template`, {
+        where: 'Platform',
+        detail: 'Available in the gallery for every future company',
+      })
+    },
+    [logEvent],
+  )
+
   const addCompany = useCallback(
     (c: Company) => {
       setCompanies((cs) => [...cs, c])
@@ -322,6 +340,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addFlow,
     acks,
     confirmAck,
+    templates,
+    addTemplate,
     audit,
     logEvent,
     toasts,

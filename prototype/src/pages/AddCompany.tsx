@@ -13,12 +13,13 @@ import {
   UploadCloud,
   Users,
   X,
+  BookmarkPlus,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SETUP_PHASES, TEMPLATES } from '../data'
+import { SETUP_PHASES } from '../data'
 import { cn } from '../lib'
-import { Btn, Card, Field, Input, Pill, Segmented, Select, Toggle } from '../ui'
+import { Btn, Card, Field, Input, Modal, Pill, Segmented, Select, Toggle } from '../ui'
 import { useApp } from '../store'
 
 const STEPS = SETUP_PHASES.flatMap((p) => p.steps.map((s) => ({ phase: p.title, title: s })))
@@ -50,7 +51,7 @@ function PipeBox({ children, hollow }: { children: React.ReactNode; hollow?: boo
 }
 
 export default function AddCompany() {
-  const { companies, addCompany, setCompanyId, rules, toast } = useApp()
+  const { companies, addCompany, setCompanyId, rules, templates, addTemplate, toast } = useApp()
   const navigate = useNavigate()
 
   const [stage, setStage] = useState<'pick' | 'wizard' | 'live'>('pick')
@@ -90,6 +91,29 @@ export default function AddCompany() {
   const [tested, setTested] = useState(false)
 
   const [newId, setNewId] = useState('')
+
+  /* save-this-setup-as-a-template (BRD obj. 4: replication closes its loop) */
+  const [tplModal, setTplModal] = useState(false)
+  const [tplSaveName, setTplSaveName] = useState('')
+  const [tplSaveDesc, setTplSaveDesc] = useState('')
+
+  const saveAsTemplate = () => {
+    const tName = tplSaveName.trim() || `${finalName} setup`
+    addTemplate({
+      id: 'tpl' + (templates.length + 1),
+      name: tName,
+      desc: tplSaveDesc.trim() || `Everything ${finalName} was set up with — ready to reuse.`,
+      tags: ['Yours'],
+      prefills: [
+        { label: 'time-off rules', count: ruleOn.filter(Boolean).length },
+        { label: 'teams', count: teams.length },
+        { label: 'roles', count: roles.length },
+        { label: 'locations', count: locations.length },
+      ],
+    })
+    setTplModal(false)
+    toast(`Saved — “${tName}” is in the gallery for the next company`)
+  }
 
   const finalName = name.trim() || 'Northwind Foods'
   const rulesOnCount = ruleOn.filter(Boolean).length
@@ -133,7 +157,7 @@ export default function AddCompany() {
         </Card>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          {TEMPLATES.map((t) => (
+          {templates.map((t) => (
             <Card key={t.id} className="p-6" onClick={() => startWizard(t.name)}>
               <div className="flex items-start justify-between gap-3">
                 <h3 className="text-[17px] font-bold tracking-tight">{t.name}</h3>
@@ -543,6 +567,22 @@ export default function AddCompany() {
                 Bring {finalName} online
               </Btn>
               <p className="mt-2.5 text-[12px] text-muted">24 invites go out the moment you do.</p>
+              <div className="mt-4 border-t border-line/60 pt-4">
+                <Btn
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setTplSaveName('')
+                    setTplSaveDesc('')
+                    setTplModal(true)
+                  }}
+                >
+                  <BookmarkPlus className="h-4 w-4" /> Save this setup as a template
+                </Btn>
+                <p className="mt-2 text-[11.5px] text-muted">
+                  The next company starts from here instead of from scratch.
+                </p>
+              </div>
             </div>
           </div>
         )
@@ -620,6 +660,45 @@ export default function AddCompany() {
           </Card>
         </div>
       </div>
+
+      {/* save the current setup as a reusable template */}
+      <Modal
+        open={tplModal}
+        onClose={() => setTplModal(false)}
+        title="Save this setup as a template"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <Btn variant="ghost" size="sm" onClick={() => setTplModal(false)}>
+              Not now
+            </Btn>
+            <Btn variant="dark" size="sm" onClick={saveAsTemplate}>
+              Save to the gallery
+            </Btn>
+          </div>
+        }
+      >
+        <p className="text-[13px] text-muted">
+          Everything you've set up here — {teams.length} teams, {roles.length} roles,{' '}
+          {ruleOn.filter(Boolean).length} time-off rules, {locations.length}{' '}
+          {locations.length === 1 ? 'location' : 'locations'} — becomes a starting point in the gallery.
+        </p>
+        <div className="mt-4 space-y-4">
+          <Field label="Template name">
+            <Input
+              value={tplSaveName}
+              onChange={(e) => setTplSaveName(e.target.value)}
+              placeholder={`e.g. ${finalName} setup`}
+            />
+          </Field>
+          <Field label="One line about it (optional)">
+            <Input
+              value={tplSaveDesc}
+              onChange={(e) => setTplSaveDesc(e.target.value)}
+              placeholder="e.g. Our standard India services setup"
+            />
+          </Field>
+        </div>
+      </Modal>
     </div>
   )
 }
