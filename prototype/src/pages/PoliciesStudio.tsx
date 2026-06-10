@@ -14,6 +14,7 @@ import {
   ListChecks,
   Lock,
   MessagesSquare,
+  PencilLine,
   Plus,
   Sparkles,
   Timer,
@@ -127,6 +128,15 @@ export default function PoliciesStudio() {
   /* who may touch what — mirrors rules exactly */
   const canEdit = (p: Policy): boolean =>
     persona.id === 'operator' ? true : persona.id === 'portfolio' ? p.level !== 'Platform' : p.level === 'Company'
+
+  /* in-place edit is for unpublished policies — editing a live one IS versioning */
+  const editBtn = (p: Policy) =>
+    canEdit(p) &&
+    p.status !== 'Published' && (
+      <Btn variant="ghost" size="sm" onClick={() => navigate('/policies/edit/' + p.id)}>
+        <PencilLine className="h-4 w-4" /> Edit
+      </Btn>
+    )
 
   /* ── detail drawer ── */
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -249,7 +259,10 @@ export default function PoliciesStudio() {
 
         <div onClick={(e) => e.stopPropagation()}>
           {editable ? (
-            <div className="mt-4 flex flex-wrap items-center gap-2">{statusAction(p)}</div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {statusAction(p)}
+              {editBtn(p)}
+            </div>
           ) : (
             <div className="mt-4 flex items-center gap-2 text-[12.5px] font-medium text-muted">
               <Lock className="h-3.5 w-3.5" />
@@ -350,7 +363,12 @@ export default function PoliciesStudio() {
         footer={
           detail != null && (
             <div className="flex items-center justify-end gap-2">
-              {canEdit(detail) ? statusAction(detail) : (
+              {canEdit(detail) ? (
+                <>
+                  {editBtn(detail)}
+                  {statusAction(detail)}
+                </>
+              ) : (
                 <span className="flex items-center gap-2 text-[12.5px] font-medium text-muted">
                   <Lock className="h-3.5 w-3.5" /> Set above you — runs here automatically.
                 </span>

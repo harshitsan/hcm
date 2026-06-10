@@ -73,6 +73,7 @@ function Shell() {
             <Route path="/access" element={<Access />} />
             <Route path="/hiring" element={<Hiring />} />
             <Route path="/policies/new" element={<PolicyGenerator />} />
+            <Route path="/policies/edit/:id" element={<PolicyGenerator />} />
             <Route path="/activity" element={<Activity />} />
           </Routes>
         </main>

@@ -5,7 +5,7 @@
  * Add-company journey: phase rail on the left, one Card per step on the right.
  */
 import { Fragment, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
   Calculator,
@@ -21,7 +21,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { Btn, Card, Field, Input, Pill, Segmented, Select, SentenceChip } from '../ui'
+import { Btn, Card, EmptyState, Field, Input, Pill, Segmented, Select, SentenceChip, statusTone } from '../ui'
 import { useApp } from '../store'
 import {
   EXTRA_DIMENSIONS,
@@ -128,6 +128,11 @@ const LEVEL_OF_LABEL: Record<LevelLabel, RuleLevel> = {
   'Your portfolio': 'Portfolio',
   'This company': 'Company',
 }
+const LABEL_OF_LEVEL: Record<RuleLevel, LevelLabel> = {
+  Platform: 'Platform',
+  Portfolio: 'Your portfolio',
+  Company: 'This company',
+}
 
 /* ── what children may do with it — same plain labels as rules ── */
 
@@ -137,6 +142,11 @@ const CONTROL_OF_LABEL: Record<ControlLabel, ChildControl> = {
   'Use as-is': 'locked',
   'Can adjust': 'adjustable',
   'Opt in': 'optional',
+}
+const LABEL_OF_CONTROL: Record<ChildControl, ControlLabel> = {
+  locked: 'Use as-is',
+  adjustable: 'Can adjust',
+  optional: 'Opt in',
 }
 const CONTROL_EXPLAINER: Record<ChildControl, string> = {
   locked: "Compliance-grade. Children can't change a word.",
@@ -171,6 +181,7 @@ const BLANK_SIGN_CLAUSE: PolicyClause = {
 /* ── the three steps, on the rail ── */
 
 const STEP_TITLES = ['Start from', 'Who it covers', 'Make each clause work'] as const
+const EDIT_STEP_TITLES = ['The policy', 'Who it covers', 'Make each clause work'] as const
 const STEP_HINTS: Record<number, string | undefined> = {
   0: 'Pick a starting point — everything stays editable.',
   1: undefined,
@@ -178,8 +189,13 @@ const STEP_HINTS: Record<number, string | undefined> = {
 }
 
 export default function PolicyGenerator() {
-  const { policies, addPolicy, persona, company, companies, toast } = useApp()
+  const { policies, addPolicy, updatePolicy, persona, company, companies, toast } = useApp()
   const navigate = useNavigate()
+
+  /* ── edit mode — same wizard, seeded from the existing policy ── */
+  const { id } = useParams()
+  const isEdit = id != null
+  const editing = isEdit ? policies.find((p) => p.id === id) : undefined
 
   const levelChoices: readonly LevelLabel[] =
     persona.id === 'operator'
@@ -188,25 +204,44 @@ export default function PolicyGenerator() {
         ? ['Your portfolio', 'This company']
         : []
 
-  /* ── generator state — same shape as the old drawer ── */
-  const [step, setStep] = useState(0)
+  /* ── generator state — same shape as the old drawer; in edit mode it starts
+     where the policy left off ── */
+  const [step, setStep] = useState(isEdit ? 1 : 0)
   const [tpl, setTpl] = useState<PolicyTemplate | null>(null)
   const [variant, setVariant] = useState('India')
-  const [genName, setGenName] = useState('')
-  const [genArea, setGenArea] = useState('Workplace')
-  const [levelLabel, setLevelLabel] = useState<LevelLabel>('This company')
-  const [who, setWho] = useState<string>(WHO_OPTIONS[0])
-  const [where, setWhere] = useState<string>(WHERE_OPTIONS[0])
-  const [team, setTeam] = useState<string>(TEAM_OPTIONS[0])
-  const [controlLabel, setControlLabel] = useState<ControlLabel>('Can adjust')
-  const [excluded, setExcluded] = useState<string[]>([])
-  const [also, setAlso] = useState<{ dim: string; value: string }[]>([])
-  const [exceptions, setExceptions] = useState<string[]>([])
+  const [genName, setGenName] = useState(editing?.name ?? '')
+  const [genArea, setGenArea] = useState(editing?.area ?? 'Workplace')
+  const [levelLabel, setLevelLabel] = useState<LevelLabel>(
+    editing ? LABEL_OF_LEVEL[editing.level] : 'This company',
+  )
+  const [who, setWho] = useState<string>(editing?.appliesTo.who ?? WHO_OPTIONS[0])
+  const [where, setWhere] = useState<string>(editing?.appliesTo.where ?? WHERE_OPTIONS[0])
+  const [team, setTeam] = useState<string>(editing?.appliesTo.team ?? TEAM_OPTIONS[0])
+  const [controlLabel, setControlLabel] = useState<ControlLabel>(
+    editing ? LABEL_OF_CONTROL[editing.childControl] : 'Can adjust',
+  )
+  const [excluded, setExcluded] = useState<string[]>(() => {
+    if (!editing || !editing.includedCompanies) return []
+    const included = editing.includedCompanies
+    const scope =
+      editing.level === 'Platform'
+        ? companies
+        : editing.level === 'Portfolio'
+          ? companies.filter((c) => c.inPortfolio)
+          : []
+    return scope.filter((c) => !included.includes(c.id)).map((c) => c.id)
+  })
+  const [also, setAlso] = useState<{ dim: string; value: string }[]>(
+    editing?.appliesAlso?.map((c) => ({ ...c })) ?? [],
+  )
+  const [exceptions, setExceptions] = useState<string[]>(editing?.exceptions ? [...editing.exceptions] : [])
   const [exceptionInput, setExceptionInput] = useState('')
-  const [genClauses, setGenClauses] = useState<PolicyClause[]>([])
+  const [genClauses, setGenClauses] = useState<PolicyClause[]>(() =>
+    editing ? editing.clauses.map((c) => (c.binding ? { ...c, binding: { ...c.binding } } : { ...c })) : [],
+  )
   const [focus, setFocus] = useState(0)
-  const [channels, setChannels] = useState<string[]>(['Platform sign-off'])
-  const [effective, setEffective] = useState('')
+  const [channels, setChannels] = useState<string[]>(editing ? [...editing.channels] : ['Platform sign-off'])
+  const [effective, setEffective] = useState(editing?.effectiveFrom ?? '')
 
   const level: RuleLevel = persona.id === 'hradmin' ? 'Company' : LEVEL_OF_LABEL[levelLabel]
   const childControl: ChildControl = CONTROL_OF_LABEL[controlLabel]
@@ -312,6 +347,36 @@ export default function PolicyGenerator() {
     navigate('/rules')
   }
 
+  /* edit mode — same version, every change on the record */
+  const saveEdit = (send: boolean) => {
+    if (!editing) return
+    updatePolicy(editing.id, {
+      name: genName.trim() || 'Untitled policy',
+      area: genArea,
+      level,
+      ownerCompanyId: level === 'Company' ? 'acme' : undefined,
+      childControl,
+      appliesTo: { who, where, team },
+      appliesAlso: also.length > 0 ? also : undefined,
+      exceptions: exceptions.length > 0 ? exceptions : undefined,
+      includedCompanies: isSubset ? includedIds : undefined,
+      effectiveFrom: effective.trim() || 'on approval',
+      channels,
+      clauses: genClauses,
+      ...(send ? { status: 'Waiting for approval' as const } : {}),
+      history: [
+        ...editing.history,
+        { who: persona.name, what: 'Changed: name, who it covers, or clauses', when: 'just now' },
+      ],
+    })
+    toast(
+      send
+        ? 'Sent for approval — it publishes once approved'
+        : 'Saved — same version, every change on the record',
+    )
+    navigate('/rules')
+  }
+
   const focused = genClauses[focus] as PolicyClause | undefined
   const focusedSensor: ClauseSensor = focused?.binding?.sensor ?? 'platform'
 
@@ -345,6 +410,27 @@ export default function PolicyGenerator() {
   const stepBody = () => {
     switch (step) {
       case 0:
+        if (editing)
+          return (
+            <Card className="max-w-xl p-5">
+              <Field label="Name">
+                <Input value={genName} onChange={(e) => setGenName(e.target.value)} />
+              </Field>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <Pill tone="outline">{genArea}</Pill>
+                <Pill tone={statusTone(editing.status)} dot>
+                  {editing.status === 'Waiting for approval' ? 'Waiting' : editing.status}
+                </Pill>
+                <span className="text-[11.5px] font-semibold text-muted">
+                  {genClauses.length} {genClauses.length === 1 ? 'clause' : 'clauses'}
+                </span>
+              </div>
+              <p className="mt-3 text-[12px] text-muted">
+                Started from a template — the clauses are yours now. Re-picking a template would throw your edits
+                away, so there's no gallery here.
+              </p>
+            </Card>
+          )
         return (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {POLICY_TEMPLATES.map((t) => (
@@ -729,6 +815,26 @@ export default function PolicyGenerator() {
     }
   }
 
+  /* edit mode pointed at a policy that's gone — say so, kindly */
+  if (isEdit && !editing)
+    return (
+      <div className="mx-auto max-w-xl animate-fade-in pt-10">
+        <EmptyState
+          icon={<FileSignature />}
+          title="This policy doesn't exist anymore"
+          body="It may have been removed — head back to the studio to see what's live."
+          action={
+            <Btn variant="dark" onClick={() => navigate('/rules')}>
+              <ArrowLeft className="h-4 w-4" /> Back to policies
+            </Btn>
+          }
+        />
+      </div>
+    )
+
+  const stepTitles = isEdit ? EDIT_STEP_TITLES : STEP_TITLES
+  const stepHint = isEdit && step === 0 ? undefined : STEP_HINTS[step]
+
   return (
     <div className="mx-auto max-w-6xl animate-fade-in">
       {/* slim top row — the page IS the wizard */}
@@ -736,8 +842,14 @@ export default function PolicyGenerator() {
         <Btn variant="ghost" size="sm" onClick={() => navigate('/rules')}>
           <ArrowLeft className="h-4 w-4" /> Back to policies
         </Btn>
-        <h1 className="font-display text-[24px] font-medium leading-tight tracking-tight">New policy</h1>
-        <p className="text-[13.5px] text-muted">A policy is a document where every clause works.</p>
+        <h1 className="font-display text-[24px] font-medium leading-tight tracking-tight">
+          {isEdit ? 'Edit policy' : 'New policy'}
+        </h1>
+        <p className="text-[13.5px] text-muted">
+          {isEdit
+            ? 'Same wizard, same rules — pick up where it left off.'
+            : 'A policy is a document where every clause works.'}
+        </p>
       </div>
 
       <div className="flex flex-col gap-6 md:flex-row">
@@ -745,7 +857,7 @@ export default function PolicyGenerator() {
         <div className="w-64 shrink-0 pt-2">
           <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">The steps</div>
           <ul className="space-y-0.5">
-            {STEP_TITLES.map((s, i) => {
+            {stepTitles.map((s, i) => {
               const state = i < step ? 'done' : i === step ? 'current' : 'next'
               return (
                 <li key={s}>
@@ -807,17 +919,28 @@ export default function PolicyGenerator() {
             <div className="mb-1 text-[12px] font-semibold uppercase tracking-[0.14em] text-muted">
               Step {step + 1} of 3
             </div>
-            <h2 className="font-display text-[24px] font-medium leading-tight tracking-tight">{STEP_TITLES[step]}</h2>
-            {STEP_HINTS[step] && <p className="mt-1 text-[13px] text-muted">{STEP_HINTS[step]}</p>}
+            <h2 className="font-display text-[24px] font-medium leading-tight tracking-tight">{stepTitles[step]}</h2>
+            {stepHint && <p className="mt-1 text-[13px] text-muted">{stepHint}</p>}
             <div className="mt-6">{stepBody()}</div>
             <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line/70 pt-5">
               <Btn variant="ghost" onClick={() => (step === 0 ? navigate('/rules') : setStep(step - 1))}>
                 Back
               </Btn>
               {step < 2 ? (
-                <Btn variant="dark" disabled={step === 0 && tpl == null} onClick={() => setStep(step + 1)}>
+                <Btn variant="dark" disabled={!isEdit && step === 0 && tpl == null} onClick={() => setStep(step + 1)}>
                   Continue
                 </Btn>
+              ) : isEdit ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {editing?.status === 'Draft' && (
+                    <Btn variant="outline" onClick={() => saveEdit(true)}>
+                      Send for approval
+                    </Btn>
+                  )}
+                  <Btn variant="dark" onClick={() => saveEdit(false)}>
+                    Save changes
+                  </Btn>
+                </div>
               ) : (
                 <div className="flex flex-wrap items-center gap-2">
                   <Btn variant="outline" onClick={() => saveGen('Draft')}>
