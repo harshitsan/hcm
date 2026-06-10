@@ -8,20 +8,26 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import {
   ACK_DOCS,
   AUDIT_SEED,
+  CANDIDATES,
   COMPANIES,
+  OPENINGS,
   FLOWS,
   INBOX,
   MY_REQUESTS,
+  PEOPLE,
   PERSONAS,
   RULES,
   TEMPLATES,
   type AckDoc,
   type AuditEvent,
   type AuditKind,
+  type Candidate,
   type Company,
   type Flow,
   type InboxItem,
   type LeaveRequest,
+  type Opening,
+  type Person,
   type Persona,
   type PersonaId,
   type Rule,
@@ -80,6 +86,19 @@ type AppCtx = {
   /** the company-setup gallery — grows when someone saves their setup */
   templates: Template[]
   addTemplate: (t: Template) => void
+
+  /** the directory — grows when HR adds someone or a candidate converts */
+  people: Person[]
+  addPerson: (p: Person) => void
+
+  /** the hiring pipeline (BRD 6.13) — Offer → Joining converts to a person */
+  candidates: Candidate[]
+  advanceCandidate: (id: string) => void
+
+  /** openings — created, approval-gated, assigned to a recruiter + hiring manager */
+  openings: Opening[]
+  addOpening: (o: Opening) => void
+  approveOpening: (id: string) => void
 
   /** the platform-wide activity log — newest first; everything writes here */
   audit: AuditEvent[]
@@ -150,6 +169,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [flows, setFlows] = useState<Flow[]>(FLOWS)
   const [acks, setAcks] = useState<AckDoc[]>(ACK_DOCS)
   const [templates, setTemplates] = useState<Template[]>(TEMPLATES)
+  const [people, setPeople] = useState<Person[]>(PEOPLE)
+  const [candidates, setCandidates] = useState<Candidate[]>(CANDIDATES)
+  const [openings, setOpenings] = useState<Opening[]>(OPENINGS)
   const [audit, setAudit] = useState<AuditEvent[]>(AUDIT_SEED)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [cmdOpen, setCmdOpen] = useState(false)
@@ -280,6 +302,70 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [acks, logEvent],
   )
 
+  const addPerson = useCallback(
+    (p: Person) => {
+      setPeople((ps) => [...ps, p])
+      logEvent('People', `Added ${p.name} as ${p.role}`, { detail: 'Day-one checklist starts automatically' })
+    },
+    [logEvent],
+  )
+
+  const advanceCandidate = useCallback(
+    (id: string) => {
+      const c = candidates.find((x) => x.id === id)
+      if (!c) return
+      const order: Candidate['stage'][] = ['Applied', 'Interviewing', 'Offer', 'Joining']
+      const nextStage = order[Math.min(order.indexOf(c.stage) + 1, order.length - 1)]
+      if (nextStage === c.stage) return
+      setCandidates((cs) => cs.map((x) => (x.id === id ? { ...x, stage: nextStage, meta: nextStage === 'Joining' ? 'Converted — employee record created' : x.meta } : x)))
+      if (nextStage === 'Joining') {
+        // the conversion moment (BRD 6.13.7): candidate becomes an employee record
+        setPeople((ps) =>
+          ps.some((p) => p.name === c.name)
+            ? ps
+            : [
+                ...ps,
+                {
+                  id: 'p' + (ps.length + 1),
+                  name: c.name,
+                  role: c.role,
+                  dept: 'Engineering',
+                  location: 'Bengaluru',
+                  email: c.name.split(' ')[0].toLowerCase() + '@acme.in',
+                  status: 'Joining soon',
+                  managerId: 'p2',
+                  hue: c.hue,
+                  companyId: c.companyId,
+                },
+              ],
+        )
+        logEvent('People', `Hired ${c.name} — employee record created`, { detail: c.role + ' · onboarding begins' })
+      } else {
+        logEvent('People', `Moved ${c.name} forward to ${nextStage.toLowerCase()}`, { detail: c.role })
+      }
+    },
+    [candidates, logEvent],
+  )
+
+  const addOpening = useCallback(
+    (o: Opening) => {
+      setOpenings((os) => [...os, o])
+      logEvent('People', `Drafted an opening: ${o.role}`, {
+        detail: `${o.recruiter} recruits · ${o.hiringManager} hires — approval routes through the hiring flow`,
+      })
+    },
+    [logEvent],
+  )
+
+  const approveOpening = useCallback(
+    (id: string) => {
+      const o = openings.find((x) => x.id === id)
+      if (o) logEvent('People', `Opened the ${o.role} role`, { detail: 'Approved — sourcing starts now' })
+      setOpenings((os) => os.map((x) => (x.id === id ? { ...x, status: 'Open' as const } : x)))
+    },
+    [openings, logEvent],
+  )
+
   const addTemplate = useCallback(
     (t: Template) => {
       setTemplates((ts) => [...ts, t])
@@ -342,6 +428,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     confirmAck,
     templates,
     addTemplate,
+    people,
+    addPerson,
+    candidates,
+    advanceCandidate,
+    openings,
+    addOpening,
+    approveOpening,
     audit,
     logEvent,
     toasts,

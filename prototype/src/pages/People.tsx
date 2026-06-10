@@ -7,8 +7,8 @@
 import { useState } from 'react'
 import { MapPin, Network, UserPlus, Users } from 'lucide-react'
 import { Donut } from '../charts'
-import { Avatar, Btn, Card, Drawer, EmptyState, Input, Pill, Select, Stat, Segmented, Timeline, statusTone } from '../ui'
-import { MY_BALANCES, PEOPLE, type Person } from '../data'
+import { Avatar, Btn, Card, Drawer, EmptyState, Field, Input, Pill, Select, Stat, Segmented, Timeline, statusTone } from '../ui'
+import { MY_BALANCES, type Person } from '../data'
 import { useApp } from '../store'
 import { cn } from '../lib'
 
@@ -17,18 +17,21 @@ type View = (typeof VIEWS)[number]
 
 const STATUS_OPTIONS = ['Anyone', 'Active', 'On leave', 'Joining soon'] as const
 
+const TEAM_CHOICES = ['Engineering', 'Design', 'People', 'Sales', 'Finance', 'Operations', 'Leadership'] as const
+
 /* ── org helpers: reporting lines never cross company walls ── */
 
-const reportsIn = (companyId: string, managerId: string) =>
-  PEOPLE.filter((p) => p.managerId === managerId && p.companyId === companyId)
+const reportsIn = (people: Person[], companyId: string, managerId: string) =>
+  people.filter((p) => p.managerId === managerId && p.companyId === companyId)
 
-const rootOf = (companyId: string) => PEOPLE.find((p) => p.companyId === companyId && !p.managerId)
+const rootOf = (people: Person[], companyId: string) =>
+  people.find((p) => p.companyId === companyId && !p.managerId)
 
 /** the first direct with their own reports — the team worth opening first */
-const defaultExpandedFor = (companyId: string): string | null => {
-  const root = rootOf(companyId)
+const defaultExpandedFor = (people: Person[], companyId: string): string | null => {
+  const root = rootOf(people, companyId)
   if (!root) return null
-  return reportsIn(companyId, root.id).find((d) => reportsIn(companyId, d.id).length > 0)?.id ?? null
+  return reportsIn(people, companyId, root.id).find((d) => reportsIn(people, companyId, d.id).length > 0)?.id ?? null
 }
 
 /* compact card used in the org chart */
@@ -76,7 +79,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 export default function People() {
-  const { company, myCompanies, companies } = useApp()
+  const { persona, company, myCompanies, companies, people, addPerson, toast } = useApp()
   const [query, setQuery] = useState('')
   const [dept, setDept] = useState('Everyone')
   const [location, setLocation] = useState('All places')
@@ -85,14 +88,54 @@ export default function People() {
   const [view, setView] = useState<View>('Cards')
   const [selected, setSelected] = useState<Person | null>(null)
   const [orgCompanyId, setOrgCompanyId] = useState('acme')
-  const [expandedId, setExpandedId] = useState<string | null>(() => defaultExpandedFor('acme'))
+  const [expandedId, setExpandedId] = useState<string | null>(() => defaultExpandedFor(people, 'acme'))
+
+  /* ── add someone (the "Add and edit people" permission, made real) ── */
+  const [addOpen, setAddOpen] = useState(false)
+  const [addName, setAddName] = useState('')
+  const [addRole, setAddRole] = useState('')
+  const [addDept, setAddDept] = useState<string>('Engineering')
+  const [addLocation, setAddLocation] = useState('')
+  const [addCompanyId, setAddCompanyId] = useState('acme')
+
+  const canAdd = persona.id === 'hradmin' || persona.id === 'portfolio' || persona.id === 'operator'
 
   const global = company.id === 'all'
 
+  const openAdd = () => {
+    setAddCompanyId(global ? (myCompanies[0]?.id ?? 'acme') : company.id)
+    setAddOpen(true)
+  }
+
+  const submitAdd = () => {
+    const name = addName.trim() || 'New teammate'
+    const role = addRole.trim() || 'New joiner'
+    const where = addLocation.trim() || 'Bengaluru'
+    const cid = persona.multiCompany ? addCompanyId : company.id
+    addPerson({
+      id: 'p' + (people.length + 1),
+      name,
+      role,
+      dept: addDept as Person['dept'],
+      location: where,
+      email: name.split(' ')[0].toLowerCase() + '@' + cid + '.in',
+      status: 'Joining soon',
+      managerId: cid === 'acme' ? 'p2' : undefined,
+      hue: people.length % 6,
+      companyId: cid,
+    })
+    toast(`${name} added — their day-one checklist just started`)
+    setAddOpen(false)
+    setAddName('')
+    setAddRole('')
+    setAddDept('Engineering')
+    setAddLocation('')
+  }
+
   // everyone this persona can see — the single source for counts and filters
   const visible = global
-    ? PEOPLE.filter((p) => myCompanies.some((c) => c.id === p.companyId))
-    : PEOPLE.filter((p) => p.companyId === company.id)
+    ? people.filter((p) => myCompanies.some((c) => c.id === p.companyId))
+    : people.filter((p) => p.companyId === company.id)
 
   const scoped =
     global && companyFilter !== 'all' ? visible.filter((p) => p.companyId === companyFilter) : visible
@@ -126,7 +169,7 @@ export default function People() {
   /* ── org chart: always one named company's tree ── */
   const pickOrgCompany = (id: string) => {
     setOrgCompanyId(id)
-    setExpandedId(defaultExpandedFor(id))
+    setExpandedId(defaultExpandedFor(people, id))
   }
 
   const switchView = (v: View) => {
@@ -136,11 +179,11 @@ export default function People() {
   }
 
   const orgCo = global ? (companies.find((c) => c.id === orgCompanyId) ?? companies[0]) : company
-  const orgRoot = rootOf(orgCo.id)
-  const orgDirects = orgRoot ? reportsIn(orgCo.id, orgRoot.id) : []
-  const expanded = expandedId ? PEOPLE.find((p) => p.id === expandedId) : undefined
-  const expandedKids = expandedId ? reportsIn(orgCo.id, expandedId) : []
-  const manager = selected?.managerId ? PEOPLE.find((p) => p.id === selected.managerId) : undefined
+  const orgRoot = rootOf(people, orgCo.id)
+  const orgDirects = orgRoot ? reportsIn(people, orgCo.id, orgRoot.id) : []
+  const expanded = expandedId ? people.find((p) => p.id === expandedId) : undefined
+  const expandedKids = expandedId ? reportsIn(people, orgCo.id, expandedId) : []
+  const manager = selected?.managerId ? people.find((p) => p.id === selected.managerId) : undefined
   const selectedCompany = selected ? companies.find((c) => c.id === selected.companyId) : undefined
 
   const emptyState = (
@@ -170,10 +213,16 @@ export default function People() {
               Find a teammate, see who reports to whom — click anyone for the full picture.
             </p>
           </div>
-          <div className="flex items-center gap-6 pb-1">
+          <div className="flex flex-wrap items-center gap-6 pb-1">
             <Stat icon={<Users />} value={company.employees} label="People" />
             <Stat icon={<Network />} value={teamCount} label="Teams" />
             <Stat icon={<UserPlus />} value={joiningCount} label="Joining" />
+            {canAdd && (
+              <Btn variant="dark" onClick={openAdd}>
+                <UserPlus className="h-4 w-4" />
+                Add someone
+              </Btn>
+            )}
           </div>
         </div>
       </Card>
@@ -397,7 +446,7 @@ export default function People() {
                   <div className="h-px w-3/4 bg-line" />
                   <div className="flex w-full flex-wrap items-start justify-center gap-3">
                     {orgDirects.map((d) => {
-                      const kids = reportsIn(orgCo.id, d.id)
+                      const kids = reportsIn(people, orgCo.id, d.id)
                       const isOpen = expandedId === d.id
                       return (
                         <div key={d.id} className="flex flex-col items-center">
@@ -427,7 +476,7 @@ export default function People() {
                       <OrgCard
                         key={k.id}
                         person={k}
-                        reports={reportsIn(orgCo.id, k.id).length}
+                        reports={reportsIn(people, orgCo.id, k.id).length}
                         onClick={() => setSelected(k)}
                       />
                     ))}
@@ -444,6 +493,53 @@ export default function People() {
           )}
         </Card>
       )}
+
+      {/* add-someone drawer — HR's "Add and edit people" permission, made real */}
+      <Drawer
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="Add someone"
+        footer={
+          <Btn variant="dark" className="w-full" onClick={submitAdd}>
+            <UserPlus className="h-4 w-4" />
+            Add them
+          </Btn>
+        }
+      >
+        <div className="space-y-5">
+          <Field label="Full name">
+            <Input value={addName} onChange={(e) => setAddName(e.target.value)} placeholder="e.g. Asha Verma" />
+          </Field>
+          <Field label="What will they do?">
+            <Input value={addRole} onChange={(e) => setAddRole(e.target.value)} placeholder="e.g. Payroll Specialist" />
+          </Field>
+          <Field label="Team">
+            <Select value={addDept} onChange={(e) => setAddDept(e.target.value)}>
+              {TEAM_CHOICES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Where">
+            <Input value={addLocation} onChange={(e) => setAddLocation(e.target.value)} placeholder="e.g. Bengaluru" />
+          </Field>
+          {persona.multiCompany ? (
+            <Field label="Company">
+              <Select value={addCompanyId} onChange={(e) => setAddCompanyId(e.target.value)}>
+                {myCompanies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : (
+            <p className="text-[12.5px] text-muted">Joins {company.name}</p>
+          )}
+        </div>
+      </Drawer>
 
       {/* profile drawer — the facts people check */}
       <Drawer open={!!selected} onClose={() => setSelected(null)} title="Profile">

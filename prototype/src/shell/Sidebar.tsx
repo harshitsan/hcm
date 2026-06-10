@@ -4,6 +4,7 @@
  * bottom (doubles as the demo persona switcher).
  */
 import {
+  Briefcase,
   Building2,
   CalendarDays,
   ChevronsUpDown,
@@ -30,6 +31,7 @@ const NAV_META: Record<NavKey, { label: string; to: string; icon: React.ReactNod
   inbox: { label: 'Inbox', to: '/inbox', icon: <Inbox /> },
   people: { label: 'People', to: '/people', icon: <Users /> },
   rules: { label: 'Rules & flows', to: '/rules', icon: <SlidersHorizontal /> },
+  hiring: { label: 'Hiring', to: '/hiring', icon: <Briefcase /> },
   access: { label: 'Roles & access', to: '/access', icon: <ShieldCheck /> },
   activity: { label: 'Activity', to: '/activity', icon: <History /> },
   documents: { label: 'Documents', to: '/documents', icon: <FileText /> },

@@ -13,6 +13,7 @@ export type NavKey =
   | 'inbox'
   | 'people'
   | 'rules'
+  | 'hiring'
   | 'access'
   | 'activity'
   | 'documents'
@@ -49,7 +50,7 @@ export const PERSONAS: Persona[] = [
     sub: 'Acme Tech',
     multiCompany: false,
     homeCompany: 'acme',
-    nav: ['home', 'inbox', 'timeoff', 'people', 'documents'],
+    nav: ['home', 'inbox', 'timeoff', 'hiring', 'people', 'documents'],
     hue: 1,
   },
   {
@@ -59,7 +60,7 @@ export const PERSONAS: Persona[] = [
     sub: 'Acme Tech',
     multiCompany: false,
     homeCompany: 'acme',
-    nav: ['home', 'people', 'timeoff', 'rules', 'access', 'documents', 'activity', 'reports'],
+    nav: ['home', 'people', 'hiring', 'timeoff', 'rules', 'access', 'documents', 'activity', 'reports'],
     hue: 2,
   },
   {
@@ -934,6 +935,84 @@ export function coverageFor(
     ack: ackById[c.id] ?? 70,
   }))
 }
+
+/* ─────────────────────────────── hiring pipeline (BRD §6.13 — the ATS) */
+
+export type CandidateStage = 'Applied' | 'Interviewing' | 'Offer' | 'Joining'
+export const CANDIDATE_STAGES: CandidateStage[] = ['Applied', 'Interviewing', 'Offer', 'Joining']
+
+export type Candidate = {
+  id: string
+  name: string
+  hue: number
+  /** the role they're being hired for */
+  role: string
+  stage: CandidateStage
+  /** one human line of where things stand */
+  meta: string
+  /** interview panel score, when they've been seen */
+  score?: number
+  companyId: string
+  /** where they came from (no external job boards in Phase 1) */
+  source?: string
+  /** resume on file */
+  resume?: string
+  /** who interviews them */
+  panel?: string[]
+  /** the next scheduled moment */
+  nextStep?: string
+  /** structured scorecard — criteria are configurable per opening */
+  scorecard?: { area: string; score: number }[]
+  /** reference checks, tracked and documented */
+  references?: { who: string; note: string; done: boolean }[]
+  /** the offer, once one exists */
+  offer?: { template: string; status: string }
+}
+
+export const CANDIDATES: Candidate[] = [
+  { id: 'cd1', name: 'Aman Verma', hue: 0, role: 'Senior QA', stage: 'Applied', meta: 'Applied 2 days ago · CV looks strong', companyId: 'acme', source: 'Careers page', resume: 'CV · 2 pages' },
+  { id: 'cd2', name: 'Nidhi Rao', hue: 2, role: 'Senior QA', stage: 'Applied', meta: 'Referred by Rohan', companyId: 'acme', source: 'Referral — Rohan Gupta', resume: 'CV · 3 pages' },
+  { id: 'cd3', name: 'Tanvi Shah', hue: 4, role: 'Product Designer', stage: 'Applied', meta: 'Portfolio worth a look', companyId: 'acme' },
+  { id: 'cd4', name: 'Zaid Khan', hue: 1, role: 'Data Engineer', stage: 'Applied', meta: 'Applied yesterday', companyId: 'acme' },
+  { id: 'cd5', name: 'Rhea Kapoor', hue: 3, role: 'Senior QA', stage: 'Interviewing', meta: 'Panel on Thursday · 2 of 3 rounds done', score: 4.1, companyId: 'acme',
+    source: 'Careers page', resume: 'CV · 2 pages', panel: ['Arjun Mehta', 'Rohan Gupta', 'Meera Pillai'], nextStep: 'Final round · Thu 11:00, on everyone’s calendar',
+    scorecard: [{ area: 'Problem solving', score: 4.5 }, { area: 'Craft & depth', score: 4.0 }, { area: 'Communication', score: 3.8 }] },
+  { id: 'cd6', name: 'Mohit Jain', hue: 5, role: 'Product Designer', stage: 'Interviewing', meta: 'Design exercise in review', score: 3.8, companyId: 'acme' },
+  { id: 'cd7', name: 'Sana Qureshi', hue: 2, role: 'Senior QA', stage: 'Offer', meta: 'Offer of ₹28L out — approval waiting in Inbox', score: 4.5, companyId: 'acme',
+    source: 'Referral — Sara Iyer', resume: 'CV · 2 pages', panel: ['Arjun Mehta', 'Rohan Gupta', 'Ananya Rao'],
+    scorecard: [{ area: 'Problem solving', score: 4.6 }, { area: 'Craft & depth', score: 4.5 }, { area: 'Communication', score: 4.4 }],
+    references: [
+      { who: 'Prior manager — TCS', note: '“Would rehire in a heartbeat.”', done: true },
+      { who: 'Peer — Flipkart', note: '“The person you want on the hard bugs.”', done: true },
+    ],
+    offer: { template: 'Senior offer letter · v3', status: 'Sent electronically — approval waiting in Inbox, acceptance tracked' } },
+  { id: 'cd8', name: 'Nikhil Bose', hue: 5, role: 'QA Engineer', stage: 'Joining', meta: 'Joins Mon 16 Jun · day-one checklist ready', score: 4.2, companyId: 'acme' },
+]
+
+/** how many more sit in the Applied pile beyond the cards we show */
+export const APPLIED_OVERFLOW = 92
+
+/* openings — BRD job requisitions: created, approved, assigned, tracked */
+export type Opening = {
+  id: string
+  role: string
+  team: string
+  /** who runs the search */
+  recruiter: string
+  /** who they'll work for */
+  hiringManager: string
+  status: 'Open' | 'Waiting for approval' | 'Filled'
+  candidates: number
+  opened: string
+  companyId: string
+}
+
+export const OPENINGS: Opening[] = [
+  { id: 'op1', role: 'Senior QA', team: 'Engineering', recruiter: 'Sara Iyer', hiringManager: 'Arjun Mehta', status: 'Open', candidates: 38, opened: 'May 12', companyId: 'acme' },
+  { id: 'op2', role: 'Product Designer', team: 'Design', recruiter: 'Tara Menon', hiringManager: 'Ananya Rao', status: 'Open', candidates: 27, opened: 'May 20', companyId: 'acme' },
+  { id: 'op3', role: 'Data Engineer', team: 'Engineering', recruiter: 'Sara Iyer', hiringManager: 'Arjun Mehta', status: 'Open', candidates: 31, opened: 'Jun 2', companyId: 'acme' },
+  { id: 'op4', role: 'Payroll Specialist', team: 'Finance', recruiter: 'Tara Menon', hiringManager: 'Isha Reddy', status: 'Waiting for approval', candidates: 0, opened: 'yesterday', companyId: 'acme' },
+]
 
 /* ───────────────────────────────────────────── documents & acknowledgments */
 
