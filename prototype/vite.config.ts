@@ -3,5 +3,6 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  server: { port: 5174 },
+  // allowedHosts: true → demoable through tunnels (ngrok etc.)
+  server: { port: 5174, allowedHosts: true },
 })
