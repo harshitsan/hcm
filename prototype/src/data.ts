@@ -673,6 +673,15 @@ export const EXTRA_DIMENSIONS: ExtraDimension[] = [
     id: 'group', label: 'Group company',
     options: [{ value: 'in Meridian Group companies', factor: 0.41 }],
   },
+  {
+    id: 'jurisdiction', label: 'Jurisdiction',
+    options: [
+      { value: 'under Indian law', factor: 0.78 },
+      { value: 'under US law', factor: 0.12 },
+      { value: 'under ANZ law', factor: 0.06 },
+      { value: 'under Mexican law', factor: 0.04 },
+    ],
+  },
 ]
 
 /** headcount with the extra clauses applied — every clause narrows (or widens) the count */
@@ -1104,6 +1113,10 @@ export type Policy = {
   childControl: ChildControl
   appliesTo: { who: string; where: string; team: string }
   appliesAlso?: { dim: string; value: string }[]
+  /** carve-outs, in plain words */
+  exceptions?: string[]
+  /** for parent levels: the subset of companies it lands in (undefined = all in scope) */
+  includedCompanies?: string[]
   status: PolicyDocStatus
   version: number
   effectiveFrom: string
@@ -1367,6 +1380,7 @@ export const POLICIES: Policy[] = [
     id: 'pol2', name: 'Onboarding & Day-1 Readiness', area: 'Onboarding',
     level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
     appliesTo: { who: 'new joiners', where: 'everywhere', team: 'every team' },
+    exceptions: ['Not for re-hires — they keep their old record'],
     status: 'Published', version: 1, effectiveFrom: '1 Mar 2026',
     channels: ['Platform sign-off', 'Day-1 onboarding pack'],
     clauses: POLICY_TEMPLATES[3].clauses,
@@ -1381,6 +1395,7 @@ export const POLICIES: Policy[] = [
     id: 'pol3', name: 'Payroll & Statutory Calendar — India', area: 'Payroll',
     level: 'Portfolio', childControl: 'locked',
     appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    appliesAlso: [{ dim: 'jurisdiction', value: 'under Indian law' }],
     status: 'Waiting for approval', version: 1, effectiveFrom: 'on approval',
     channels: ['Platform sign-off', 'Self-service handbook'],
     clauses: [
@@ -1399,6 +1414,30 @@ export const POLICIES: Policy[] = [
     ],
   },
 ]
+
+/** per-company coverage breakdown — the itemized truth behind the big number */
+export function coverageBreakdown(
+  level: RuleLevel,
+  ownerCompanyId: string | undefined,
+  included: string[] | undefined,
+  base: { who: string; where: string; team: string },
+  also: { dim: string; value: string }[] | undefined,
+  companies: { id: string; name: string; accent: string; employees: number; inPortfolio: boolean }[],
+): { rows: { id: string; name: string; accent: string; people: number; included: boolean }[]; total: number } {
+  const inScope =
+    level === 'Platform'
+      ? companies
+      : level === 'Portfolio'
+        ? companies.filter((c) => c.inPortfolio)
+        : companies.filter((c) => c.id === (ownerCompanyId ?? 'acme'))
+  const frac = headcountFor(base.who, base.where, base.team) / 142
+  const rows = inScope.map((c) => {
+    const isIn = !included || included.includes(c.id)
+    const people = Math.max(1, extendedHeadcount(Math.max(1, Math.round(c.employees * frac)), also))
+    return { id: c.id, name: c.name, accent: c.accent, people, included: isIn }
+  })
+  return { rows, total: rows.reduce((n, r) => n + (r.included ? r.people : 0), 0) }
+}
 
 /* observations — humans are the sensor (report bindings) */
 export type Observation = {

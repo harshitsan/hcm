@@ -3,7 +3,7 @@
  * CLAUSES, and every clause can WORK: signed, watched, reported, measured.
  * Mounted by Rules.tsx as the default view of "Rules & flows".
  */
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import {
   Calculator,
   ChevronRight,
@@ -16,6 +16,7 @@ import {
   Plus,
   Sparkles,
   Timer,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -35,13 +36,16 @@ import {
 } from '../ui'
 import { useApp } from '../store'
 import {
+  EXTRA_DIMENSIONS,
   POLICY_CHANNELS,
   POLICY_TEMPLATES,
   TEAM_OPTIONS,
   WHERE_OPTIONS,
   WHO_OPTIONS,
+  coverageBreakdown,
   headcountFor,
   reachFor,
+  type ChildControl,
   type ClauseBinding,
   type ClauseBindingKind,
   type ClauseSensor,
@@ -140,6 +144,21 @@ const LEVEL_OF_LABEL: Record<LevelLabel, RuleLevel> = {
   'This company': 'Company',
 }
 
+/* ── what children may do with it — same plain labels as rules ── */
+
+type ControlLabel = 'Use as-is' | 'Can adjust' | 'Opt in'
+const CONTROL_CHOICES = ['Use as-is', 'Can adjust', 'Opt in'] as const
+const CONTROL_OF_LABEL: Record<ControlLabel, ChildControl> = {
+  'Use as-is': 'locked',
+  'Can adjust': 'adjustable',
+  'Opt in': 'optional',
+}
+const CONTROL_EXPLAINER: Record<ChildControl, string> = {
+  locked: "Compliance-grade. Children can't change a word.",
+  adjustable: 'Children may tighten or localise — never weaken.',
+  optional: 'A starting point. Nothing runs until a company adopts it.',
+}
+
 /** where the policy is set — same pattern as rules */
 function SetAtPill({
   level,
@@ -177,6 +196,18 @@ function next(options: readonly string[], current: string): string {
 }
 
 const trunc = (s: string) => (s.length > 24 ? s.slice(0, 23) + '…' : s)
+
+/** the one-line coverage recap on every card — who · where — n exceptions */
+function compactCover(p: Policy): string {
+  const parts = [p.appliesTo.where]
+  if (p.appliesTo.team !== 'every team') parts.push(p.appliesTo.team)
+  for (const c of p.appliesAlso ?? []) parts.push(c.value)
+  const ex = p.exceptions?.length ?? 0
+  return (
+    `Covers ${p.appliesTo.who} · ${parts.join(' · ')}` +
+    (ex > 0 ? ` — ${ex} ${ex === 1 ? 'exception' : 'exceptions'}` : '')
+  )
+}
 
 const TEXTAREA =
   'w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[13.5px] placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30'
@@ -220,6 +251,11 @@ export default function PoliciesStudio() {
   const [who, setWho] = useState<string>(WHO_OPTIONS[0])
   const [where, setWhere] = useState<string>(WHERE_OPTIONS[0])
   const [team, setTeam] = useState<string>(TEAM_OPTIONS[0])
+  const [controlLabel, setControlLabel] = useState<ControlLabel>('Can adjust')
+  const [excluded, setExcluded] = useState<string[]>([])
+  const [also, setAlso] = useState<{ dim: string; value: string }[]>([])
+  const [exceptions, setExceptions] = useState<string[]>([])
+  const [exceptionInput, setExceptionInput] = useState('')
   const [genClauses, setGenClauses] = useState<PolicyClause[]>([])
   const [focus, setFocus] = useState(0)
   const [channels, setChannels] = useState<string[]>(['Platform sign-off'])
@@ -234,7 +270,47 @@ export default function PoliciesStudio() {
   const nvPolicy = policies.find((p) => p.id === nvId) ?? null
 
   const level: RuleLevel = persona.id === 'hradmin' ? 'Company' : LEVEL_OF_LABEL[levelLabel]
-  const genReach = reachFor({ level, ownerCompanyId: 'acme', headcount: headcountFor(who, where, team) }, companies)
+  const childControl: ChildControl = CONTROL_OF_LABEL[controlLabel]
+
+  /* the companies in reach at this level — and which are still switched on */
+  const scopeCompanies =
+    level === 'Platform' ? companies : level === 'Portfolio' ? companies.filter((c) => c.inPortfolio) : []
+  const includedIds = scopeCompanies.filter((c) => !excluded.includes(c.id)).map((c) => c.id)
+  const isSubset = level !== 'Company' && includedIds.length < scopeCompanies.length
+  const genCoverage = coverageBreakdown(
+    level,
+    'acme',
+    isSubset ? includedIds : undefined,
+    { who, where, team },
+    also.length > 0 ? also : undefined,
+    companies,
+  )
+  const landsIn = level === 'Company' ? 1 : includedIds.length
+
+  const toggleCompany = (id: string) => {
+    if (excluded.includes(id)) {
+      setExcluded((xs) => xs.filter((x) => x !== id))
+      return
+    }
+    if (includedIds.length <= 1) {
+      toast('At least one company has to stay on')
+      return
+    }
+    setExcluded((xs) => [...xs, id])
+  }
+
+  const addException = () => {
+    const x = exceptionInput.trim()
+    if (x !== '' && !exceptions.includes(x)) setExceptions((xs) => [...xs, x])
+    setExceptionInput('')
+  }
+
+  /* the recap, composed live — the same sentence the policy publishes with */
+  const recap =
+    `Covers ${who} in ${where} · ${team}` +
+    also.map((c) => `, and ${c.value}`).join('') +
+    (exceptions.length > 0 ? ` — except: ${exceptions.join(' · ')}` : '') +
+    ` across ${landsIn} ${landsIn === 1 ? 'company' : 'companies'}.`
 
   /* ── actions ── */
 
@@ -269,6 +345,11 @@ export default function PoliciesStudio() {
     setWho(WHO_OPTIONS[0])
     setWhere(WHERE_OPTIONS[0])
     setTeam(TEAM_OPTIONS[0])
+    setControlLabel('Can adjust')
+    setExcluded([])
+    setAlso([])
+    setExceptions([])
+    setExceptionInput('')
     setGenClauses([])
     setFocus(0)
     setChannels(['Platform sign-off'])
@@ -317,8 +398,11 @@ export default function PoliciesStudio() {
       area: genArea,
       level,
       ownerCompanyId: level === 'Company' ? 'acme' : undefined,
-      childControl: 'adjustable',
+      childControl,
       appliesTo: { who, where, team },
+      appliesAlso: also.length > 0 ? also : undefined,
+      exceptions: exceptions.length > 0 ? exceptions : undefined,
+      includedCompanies: isSubset ? includedIds : undefined,
       status,
       version: 1,
       effectiveFrom: effective.trim() || 'on approval',
@@ -401,6 +485,9 @@ export default function PoliciesStudio() {
           )}
         </div>
 
+        {/* who it covers, in one line */}
+        <p className="mt-2 truncate text-[12.5px] text-muted">{compactCover(p)}</p>
+
         {/* what's working, in one line */}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px]">
           {p.signPct != null && <span className="font-semibold text-green">✓ {p.signPct}% signed</span>}
@@ -441,6 +528,16 @@ export default function PoliciesStudio() {
     ? observations.filter((o) => o.policy === detail.name && o.polarity === 'concern' && o.status === 'open').length
     : 0
   const kudosCount = detail ? observations.filter((o) => o.policy === detail.name && o.polarity === 'kudos').length : 0
+  const detailCoverage = detail
+    ? coverageBreakdown(
+        detail.level,
+        detail.ownerCompanyId,
+        detail.includedCompanies,
+        detail.appliesTo,
+        detail.appliesAlso,
+        companies,
+      )
+    : null
 
   /* new-version derivations */
   const anyMaterial = nvMarks.some((m) => m === 'material')
@@ -561,6 +658,24 @@ export default function PoliciesStudio() {
                 v{detail.version} · effective {detail.effectiveFrom}
               </span>
             </div>
+
+            {/* the full coverage sentence — the write side, read back */}
+            <p className="-mt-4 text-[13.5px] leading-relaxed">
+              Covers <span className="font-bold text-accent-ink">{detail.appliesTo.who}</span> in{' '}
+              <span className="font-bold text-accent-ink">{detail.appliesTo.where}</span> ·{' '}
+              <span className="font-bold text-accent-ink">{detail.appliesTo.team}</span>
+              {(detail.appliesAlso ?? []).map((c) => (
+                <Fragment key={c.dim}>
+                  {' '}
+                  <span className="text-muted">and</span>{' '}
+                  <span className="font-bold text-accent-ink">{c.value}</span>
+                </Fragment>
+              ))}
+            </p>
+            {detail.exceptions && detail.exceptions.length > 0 && (
+              <p className="-mt-5 text-[12px] text-muted">Except: {detail.exceptions.join(' · ')}</p>
+            )}
+
             <div className="-mt-4 flex flex-wrap items-center gap-1.5">
               {detail.channels.map((ch) => (
                 <Pill key={ch} tone="neutral">
@@ -635,6 +750,34 @@ export default function PoliciesStudio() {
                 ))}
               </div>
             </section>
+
+            {/* where it lands — the itemized truth behind the number */}
+            {detailCoverage && (
+              <section>
+                <SectionLabel hint="Live in every company it lands in — never copied.">Where it lands</SectionLabel>
+                <div className="space-y-1.5">
+                  {detailCoverage.rows.map((r) => (
+                    <div key={r.id} className="flex items-center gap-2 text-[12.5px]">
+                      <span
+                        className={cn('h-2 w-2 shrink-0 rounded-full', !r.included && 'opacity-40')}
+                        style={{ background: r.accent }}
+                      />
+                      <span className={cn('font-semibold', !r.included && 'text-muted line-through')}>{r.name}</span>
+                      {r.included ? (
+                        <span className="ml-auto text-[12px] text-muted">{r.people} people</span>
+                      ) : (
+                        <Pill tone="neutral" className="ml-auto">
+                          left out
+                        </Pill>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-[12px] text-muted">
+                  ≈{detailCoverage.total} people, all told
+                </p>
+              </section>
+            )}
 
             {/* how it's doing */}
             <section>
@@ -822,6 +965,7 @@ export default function PoliciesStudio() {
 
         {genStep === 2 && (
           <div className="space-y-7">
+            {/* 1 · where it lives + what children may do with it */}
             <section>
               <SectionLabel hint="A policy set higher up lands on every company below it — live, never copied.">
                 Where does it live?
@@ -831,19 +975,169 @@ export default function PoliciesStudio() {
               ) : (
                 <p className="text-[13px] font-semibold">Lives in {company.name}</p>
               )}
+              {level !== 'Company' && (
+                <div className="mt-4">
+                  <SectionLabel>What can companies below do?</SectionLabel>
+                  <Segmented options={CONTROL_CHOICES} value={controlLabel} onChange={setControlLabel} />
+                  <p className="mt-2 text-[12px] text-muted">{CONTROL_EXPLAINER[childControl]}</p>
+                </div>
+              )}
             </section>
+
+            {/* 2 · which companies it lands in */}
+            {level !== 'Company' && (
+              <section>
+                <SectionLabel hint="Tap a company to leave it out — or bring it back.">Which companies</SectionLabel>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {scopeCompanies.map((c) => {
+                    const on = includedIds.includes(c.id)
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => toggleCompany(c.id)}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors',
+                          on
+                            ? 'border-line bg-card text-ink hover:bg-card2'
+                            : 'border-dashed border-line/80 bg-transparent text-muted hover:text-ink',
+                        )}
+                      >
+                        <span
+                          className={cn('h-2 w-2 rounded-full', !on && 'opacity-40')}
+                          style={{ background: c.accent }}
+                        />
+                        <span className={cn(!on && 'line-through')}>{c.name}</span>
+                        {on ? <X className="h-3 w-3 text-muted" /> : <Plus className="h-3 w-3" />}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-2 text-[12px] text-muted">
+                  It lands in {includedIds.length} of {scopeCompanies.length} companies — leave one out and it simply
+                  never applies there.
+                </p>
+              </section>
+            )}
+
+            {/* 3 · who it covers — a sentence that grows, never a filter grid */}
             <section>
-              <SectionLabel hint="Tap a highlighted part to change it.">Who it covers</SectionLabel>
+              <SectionLabel hint="Tap a highlighted part to change it — add clauses for precision.">
+                Who it covers
+              </SectionLabel>
               <p className="text-[15px] leading-loose">
                 Covers <SentenceChip onClick={() => setWho(next(WHO_OPTIONS, who))}>{who}</SentenceChip> in{' '}
                 <SentenceChip onClick={() => setWhere(next(WHERE_OPTIONS, where))}>{where}</SentenceChip> ·{' '}
                 <SentenceChip onClick={() => setTeam(next(TEAM_OPTIONS, team))}>{team}</SentenceChip>
+                {also.map((c) => {
+                  const dim = EXTRA_DIMENSIONS.find((d) => d.id === c.dim)
+                  return (
+                    <Fragment key={c.dim}>
+                      {' '}
+                      <span className="inline-block">
+                        <span className="text-muted">and</span>{' '}
+                        <SentenceChip
+                          onClick={() => {
+                            const opts = dim?.options.map((o) => o.value) ?? []
+                            setAlso((cs) =>
+                              cs.map((x) => (x.dim === c.dim ? { ...x, value: next(opts, x.value) } : x)),
+                            )
+                          }}
+                        >
+                          {c.value}
+                        </SentenceChip>
+                        <button
+                          type="button"
+                          aria-label={`Remove ${dim?.label ?? c.dim}`}
+                          onClick={() => setAlso((cs) => cs.filter((x) => x.dim !== c.dim))}
+                          className="ml-0.5 align-middle text-muted transition-colors hover:text-red"
+                        >
+                          <X className="inline h-3 w-3" />
+                        </button>
+                      </span>
+                    </Fragment>
+                  )
+                })}
               </p>
-              <div className="mt-3 font-display text-[30px] font-medium leading-none tracking-tight">
-                → {genReach.companies} {genReach.companies === 1 ? 'company' : 'companies'} · {genReach.people}{' '}
-                {genReach.people === 1 ? 'person' : 'people'}
+              {/* the dimension catalog — add precision one clause at a time */}
+              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                {EXTRA_DIMENSIONS.filter((d) => !also.some((c) => c.dim === d.id)).map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setAlso((cs) => [...cs, { dim: d.id, value: d.options[0].value }])}
+                    className="rounded-full border border-dashed border-line px-2.5 py-1 text-[11.5px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
+                  >
+                    + and… {d.label.toLowerCase()}
+                  </button>
+                ))}
               </div>
-              <p className="mt-1.5 text-[12px] text-muted">live reach — exactly who's covered, right now</p>
+            </section>
+
+            {/* 4 · except — carve-outs that publish with the policy */}
+            <section>
+              <SectionLabel hint="Exceptions are part of the policy — they publish with it, in plain words.">
+                Except…
+              </SectionLabel>
+              {exceptions.length > 0 && (
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  {exceptions.map((x) => (
+                    <span
+                      key={x}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-card2 px-2.5 py-1 text-[11.5px] font-bold leading-none"
+                    >
+                      {x}
+                      <button
+                        type="button"
+                        aria-label={`Remove ${x}`}
+                        onClick={() => setExceptions((xs) => xs.filter((y) => y !== x))}
+                        className="text-muted transition-colors hover:text-red"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Input
+                  value={exceptionInput}
+                  onChange={(e) => setExceptionInput(e.target.value)}
+                  placeholder="e.g. Not for interns"
+                />
+                <Btn variant="outline" size="sm" onClick={addException}>
+                  Add
+                </Btn>
+              </div>
+            </section>
+
+            {/* 5 · the coverage panel — the itemized truth behind the big number */}
+            <section>
+              <Card glow className="p-4">
+                <div className="font-display text-[30px] font-medium leading-none tracking-tight">
+                  → {genCoverage.total} {genCoverage.total === 1 ? 'person' : 'people'}
+                </div>
+                <p className="mt-1.5 text-[12px] text-muted">live reach — exactly who's covered, right now</p>
+                <div className="mt-3 space-y-1.5">
+                  {genCoverage.rows.map((r) => (
+                    <div key={r.id} className="flex items-center gap-2 text-[12.5px]">
+                      <span
+                        className={cn('h-2 w-2 shrink-0 rounded-full', !r.included && 'opacity-40')}
+                        style={{ background: r.accent }}
+                      />
+                      <span className={cn('font-semibold', !r.included && 'text-muted line-through')}>{r.name}</span>
+                      {r.included ? (
+                        <span className="ml-auto text-[12px] text-muted">{r.people} people</span>
+                      ) : (
+                        <Pill tone="neutral" className="ml-auto">
+                          left out
+                        </Pill>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[12px] text-muted">{recap}</p>
+              </Card>
             </section>
           </div>
         )}
