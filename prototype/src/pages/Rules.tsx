@@ -47,12 +47,14 @@ import { useApp } from '../store'
 import FlowsView from './Flows'
 import {
   APPROVER_OPTIONS,
+  EXTRA_DIMENSIONS,
   TEAM_OPTIONS,
   TEAM_SIGN_SPLIT,
   WHERE_OPTIONS,
   WHO_OPTIONS,
   centralTeamLabel,
   coverageFor,
+  extendedHeadcount,
   headcountFor,
   holderFor,
   reachFor,
@@ -207,6 +209,7 @@ export default function Rules() {
   const [who, setWho] = useState<string>(WHO_OPTIONS[0])
   const [where, setWhere] = useState<string>(WHERE_OPTIONS[0])
   const [team, setTeam] = useState<string>(TEAM_OPTIONS[0])
+  const [also, setAlso] = useState<{ dim: string; value: string }[]>([])
   const [chain, setChain] = useState<string[]>([])
   const [notify, setNotify] = useState<string[]>([])
   const [decide, setDecide] = useState<ChainResolution>('local')
@@ -246,6 +249,7 @@ export default function Rules() {
     setWho(WHO_OPTIONS[0])
     setWhere(WHERE_OPTIONS[0])
     setTeam(TEAM_OPTIONS[0])
+    setAlso([])
     setChain([])
     setNotify([])
     setDecide('local')
@@ -263,6 +267,7 @@ export default function Rules() {
     setWho(r.appliesTo.who)
     setWhere(r.appliesTo.where)
     setTeam(r.appliesTo.team)
+    setAlso(r.appliesAlso ?? [])
     setChain(r.chain)
     setNotify(r.notify)
     setDecide(r.resolution)
@@ -276,13 +281,15 @@ export default function Rules() {
   const toggleNotify = (n: string) =>
     setNotify((ns) => (ns.includes(n) ? ns.filter((x) => x !== n) : [...ns, n]))
 
-  /* composer derivations — live, so the blast radius is never a surprise */
+  /* composer derivations — live, so the blast radius is never a surprise.
+     headcount stores the BASE sentence; every "and..." clause scales it. */
   const level = LEVEL_OF_LABEL[levelLabel]
   const childControl = CONTROL_OF_LABEL[controlLabel]
-  const composerReach = reachFor(
+  const baseReach = reachFor(
     { level, ownerCompanyId: 'acme', headcount: headcountFor(who, where, team) },
     companies,
   )
+  const composerReach = { ...baseReach, people: extendedHeadcount(baseReach.people, also) }
 
   const save = (status: RuleStatus) => {
     const fields = {
@@ -293,6 +300,7 @@ export default function Rules() {
       ownerCompanyId: level === 'Company' ? 'acme' : undefined,
       childControl,
       appliesTo: { who, where, team },
+      appliesAlso: also.length > 0 ? also : undefined,
       headcount: headcountFor(who, where, team),
       chain,
       /* company-level rules: always the company's own people */
@@ -404,16 +412,24 @@ export default function Rules() {
           <ChevronRight className="h-4 w-4 text-muted/60" />
         </div>
 
-        {/* the sentence — always visible; reach is live from store companies */}
+        {/* the sentence — always visible; "and..." clauses keep it a sentence
+            no matter how precise it gets; reach is live from store companies */}
         <p className="mt-3 text-[13.5px]">
           Applies to <b className="text-accent-ink">{r.appliesTo.who}</b> in{' '}
           <b className="text-accent-ink">{r.appliesTo.where}</b> ·{' '}
-          <b className="text-accent-ink">{r.appliesTo.team}</b>{' '}
+          <b className="text-accent-ink">{r.appliesTo.team}</b>
+          {(r.appliesAlso ?? []).map((c) => (
+            <span key={c.dim}>
+              {' '}
+              and <b className="text-accent-ink">{c.value}</b>
+            </span>
+          ))}{' '}
           {r.level === 'Company' ? (
-            <span className="font-bold">→ {r.headcount} people</span>
+            <span className="font-bold">→ {extendedHeadcount(r.headcount, r.appliesAlso)} people</span>
           ) : (
             <span>
-              · Runs in <b>{reach.companies} companies</b> → <b>{reach.people} people</b>
+              · Runs in <b>{reach.companies} companies</b> →{' '}
+              <b>{extendedHeadcount(reach.people, r.appliesAlso)} people</b>
             </span>
           )}
         </p>
@@ -781,21 +797,65 @@ export default function Rules() {
             </div>
           </section>
 
-          {/* who it applies to — the sentence builder */}
+          {/* who it applies to — the sentence builder. It stays a SENTENCE no
+              matter how precise it gets: every new dimension is one more
+              "and..." clause, never a filter grid. */}
           <section>
-            <SectionLabel hint="Tap a highlighted part to change it.">Who does this apply to</SectionLabel>
+            <SectionLabel hint="Tap a highlighted part to change it — add clauses for precision.">
+              Who does this apply to
+            </SectionLabel>
             <p className="text-[15px] leading-loose">
               Applies to{' '}
               <SentenceChip onClick={() => setWho(next(WHO_OPTIONS, who))}>{who}</SentenceChip> in{' '}
               <SentenceChip onClick={() => setWhere(next(WHERE_OPTIONS, where))}>{where}</SentenceChip> ·{' '}
               <SentenceChip onClick={() => setTeam(next(TEAM_OPTIONS, team))}>{team}</SentenceChip>
+              {also.map((c) => {
+                const dim = EXTRA_DIMENSIONS.find((d) => d.id === c.dim)
+                return (
+                  <span key={c.dim} className="whitespace-nowrap">
+                    {' '}
+                    <span className="text-muted">and</span>{' '}
+                    <SentenceChip
+                      onClick={() => {
+                        const opts = dim?.options.map((o) => o.value) ?? []
+                        setAlso((cs) =>
+                          cs.map((x) => (x.dim === c.dim ? { ...x, value: next(opts, x.value) } : x)),
+                        )
+                      }}
+                    >
+                      {c.value}
+                    </SentenceChip>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${dim?.label ?? c.dim}`}
+                      onClick={() => setAlso((cs) => cs.filter((x) => x.dim !== c.dim))}
+                      className="ml-0.5 align-middle text-muted transition-colors hover:text-red"
+                    >
+                      <X className="inline h-3 w-3" />
+                    </button>
+                  </span>
+                )
+              })}
             </p>
-            <div className="mt-2 font-display text-[30px] font-medium leading-none tracking-tight">
+            {/* the dimension catalog — add precision one clause at a time */}
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              {EXTRA_DIMENSIONS.filter((d) => !also.some((c) => c.dim === d.id)).map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setAlso((cs) => [...cs, { dim: d.id, value: d.options[0].value }])}
+                  className="rounded-full border border-dashed border-line px-2.5 py-1 text-[11.5px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
+                >
+                  + and… {d.label.toLowerCase()}
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 font-display text-[30px] font-medium leading-none tracking-tight">
               → {composerReach.companies} {composerReach.companies === 1 ? 'company' : 'companies'} ·{' '}
               {composerReach.people} people
             </div>
             <p className="mt-1.5 text-[12px] text-muted">
-              live reach — it updates as you change the level and the sentence
+              live reach — every clause narrows it, so you always see exactly who's covered
             </p>
           </section>
 

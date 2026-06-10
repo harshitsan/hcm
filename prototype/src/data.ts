@@ -354,6 +354,8 @@ export type Rule = {
   childControl: ChildControl
   /** sentence-builder chunks: "Applies to {who} in {where} in {team}" */
   appliesTo: { who: string; where: string; team: string }
+  /** extra "and..." clauses — the sentence grows, never becomes a filter grid */
+  appliesAlso?: { dim: string; value: string }[]
   headcount: number
   /** approval pipeline, in order — ROLE HATS, not people */
   chain: string[]
@@ -509,6 +511,7 @@ export const RULES: Rule[] = [
     id: 'r3', name: 'Work from anywhere', category: 'Attendance', status: 'Waiting for approval',
     level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
     appliesTo: { who: 'all employees', where: 'Bengaluru', team: 'Engineering' },
+    appliesAlso: [{ dim: 'tenure', value: 'who have been here over a year' }],
     headcount: 64, chain: ['Dept head', 'HR'], resolution: 'local', notify: ['Person', 'Manager'], updated: 'yesterday',
     history: [
       { who: 'Sara Iyer', what: 'Created for Acme Tech', when: 'Mon' },
@@ -608,6 +611,66 @@ export function headcountFor(who: string, where: string, team: string): number {
   if (where !== 'everywhere') n = Math.round(n * (where === 'Bengaluru' ? 0.69 : where === 'Mumbai' ? 0.18 : 0.09))
   if (team !== 'every team') n = Math.round(n * (team === 'Engineering' ? 0.45 : team === 'Sales' ? 0.2 : 0.12))
   return Math.max(1, n)
+}
+
+/** the extensible "and..." dimensions (BRD §6.10: employment type, group,
+ *  tenure, grade... — each clause reads as part of the sentence and scales
+ *  the live headcount). Adding a dimension here is all it takes. */
+export type ExtraDimension = { id: string; label: string; options: { value: string; factor: number }[] }
+
+export const EXTRA_DIMENSIONS: ExtraDimension[] = [
+  {
+    id: 'type', label: 'Employment type',
+    options: [
+      { value: 'who are full-time', factor: 0.88 },
+      { value: 'who are on contract', factor: 0.07 },
+      { value: 'including interns', factor: 1.05 },
+    ],
+  },
+  {
+    id: 'tenure', label: 'Tenure',
+    options: [
+      { value: 'who joined in the last 6 months', factor: 0.12 },
+      { value: 'who have been here over a year', factor: 0.62 },
+    ],
+  },
+  {
+    id: 'grade', label: 'Grade',
+    options: [
+      { value: 'in bands 1–2', factor: 0.45 },
+      { value: 'in bands 3–4', factor: 0.34 },
+      { value: 'in leadership', factor: 0.08 },
+    ],
+  },
+  {
+    id: 'shift', label: 'Shift',
+    options: [
+      { value: 'on the day shift', factor: 0.72 },
+      { value: 'on the night shift', factor: 0.18 },
+    ],
+  },
+  {
+    id: 'probation', label: 'Probation',
+    options: [
+      { value: 'still on probation', factor: 0.07 },
+      { value: 'past probation', factor: 0.9 },
+    ],
+  },
+  {
+    id: 'group', label: 'Group company',
+    options: [{ value: 'in Meridian Group companies', factor: 0.41 }],
+  },
+]
+
+/** headcount with the extra clauses applied — every clause narrows (or widens) the count */
+export function extendedHeadcount(base: number, also: { dim: string; value: string }[] | undefined): number {
+  if (!also || also.length === 0) return base
+  const f = also.reduce((acc, c) => {
+    const dim = EXTRA_DIMENSIONS.find((d) => d.id === c.dim)
+    const opt = dim?.options.find((o) => o.value === c.value)
+    return acc * (opt?.factor ?? 1)
+  }, 1)
+  return Math.max(1, Math.round(base * f))
 }
 
 /* ───────────────────────────────────── approval flows (BRD §6.25, jargon-free) */
