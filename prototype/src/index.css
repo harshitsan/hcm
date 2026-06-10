@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* warm cream canvas */
+  --bg: 242 238 229; /* #F2EEE5 */
+  --card: 253 251 246; /* #FDFBF6 */
+  --card2: 247 243 234; /* #F7F3EA */
+  --ink: 30 28 22; /* #1E1C16 */
+  --ink-soft: 56 53 44;
+  --muted: 142 135 120; /* #8E8778 */
+  --line: 229 222 207; /* #E5DECF */
+  /* accent is per-company; set by the store. Default = Acme amber */
+  --accent: 240 185 64; /* #F0B940 */
+  --accent-soft: 250 235 200; /* #FAEBC8 */
+  --accent-ink: 122 87 7; /* readable text on soft accent */
+  --green: 104 146 92; /* #68925C */
+  --green-soft: 226 236 219;
+  --red: 201 98 80; /* #C96250 */
+  --red-soft: 245 223 216;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-bg text-ink font-sans antialiased;
+  font-feature-settings: 'ss01' on;
+}
+
+/* the hero glow — warm amber wash used on greeting/feature cards */
+.glow {
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgb(var(--accent) / 0.34) 0%, rgb(var(--accent) / 0.10) 45%, transparent 70%),
+    linear-gradient(135deg, rgb(var(--accent) / 0.16) 0%, rgb(var(--card)) 60%);
+}
+.glow-strong {
+  background:
+    radial-gradient(110% 120% at 85% 0%, rgb(var(--accent) / 0.55) 0%, rgb(var(--accent) / 0.18) 50%, transparent 75%),
+    linear-gradient(140deg, rgb(var(--accent) / 0.28) 0%, rgb(var(--card)) 70%);
+}
+
+/* dark ink card texture */
+.ink-card {
+  background: linear-gradient(160deg, #2a2720 0%, #1e1c16 55%, #181610 100%);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--line));
+  border-radius: 8px;
+  border: 3px solid rgb(var(--bg));
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* date input chrome on cream */
+input[type='date']::-webkit-calendar-picker-indicator {
+  opacity: 0.45;
+}
