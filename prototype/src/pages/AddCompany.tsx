@@ -68,9 +68,16 @@ export default function AddCompany() {
   const [locName, setLocName] = useState('')
   const [locCity, setLocCity] = useState('')
 
-  // step 3 — teams
+  // step 3 — teams & roles
   const [teams, setTeams] = useState(['Engineering', 'Design', 'Sales', 'People', 'Finance'])
   const [teamInput, setTeamInput] = useState('')
+  const [roles, setRoles] = useState<{ name: string; suffix: string }[]>([
+    { name: 'Company admin', suffix: '12 things' },
+    { name: 'HR admin', suffix: '8' },
+    { name: 'People manager', suffix: '4' },
+    { name: 'Employee', suffix: '3' },
+  ])
+  const [roleInput, setRoleInput] = useState('')
 
   // step 4 — time off
   const [ruleOn, setRuleOn] = useState([true, true, true, true])
@@ -326,6 +333,61 @@ export default function AddCompany() {
                 Add
               </Btn>
             </div>
+
+            {/* roles — the other half of "Teams & roles" */}
+            <div className="mt-7 border-t border-line/70 pt-6">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="text-[13px] font-bold">Roles</span>
+                {tplName && <Pill tone="amber">from template</Pill>}
+              </div>
+              <p className="mb-3 text-[12.5px] text-muted">
+                Who can do what — cloned from the platform catalog, adjustable later in Roles &amp; access.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {roles.map((r) => (
+                  <span
+                    key={r.name}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-card2 py-1.5 pl-3.5 pr-1.5 text-[12.5px]"
+                  >
+                    <span className="font-bold">{r.name}</span>
+                    <span className="font-medium text-muted">· {r.suffix}</span>
+                    <button
+                      onClick={() => {
+                        if (r.name === 'Employee') {
+                          toast("Every company needs the Employee role — it's the floor, not optional")
+                          return
+                        }
+                        setRoles(roles.filter((x) => x.name !== r.name))
+                      }}
+                      className="rounded-full p-1 text-muted hover:bg-line/60 hover:text-ink"
+                      aria-label={`Remove ${r.name}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <div className="mt-5 flex items-end gap-3">
+                <div className="max-w-xs flex-1">
+                  <Field label="Add a role">
+                    <Input value={roleInput} onChange={(e) => setRoleInput(e.target.value)} placeholder="e.g. Payroll desk" />
+                  </Field>
+                </div>
+                <Btn
+                  variant="outline"
+                  size="sm"
+                  className="mb-1"
+                  onClick={() => {
+                    const v = roleInput.trim()
+                    if (!v || roles.some((r) => r.name === v)) return
+                    setRoles([...roles, { name: v, suffix: 'starts blank' }])
+                    setRoleInput('')
+                  }}
+                >
+                  Add
+                </Btn>
+              </div>
+            </div>
           </div>
         )
       case 3:
@@ -433,6 +495,7 @@ export default function AddCompany() {
           'Company profile',
           `${locations.length} location${locations.length === 1 ? '' : 's'}`,
           `${teams.length} teams`,
+          `${roles.length} role${roles.length === 1 ? '' : 's'} ready — people get the right access on day one`,
           `${rulesOnCount} time-off rules`,
           '24 people ready to invite',
           `${inherited} platform rules apply automatically — nothing to set up`,

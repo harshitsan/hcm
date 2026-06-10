@@ -1,21 +1,35 @@
 /**
- * People — directory cards + a clean org chart, with a profile drawer
- * showing the 6 facts people actually check (ux-research §5.1).
+ * People — directory cards, a real table, and a per-company org chart, with a
+ * profile drawer showing the 6 facts people actually check (ux-research §5.1).
  * In the all-companies view every card says which company (and group) a
  * person belongs to, and a chip row narrows the list per company.
  */
 import { useState } from 'react'
 import { MapPin, Network, UserPlus, Users } from 'lucide-react'
 import { Donut } from '../charts'
-import { Avatar, Btn, Card, Drawer, EmptyState, Input, Pill, SectionTitle, Segmented, Stat, Timeline, statusTone } from '../ui'
+import { Avatar, Btn, Card, Drawer, EmptyState, Input, Pill, Select, Stat, Segmented, Timeline, statusTone } from '../ui'
 import { MY_BALANCES, PEOPLE, type Person } from '../data'
 import { useApp } from '../store'
 import { cn } from '../lib'
 
-const VIEWS = ['Cards', 'Org chart'] as const
+const VIEWS = ['Cards', 'Table', 'Org chart'] as const
+type View = (typeof VIEWS)[number]
 
-/** org chart is per company — the tree here is always Acme's */
-const reportsOf = (id: string) => PEOPLE.filter((p) => p.managerId === id && p.companyId === 'acme')
+const STATUS_OPTIONS = ['Anyone', 'Active', 'On leave', 'Joining soon'] as const
+
+/* ── org helpers: reporting lines never cross company walls ── */
+
+const reportsIn = (companyId: string, managerId: string) =>
+  PEOPLE.filter((p) => p.managerId === managerId && p.companyId === companyId)
+
+const rootOf = (companyId: string) => PEOPLE.find((p) => p.companyId === companyId && !p.managerId)
+
+/** the first direct with their own reports — the team worth opening first */
+const defaultExpandedFor = (companyId: string): string | null => {
+  const root = rootOf(companyId)
+  if (!root) return null
+  return reportsIn(companyId, root.id).find((d) => reportsIn(companyId, d.id).length > 0)?.id ?? null
+}
 
 /* compact card used in the org chart */
 function OrgCard({
@@ -65,10 +79,13 @@ export default function People() {
   const { company, myCompanies, companies } = useApp()
   const [query, setQuery] = useState('')
   const [dept, setDept] = useState('Everyone')
+  const [location, setLocation] = useState('All places')
+  const [status, setStatus] = useState('Anyone')
   const [companyFilter, setCompanyFilter] = useState('all')
-  const [view, setView] = useState<(typeof VIEWS)[number]>('Cards')
+  const [view, setView] = useState<View>('Cards')
   const [selected, setSelected] = useState<Person | null>(null)
-  const [expandedId, setExpandedId] = useState<string | null>('p2')
+  const [orgCompanyId, setOrgCompanyId] = useState('acme')
+  const [expandedId, setExpandedId] = useState<string | null>(() => defaultExpandedFor('acme'))
 
   const global = company.id === 'all'
 
@@ -83,23 +100,61 @@ export default function People() {
   const deptOptions = ['Everyone', ...Array.from(new Set(scoped.map((p) => p.dept)))]
   const activeDept = deptOptions.includes(dept) ? dept : 'Everyone'
 
+  const locationOptions = ['All places', ...Array.from(new Set(scoped.map((p) => p.location)))]
+  const activeLocation = locationOptions.includes(location) ? location : 'All places'
+
   const q = query.trim().toLowerCase()
   const filtered = scoped.filter(
     (p) =>
       (activeDept === 'Everyone' || p.dept === activeDept) &&
+      (activeLocation === 'All places' || p.location === activeLocation) &&
+      (status === 'Anyone' || p.status === status) &&
       (q === '' || p.name.toLowerCase().includes(q) || p.role.toLowerCase().includes(q)),
   )
+
+  const clearFilters = () => {
+    setQuery('')
+    setDept('Everyone')
+    setLocation('All places')
+    setStatus('Anyone')
+    setCompanyFilter('all')
+  }
 
   const teamCount = new Set(visible.map((p) => p.dept)).size
   const joiningCount = visible.filter((p) => p.status === 'Joining soon').length
 
-  const acme = companies.find((c) => c.id === 'acme')
-  const root = PEOPLE.find((p) => p.id === 'p1')!
-  const directs = reportsOf(root.id)
+  /* ── org chart: always one named company's tree ── */
+  const pickOrgCompany = (id: string) => {
+    setOrgCompanyId(id)
+    setExpandedId(defaultExpandedFor(id))
+  }
+
+  const switchView = (v: View) => {
+    setView(v)
+    // arriving at the org chart already narrowed to a company? show that one
+    if (v === 'Org chart' && global && companyFilter !== 'all') pickOrgCompany(companyFilter)
+  }
+
+  const orgCo = global ? (companies.find((c) => c.id === orgCompanyId) ?? companies[0]) : company
+  const orgRoot = rootOf(orgCo.id)
+  const orgDirects = orgRoot ? reportsIn(orgCo.id, orgRoot.id) : []
   const expanded = expandedId ? PEOPLE.find((p) => p.id === expandedId) : undefined
-  const expandedKids = expandedId ? reportsOf(expandedId) : []
+  const expandedKids = expandedId ? reportsIn(orgCo.id, expandedId) : []
   const manager = selected?.managerId ? PEOPLE.find((p) => p.id === selected.managerId) : undefined
   const selectedCompany = selected ? companies.find((c) => c.id === selected.companyId) : undefined
+
+  const emptyState = (
+    <EmptyState
+      icon={<Users />}
+      title="No one matches"
+      body="Try a different name, role, team, place, or status — everyone at the company is in here."
+      action={
+        <Btn variant="outline" size="sm" onClick={clearFilters}>
+          Clear search
+        </Btn>
+      }
+    />
+  )
 
   return (
     <div className="mx-auto max-w-6xl animate-fade-in">
@@ -166,25 +221,36 @@ export default function People() {
           className="w-72"
         />
         <Segmented options={deptOptions} value={activeDept} onChange={setDept} />
-        <Segmented options={VIEWS} value={view} onChange={setView} className="ml-auto" />
+        <Select
+          value={activeLocation}
+          onChange={(e) => setLocation(e.target.value)}
+          className="!w-auto min-w-[150px]"
+          aria-label="Filter by place"
+        >
+          {locationOptions.map((l) => (
+            <option key={l} value={l}>
+              {l}
+            </option>
+          ))}
+        </Select>
+        <Select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="!w-auto min-w-[150px]"
+          aria-label="Filter by status"
+        >
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </Select>
+        <Segmented options={VIEWS} value={view} onChange={switchView} className="ml-auto" />
       </div>
 
       {view === 'Cards' ? (
         filtered.length === 0 ? (
-          <EmptyState
-            icon={<Users />}
-            title="No one matches"
-            body="Try a different name, role, or team — everyone at the company is in here."
-            action={
-              <Btn
-                variant="outline"
-                size="sm"
-                onClick={() => { setQuery(''); setDept('Everyone'); setCompanyFilter('all') }}
-              >
-                Clear search
-              </Btn>
-            }
-          />
+          emptyState
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filtered.map((p) => {
@@ -224,55 +290,158 @@ export default function People() {
             })}
           </div>
         )
+      ) : view === 'Table' ? (
+        filtered.length === 0 ? (
+          emptyState
+        ) : (
+          <Card className="overflow-hidden">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-line/70">
+                  <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Person</th>
+                  {global && (
+                    <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Company</th>
+                  )}
+                  <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Team</th>
+                  <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Location</th>
+                  <th className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((p) => {
+                  const pc = companies.find((c) => c.id === p.companyId)
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={() => setSelected(p)}
+                      className="cursor-pointer border-b border-line/40 transition-colors last:border-0 hover:bg-card2/60"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={p.name} hue={p.hue} size="sm" />
+                          <div className="min-w-0">
+                            <div className="truncate text-[13px] font-bold tracking-tight">{p.name}</div>
+                            <div className="truncate text-[11.5px] text-muted">{p.role}</div>
+                          </div>
+                        </div>
+                      </td>
+                      {global && (
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center gap-1.5 text-[12.5px] font-medium">
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: pc?.accent }} />
+                            {pc?.name ?? '—'}
+                          </span>
+                        </td>
+                      )}
+                      <td className="px-4 py-3">
+                        <Pill tone="outline">{p.dept}</Pill>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-muted">
+                          <MapPin className="h-3 w-3" />
+                          {p.location}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Pill tone={statusTone(p.status)} dot>
+                          {p.status}
+                        </Pill>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </Card>
+        )
       ) : (
-        /* org chart — no libraries, just connectors */
+        /* org chart — no libraries, just connectors; always one named company */
         <Card className="p-6">
-          <SectionTitle hint="Click a manager to open their team, or anyone else for their profile">
-            Reporting lines
-          </SectionTitle>
-          {global && (
-            <div className="mb-4 flex items-center gap-1.5 text-[12px] text-muted">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: acme?.accent }} />
-              Org charts are per company — showing Acme Tech. Pick a company to see its own.
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: orgCo.accent }} />
+                <h3 className="text-[14px] font-bold tracking-tight">{orgCo.name} — org chart</h3>
+              </div>
+              <p className="mt-0.5 text-[12.5px] text-muted">
+                Click a manager to open their team, or anyone else for their profile.
+              </p>
             </div>
-          )}
-          <div className="flex flex-col items-center pb-2">
-            <OrgCard person={root} reports={directs.length} onClick={() => setSelected(root)} />
-            <div className="h-6 w-px bg-line" />
-            <div className="h-px w-3/4 bg-line" />
-            <div className="grid w-full grid-cols-4 gap-3">
-              {directs.map((d) => {
-                const kids = reportsOf(d.id)
-                const isOpen = expandedId === d.id
-                return (
-                  <div key={d.id} className="flex flex-col items-center">
-                    <div className="h-4 w-px bg-line" />
-                    <OrgCard
-                      person={d}
-                      reports={kids.length}
-                      active={isOpen}
-                      onClick={() =>
-                        kids.length > 0 ? setExpandedId(isOpen ? null : d.id) : setSelected(d)
-                      }
-                    />
-                    {isOpen && kids.length > 0 && <div className="h-5 w-px bg-line" />}
-                  </div>
-                )
-              })}
-            </div>
-            {expanded && expandedKids.length > 0 && (
-              <div className="w-full rounded-2xl border border-line/70 bg-card2/40 p-4">
-                <div className="mb-3 text-center text-[12px] font-semibold text-muted">
-                  {expanded.name.split(' ')[0]}'s team · {expandedKids.length} people
-                </div>
-                <div className="flex flex-wrap justify-center gap-3">
-                  {expandedKids.map((k) => (
-                    <OrgCard key={k.id} person={k} reports={reportsOf(k.id).length} onClick={() => setSelected(k)} />
-                  ))}
-                </div>
+            {global && (
+              <div className="flex flex-wrap items-center gap-2">
+                {myCompanies.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => pickOrgCompany(c.id)}
+                    className={cn(
+                      'inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-all',
+                      orgCo.id === c.id
+                        ? 'border-transparent bg-ink text-card shadow-sm'
+                        : 'border-line bg-card text-muted hover:text-ink',
+                    )}
+                  >
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.accent }} />
+                    {c.name}
+                  </button>
+                ))}
               </div>
             )}
           </div>
+          {orgRoot ? (
+            <div className="flex flex-col items-center pb-2">
+              <OrgCard person={orgRoot} reports={orgDirects.length} onClick={() => setSelected(orgRoot)} />
+              {orgDirects.length > 0 && (
+                <>
+                  <div className="h-6 w-px bg-line" />
+                  <div className="h-px w-3/4 bg-line" />
+                  <div className="flex w-full flex-wrap items-start justify-center gap-3">
+                    {orgDirects.map((d) => {
+                      const kids = reportsIn(orgCo.id, d.id)
+                      const isOpen = expandedId === d.id
+                      return (
+                        <div key={d.id} className="flex flex-col items-center">
+                          <div className="h-4 w-px bg-line" />
+                          <OrgCard
+                            person={d}
+                            reports={kids.length}
+                            active={isOpen}
+                            onClick={() =>
+                              kids.length > 0 ? setExpandedId(isOpen ? null : d.id) : setSelected(d)
+                            }
+                          />
+                          {isOpen && kids.length > 0 && <div className="h-5 w-px bg-line" />}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+              {expanded && expandedKids.length > 0 && (
+                <div className="w-full rounded-2xl border border-line/70 bg-card2/40 p-4">
+                  <div className="mb-3 text-center text-[12px] font-semibold text-muted">
+                    {expanded.name.split(' ')[0]}'s team · {expandedKids.length} people
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {expandedKids.map((k) => (
+                      <OrgCard
+                        key={k.id}
+                        person={k}
+                        reports={reportsIn(orgCo.id, k.id).length}
+                        onClick={() => setSelected(k)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <EmptyState
+              icon={<Network />}
+              title="No reporting lines yet"
+              body={`${orgCo.name} hasn't brought its people in yet — the chart will draw itself as they join.`}
+            />
+          )}
         </Card>
       )}
 
