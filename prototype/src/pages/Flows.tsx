@@ -26,8 +26,9 @@ const DEADLINES = ['within 1 day', 'within 2 days', 'within 3 days', 'within 5 d
 const MODE_CHOICES = ['any one', 'all of them'] as const
 const DECIDER_CHOICES = ['Their own people', 'Your central team'] as const
 
-/** a step being built in the composer — escalateTo '' means "no one" */
-type DraftStep = { roles: string[]; mode: 'one' | 'all'; sla: string; escalateTo: string }
+/** a step being built in the composer — escalateTo '' means "no one",
+ *  onlyWhen '' means "always runs" */
+type DraftStep = { roles: string[]; mode: 'one' | 'all'; sla: string; escalateTo: string; onlyWhen: string }
 
 function SectionLabel({ children, hint }: { children: string; hint?: string }) {
   return (
@@ -95,6 +96,7 @@ function Pipeline({ steps }: { steps: FlowStep[] }) {
             <div className="text-center text-[11px] leading-snug text-muted">
               <div>⏱ {s.sla}</div>
               {s.escalateTo && <div>quiet? → {s.escalateTo}</div>}
+              {s.onlyWhen && <div>only when {s.onlyWhen}</div>}
             </div>
           </div>
         </Fragment>
@@ -158,7 +160,7 @@ export default function FlowsView() {
   const [name, setName] = useState('')
   const [routes, setRoutes] = useState('')
   const [purpose, setPurpose] = useState<FlowPurpose>('Time off')
-  const [steps, setSteps] = useState<DraftStep[]>([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
+  const [steps, setSteps] = useState<DraftStep[]>([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '', onlyWhen: '' }])
   const [delegation, setDelegation] = useState(true)
   const [levelLabel, setLevelLabel] = useState<'Platform-wide' | 'This company'>('This company')
   /** whose people fill the hats — only a real choice for platform-wide flows */
@@ -170,7 +172,7 @@ export default function FlowsView() {
     setName('')
     setRoutes('')
     setPurpose('Time off')
-    setSteps([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
+    setSteps([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '', onlyWhen: '' }])
     setDelegation(true)
     setLevelLabel('This company')
     setDeciderLabel('Their own people')
@@ -189,7 +191,7 @@ export default function FlowsView() {
     setName(names[p])
     setRoutes(p === 'Time off' ? 'Every time-off request' : p === 'Hiring' ? 'Every offer before it goes out' : p === 'Exits' ? 'Every departure, before the last day' : 'Any rule change')
     setPurpose(p)
-    setSteps([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
+    setSteps([{ roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '', onlyWhen: '' }])
     setDelegation(true)
     setLevelLabel('This company')
     setDeciderLabel('Their own people')
@@ -218,6 +220,7 @@ export default function FlowsView() {
     mode: s.mode,
     sla: s.sla,
     escalateTo: s.escalateTo || undefined,
+    onlyWhen: s.onlyWhen.trim() || undefined,
   }))
 
   /* the level the draft will save at, and who fills its hats — company flows
@@ -242,6 +245,7 @@ export default function FlowsView() {
         mode: s.mode,
         sla: s.sla,
         escalateTo: s.escalateTo || undefined,
+        onlyWhen: s.onlyWhen.trim() || undefined,
       })),
       resolution: draftResolution,
       usedBy: 0,
@@ -645,6 +649,15 @@ export default function FlowsView() {
                           </Select>
                         </Field>
                       </div>
+                      <div className="mt-3">
+                        <Field label="Only when (optional)" hint="Leave blank and the step always runs.">
+                          <Input
+                            value={s.onlyWhen}
+                            onChange={(e) => patchStep(i, { onlyWhen: e.target.value })}
+                            placeholder="e.g. the offer is above ₹20L"
+                          />
+                        </Field>
+                      </div>
                     </div>
                   </Fragment>
                 )
@@ -652,7 +665,7 @@ export default function FlowsView() {
               <button
                 type="button"
                 onClick={() =>
-                  setSteps((ss) => [...ss, { roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '' }])
+                  setSteps((ss) => [...ss, { roles: ['Manager'], mode: 'one', sla: 'within 1 day', escalateTo: '', onlyWhen: '' }])
                 }
                 className="mt-3 rounded-full border border-dashed border-line px-3 py-1.5 text-[12px] font-bold text-muted transition-colors hover:border-accent hover:text-accent-ink"
               >

@@ -50,6 +50,7 @@ export function CommandK() {
       { id: 'a3', kind: 'action', label: 'Create a rule', sub: 'Rules & flows', run: go('/rules') },
       { id: 'a4', kind: 'action', label: 'Add a company', sub: 'Companies', run: go('/companies/new') },
       { id: 'a5', kind: 'action', label: 'Read pending documents', sub: 'Documents', run: go('/documents') },
+      { id: 'a6', kind: 'action', label: 'Report something — concern or kudos', sub: 'People', run: go('/people') },
     ]
     const actions = allActions.filter((a) => {
       // actions follow the persona's nav — an operator never "requests time off"
@@ -58,6 +59,7 @@ export function CommandK() {
       if (a.id === 'a3') return persona.id === 'hradmin' || persona.id === 'portfolio'
       if (a.id === 'a4') return persona.id === 'operator' || persona.id === 'portfolio'
       if (a.id === 'a5') return persona.nav.includes('documents')
+      if (a.id === 'a6') return true // anyone can report — that's the point
       return true
     })
     const people: Item[] = PEOPLE.slice(0, 8).map((p) => ({

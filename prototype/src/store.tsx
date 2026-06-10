@@ -10,7 +10,9 @@ import {
   AUDIT_SEED,
   CANDIDATES,
   COMPANIES,
+  OBSERVATIONS,
   OPENINGS,
+  POLICIES,
   FLOWS,
   INBOX,
   MY_REQUESTS,
@@ -26,8 +28,10 @@ import {
   type Flow,
   type InboxItem,
   type LeaveRequest,
+  type Observation,
   type Opening,
   type Person,
+  type Policy,
   type Persona,
   type PersonaId,
   type Rule,
@@ -99,6 +103,16 @@ type AppCtx = {
   openings: Opening[]
   addOpening: (o: Opening) => void
   approveOpening: (id: string) => void
+
+  /** policy studio (BRD §E) — policies compose the rule machinery per clause */
+  policies: Policy[]
+  addPolicy: (p: Policy) => void
+  updatePolicy: (id: string, patch: Partial<Policy>) => void
+  publishPolicy: (id: string) => void
+
+  /** observations — humans as the sensor; concerns become tickets, kudos become recognition */
+  observations: Observation[]
+  addObservation: (o: Observation) => void
 
   /** the platform-wide activity log — newest first; everything writes here */
   audit: AuditEvent[]
@@ -172,6 +186,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [people, setPeople] = useState<Person[]>(PEOPLE)
   const [candidates, setCandidates] = useState<Candidate[]>(CANDIDATES)
   const [openings, setOpenings] = useState<Opening[]>(OPENINGS)
+  const [policies, setPolicies] = useState<Policy[]>(POLICIES)
+  const [observations, setObservations] = useState<Observation[]>(OBSERVATIONS)
   const [audit, setAudit] = useState<AuditEvent[]>(AUDIT_SEED)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [cmdOpen, setCmdOpen] = useState(false)
@@ -347,6 +363,91 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [candidates, logEvent],
   )
 
+  const addPolicy = useCallback(
+    (p: Policy) => {
+      setPolicies((ps) => [p, ...ps])
+      logEvent('Rule', `Created the policy “${p.name}”`, {
+        detail: `${p.clauses.length} clauses · ${p.level === 'Company' ? 'one company' : p.level.toLowerCase()} level`,
+      })
+    },
+    [logEvent],
+  )
+
+  const updatePolicy = useCallback(
+    (id: string, patch: Partial<Policy>) => {
+      const pol = policies.find((x) => x.id === id)
+      if (pol && patch.status && patch.status !== pol.status)
+        logEvent('Rule', patch.status === 'Waiting for approval' ? `Sent “${pol.name}” for approval` : `“${pol.name}” ${patch.status.toLowerCase()}`)
+      setPolicies((ps) => ps.map((x) => (x.id === id ? { ...x, ...patch } : x)))
+    },
+    [policies, logEvent],
+  )
+
+  const publishPolicy = useCallback(
+    (id: string) => {
+      const pol = policies.find((x) => x.id === id)
+      if (!pol) return
+      setPolicies((ps) => ps.map((x) => (x.id === id ? { ...x, status: 'Published' as const } : x)))
+      logEvent('Rule', `Published “${pol.name}” v${pol.version}`, {
+        detail: `Effective ${pol.effectiveFrom} · ${pol.channels.join(' · ')}`,
+      })
+      // a sign clause means it lands in everyone's Documents inbox
+      if (pol.clauses.some((c) => c.binding?.kind === 'sign')) {
+        setAcks((ds) =>
+          ds.some((d) => d.title.startsWith(pol.name))
+            ? ds
+            : [
+                {
+                  id: 'd' + (ds.length + 1),
+                  title: `${pol.name} v${pol.version}`,
+                  required: true,
+                  due: 'by ' + pol.effectiveFrom,
+                  minutes: Math.max(2, pol.clauses.length),
+                  summary: `New policy — ${pol.clauses.length} clauses. Read and sign before it takes effect.`,
+                  state: 'todo' as const,
+                },
+                ...ds,
+              ],
+        )
+      }
+    },
+    [policies, logEvent],
+  )
+
+  const addObservation = useCallback(
+    (o: Observation) => {
+      setObservations((os) => [o, ...os])
+      if (o.polarity === 'concern') {
+        // a concern becomes a ticket, routed by the clause's flow
+        setInbox((items) => [
+          {
+            id: 'in' + (items.length + 20),
+            kind: 'Report' as const,
+            who: o.about,
+            whoHue: o.aboutHue,
+            whoRole: 'Reported under “' + o.policy + '”',
+            title: o.clause + ' — a concern was raised',
+            facts: [o.note, o.anonymous ? 'Reporter chose to stay anonymous' : 'Reported by ' + o.by, o.repeat ?? 'First report on this clause'],
+            due: 'due in 2d',
+            dueTone: 'amber' as const,
+            safe: false,
+            status: 'waiting' as const,
+            source: o.policy,
+          },
+          ...items,
+        ])
+      }
+      logEvent(
+        'People',
+        o.polarity === 'concern'
+          ? `A concern was raised about ${o.about.split(' ')[0]} — “${o.clause}”`
+          : `${o.about.split(' ')[0]} got recognition — “${o.clause}”`,
+        { detail: o.anonymous ? 'Anonymous report · routed by the clause’s flow' : `By ${o.by}`, who: o.anonymous ? 'Anonymous' : undefined, hue: o.anonymous ? 5 : undefined },
+      )
+    },
+    [logEvent],
+  )
+
   const addOpening = useCallback(
     (o: Opening) => {
       setOpenings((os) => [...os, o])
@@ -435,6 +536,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     openings,
     addOpening,
     approveOpening,
+    policies,
+    addPolicy,
+    updatePolicy,
+    publishPolicy,
+    observations,
+    addObservation,
     audit,
     logEvent,
     toasts,

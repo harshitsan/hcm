@@ -5,9 +5,9 @@
  * person belongs to, and a chip row narrows the list per company.
  */
 import { useState } from 'react'
-import { MapPin, Network, UserPlus, Users } from 'lucide-react'
+import { MapPin, MessagesSquare, Network, UserPlus, Users } from 'lucide-react'
 import { Donut } from '../charts'
-import { Avatar, Btn, Card, Drawer, EmptyState, Field, Input, Pill, Select, Stat, Segmented, Timeline, statusTone } from '../ui'
+import { Avatar, Btn, Card, Drawer, EmptyState, Field, Input, Pill, Select, Stat, Segmented, Timeline, Toggle, statusTone } from '../ui'
 import { MY_BALANCES, type Person } from '../data'
 import { useApp } from '../store'
 import { cn } from '../lib'
@@ -79,7 +79,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 }
 
 export default function People() {
-  const { persona, company, myCompanies, companies, people, addPerson, toast } = useApp()
+  const { persona, company, myCompanies, companies, people, addPerson, policies, observations, addObservation, toast } = useApp()
   const [query, setQuery] = useState('')
   const [dept, setDept] = useState('Everyone')
   const [location, setLocation] = useState('All places')
@@ -87,6 +87,13 @@ export default function People() {
   const [companyFilter, setCompanyFilter] = useState('all')
   const [view, setView] = useState<View>('Cards')
   const [selected, setSelected] = useState<Person | null>(null)
+
+  /* ── report something — humans are the sensor (Policy Studio) ── */
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportClauseKey, setReportClauseKey] = useState('')
+  const [reportPolarity, setReportPolarity] = useState<'a concern' | 'something good'>('a concern')
+  const [reportNote, setReportNote] = useState('')
+  const [reportAnon, setReportAnon] = useState(false)
   const [orgCompanyId, setOrgCompanyId] = useState('acme')
   const [expandedId, setExpandedId] = useState<string | null>(() => defaultExpandedFor(people, 'acme'))
 
@@ -185,6 +192,49 @@ export default function People() {
   const expandedKids = expandedId ? reportsIn(people, orgCo.id, expandedId) : []
   const manager = selected?.managerId ? people.find((p) => p.id === selected.managerId) : undefined
   const selectedCompany = selected ? companies.find((c) => c.id === selected.companyId) : undefined
+
+  /* report-bound clauses across published policies — the "Related to" options */
+  const reportClauses = policies
+    .filter((pol) => pol.status === 'Published')
+    .flatMap((pol) =>
+      pol.clauses
+        .filter((c) => c.binding?.kind === 'report')
+        .map((clause) => ({ key: pol.id + '|' + clause.id, policy: pol, clause })),
+    )
+  const chosenReport = reportClauses.find((rc) => rc.key === reportClauseKey) ?? reportClauses[0]
+  const forcedAnon = chosenReport?.clause.binding?.report?.anonymous === true
+
+  const openReport = () => {
+    const camera = reportClauses.find((rc) => rc.clause.title.toLowerCase().includes('camera')) ?? reportClauses[0]
+    setReportClauseKey(camera?.key ?? '')
+    setReportPolarity('a concern')
+    setReportNote('')
+    setReportAnon(false)
+    setReportOpen(true)
+  }
+
+  const submitReport = () => {
+    if (!selected || !chosenReport) return
+    addObservation({
+      id: 'ob' + (observations.length + 1),
+      about: selected.name,
+      aboutHue: selected.hue,
+      clause: chosenReport.clause.title,
+      policy: chosenReport.policy.name,
+      polarity: reportPolarity === 'a concern' ? 'concern' : 'kudos',
+      note: reportNote.trim() || 'No details given',
+      by: persona.name,
+      anonymous: forcedAnon || reportAnon,
+      status: 'open',
+      when: 'just now',
+    })
+    toast(
+      reportPolarity === 'a concern'
+        ? `On the record — it routes via ${chosenReport.clause.binding?.flow ?? "the clause's flow"} and lands in the right inbox`
+        : 'Nice — their manager just heard about it',
+    )
+    setReportOpen(false)
+  }
 
   const emptyState = (
     <EmptyState
@@ -542,7 +592,16 @@ export default function People() {
       </Drawer>
 
       {/* profile drawer — the facts people check */}
-      <Drawer open={!!selected} onClose={() => setSelected(null)} title="Profile">
+      <Drawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title="Profile"
+        footer={
+          <Btn variant="outline" size="sm" onClick={openReport}>
+            <MessagesSquare className="h-4 w-4" /> Report something
+          </Btn>
+        }
+      >
         {selected && (
           <>
             <div className="flex items-center gap-4">
@@ -599,6 +658,64 @@ export default function People() {
               />
             </div>
           </>
+        )}
+      </Drawer>
+
+      {/* report-something drawer — a concern or something good, routed by the clause's flow */}
+      <Drawer
+        open={reportOpen && !!selected}
+        onClose={() => setReportOpen(false)}
+        title="Report something"
+        footer={
+          <Btn variant="dark" className="w-full" onClick={submitReport}>
+            <MessagesSquare className="h-4 w-4" /> Send it
+          </Btn>
+        }
+      >
+        {selected && (
+          <div className="space-y-5">
+            <div>
+              <span className="mb-1.5 block text-[12.5px] font-semibold text-ink-soft">About</span>
+              <div className="flex items-center gap-3 rounded-xl border border-line bg-card2/60 px-3.5 py-2.5">
+                <Avatar name={selected.name} hue={selected.hue} size="sm" />
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-bold tracking-tight">{selected.name}</div>
+                  <div className="truncate text-[11.5px] text-muted">{selected.role}</div>
+                </div>
+              </div>
+            </div>
+            <Field label="Related to" hint="Only clauses people can report under show up here.">
+              <Select value={chosenReport?.key ?? ''} onChange={(e) => setReportClauseKey(e.target.value)}>
+                {reportClauses.map((rc) => (
+                  <option key={rc.key} value={rc.key}>
+                    {rc.clause.title} — {rc.policy.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="This is">
+              <Segmented
+                options={['a concern', 'something good'] as const}
+                value={reportPolarity}
+                onChange={setReportPolarity}
+              />
+            </Field>
+            <Field label="What happened">
+              <textarea
+                rows={3}
+                value={reportNote}
+                onChange={(e) => setReportNote(e.target.value)}
+                placeholder="A line or two of what you saw…"
+                className="w-full rounded-xl border border-line bg-card px-3.5 py-2.5 text-[13.5px] placeholder:text-muted/70 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              />
+            </Field>
+            <div>
+              <div className={forcedAnon ? 'pointer-events-none opacity-60' : undefined}>
+                <Toggle on={forcedAnon || reportAnon} onChange={setReportAnon} label="Keep me anonymous" />
+              </div>
+              {forcedAnon && <p className="mt-1 text-[11.5px] text-muted">always anonymous for this clause</p>}
+            </div>
+          </div>
         )}
       </Drawer>
     </div>

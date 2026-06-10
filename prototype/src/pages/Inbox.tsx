@@ -26,7 +26,9 @@ function matchesFilter(item: InboxItem, filter: Filter): boolean {
   if (filter === 'All') return true
   if (filter === 'Time off') return item.kind === 'Time off'
   if (filter === 'Hiring') return item.kind === 'Job offer'
-  return item.kind === 'Attendance fix' || item.kind === 'Onboarding' || item.kind === 'Probation'
+  // 'Report' tickets (observations routed by a clause's flow) land in Other —
+  // they're seeded safe:false, so bulk approve never touches them
+  return item.kind === 'Attendance fix' || item.kind === 'Onboarding' || item.kind === 'Probation' || item.kind === 'Report'
 }
 
 export default function Inbox() {

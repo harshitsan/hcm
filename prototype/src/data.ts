@@ -220,7 +220,7 @@ export const TODAY = 10 // 10 June 2026, a Wednesday
 
 /* ───────────────────────────────────────────── manager inbox (Journey 4) */
 
-export type InboxKind = 'Time off' | 'Attendance fix' | 'Onboarding' | 'Job offer' | 'Probation'
+export type InboxKind = 'Time off' | 'Attendance fix' | 'Onboarding' | 'Job offer' | 'Probation' | 'Report'
 
 export type InboxItem = {
   id: string
@@ -686,6 +686,8 @@ export type FlowStep = {
   sla: string
   /** when the deadline passes, it moves here */
   escalateTo?: string
+  /** conditional routing — the step only runs when this is true */
+  onlyWhen?: string
 }
 
 /** the kind of thing a flow routes — the columns of the parent's flow map */
@@ -729,7 +731,7 @@ export const FLOWS: Flow[] = [
     status: 'Running', resolution: 'local', usedBy: 1, delegation: true,
     steps: [
       { id: 's1', roles: ['Finance', 'HR'], mode: 'all', sla: 'within 2 days', escalateTo: 'Chief executive' },
-      { id: 's2', roles: ['Chief executive'], mode: 'one', sla: 'within 1 day' },
+      { id: 's2', roles: ['Chief executive'], mode: 'one', sla: 'within 1 day', onlyWhen: 'the offer is above ₹20L' },
     ],
     history: [
       { who: 'Sara Iyer', what: 'Created for Acme Tech', when: '3 Mar' },
@@ -1012,6 +1014,373 @@ export const OPENINGS: Opening[] = [
   { id: 'op2', role: 'Product Designer', team: 'Design', recruiter: 'Tara Menon', hiringManager: 'Ananya Rao', status: 'Open', candidates: 27, opened: 'May 20', companyId: 'acme' },
   { id: 'op3', role: 'Data Engineer', team: 'Engineering', recruiter: 'Sara Iyer', hiringManager: 'Arjun Mehta', status: 'Open', candidates: 31, opened: 'Jun 2', companyId: 'acme' },
   { id: 'op4', role: 'Payroll Specialist', team: 'Finance', recruiter: 'Tara Menon', hiringManager: 'Isha Reddy', status: 'Waiting for approval', candidates: 0, opened: 'yesterday', companyId: 'acme' },
+]
+
+/* ──────────── policy studio (BRD §E through the OpsMaven lens) ──────────── */
+
+/** how do we know — the first question every binding answers */
+export type ClauseSensor = 'platform' | 'connector' | 'person'
+export type ClauseBindingKind = 'sign' | 'watch' | 'report' | 'number' | 'deadline' | 'checklist' | 'training'
+
+export type ClauseBinding = {
+  kind: ClauseBindingKind
+  sensor: ClauseSensor
+  /** one plain line of how it works */
+  how: string
+  /** who acts when it fires */
+  flow?: string
+  notify?: string[]
+  report?: { who: 'managers' | 'anyone'; anonymous: boolean; repeatThreshold?: string }
+  deadline?: { target: string; met: number }
+  value?: string
+  checklist?: string[]
+  training?: { course: string; within: string; completion: number }
+}
+
+export type PolicyClause = { id: string; title: string; body: string; binding?: ClauseBinding }
+
+export type PolicyVersionEntry = { v: number; date: string; changes: string[]; material: boolean }
+
+export type PolicyDocStatus = 'Draft' | 'Waiting for approval' | 'Published'
+
+export type Policy = {
+  id: string
+  name: string
+  /** OpsMaven service area */
+  area: string
+  level: RuleLevel
+  ownerCompanyId?: string
+  childControl: ChildControl
+  appliesTo: { who: string; where: string; team: string }
+  appliesAlso?: { dim: string; value: string }[]
+  status: PolicyDocStatus
+  version: number
+  effectiveFrom: string
+  channels: string[]
+  clauses: PolicyClause[]
+  versions: PolicyVersionEntry[]
+  history: RuleEvent[]
+  /** aggregate read-and-sign, when a sign clause exists */
+  signPct?: number
+}
+
+export const POLICY_CHANNELS = [
+  'Platform sign-off',
+  'Email notice',
+  'Day-1 onboarding pack',
+  'Self-service handbook',
+] as const
+
+export type PolicyTemplate = {
+  id: string
+  name: string
+  area: string
+  desc: string
+  covers: string[]
+  /** "how performance is measured" — the deadline clauses, surfaced on the card */
+  slas: string[]
+  countryVariants?: string[]
+  clauses: PolicyClause[]
+  /** gallery breadth entries — no wired clauses yet */
+  light?: boolean
+}
+
+const signClause = (id: string): PolicyClause => ({
+  id,
+  title: 'Read & accept this policy',
+  body: 'Everyone covered confirms they have read and accepted it. Signatures are tracked per company and team.',
+  binding: { kind: 'sign', sensor: 'platform', how: 'Read-and-sign tracked — receipts on the record' },
+})
+
+export const POLICY_TEMPLATES: PolicyTemplate[] = [
+  {
+    id: 'pt1', name: 'Remote & Hybrid Work', area: 'Workplace',
+    desc: 'Hybrid schedules, client-call etiquette, and allowances — the modern default.',
+    covers: ['Hybrid schedules & reachability', 'Client-call etiquette', 'Work-from-home allowance'],
+    slas: [],
+    clauses: [
+      {
+        id: 'c1', title: 'Cameras on in client meetings',
+        body: 'Join every client-facing call with your camera on. Exceptions: connectivity or an agreed accommodation.',
+        binding: {
+          kind: 'report', sensor: 'person', how: 'Anyone can report a concern — or something good',
+          flow: 'Manager → HR · within 2 days', notify: ['Person', 'Manager'],
+          report: { who: 'anyone', anonymous: false, repeatThreshold: '3 concerns in a quarter → Dept head' },
+        },
+      },
+      {
+        id: 'c2', title: 'Work-from-home allowance',
+        body: 'A monthly allowance covers home-office costs, paid with salary.',
+        binding: { kind: 'number', sensor: 'platform', how: 'Feeds payroll and offer letters', value: '₹2,500 / month' },
+      },
+      { id: 'c3', title: 'Reachable 10:00–16:00', body: 'Core hours: be reachable on chat and for calls, whatever your location.' },
+      signClause('c4'),
+    ],
+  },
+  {
+    id: 'pt2', name: 'Respect at Work (POSH)', area: 'Employee relations',
+    desc: 'Zero tolerance, anonymous reporting, committee timelines, annual training.',
+    covers: ['What counts & zero tolerance', 'Anonymous reporting', 'Committee timelines'],
+    slas: ['Committee acknowledges within 24 hours', 'Cases resolved within 10 working days'],
+    clauses: [
+      signClause('c1'),
+      {
+        id: 'c2', title: 'Anyone can raise a concern',
+        body: 'Reports go to the internal committee. The reporter is always anonymous unless they choose otherwise.',
+        binding: {
+          kind: 'report', sensor: 'person', how: 'Always-anonymous reporting to the committee',
+          flow: 'POSH committee · acknowledge in 24h', notify: ['HR'],
+          report: { who: 'anyone', anonymous: true },
+        },
+      },
+      {
+        id: 'c3', title: 'Committee resolves within 10 working days',
+        body: 'Every case is investigated and closed inside the statutory window.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Statutory timeline tracked per case', deadline: { target: 'within 10 working days', met: 100 } },
+      },
+      {
+        id: 'c4', title: 'Annual POSH training',
+        body: 'Everyone completes POSH essentials within 30 days of joining, then yearly.',
+        binding: { kind: 'training', sensor: 'platform', how: 'Completion tracked; overdue → reminder → HR', training: { course: 'POSH essentials', within: '30 days of joining', completion: 91 } },
+      },
+    ],
+  },
+  {
+    id: 'pt3', name: 'Code of Conduct', area: 'Governance',
+    desc: 'How we treat each other, customers, data, and AI tools.',
+    covers: ['Behaviour & conflicts of interest', 'AI tools at work', 'Gifts & disclosures'],
+    slas: [],
+    clauses: [
+      signClause('c1'),
+      {
+        id: 'c2', title: 'Conflicts of interest are disclosed',
+        body: 'Outside work, investments, or relationships that could conflict — disclose them.',
+        binding: {
+          kind: 'report', sensor: 'person', how: 'Self-disclosure or a concern, routed quietly',
+          flow: 'HR → Legal council · within 3 days', report: { who: 'anyone', anonymous: false },
+        },
+      },
+      {
+        id: 'c3', title: 'Public AI tools never see company data',
+        body: 'Use the approved internal tools only.',
+        binding: { kind: 'report', sensor: 'person', how: 'Concerns reported; connector check is Phase II', flow: 'IT → HR · within 2 days', report: { who: 'anyone', anonymous: false } },
+      },
+    ],
+  },
+  {
+    id: 'pt4', name: 'Onboarding & Day-1 Readiness', area: 'Onboarding',
+    desc: 'Every new joiner walks into a working day one.',
+    covers: ['Pre-joining documents', 'Device & access readiness', 'Manager readiness'],
+    slas: ['100% day-1 access for every new hire', 'Device handover within 24 hours'],
+    clauses: [
+      {
+        id: 'c1', title: 'Day-1 access is ready before day 1',
+        body: 'Email, HRIS, and collaboration access live before the start date.',
+        binding: { kind: 'checklist', sensor: 'platform', how: 'Tasks fire when an offer is accepted', checklist: ['Laptop handed over', 'Email + HRIS live', 'Access card issued', 'Seat assigned'] },
+      },
+      {
+        id: 'c2', title: 'Device handover within 24 hours',
+        body: 'New joiners hold their device by the end of day one.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Measured per joiner', deadline: { target: 'within 24 hours', met: 96 } },
+      },
+      {
+        id: 'c3', title: 'Manager ready: a first-week plan exists',
+        body: 'The manager writes the first-week plan before the joiner arrives.',
+        binding: { kind: 'checklist', sensor: 'platform', how: 'A task lands with the manager at offer-accept', checklist: ['First-week plan written', 'Buddy assigned'] },
+      },
+    ],
+  },
+  {
+    id: 'pt5', name: 'Exit & Final Settlement', area: 'Exits',
+    desc: 'Orderly exits: clearance, recoveries, settlement — on the clock.',
+    covers: ['Exit workflows & clearance', 'Recoveries & notices', 'Final settlement'],
+    slas: ['Exit initiated within 1 business day', 'Final settlement in 1 working day'],
+    clauses: [
+      {
+        id: 'c1', title: 'Exit starts within 1 business day',
+        body: 'Resignation or decision → the exit workflow opens the same day.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Measured per exit', deadline: { target: 'within 1 business day', met: 100 } },
+      },
+      {
+        id: 'c2', title: 'Clearance runs as a checklist',
+        body: 'IT, assets, finance, and knowledge handover — each with an owner.',
+        binding: { kind: 'checklist', sensor: 'platform', how: 'Tasks fire on exit start', checklist: ['IT access revoked', 'Assets returned', 'Finance recoveries', 'Knowledge handover'] },
+      },
+      {
+        id: 'c3', title: 'Final settlement in 1 working day',
+        body: 'Full-and-final computed and paid within one working day of last day.',
+        binding: { kind: 'deadline', sensor: 'platform', how: '100% accuracy target, every exit', deadline: { target: 'within 1 working day', met: 98 } },
+      },
+    ],
+  },
+  {
+    id: 'pt6', name: 'Payroll & Statutory Calendar', area: 'Payroll',
+    desc: 'Payroll as a governed routine — pre-validated, filed on time, evidenced.',
+    covers: ['Payroll pre-validation', 'Statutory filings', 'Registers & evidence'],
+    slas: ['Pre-validation by T+3', '100% filings by statutory due dates'],
+    countryVariants: ['India', 'US', 'ANZ', 'Mexico'],
+    clauses: [
+      {
+        id: 'c1', title: 'Payroll pre-validated by T+3',
+        body: 'Inputs reconciled and validated three days before the run.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Measured per run', deadline: { target: 'by T+3 days', met: 100 } },
+      },
+      {
+        id: 'c2', title: 'Statutory filings by due date',
+        body: 'India: PF/ESI/PT/TDS · US: federal/state · ANZ: PAYG/Super · Mexico: IMSS/ISR.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Country calendar drives the dates', deadline: { target: 'by each due date', met: 100 } },
+      },
+      {
+        id: 'c3', title: 'Registers stay current',
+        body: 'Statutory registers updated with every run, audit-ready.',
+        binding: { kind: 'watch', sensor: 'platform', how: 'The system flags any register older than its run' },
+      },
+    ],
+  },
+  {
+    id: 'pt7', name: 'Hiring Service Levels', area: 'Hiring',
+    desc: 'The hiring promises, measured: scheduling, offers, feedback.',
+    covers: ['Interview scheduling', 'Offer turnaround', 'Structured feedback'],
+    slas: ['Interviews scheduled within 48 hours', 'Offer letter within 1 business day'],
+    clauses: [
+      {
+        id: 'c1', title: 'Interviews scheduled within 48 hours',
+        body: 'Shortlist → calendar invite inside two days.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Measured per candidate', deadline: { target: 'within 48 hours', met: 88 } },
+      },
+      {
+        id: 'c2', title: 'Offer letter within 1 business day',
+        body: 'Approved offer → letter out the next business day.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Measured per offer', deadline: { target: 'within 1 business day', met: 92 } },
+      },
+      {
+        id: 'c3', title: 'Panel feedback within 24 hours',
+        body: 'Scorecards in by the next day, every round.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Measured per round', deadline: { target: 'within 24 hours', met: 84 } },
+      },
+    ],
+  },
+  {
+    id: 'pt8', name: 'Leave & Attendance', area: 'Time',
+    desc: 'Clean time data: punctuality, carryover, reconciliation.',
+    covers: ['Check-in expectations', 'Carryover logic', 'Exception clearance'],
+    slas: ['Exceptions reconciled by T+2'],
+    clauses: [
+      {
+        id: 'c1', title: 'Check-in by 9:05',
+        body: 'Three late check-ins in a month proposes a half-day — HR decides.',
+        binding: { kind: 'watch', sensor: 'platform', how: 'Fires automatically; each firing is a ticket to HR', flow: 'HR · within 1 day' },
+      },
+      {
+        id: 'c2', title: 'Carryover up to 10 days',
+        body: 'Unused earned leave carries into January, capped.',
+        binding: { kind: 'number', sensor: 'platform', how: 'Feeds balances at year end', value: '10 days max' },
+      },
+      {
+        id: 'c3', title: 'Exceptions reconciled by T+2',
+        body: 'Missed punches and disputes cleared within two days.',
+        binding: { kind: 'deadline', sensor: 'platform', how: 'Measured per exception', deadline: { target: 'by T+2 days', met: 94 } },
+      },
+    ],
+  },
+  { id: 'pt9', name: 'Benefits & Claims', area: 'Benefits', desc: 'Enrollment windows, claims response, vendor coordination.', covers: ['Enrollment in 3 business days', 'Claims response in 24 hours'], slas: ['Claims response within 24 hours'], clauses: [], light: true },
+  { id: 'pt10', name: 'Performance Cycle', area: 'Performance', desc: 'Goal cadence, review workflows, calibration logistics.', covers: ['Cycle launch in 5 days', 'Comp changes in 2 days'], slas: ['Review cycle launch within 5 business days'], clauses: [], light: true },
+  { id: 'pt11', name: 'Expense & Travel', area: 'Finance', desc: 'What gets reimbursed, approval limits, travel classes.', covers: ['Approval limits', 'Per-diem by city'], slas: [], clauses: [], light: true },
+  { id: 'pt12', name: 'Data Protection', area: 'Governance', desc: 'Customer and employee data handling, AI tools, retention.', covers: ['Data handling', 'Retention windows'], slas: [], clauses: [], light: true },
+  { id: 'pt13', name: 'Grievance & ER Cases', area: 'Employee relations', desc: 'Ticketed grievances, investigation support, case logs.', covers: ['Acknowledge in 24 hours', 'Statutory adherence'], slas: ['ER case acknowledged within 24 hours'], clauses: [], light: true },
+  { id: 'pt14', name: 'Probation & Confirmation', area: 'Lifecycle', desc: 'Evaluation criteria, confirm/extend decisions, timelines.', covers: ['Decision before day 90', 'Manager + HR sign-off'], slas: [], clauses: [], light: true },
+]
+
+export const POLICIES: Policy[] = [
+  {
+    id: 'pol1', name: 'Remote & Hybrid Work', area: 'Workplace',
+    level: 'Portfolio', childControl: 'adjustable',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    status: 'Published', version: 2, effectiveFrom: '1 Jul 2026',
+    channels: ['Platform sign-off', 'Email notice', 'Day-1 onboarding pack', 'Self-service handbook'],
+    clauses: POLICY_TEMPLATES[0].clauses,
+    versions: [
+      { v: 1, date: '2 Mar', changes: ['First published'], material: true },
+      { v: 2, date: 'today', changes: ['WFH allowance ₹2,000 → ₹2,500', 'Reworded core hours (cosmetic)'], material: true },
+    ],
+    signPct: 84,
+    history: [
+      { who: 'David Chen', what: 'Created from the Remote & Hybrid Work template', when: '28 Feb' },
+      { who: 'HR council', what: 'Approved', when: '1 Mar' },
+      { who: 'SatelliteHR', what: 'v1 published in Acme Tech, Beta Foods, Gamma Retail · 275 people', when: '2 Mar' },
+      { who: 'David Chen', what: 'v2: allowance raised to ₹2,500 (material) — re-approved', when: 'today' },
+      { who: 'SatelliteHR', what: 'v2 publishes 1 Jul — 273 re-sign (allowance clause), 2 get a notice', when: 'today' },
+    ],
+  },
+  {
+    id: 'pol2', name: 'Onboarding & Day-1 Readiness', area: 'Onboarding',
+    level: 'Company', ownerCompanyId: 'acme', childControl: 'optional',
+    appliesTo: { who: 'new joiners', where: 'everywhere', team: 'every team' },
+    status: 'Published', version: 1, effectiveFrom: '1 Mar 2026',
+    channels: ['Platform sign-off', 'Day-1 onboarding pack'],
+    clauses: POLICY_TEMPLATES[3].clauses,
+    versions: [{ v: 1, date: '1 Mar', changes: ['First published'], material: true }],
+    history: [
+      { who: 'Sara Iyer', what: 'Created from the Onboarding template', when: '25 Feb' },
+      { who: 'Ananya Rao', what: 'Approved', when: '28 Feb' },
+      { who: 'SatelliteHR', what: 'Published — fires per new joiner', when: '1 Mar' },
+    ],
+  },
+  {
+    id: 'pol3', name: 'Payroll & Statutory Calendar — India', area: 'Payroll',
+    level: 'Portfolio', childControl: 'locked',
+    appliesTo: { who: 'all employees', where: 'everywhere', team: 'every team' },
+    status: 'Waiting for approval', version: 1, effectiveFrom: 'on approval',
+    channels: ['Platform sign-off', 'Self-service handbook'],
+    clauses: [
+      ...POLICY_TEMPLATES[5].clauses,
+      {
+        id: 'c4',
+        title: 'Read & accept this policy',
+        body: 'Everyone covered confirms they have read the payroll calendar and statutory commitments.',
+        binding: { kind: 'sign', sensor: 'platform', how: 'Read-and-sign tracked — receipts on the record' },
+      },
+    ],
+    versions: [{ v: 1, date: 'yesterday', changes: ['Drafted from the India variant'], material: true }],
+    history: [
+      { who: 'David Chen', what: 'Created from the Payroll template (India variant)', when: 'yesterday' },
+      { who: 'David Chen', what: 'Sent for approval — Finance, then HR council', when: 'yesterday' },
+    ],
+  },
+]
+
+/* observations — humans are the sensor (report bindings) */
+export type Observation = {
+  id: string
+  about: string
+  aboutHue: number
+  clause: string
+  policy: string
+  polarity: 'concern' | 'kudos'
+  note: string
+  by: string
+  anonymous: boolean
+  status: 'open' | 'resolved'
+  when: string
+  repeat?: string
+}
+
+export const OBSERVATIONS: Observation[] = [
+  {
+    id: 'ob1', about: 'Dev Patel', aboutHue: 3, clause: 'Cameras on in client meetings', policy: 'Remote & Hybrid Work',
+    polarity: 'concern', note: 'Camera off through the entire Acme client demo.', by: 'Arjun Mehta', anonymous: false,
+    status: 'open', when: '2h ago', repeat: '3rd concern this quarter — escalates to Dept head',
+  },
+  {
+    id: 'ob2', about: 'Priya Nair', aboutHue: 4, clause: 'Cameras on in client meetings', policy: 'Remote & Hybrid Work',
+    polarity: 'kudos', note: 'Ran the client walkthrough flawlessly — camera, prep, the lot.', by: 'Arjun Mehta', anonymous: false,
+    status: 'resolved', when: 'yesterday',
+  },
+  {
+    id: 'ob3', about: 'Kabir Singh', aboutHue: 1, clause: 'Cameras on in client meetings', policy: 'Remote & Hybrid Work',
+    polarity: 'concern', note: 'Joined the Friday client sync audio-only, no heads-up.', by: 'Vikram Shah', anonymous: false,
+    status: 'resolved', when: 'Mon',
+  },
 ]
 
 /* ───────────────────────────────────────────── documents & acknowledgments */

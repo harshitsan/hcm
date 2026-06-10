@@ -45,6 +45,7 @@ import {
 } from '../ui'
 import { useApp } from '../store'
 import FlowsView from './Flows'
+import PoliciesStudio from './PoliciesStudio'
 import {
   APPROVER_OPTIONS,
   EXTRA_DIMENSIONS,
@@ -196,8 +197,8 @@ export default function Rules() {
         ? ['Your portfolio', 'This company']
         : []
 
-  /* ── view switch: the rules themselves vs the flows that route them ── */
-  const [view, setView] = useState<'Rules' | 'Approval flows'>('Rules')
+  /* ── view switch: policies (the composed form) vs rules vs the flows that route them ── */
+  const [view, setView] = useState<'Policies' | 'Rules' | 'Approval flows'>('Policies')
 
   /* ── composer state ── */
   const [open, setOpen] = useState(false)
@@ -620,7 +621,7 @@ export default function Rules() {
               Every rule has the same shape — who it covers, who approves, who hears about it.
             </p>
             <div className="mt-4">
-              <Segmented options={['Rules', 'Approval flows'] as const} value={view} onChange={setView} />
+              <Segmented options={['Policies', 'Rules', 'Approval flows'] as const} value={view} onChange={setView} />
             </div>
           </div>
           <div className="flex items-center gap-6 pb-1">
@@ -638,7 +639,9 @@ export default function Rules() {
         </div>
       </Card>
 
-      {view === 'Approval flows' ? (
+      {view === 'Policies' ? (
+        <PoliciesStudio />
+      ) : view === 'Approval flows' ? (
         <FlowsView />
       ) : (
         <>
