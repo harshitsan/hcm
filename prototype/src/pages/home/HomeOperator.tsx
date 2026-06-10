@@ -17,15 +17,35 @@ const ACTIVITY = [
 ]
 
 export default function HomeOperator() {
-  const { companies, toast } = useApp()
+  const { companies, company, setCompanyId, updateCompany, toast } = useApp()
   const navigate = useNavigate()
 
   const totalPeople = companies.reduce((sum, c) => sum + c.employees, 0)
   const gamma = companies.find((c) => c.id === 'gamma')!
   const epsilon = companies.find((c) => c.id === 'epsilon')!
+  const inOneCompany = company.id !== 'all'
 
   return (
     <div className="mx-auto max-w-6xl animate-fade-in">
+      {/* context strip — you stepped into one company; this page is still the
+          platform-wide view, so say so instead of letting it feel wrong */}
+      {inOneCompany && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-line/70 bg-accent-soft/50 px-5 py-3">
+          <span
+            className="grid h-7 w-7 place-items-center rounded-full text-[11px] font-extrabold text-ink"
+            style={{ background: company.accent }}
+          >
+            {company.short}
+          </span>
+          <span className="text-[13px] font-semibold">
+            You're working in {company.name} — this overview is still the whole platform.
+          </span>
+          <Btn variant="ghost" size="sm" className="ml-auto" onClick={() => setCompanyId('all')}>
+            Back to the big picture
+          </Btn>
+        </div>
+      )}
+
       {/* hero */}
       <Card glow className="mb-5 p-7">
         <div className="flex flex-wrap items-end justify-between gap-6">
@@ -78,7 +98,8 @@ export default function HomeOperator() {
             Continue setup <ArrowUpRight className="h-4 w-4" />
           </Btn>
 
-          {/* quieter: the paused one */}
+          {/* quieter: the paused one (disappears once resumed) */}
+          {epsilon.status === 'Paused' && (
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line/70 pt-4">
             <div className="flex items-center gap-3">
               <span
@@ -100,11 +121,15 @@ export default function HomeOperator() {
             <Btn
               variant="ghost"
               size="sm"
-              onClick={() => toast('Epsilon Studios is back on — its 23 people can sign in again')}
+              onClick={() => {
+                updateCompany(epsilon.id, { status: 'Live' })
+                toast(`${epsilon.name} is back on — its ${epsilon.employees} people can sign in again`)
+              }}
             >
               Resume
             </Btn>
           </div>
+          )}
         </Card>
 
         {/* platform health */}
@@ -158,7 +183,11 @@ export default function HomeOperator() {
           <SectionTitle
             hint="What changed across the platform, in plain words"
             right={
-              <Btn variant="ghost" size="sm" onClick={() => navigate('/reports')}>
+              <Btn
+                variant="ghost"
+                size="sm"
+                onClick={() => toast('The real thing keeps every change — who, what, when — for 7 years')}
+              >
                 Full history <ChevronRight className="h-4 w-4" />
               </Btn>
             }

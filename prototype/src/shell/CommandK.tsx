@@ -52,9 +52,12 @@ export function CommandK() {
       { id: 'a5', kind: 'action', label: 'Read pending documents', sub: 'Documents', run: go('/documents') },
     ]
     const actions = allActions.filter((a) => {
+      // actions follow the persona's nav — an operator never "requests time off"
+      if (a.id === 'a1') return persona.nav.includes('timeoff')
       if (a.id === 'a2') return persona.id === 'manager'
       if (a.id === 'a3') return persona.id === 'hradmin' || persona.id === 'portfolio'
       if (a.id === 'a4') return persona.id === 'operator' || persona.id === 'portfolio'
+      if (a.id === 'a5') return persona.nav.includes('documents')
       return true
     })
     const people: Item[] = PEOPLE.slice(0, 8).map((p) => ({

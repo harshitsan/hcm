@@ -46,6 +46,7 @@ type AppCtx = {
   myCompanies: Company[]
   companies: Company[]
   addCompany: (c: Company) => void
+  updateCompany: (id: string, patch: Partial<Company>) => void
 
   inbox: InboxItem[]
   decideInbox: (id: string, decision: 'approved' | 'declined') => void
@@ -170,6 +171,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addCompany = useCallback((c: Company) => setCompanies((cs) => [...cs, c]), [])
 
+  const updateCompany = useCallback(
+    (id: string, patch: Partial<Company>) =>
+      setCompanies((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c))),
+    [],
+  )
+
   const value: AppCtx = {
     persona,
     setPersonaId,
@@ -178,6 +185,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     myCompanies,
     companies,
     addCompany,
+    updateCompany,
     inbox,
     decideInbox,
     bulkApproveSafe,

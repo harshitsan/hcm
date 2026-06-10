@@ -10,6 +10,11 @@ import { useApp } from '../store'
 export default function Reports() {
   const { company, toast } = useApp()
 
+  // every number scales with the company you're looking at (or all of them),
+  // so switching context never shows someone else's stats
+  const n = company.employees
+  const k = (f: number) => Math.max(1, Math.round(n * f))
+
   return (
     <div className="mx-auto max-w-6xl animate-fade-in">
       {/* hero */}
@@ -26,7 +31,7 @@ export default function Reports() {
           </div>
           <div className="flex items-center gap-6 pb-1">
             <Stat icon={<Users />} value={company.employees} label="People" />
-            <Stat icon={<UserPlus />} value="6" label="Joining this month" />
+            <Stat icon={<UserPlus />} value={k(0.042)} label="Joining this month" />
             <Stat icon={<CalendarDays />} value="94%" label="On time today" />
             <Btn variant="dark" onClick={() => toast('Monthly report will land in your email')}>
               Email me this <ArrowUpRight className="h-4 w-4" />
@@ -47,7 +52,7 @@ export default function Reports() {
           <div className="mb-2 flex items-baseline gap-2">
             <span className="text-[34px] font-bold tracking-tight">{company.employees}</span>
             <span className="flex items-center gap-1 text-[12.5px] font-bold text-green">
-              <TrendingUp className="h-3.5 w-3.5" /> +9 since May
+              <TrendingUp className="h-3.5 w-3.5" /> +{k(0.063)} since May
             </span>
           </div>
           <Spark points={[98, 107, 103, 116, 122, 131, 142]} labels={['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']} height={120} />
@@ -59,7 +64,9 @@ export default function Reports() {
             How people feel
           </SectionTitle>
           <Gauge value={81} label="said this is a great place to work" size={170} />
-          <div className="mt-2 text-[12px] font-medium text-muted">128 of 142 answered</div>
+          <div className="mt-2 text-[12px] font-medium text-muted">
+            {k(0.9)} of {n} answered
+          </div>
         </Card>
 
         {/* who's where */}
@@ -68,10 +75,10 @@ export default function Reports() {
           <Bars
             height={140}
             data={[
-              { label: 'Office', value: 86, tone: 'amber', hint: '86' },
-              { label: 'Remote', value: 38, tone: 'ink', hint: '38' },
-              { label: 'Time off', value: 12, tone: 'line', hint: '12' },
-              { label: 'Travel', value: 6, tone: 'line', hint: '6' },
+              { label: 'Office', value: k(0.6), tone: 'amber', hint: String(k(0.6)) },
+              { label: 'Remote', value: k(0.27), tone: 'ink', hint: String(k(0.27)) },
+              { label: 'Time off', value: k(0.085), tone: 'line', hint: String(k(0.085)) },
+              { label: 'Travel', value: k(0.042), tone: 'line', hint: String(k(0.042)) },
             ]}
           />
         </Card>
@@ -92,7 +99,7 @@ export default function Reports() {
                 <span className="font-semibold">Remaining</span>
               </div>
               <p className="pt-1 text-muted">
-                Nudge: 14 people haven't taken a single day yet.
+                Nudge: {k(0.1)} people haven't taken a single day yet.
               </p>
             </div>
           </div>
