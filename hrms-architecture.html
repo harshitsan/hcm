@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HRMS // Exploded View — Architecture as a Machine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#070a10;
+    --bg2:#0a0f18;
+    --panel:#0c121d;
+    --ink:#e9f1f7;
+    --muted:#6f8393;
+    --faint:#41525f;
+    --cyan:#57c7e4;
+    --cyan-soft:rgba(87,199,228,.10);
+    --line:rgba(87,199,228,.13);
+    --amber:#ff7a1a;
+    --amber-soft:rgba(255,122,26,.14);
+    --green:#5fd38d;
+    --red:#ff5b48;
+    --violet:#9a8cff;
+    --steel:#8aa0b0;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 700px at 70% -10%, rgba(87,199,228,.08), transparent 60%),
+      radial-gradient(900px 600px at 5% 110%, rgba(255,122,26,.06), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Chakra Petch",sans-serif;
+    font-weight:400;
+    line-height:1.55;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  /* blueprint grid overlay */
+  body::before{
+    content:"";
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--line) 1px,transparent 1px),
+      linear-gradient(rgba(87,199,228,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(87,199,228,.05) 1px,transparent 1px);
+    background-size:160px 160px,160px 160px,32px 32px,32px 32px;
+    background-position:center;
+    mask-image:radial-gradient(circle at 50% 35%,#000 30%,transparent 95%);
+    opacity:.65;
+    animation:gridIn 1.4s ease both;
+  }
+  @keyframes gridIn{from{opacity:0}to{opacity:.65}}
+  /* film grain */
+  body::after{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.035;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode:overlay;
+  }
+  .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:0 28px}
+
+  /* ===== titleblock / topbar ===== */
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;gap:16px;
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.16em;
+    color:var(--faint);text-transform:uppercase;
+    padding:18px 0 14px;border-bottom:1px solid var(--line);
+  }
+  .topbar .brand{color:var(--cyan);display:flex;align-items:center;gap:10px}
+  .topbar .brand b{color:var(--ink);font-weight:700;letter-spacing:.22em}
+  .topbar .dot-live{width:7px;height:7px;border-radius:50%;background:var(--amber);box-shadow:0 0 10px var(--amber);animation:blink 1.8s ease-in-out infinite}
+  @keyframes blink{50%{opacity:.25}}
+  .topbar .meta{display:flex;gap:22px}
+  .topbar .meta span b{color:var(--muted);font-weight:500}
+  @media(max-width:720px){.topbar .meta{display:none}}
+
+  /* ===== hero ===== */
+  .hero{padding:54px 0 22px}
+  .eyebrow{
+    font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.34em;
+    color:var(--cyan);text-transform:uppercase;margin:0 0 18px;
+    display:flex;align-items:center;gap:14px;
+  }
+  .eyebrow::before{content:"";width:46px;height:1px;background:var(--cyan);display:inline-block;box-shadow:0 0 8px var(--cyan)}
+  h1{
+    font-family:"Bebas Neue",sans-serif;font-weight:400;
+    font-size:clamp(58px,10.5vw,148px);line-height:.86;letter-spacing:.01em;
+    margin:0;text-transform:uppercase;
+  }
+  h1 .amber{color:var(--amber);-webkit-text-stroke:0;text-shadow:0 0 38px rgba(255,122,26,.4)}
+  h1 .out{color:transparent;-webkit-text-stroke:1.4px var(--cyan)}
+  .lede{
+    max-width:640px;margin:24px 0 0;color:var(--muted);font-size:17px;font-weight:300;
+  }
+  .lede b{color:var(--ink);font-weight:500}
+  .hero .reveal-line{overflow:hidden}
+  .hero h1 span{display:inline-block;animation:rise .9s cubic-bezier(.2,.8,.2,1) both}
+  .hero h1 span:nth-child(2){animation-delay:.08s}
+  .hero h1 span:nth-child(3){animation-delay:.16s}
+  @keyframes rise{from{transform:translateY(105%);opacity:0}to{transform:translateY(0);opacity:1}}
+
+  /* ===== diagram stage ===== */
+  .stage{
+    display:grid;grid-template-columns:1.55fr 1fr;gap:26px;align-items:stretch;
+    margin:46px 0 10px;
+  }
+  @media(max-width:920px){.stage{grid-template-columns:1fr}}
+
+  .diagram{
+    position:relative;border:1px solid var(--line);border-radius:14px;
+    background:
+      linear-gradient(180deg,rgba(87,199,228,.04),transparent 40%),
+      var(--bg2);
+    padding:18px 18px 10px;overflow:hidden;
+  }
+  .diagram .corner{position:absolute;width:14px;height:14px;border:1.5px solid var(--cyan);opacity:.5}
+  .diagram .corner.tl{top:10px;left:10px;border-right:0;border-bottom:0}
+  .diagram .corner.tr{top:10px;right:10px;border-left:0;border-bottom:0}
+  .diagram .corner.bl{bottom:10px;left:10px;border-right:0;border-top:0}
+  .diagram .corner.br{bottom:10px;right:10px;border-left:0;border-top:0}
+  .diagram .label-fig{
+    font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.2em;
+    color:var(--faint);text-transform:uppercase;display:flex;justify-content:space-between;
+    padding:4px 6px 12px;
+  }
+  .scan{position:absolute;left:0;right:0;top:0;height:140px;pointer-events:none;
+    background:linear-gradient(180deg,rgba(87,199,228,.10),transparent);
+    animation:scan 6s linear infinite;mix-blend-mode:screen}
+  @keyframes scan{0%{transform:translateY(-40%);opacity:0}10%{opacity:1}90%{opacity:1}100%{transform:translateY(380%);opacity:0}}
+
+  .svg-host{position:relative}
+  svg.car{width:100%;height:auto;display:block;overflow:visible}
+
+  /* svg part base styles */
+  .part{transform-box:fill-box;transform-origin:center;animation:assemble .8s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes assemble{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+  svg.car.has-sel .part{opacity:.28;transition:opacity .25s,stroke .25s,fill .25s,filter .25s}
+  svg.car.has-sel .part.lit{opacity:1}
+  .part.lit [stroke],.part.lit{filter:drop-shadow(0 0 6px var(--amber))}
+  .part.lit .body-stroke,.part.lit.body-stroke{stroke:var(--amber)!important}
+  .part.lit .fillable{fill:var(--amber-soft)!important;stroke:var(--amber)!important}
+
+  /* hotspots */
+  .hotspot{
+    position:absolute;transform:translate(-50%,-50%);
+    background:none;border:0;cursor:pointer;padding:0;
+    display:flex;align-items:center;gap:8px;
+    animation:popIn .5s ease both;
+  }
+  @keyframes popIn{from{opacity:0;transform:translate(-50%,-50%) scale(.4)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+  .hotspot .ring{
+    width:18px;height:18px;border-radius:50%;border:1.5px solid var(--cyan);
+    position:relative;flex:0 0 auto;background:rgba(7,10,16,.6);
+    transition:.2s;
+  }
+  .hotspot .ring::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--cyan);transition:.2s}
+  .hotspot .ring::before{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid var(--cyan);opacity:.5;animation:pulse 2.4s ease-out infinite}
+  @keyframes pulse{0%{transform:scale(.6);opacity:.7}100%{transform:scale(1.8);opacity:0}}
+  .hotspot .tag{
+    font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--muted);white-space:nowrap;
+    background:rgba(7,10,16,.7);padding:2px 6px;border:1px solid var(--line);border-radius:4px;
+    transition:.2s;
+  }
+  .hotspot:hover .ring,.hotspot[aria-pressed="true"] .ring,.hotspot:focus-visible .ring{border-color:var(--amber);box-shadow:0 0 14px var(--amber)}
+  .hotspot:hover .ring::after,.hotspot[aria-pressed="true"] .ring::after,.hotspot:focus-visible .ring::after{background:var(--amber)}
+  .hotspot:hover .tag,.hotspot[aria-pressed="true"] .tag,.hotspot:focus-visible .tag{color:var(--amber);border-color:var(--amber)}
+  .hotspot.flip{flex-direction:row-reverse}
+
+  /* ===== dossier ===== */
+  .dossier{
+    border:1px solid var(--line);border-radius:14px;background:var(--panel);
+    padding:26px 26px 30px;display:flex;flex-direction:column;position:relative;overflow:hidden;
+    min-height:380px;
+  }
+  .dossier::before{content:"";position:absolute;top:0;left:0;width:100%;height:3px;
+    background:linear-gradient(90deg,var(--cyan),transparent);transition:.3s}
+  .dossier.active::before{background:linear-gradient(90deg,var(--amber),transparent)}
+  .dossier .d-head{
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.2em;
+    color:var(--faint);text-transform:uppercase;display:flex;justify-content:space-between;
+    border-bottom:1px solid var(--line);padding-bottom:14px;
+  }
+  .dossier .d-idx{color:var(--cyan)}
+  .dossier .d-car{
+    font-family:"Bebas Neue",sans-serif;font-size:clamp(40px,5vw,58px);line-height:.95;
+    margin:22px 0 4px;text-transform:uppercase;transition:.3s;
+  }
+  .dossier .d-arrow{
+    font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--amber);
+    display:flex;align-items:center;gap:10px;margin:0 0 18px;letter-spacing:.04em;
+  }
+  .dossier .d-arrow span{color:var(--ink);font-family:"Chakra Petch";font-weight:600;font-size:18px;letter-spacing:0}
+  .chip{
+    align-self:flex-start;font-family:"JetBrains Mono",monospace;font-size:11px;
+    letter-spacing:.14em;text-transform:uppercase;padding:5px 12px;border-radius:999px;
+    border:1px solid;margin-bottom:18px;
+  }
+  .chip.structure{color:var(--cyan);border-color:var(--cyan);background:var(--cyan-soft)}
+  .chip.code{color:var(--amber);border-color:var(--amber);background:var(--amber-soft)}
+  .chip.data{color:var(--green);border-color:var(--green);background:rgba(95,211,141,.1)}
+  .chip.interface{color:var(--violet);border-color:var(--violet);background:rgba(154,140,255,.1)}
+  .chip.cross{color:var(--steel);border-color:var(--steel);background:rgba(138,160,176,.08)}
+  .chip.buy{color:var(--red);border-color:var(--red);background:rgba(255,91,72,.1)}
+  .chip.optional{color:var(--muted);border-color:var(--faint);background:rgba(111,131,147,.06)}
+  .dossier .d-desc{color:var(--muted);font-size:15.5px;font-weight:300;margin:0;flex:1}
+  .dossier .d-desc b{color:var(--ink);font-weight:500}
+  .dossier .d-foot{
+    margin-top:18px;font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.14em;
+    color:var(--faint);text-transform:uppercase;border-top:1px solid var(--line);padding-top:14px;
+    display:flex;justify-content:space-between;
+  }
+
+  /* ===== generic section ===== */
+  section.block{padding:70px 0 0}
+  .sec-head{display:flex;align-items:baseline;gap:18px;margin-bottom:8px;flex-wrap:wrap}
+  .sec-num{font-family:"JetBrains Mono",monospace;color:var(--cyan);font-size:13px;letter-spacing:.2em}
+  .sec-head h2{
+    font-family:"Bebas Neue",sans-serif;font-weight:400;font-size:clamp(34px,5.2vw,62px);
+    margin:0;text-transform:uppercase;letter-spacing:.02em;line-height:1;
+  }
+  .sec-sub{color:var(--muted);font-weight:300;max-width:640px;margin:6px 0 38px;font-size:16px}
+
+  /* ===== cross-section stack ===== */
+  .strata{display:flex;flex-direction:column;gap:14px}
+  .slab{
+    display:grid;grid-template-columns:64px 1.1fr 1.4fr auto;gap:24px;align-items:center;
+    border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:10px;
+    background:linear-gradient(90deg,rgba(87,199,228,.05),transparent 50%),var(--bg2);
+    padding:22px 26px;transition:.3s;position:relative;overflow:hidden;
+  }
+  .slab:hover{border-left-color:var(--amber);transform:translateX(6px);background:linear-gradient(90deg,rgba(255,122,26,.06),transparent 50%),var(--bg2)}
+  .slab .s-n{font-family:"JetBrains Mono",monospace;color:var(--faint);font-size:13px;letter-spacing:.1em}
+  .slab .s-car{font-family:"Bebas Neue",sans-serif;font-size:30px;text-transform:uppercase;letter-spacing:.02em}
+  .slab .s-map{color:var(--cyan);font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+  .slab .s-note{color:var(--muted);font-size:14.5px;font-weight:300}
+  @media(max-width:860px){
+    .slab{grid-template-columns:44px 1fr;gap:6px 18px}
+    .slab .s-note{grid-column:1/-1;margin-top:6px}
+  }
+
+  /* ===== cross-cutting cards ===== */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  @media(max-width:980px){.cards{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.cards{grid-template-columns:1fr}}
+  .card{
+    border:1px solid var(--line);border-radius:12px;background:var(--bg2);
+    padding:24px 22px 26px;transition:.3s;position:relative;overflow:hidden;
+  }
+  .card::after{content:"";position:absolute;inset:0;background:radial-gradient(220px 120px at 100% 0%,rgba(87,199,228,.08),transparent);opacity:0;transition:.3s}
+  .card:hover{transform:translateY(-5px);border-color:rgba(87,199,228,.4)}
+  .card:hover::after{opacity:1}
+  .card .c-ico{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.16em;color:var(--cyan);text-transform:uppercase}
+  .card h3{font-family:"Bebas Neue",sans-serif;font-size:30px;margin:14px 0 2px;text-transform:uppercase;letter-spacing:.02em}
+  .card .c-map{color:var(--amber);font-size:13px;font-family:"JetBrains Mono",monospace;letter-spacing:.04em;margin-bottom:12px}
+  .card p{color:var(--muted);font-size:14px;font-weight:300;margin:0}
+
+  /* ===== build sheet table ===== */
+  .sheet{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg2)}
+  .sheet .row{display:grid;grid-template-columns:1fr 1.3fr 1.6fr;gap:0}
+  .sheet .row+.row{border-top:1px solid var(--line)}
+  .sheet .row.head{background:rgba(87,199,228,.06)}
+  .sheet .cell{padding:18px 22px;border-right:1px solid var(--line)}
+  .sheet .cell:last-child{border-right:0}
+  .sheet .row.head .cell{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan)}
+  .sheet .verb{font-family:"Bebas Neue",sans-serif;font-size:26px;text-transform:uppercase;letter-spacing:.03em}
+  .sheet .verb.configure{color:var(--green)}
+  .sheet .verb.extend{color:var(--cyan)}
+  .sheet .verb.never{color:var(--red)}
+  .sheet .cell .car-eq{color:var(--ink);font-weight:500}
+  .sheet .cell small{display:block;color:var(--faint);font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px}
+  .sheet .cell p{margin:0;color:var(--muted);font-weight:300;font-size:14.5px}
+  @media(max-width:760px){
+    .sheet .row{grid-template-columns:1fr}
+    .sheet .cell{border-right:0;border-bottom:1px solid var(--line)}
+    .sheet .row.head{display:none}
+  }
+
+  /* ===== big callouts ===== */
+  .callouts{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media(max-width:860px){.callouts{grid-template-columns:1fr}}
+  .callout{
+    border:1px solid var(--line);border-radius:14px;padding:34px 32px 36px;position:relative;overflow:hidden;
+    background:var(--bg2);
+  }
+  .callout.warn{border-color:rgba(255,91,72,.35);background:linear-gradient(160deg,rgba(255,91,72,.07),transparent 60%),var(--bg2)}
+  .callout.opt{border-color:rgba(138,160,176,.3);background:linear-gradient(160deg,rgba(138,160,176,.06),transparent 60%),var(--bg2)}
+  .callout .co-tag{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase}
+  .callout.warn .co-tag{color:var(--red)}
+  .callout.opt .co-tag{color:var(--steel)}
+  .callout h3{font-family:"Bebas Neue",sans-serif;font-size:clamp(34px,4.5vw,52px);margin:14px 0 8px;text-transform:uppercase;line-height:.95}
+  .callout .co-map{color:var(--amber);font-family:"JetBrains Mono",monospace;font-size:13px;margin-bottom:16px;letter-spacing:.04em}
+  .callout p{color:var(--muted);font-weight:300;font-size:15.5px;margin:0}
+  .callout p b{color:var(--ink);font-weight:600}
+  .callout .verdict{margin-top:18px;padding-top:16px;border-top:1px solid var(--line);font-weight:600;color:var(--ink);font-size:16px}
+  .callout .verdict em{color:var(--amber);font-style:normal}
+
+  /* ===== footer ===== */
+  footer{margin:90px 0 40px;border-top:1px solid var(--line);padding-top:22px}
+  .foot-grid{display:flex;justify-content:space-between;flex-wrap:wrap;gap:18px;
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+  .foot-grid b{color:var(--muted);font-weight:500}
+  .foot-note{color:var(--muted);font-weight:300;max-width:680px;margin:22px 0 0;font-size:14px}
+
+  /* reveal on scroll */
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.8,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .reveal{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- TITLEBLOCK -->
+  <div class="topbar">
+    <div class="brand"><span class="dot-live"></span> <b>HRMS</b> · MACHINE SCHEMATIC</div>
+    <div class="meta">
+      <span>DWG <b>HRMS-ARCH-001</b></span>
+      <span>SCALE <b>1:1</b></span>
+      <span>REV <b>A</b></span>
+      <span>SHEET <b>01/01</b></span>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <header class="hero">
+    <p class="eyebrow">Multi-tenant architecture · cutaway diagram</p>
+    <h1>
+      <span>Your HRMS</span><br/>
+      <span>is a <span class="amber">machine</span>.</span>
+    </h1>
+    <p class="lede">
+      One platform, many trims, built on a line. <b>Chassis</b> = your data.
+      <b>Engine</b> = your logic. <b>Tune</b> = per-tenant config. <b>Cockpit</b> = what employees see —
+      wrapped in a safety cage, logged by a black box, built region-spec. Probe a component.
+    </p>
+  </header>
+
+  <!-- INTERACTIVE STAGE -->
+  <div class="stage reveal">
+    <!-- DIAGRAM -->
+    <div class="diagram">
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <div class="scan"></div>
+      <div class="label-fig"><span>FIG.01 — X-RAY CUTAWAY, SIDE PROFILE</span><span>UNITS: LAYERS</span></div>
+
+      <div class="svg-host" id="svgHost">
+        <svg class="car" id="carSvg" viewBox="0 0 1100 480" role="img" aria-label="Cutaway diagram of an HRMS as a car">
+          <!-- ground -->
+          <line x1="40" y1="442" x2="1060" y2="442" stroke="rgba(87,199,228,.25)" stroke-width="1" stroke-dasharray="2 6"/>
+
+          <!-- CHASSIS / frame rail -->
+          <rect id="p-chassis" class="part fillable" x="92" y="358" width="912" height="26" rx="8"
+                fill="rgba(87,199,228,.05)" stroke="var(--cyan)" stroke-width="2" stroke-dasharray="6 5" style="animation-delay:.12s"/>
+
+          <!-- BODY silhouette (base, non-interactive) -->
+          <path id="p-body" class="part" style="animation-delay:0s"
+            d="M70 350 C70 322 96 296 152 282 L250 270 C300 264 350 260 432 252
+               C452 250 466 206 520 196 L660 189 C718 189 742 212 792 250
+               L902 256 C958 258 984 272 1004 292 C1018 306 1016 338 1004 356
+               L1004 372 L70 372 Z"
+            fill="rgba(87,199,228,.04)" stroke="var(--cyan)" stroke-width="2"/>
+
+          <!-- DRIVETRAIN: driveshaft + wheels -->
+          <rect id="p-driveshaft" class="part fillable" x="320" y="368" width="500" height="7" rx="3.5"
+                fill="rgba(87,199,228,.12)" stroke="var(--cyan)" stroke-width="1.5" style="animation-delay:.5s"/>
+          <g id="p-wheels" class="part" style="animation-delay:.2s">
+            <circle class="fillable" cx="300" cy="378" r="62" fill="rgba(87,199,228,.05)" stroke="var(--cyan)" stroke-width="2.5"/>
+            <circle cx="300" cy="378" r="26" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+            <g stroke="var(--cyan)" stroke-width="1.4" opacity=".7">
+              <line x1="300" y1="352" x2="300" y2="404"/><line x1="274" y1="378" x2="326" y2="378"/>
+              <line x1="282" y1="360" x2="318" y2="396"/><line x1="318" y1="360" x2="282" y2="396"/>
+            </g>
+            <circle class="fillable" cx="820" cy="378" r="62" fill="rgba(87,199,228,.05)" stroke="var(--cyan)" stroke-width="2.5"/>
+            <circle cx="820" cy="378" r="26" fill="none" stroke="var(--cyan)" stroke-width="2"/>
+            <g stroke="var(--cyan)" stroke-width="1.4" opacity=".7">
+              <line x1="820" y1="352" x2="820" y2="404"/><line x1="794" y1="378" x2="846" y2="378"/>
+              <line x1="802" y1="360" x2="838" y2="396"/><line x1="838" y1="360" x2="802" y2="396"/>
+            </g>
+          </g>
+
+          <!-- ENGINE -->
+          <g id="p-engine" class="part" style="animation-delay:.3s">
+            <rect class="fillable" x="150" y="300" width="118" height="54" rx="7" fill="rgba(87,199,228,.07)" stroke="var(--cyan)" stroke-width="2"/>
+            <line x1="168" y1="300" x2="168" y2="354" stroke="var(--cyan)" stroke-width="1.3" opacity=".6"/>
+            <line x1="190" y1="300" x2="190" y2="354" stroke="var(--cyan)" stroke-width="1.3" opacity=".6"/>
+            <line x1="212" y1="300" x2="212" y2="354" stroke="var(--cyan)" stroke-width="1.3" opacity=".6"/>
+            <line x1="234" y1="300" x2="234" y2="354" stroke="var(--cyan)" stroke-width="1.3" opacity=".6"/>
+            <text x="209" y="332" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="var(--muted)">ENG</text>
+          </g>
+
+          <!-- GEARBOX -->
+          <g id="p-gearbox" class="part" style="animation-delay:.4s">
+            <path class="fillable" d="M300 326 L392 326 L378 360 L300 360 Z" fill="rgba(255,122,26,.08)" stroke="var(--cyan)" stroke-width="2"/>
+            <text x="344" y="348" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="var(--muted)">GBX</text>
+          </g>
+
+          <!-- ECU -->
+          <g id="p-ecu" class="part" style="animation-delay:.46s">
+            <rect class="fillable" x="252" y="286" width="48" height="26" rx="4" fill="rgba(87,199,228,.07)" stroke="var(--cyan)" stroke-width="1.8"/>
+            <text x="276" y="303" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="var(--muted)">ECU</text>
+          </g>
+
+          <!-- BLACK BOX -->
+          <g id="p-blackbox" class="part" style="animation-delay:.64s">
+            <rect class="fillable" x="556" y="298" width="56" height="30" rx="4" fill="rgba(87,199,228,.07)" stroke="var(--cyan)" stroke-width="1.8"/>
+            <circle cx="566" cy="313" r="3" fill="var(--amber)"/>
+            <text x="588" y="317" text-anchor="middle" font-family="JetBrains Mono" font-size="8.5" fill="var(--muted)">REC</text>
+          </g>
+
+          <!-- CABIN GLASS (cockpit) -->
+          <path id="p-cabin" class="part fillable" style="animation-delay:.55s"
+            d="M474 250 C484 216 500 204 540 200 L648 195 C688 197 704 216 740 248 Z"
+            fill="rgba(87,199,228,.10)" stroke="var(--cyan)" stroke-width="1.6"/>
+
+          <!-- SAFETY CAGE (cabin frame) -->
+          <path id="p-cage" class="part" style="animation-delay:.6s"
+            d="M470 252 C482 212 500 200 542 196 L650 191 C694 193 710 214 746 250"
+            fill="none" stroke="var(--cyan)" stroke-width="2.2" stroke-linecap="round"/>
+          <line class="part" style="animation-delay:.6s" x1="600" y1="192" x2="600" y2="250" stroke="var(--cyan)" stroke-width="2.2" opacity=".8"/>
+
+          <!-- ROOF BOX (accessory) -->
+          <g id="p-accessory" class="part" style="animation-delay:.7s">
+            <rect class="fillable" x="520" y="168" width="120" height="20" rx="9" fill="rgba(138,160,176,.1)" stroke="var(--cyan)" stroke-width="1.6" stroke-dasharray="5 4"/>
+            <text x="580" y="182" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="var(--muted)">+ MODULE</text>
+          </g>
+        </svg>
+
+        <!-- HOTSPOTS (positioned by %) -->
+        <button class="hotspot" data-key="accessory" style="left:52.7%;top:37%"><span class="ring"></span><span class="tag">Roof box</span></button>
+        <button class="hotspot" data-key="cockpit"   style="left:55%;top:45%"><span class="ring"></span><span class="tag">Cockpit</span></button>
+        <button class="hotspot flip" data-key="cage" style="left:42%;top:46%"><span class="ring"></span><span class="tag">Safety cage</span></button>
+        <button class="hotspot" data-key="ecu"       style="left:25%;top:60.5%"><span class="ring"></span><span class="tag">ECU tune</span></button>
+        <button class="hotspot flip" data-key="engine" style="left:19%;top:69%"><span class="ring"></span><span class="tag">Engine</span></button>
+        <button class="hotspot" data-key="blackbox"  style="left:53.6%;top:65%"><span class="ring"></span><span class="tag">Black box</span></button>
+        <button class="hotspot" data-key="gearbox"   style="left:31.5%;top:71.5%"><span class="ring"></span><span class="tag">Gearbox</span></button>
+        <button class="hotspot flip" data-key="chassis" style="left:49.5%;top:77.5%"><span class="ring"></span><span class="tag">Chassis</span></button>
+        <button class="hotspot" data-key="drivetrain" style="left:74.5%;top:78.7%"><span class="ring"></span><span class="tag">Drivetrain</span></button>
+      </div>
+    </div>
+
+    <!-- DOSSIER -->
+    <aside class="dossier" id="dossier">
+      <div class="d-head"><span>// Component dossier</span><span class="d-idx" id="dIdx">00 / 09</span></div>
+      <div class="d-car" id="dCar">Select a part</div>
+      <div class="d-arrow">→ <span id="dLayer">Hover or tap any marker on the diagram</span></div>
+      <div class="chip cross" id="dChip">STANDBY</div>
+      <p class="d-desc" id="dDesc">
+        This is an X-ray cutaway of a multi-tenant HRMS, mapped onto a car. Each glowing marker is one
+        architectural layer. The core idea: <b>logic lives in the engine — never in the dashboard,
+        never in the tune.</b> Start anywhere.
+      </p>
+      <div class="d-foot"><span id="dFoot">9 components · 1 platform</span><span>HRMS-ARCH-001</span></div>
+    </aside>
+  </div>
+
+  <!-- SECTION: CROSS SECTION STACK -->
+  <section class="block">
+    <div class="sec-head reveal"><span class="sec-num">02</span><h2>The cross-section</h2></div>
+    <p class="sec-sub reveal">Stack it vertically and the metaphor snaps into the real four-layer architecture. Top is what people touch; bottom is what holds it up.</p>
+    <div class="strata">
+      <div class="slab reveal"><span class="s-n">L4</span><span class="s-car">Cockpit</span><span class="s-map">→ End-user self-service app</span><span class="s-note">Dashboard, wheel, pedals. Employees steer & brake — they never open the engine bay.</span></div>
+      <div class="slab reveal"><span class="s-n">L3</span><span class="s-car">Engine + Transmission</span><span class="s-map">→ Shared runtime engines</span><span class="s-note">Workflow · rules · forms · notifications. Built once, powers every trim. The logic lives here.</span></div>
+      <div class="slab reveal"><span class="s-n">L2</span><span class="s-car">ECU Tune</span><span class="s-map">→ Per-tenant configuration</span><span class="s-note">A tune file the one engine reads. Same engine, different behavior per tenant. Data, not code.</span></div>
+      <div class="slab reveal"><span class="s-n">L1</span><span class="s-car">Chassis / Frame</span><span class="s-map">→ Core data model + persistence</span><span class="s-note">Employee Master, Org, Position + the DB. Load-bearing, tenant-neutral. Can't change once welded.</span></div>
+    </div>
+  </section>
+
+  <!-- SECTION: CROSS-CUTTING -->
+  <section class="block">
+    <div class="sec-head reveal"><span class="sec-num">03</span><h2>Wrap-around systems</h2></div>
+    <p class="sec-sub reveal">Not a layer — these run through the whole vehicle. Skip one and the build is unsafe, illegal, or unsellable.</p>
+    <div class="cards">
+      <div class="card reveal"><div class="c-ico">▣ Safety cage</div><h3>Isolation</h3><div class="c-map">→ Security & multi-tenancy</div><p>RBAC + row-level isolation stop one tenant crashing into another's data. The cargo is PII — this keeps you out of jail.</p></div>
+      <div class="card reveal"><div class="c-ico">◉ Black box</div><h3>Audit</h3><div class="c-map">→ Immutable event log</div><p>Tamper-evident record of everything. Required after an accident. Bolt it into the chassis day one — no retrofit after the crash.</p></div>
+      <div class="card reveal"><div class="c-ico">◐ Region-spec</div><h3>Locale</h3><div class="c-map">→ Localization & jurisdiction</div><p>Same model, re-homologated per country: leave accrual, statutory exits, tax. Where most hidden cost lives.</p></div>
+      <div class="card reveal"><div class="c-ico">⛭ Assembly line</div><h3>Templates</h3><div class="c-map">→ Tenant provisioning</div><p>Every tenant rolls off one line from a build sheet, sharing standard parts. Upgrades = an over-the-air recall.</p></div>
+    </div>
+  </section>
+
+  <!-- SECTION: BUILD SHEET -->
+  <section class="block">
+    <div class="sec-head reveal"><span class="sec-num">04</span><h2>The build sheet</h2></div>
+    <p class="sec-sub reveal">Where the config-vs-code line gets drawn. Tick options on the order form — but nobody re-welds the chassis.</p>
+    <div class="sheet reveal">
+      <div class="row head"><div class="cell">Action</div><div class="cell">Car equivalent</div><div class="cell">HRMS equivalent</div></div>
+      <div class="row"><div class="cell"><span class="verb configure">Configure</span></div><div class="cell"><small>Data</small><span class="car-eq">Tick options on the order form; change menu settings.</span></div><div class="cell"><p>Lookups, approver chains, templates, reminders, document rules, field visibility.</p></div></div>
+      <div class="row"><div class="cell"><span class="verb extend">Extend</span></div><div class="cell"><small>Plugin</small><span class="car-eq">Manufacturer-approved accessory port / OBD module.</span></div><div class="cell"><p>Tenant-specific behavior at defined hooks — versioned, sandboxed. Not free-form config.</p></div></div>
+      <div class="row"><div class="cell"><span class="verb never">Never touch</span></div><div class="cell"><small>Code</small><span class="car-eq">Re-weld the chassis; re-machine the engine internals.</span></div><div class="cell"><p>Payroll math, audit trail, tenant isolation. Configure the <b>inputs</b>, never the algorithm.</p></div></div>
+    </div>
+  </section>
+
+  <!-- SECTION: CALLOUTS -->
+  <section class="block">
+    <div class="sec-head reveal"><span class="sec-num">05</span><h2>Two decisions that sink builds</h2></div>
+    <p class="sec-sub reveal">The gearbox you machine yourself, and the accessories you weld in "because they might be useful." Both are mistakes.</p>
+    <div class="callouts">
+      <div class="callout warn reveal">
+        <div class="co-tag">⚙ Gearbox · buy, don't build</div>
+        <h3>Payroll</h3>
+        <div class="co-map">→ Payroll & compensation</div>
+        <p>The most precision-critical, most regulated subsystem in the whole vehicle. Note that most automakers <b>don't machine their own transmissions</b> — they source from ZF or Aisin. Right now payroll is missing from the design entirely.</p>
+        <div class="verdict">Own the comp data. <em>Integrate payroll execution.</em> Don't build the gearbox.</div>
+      </div>
+      <div class="callout opt reveal">
+        <div class="co-tag">⊕ Roof box · accessory, not core</div>
+        <h3>Satellites</h3>
+        <div class="co-map">→ LMS · Travel · Asset tracking</div>
+        <p>Each is a whole product — a quarter of work for maybe 10% of customers. They're the <b>roof box and tow hitch</b>: bolt-on, optional, most drivers never fit them. Forcing them into core sinks the roadmap.</p>
+        <div class="verdict">Mount on <em>accessory ports (plugins)</em> — or integrate a specialist. Never weld to the frame.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="foot-grid">
+      <span>DRAWN BY <b>Architecture</b></span>
+      <span>METAPHOR <b>Vehicle / cutaway</b></span>
+      <span>LAYERS <b>4 + 4 cross-cutting</b></span>
+      <span>STATUS <b>Schematic · rev A</b></span>
+    </div>
+    <p class="foot-note">
+      Chassis = your data · Engine = your logic · Tune = per-tenant config · Cockpit = what employees see —
+      built region-spec, on a line, inside a safety cage, with a gearbox you buy rather than build.
+    </p>
+  </footer>
+
+</div>
+
+<script>
+const COMPONENTS = {
+  chassis:{i:1,car:"Chassis / Frame",layer:"Core data model + persistence",chip:"structure",chipText:"Structure",
+    desc:"Employee Master, Org, Position and the DB beneath. Load-bearing and <b>tenant-neutral</b> — every car shares this frame. And like a chassis, you can't change it once everything's welded on.",
+    foot:"Layer L1 · tenant-neutral"},
+  engine:{i:2,car:"Engine + Transmission",layer:"Shared runtime engines",chip:"code",chipText:"Logic / Code",
+    desc:"Workflow, rules, forms, notifications. This is what <b>converts input into motion</b> — the actual business logic. Built once, powers every trim. The logic lives HERE — not in the dashboard, not in the tune.",
+    foot:"Layer L3 · written once"},
+  ecu:{i:3,car:"ECU Tune",layer:"Per-tenant configuration",chip:"data",chipText:"Data",
+    desc:"Your 'logic GUI' doesn't produce a second engine — it produces a <b>tune file</b> the one engine reads. Same engine, different behavior per tenant. A tune is data; never a place to weld new pistons.",
+    foot:"Layer L2 · per-tenant"},
+  cockpit:{i:4,car:"Cockpit",layer:"End-user self-service app",chip:"interface",chipText:"Interface",
+    desc:"Dashboard, wheel, pedals — what employees & managers touch. They <b>steer and brake</b>; they never open the engine bay or reflash the ECU. This is your 'end user never sees the logic layer.'",
+    foot:"Layer L4 · driver-facing"},
+  cage:{i:5,car:"Safety Cage",layer:"Security & multi-tenancy isolation",chip:"cross",chipText:"Cross-cutting",
+    desc:"RBAC + row-level isolation are what stop one tenant from <b>crashing into another's data</b>. For an HRMS the cargo is PII — the cage isn't trim, it's the part that keeps you out of jail.",
+    foot:"Cross-cutting · enforce at DB"},
+  blackbox:{i:6,car:"Black Box",layer:"Audit log",chip:"cross",chipText:"Cross-cutting",
+    desc:"Immutable, tamper-evident record of <b>everything that happened</b>. Legally required after an accident. Bolt it into the chassis from day one — you can't retrofit a black box after the crash.",
+    foot:"Cross-cutting · immutable"},
+  gearbox:{i:7,car:"Gearbox",layer:"Payroll & compensation",chip:"buy",chipText:"Buy, don't build",
+    desc:"The most precision-critical, most regulated subsystem. Automakers <b>buy transmissions</b> from ZF/Aisin rather than machine their own — so should you. Own the comp data, integrate payroll execution.",
+    foot:"Decision · build vs integrate"},
+  drivetrain:{i:8,car:"Wheels / Drivetrain",layer:"Hire-to-retire core spine",chip:"code",chipText:"MVP",
+    desc:"Recruitment → onboarding → lifecycle → leave → exit. The <b>four wheels</b> that actually make it drive, powered through the driveshaft. Ship this and you have a real product.",
+    foot:"Spine · ship first"},
+  accessory:{i:9,car:"Roof Box / Accessories",layer:"Satellite modules (plugins)",chip:"optional",chipText:"Optional",
+    desc:"LMS, Travel, Asset Tracking, Knowledge Transfer. Bolt-on, optional — most drivers never fit them. Mount on <b>approved accessory ports</b> (plugins); never welded into the frame.",
+    foot:"Satellite · plugin port"},
+};
+
+const LIT_MAP = {
+  chassis:["p-chassis"], engine:["p-engine"], ecu:["p-ecu"], gearbox:["p-gearbox"],
+  blackbox:["p-blackbox"], cockpit:["p-cabin"], cage:["p-cage"],
+  drivetrain:["p-wheels","p-driveshaft"], accessory:["p-accessory"],
+};
+
+const svg = document.getElementById('carSvg');
+const hotspots = [...document.querySelectorAll('.hotspot')];
+const dossier = document.getElementById('dossier');
+const els = {
+  car:document.getElementById('dCar'), layer:document.getElementById('dLayer'),
+  chip:document.getElementById('dChip'), desc:document.getElementById('dDesc'),
+  idx:document.getElementById('dIdx'), foot:document.getElementById('dFoot'),
+};
+let locked=null;
+
+function clearLit(){
+  document.querySelectorAll('.part.lit').forEach(e=>e.classList.remove('lit'));
+  svg.classList.remove('has-sel');
+}
+function light(key){
+  clearLit();
+  if(!key) return;
+  svg.classList.add('has-sel');
+  (LIT_MAP[key]||[]).forEach(id=>{const e=document.getElementById(id);if(e)e.classList.add('lit')});
+}
+function render(key){
+  hotspots.forEach(h=>h.setAttribute('aria-pressed', h.dataset.key===key ? 'true':'false'));
+  light(key);
+  if(!key){
+    dossier.classList.remove('active');
+    els.car.textContent="Select a part";
+    els.layer.textContent="Hover or tap any marker on the diagram";
+    els.chip.className="chip cross"; els.chip.textContent="STANDBY";
+    els.idx.textContent="00 / 09";
+    els.foot.textContent="9 components · 1 platform";
+    els.desc.innerHTML="This is an X-ray cutaway of a multi-tenant HRMS, mapped onto a car. Each glowing marker is one architectural layer. The core idea: <b>logic lives in the engine — never in the dashboard, never in the tune.</b> Start anywhere.";
+    return;
+  }
+  const c=COMPONENTS[key];
+  dossier.classList.add('active');
+  els.car.textContent=c.car;
+  els.layer.textContent=c.layer;
+  els.chip.className="chip "+c.chip; els.chip.textContent=c.chipText;
+  els.idx.textContent=String(c.i).padStart(2,'0')+" / 09";
+  els.desc.innerHTML=c.desc;
+  els.foot.textContent=c.foot;
+}
+
+hotspots.forEach(h=>{
+  const key=h.dataset.key;
+  h.addEventListener('mouseenter',()=>render(key));
+  h.addEventListener('focus',()=>render(key));
+  h.addEventListener('mouseleave',()=>render(locked));
+  h.addEventListener('blur',()=>render(locked));
+  h.addEventListener('click',()=>{ locked = (locked===key? null : key); render(locked); });
+});
+render(null);
+
+// scroll reveal
+const io=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+},{threshold:.16});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
