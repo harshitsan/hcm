@@ -64,10 +64,11 @@ export async function performLogin(page, { user = CONFIG.user, pass = CONFIG.pas
 
   const submit = page.locator('#btnSubmit').or(page.getByRole('button', { name: /log\s*in/i }))
   await Promise.all([
-    page.waitForLoadState('networkidle', { timeout: CONFIG.timeout }).catch(() => {}),
+    // this app keeps connections open, so wait for the post-login navigation, NOT networkidle
+    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 }).catch(() => {}),
     submit.click(),
   ])
-  await page.waitForTimeout(1000)
+  await page.waitForTimeout(1200)
   return isAuthenticated(page)
 }
 

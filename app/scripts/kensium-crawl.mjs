@@ -6,7 +6,7 @@
  *   node scripts/kensium-crawl.mjs
  *   LIMIT=20 node scripts/kensium-crawl.mjs        # crawl only first 20 (smoke test)
  */
-import { getContext, CONFIG } from './kensium-session.mjs'
+import { getContext, performLogin, CONFIG } from './kensium-session.mjs'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -69,7 +69,8 @@ const EXTRACT = () => {
   const norm = t => (t || '').replace(/\s+/g, ' ').trim()
   const uniq = a => [...new Set(a.filter(Boolean))]
   const texts = (sel, max = 80) => uniq([...document.querySelectorAll(sel)].map(e => norm(e.textContent || e.value)).filter(t => t && t.length <= max))
-  return {
+  // also capture the value text of dropdowns (selected option) so full text includes them
+  const out = {
     loginForm: !!document.querySelector('#Password, #userName'),
     breadcrumb: norm(document.querySelector('.breadcrumbs, .breadcrumb, #breadcrumb')?.textContent),
     title: norm(document.querySelector('.content-header h1, h1, .page-title, .panel-title, h2')?.textContent),
@@ -81,6 +82,22 @@ const EXTRACT = () => {
     questions: uniq([...document.querySelectorAll('label, span, td, p')].map(e => norm(e.textContent)).filter(t => /\?\s*$/.test(t) && t.length <= 140)).slice(0, 12),
     bodyLen: (document.body?.innerText || '').length,
   }
+  // Full visible text of the page content — strip repeated chrome (nav/header/sidebar/footer) first.
+  try {
+    document.querySelectorAll([
+      'header', 'footer', '#footer', '#header', '.header', '.header-right', 'nav',
+      'ul.main-navigation', '.main-navigation', '#left_f_w', '.left-nav',
+      '.drp', '.subnav', '.dropdown', '.custom-dropdown',
+      '.t-window', '#SearchWindow', '#ConfigurationWindow', '#FavoriteWindow', '#AlertsWindow',
+      'script', 'style', 'noscript', '.k-loading-mask',
+    ].join(', ')).forEach(e => e.remove())
+  } catch {}
+  out.fullText = (document.body?.innerText || '')
+    .replace(/\r/g, '')
+    .split('\n').map(l => l.replace(/[ \t]+$/, '')).join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return out
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
@@ -103,7 +120,7 @@ for (let a = 1; ; a++) {
 }
 
 try {
-  const { page } = session
+  const { page, ctx } = session
   const data = JSON.parse(await readFile(TREE, 'utf8'))
 
   // 1) nav-tree leaves
@@ -141,6 +158,7 @@ try {
   // extract from the main frame AND any iframes (the app loads modules async / in frames)
   async function extractAllFrames(pg) {
     const m = { loginForm: false, breadcrumb: '', title: '', tabs: [], buttons: [], gridColumns: [], fields: [], sections: [], questions: [], bodyLen: 0 }
+    const ft = []
     for (const fr of pg.frames()) {
       let r
       try { r = await fr.evaluate(EXTRACT) } catch { continue }
@@ -150,8 +168,10 @@ try {
       m.bodyLen = Math.max(m.bodyLen, r.bodyLen || 0)
       for (const k of ['tabs', 'buttons', 'gridColumns', 'fields', 'sections', 'questions'])
         m[k] = [...new Set([...m[k], ...(r[k] || [])])]
+      if (r.fullText) ft.push(r.fullText)
     }
     for (const k of ['buttons', 'fields', 'sections']) m[k] = m[k].slice(0, 40)
+    m.fullText = [...new Set(ft)].join('\n\n').slice(0, 20000)
     return m
   }
 
@@ -163,11 +183,23 @@ try {
     let rec = { ...t, error: null }
     try {
       const resp = await gotoRetry(page, t.url)
-      await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
-      await page.waitForTimeout(500)
+      await page.waitForTimeout(1500)   // fixed settle — this app never reaches networkidle
       rec.status = resp ? resp.status() : null
       rec.finalUrl = page.url()
       Object.assign(rec, await extractAllFrames(page))
+      // session expired mid-crawl → re-login once and retry this page
+      if (rec.loginForm && CONFIG.pass) {
+        await page.goto(CONFIG.url, { waitUntil: 'domcontentloaded' }).catch(() => {})
+        const ok = await performLogin(page).catch(() => false)
+        if (ok) {
+          await ctx.storageState({ path: CONFIG.storage }).catch(() => {})
+          await gotoRetry(page, t.url)
+          await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})
+          await page.waitForTimeout(500)
+          rec = { ...t, error: null, finalUrl: page.url(), reloggedIn: true }
+          Object.assign(rec, await extractAllFrames(page))
+        }
+      }
     } catch (e) {
       rec.error = e.message.slice(0, 120)
     }

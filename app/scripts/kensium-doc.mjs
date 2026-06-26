@@ -104,7 +104,8 @@ md += `- **List view columns** — columns of the page's data grid\n`
 md += `- **Actions / buttons** — buttons & action links (Save, Add new, Search, Export, …)\n`
 md += `- **Form fields / inputs** — labelled inputs on the page\n`
 md += `- **Configuration questions** — yes/no & policy toggles (mostly on Configuration screens)\n`
-md += `- **Sections / panels** — headings dividing the page\n\n`
+md += `- **Sections / panels** — headings dividing the page\n`
+md += `- **📄 Full page text** — a collapsible block with the complete visible text copied from the page (grids, labels, values, instructions), nav/header/footer chrome removed\n\n`
 md += `Configuration items are grouped by **module** (Exit, Time Off / Leave, Attendance Tracking, …), derived from each screen's URL. Pages marked _(no detail captured)_ are dashboards, redirects, or widget-only screens.\n\n`
 md += `---\n\n`
 
@@ -162,7 +163,12 @@ for (const [sec, arr] of bySection) {
     body += line('Form fields / inputs', p.fields)
     body += line('Configuration questions', p.questions)
     body += line('Sections / panels', p.sections)
-    md += (body || `- _(no detail captured — dashboard, redirect, or widget-only screen)_\n`) + '\n'
+    md += (body || `- _(no controls detected)_\n`)
+
+    // full page text (collapsed) — the complete visible content of the page
+    const ft = (p.fullText || '').replace(/```/g, '`​``').trim()
+    if (ft) md += `\n<details><summary>📄 Full page text</summary>\n\n\`\`\`text\n${ft}\n\`\`\`\n\n</details>\n`
+    md += '\n'
   }
   md += `---\n\n`
 }
