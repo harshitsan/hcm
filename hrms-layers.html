@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HRMS — The Four Layers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Hanken+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#f3f0e8;
+    --paper2:#fbfaf5;
+    --card:#fffefb;
+    --ink:#16130d;
+    --ink2:#3a352c;
+    --muted:#736b5c;
+    --faint:#a59c8a;
+    --line:#ddd6c6;
+    --line2:#e7e1d3;
+    /* layer hues */
+    --pres:#c4502a;
+    --config:#1f8a5b;
+    --engine:#2f4bd6;
+    --data:#0e6b6b;
+    --shadow:0 1px 2px rgba(40,33,20,.04),0 8px 26px rgba(40,33,20,.06);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Hanken Grotesk",system-ui,sans-serif;font-weight:400;line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(900px 500px at 85% -5%,rgba(47,75,214,.05),transparent 60%),
+                     radial-gradient(700px 460px at -5% 105%,rgba(196,80,42,.05),transparent 60%);
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 26px}
+
+  /* topbar */
+  .topbar{display:flex;justify-content:space-between;align-items:center;
+    padding:20px 0 16px;border-bottom:1px solid var(--line);
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+  .topbar .b{color:var(--ink);font-weight:700;letter-spacing:.2em}
+  .topbar .r{display:flex;gap:20px}
+  .topbar .r b{color:var(--muted);font-weight:500}
+  @media(max-width:680px){.topbar .r{display:none}}
+
+  /* hero */
+  header.hero{padding:46px 0 8px}
+  .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.28em;
+    text-transform:uppercase;color:var(--engine);display:flex;align-items:center;gap:13px;margin:0 0 18px}
+  .eyebrow::before{content:"";width:40px;height:2px;background:var(--engine);display:inline-block}
+  h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:clamp(38px,6vw,76px);
+    line-height:1.02;letter-spacing:-.02em;margin:0;max-width:14ch}
+  h1 em{font-style:normal;color:var(--engine)}
+  .lede{max-width:620px;color:var(--ink2);font-size:18px;font-weight:300;margin:22px 0 0}
+  .lede b{font-weight:600;color:var(--ink)}
+
+  /* control bar */
+  .controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between;
+    margin:40px 0 14px;padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .switch{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .switch .lab{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .seg{display:inline-flex;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:4px;gap:4px}
+  .seg button{font-family:"Hanken Grotesk";font-weight:600;font-size:14px;color:var(--muted);
+    background:none;border:0;padding:8px 16px;border-radius:7px;cursor:pointer;transition:.18s;white-space:nowrap}
+  .seg button:hover{color:var(--ink)}
+  .seg button.on{background:var(--engine);color:#fff;box-shadow:0 2px 8px rgba(47,75,214,.3)}
+  .legend{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.04em;max-width:430px;text-align:right;line-height:1.7}
+  .legend b{color:var(--engine);font-weight:700}
+  @media(max-width:760px){.legend{text-align:left}}
+
+  /* layout: stack + cross rail */
+  .grid{display:grid;grid-template-columns:1fr 268px;gap:18px;align-items:start;margin-top:8px}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+
+  .stack{display:flex;flex-direction:column;gap:0;position:relative}
+
+  /* connector between bands */
+  .conn{display:flex;align-items:center;gap:10px;padding:9px 0 9px 30px;
+    font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .conn .arr{color:var(--engine);font-size:13px}
+
+  /* layer band */
+  .band{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+    overflow:hidden;position:relative;transition:.25s}
+  .band::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+  .band[data-id=pres]{--accent:var(--pres)}
+  .band[data-id=config]{--accent:var(--config)}
+  .band[data-id=engines]{--accent:var(--engine)}
+  .band[data-id=data]{--accent:var(--data)}
+  .band.star{border-color:rgba(47,75,214,.45);background:linear-gradient(180deg,rgba(47,75,214,.04),var(--card) 60%)}
+  .band:hover{transform:translateX(3px)}
+
+  .band-head{display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;padding:20px 22px 16px 26px;cursor:pointer}
+  .num{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:30px;color:var(--accent);line-height:1;min-width:46px}
+  .titles .t{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:23px;letter-spacing:-.01em;line-height:1.1;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .titles .s{color:var(--muted);font-size:14px;font-weight:400;margin-top:1px}
+  .star-tag{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:#fff;background:var(--engine);padding:3px 8px;border-radius:5px;font-weight:700}
+  .owner{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    text-align:right;padding:6px 11px;border-radius:7px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;line-height:1.3}
+  .owner.interface{color:var(--pres);border-color:rgba(196,80,42,.35);background:rgba(196,80,42,.06)}
+  .owner.data{color:var(--config);border-color:rgba(31,138,91,.35);background:rgba(31,138,91,.06)}
+  .owner.code{color:var(--engine);border-color:rgba(47,75,214,.35);background:rgba(47,75,214,.06)}
+  .owner.persist{color:var(--data);border-color:rgba(14,107,107,.35);background:rgba(14,107,107,.06)}
+  @media(max-width:600px){
+    .band-head{grid-template-columns:auto 1fr;gap:12px}
+    .owner{grid-column:1/-1;text-align:left;justify-self:start}
+  }
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 22px 18px 26px}
+  .chip{font-family:"Hanken Grotesk";font-size:13px;font-weight:500;color:var(--ink2);
+    background:var(--paper);border:1px solid var(--line2);border-radius:8px;padding:6px 11px;transition:.2s}
+  .band[data-id=config] .chip{display:flex;gap:8px;align-items:baseline}
+  .band[data-id=config] .chip .k{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--config);font-weight:700}
+
+  /* expandable detail */
+  .detail{max-height:0;overflow:hidden;transition:max-height .4s ease;border-top:0 solid var(--line2)}
+  .detail.open{max-height:280px;border-top:1px solid var(--line2)}
+  .detail .inner{padding:16px 22px 20px 26px;color:var(--ink2);font-size:14.5px;font-weight:300;line-height:1.6}
+  .detail .inner b{font-weight:600;color:var(--ink)}
+  .toggle{font-family:"JetBrains Mono",monospace;font-size:18px;color:var(--faint);
+    background:none;border:0;cursor:pointer;line-height:1;transition:.2s;padding:4px}
+  .band-head:hover .toggle{color:var(--accent)}
+
+  /* shared / reconfigured flags */
+  .flag{position:absolute;top:18px;right:18px;font-family:"JetBrains Mono",monospace;font-size:10px;
+    letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:5px 10px;border-radius:6px;
+    opacity:0;transform:translateY(-4px);transition:.3s;pointer-events:none}
+  .flag.shared{color:var(--muted);background:var(--paper);border:1px solid var(--line)}
+  .flag.recfg{color:#fff;background:var(--config)}
+  .flag.show{opacity:1;transform:none}
+
+  /* cross-cutting rail */
+  .rail{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+    padding:20px 18px;position:sticky;top:18px}
+  .rail .rh{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--ink);font-weight:700;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .rail .rh .v{writing-mode:initial}
+  .rail .rsub{font-size:12px;color:var(--muted);font-weight:300;margin:8px 0 16px}
+  .cc{padding:13px 0;border-bottom:1px solid var(--line2)}
+  .cc:last-child{border-bottom:0}
+  .cc .cct{font-family:"Hanken Grotesk";font-weight:700;font-size:15px;display:flex;align-items:center;gap:9px}
+  .cc .dot{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
+  .cc .ccd{color:var(--muted);font-size:12.5px;font-weight:300;margin-top:3px;padding-left:17px}
+  @media(max-width:880px){.rail{position:static}}
+
+  /* insight strip */
+  .insight{margin:30px 0 0;background:var(--ink);color:#f3f0e8;border-radius:14px;padding:26px 28px;
+    display:flex;gap:22px;align-items:flex-start;box-shadow:var(--shadow)}
+  .insight .mark{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:40px;color:var(--engine);line-height:.8;flex:0 0 auto}
+  .insight p{margin:0;font-size:17px;font-weight:300;line-height:1.55}
+  .insight p b{font-weight:600;color:#fff}
+  .insight p em{font-style:normal;color:#8fa2ff}
+
+  /* boundary mini-table */
+  section.bound{margin:54px 0 0}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}
+  .sec-head .n{font-family:"JetBrains Mono",monospace;color:var(--engine);font-size:12px;letter-spacing:.18em}
+  .sec-head h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:clamp(26px,4vw,40px);margin:0;letter-spacing:-.01em}
+  .sec-sub{color:var(--muted);max-width:600px;font-weight:300;margin:4px 0 24px;font-size:15.5px}
+  .bcols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:760px){.bcols{grid-template-columns:1fr}}
+  .bcol{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 20px 22px;box-shadow:var(--shadow);border-top:4px solid var(--c)}
+  .bcol.configure{--c:var(--config)}
+  .bcol.extend{--c:var(--engine)}
+  .bcol.never{--c:var(--pres)}
+  .bcol .v{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px;color:var(--c)}
+  .bcol .tag{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:3px 0 12px}
+  .bcol p{margin:0;color:var(--ink2);font-size:14px;font-weight:300}
+  .bcol p b{font-weight:600;color:var(--ink)}
+
+  footer{margin:60px 0 40px;border-top:1px solid var(--line);padding-top:20px;
+    font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
+  footer b{color:var(--muted);font-weight:500}
+
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .6s,transform .6s cubic-bezier(.2,.8,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <span class="b">HRMS · ARCHITECTURE</span>
+    <span class="r"><span>MODEL <b>4-layer + cross-cutting</b></span><span>VIEW <b>Stack</b></span><span>REV <b>B</b></span></span>
+  </div>
+
+  <header class="hero">
+    <p class="eyebrow">Multi-tenant HRMS · layered view</p>
+    <h1>Four layers. Tenants differ in <em>one.</em></h1>
+    <p class="lede">Read it top to bottom. A request flows <b>down</b>; configuration is <b>data the engines read</b>. The whole trick of multi-tenancy: every company shares the same engines and the same schema — they only differ at the <b>config</b> layer.</p>
+  </header>
+
+  <div class="controls reveal">
+    <div class="switch">
+      <span class="lab">Viewing tenant ▸</span>
+      <div class="seg" id="seg">
+        <button data-t="acme" class="on">Acme Corp</button>
+        <button data-t="globex">Globex</button>
+        <button data-t="initech">Initech</button>
+      </div>
+    </div>
+    <div class="legend">Switch tenant → only <b>layer 02 changes</b>.<br/>01, 03 &amp; 04 are shared by everyone.</div>
+  </div>
+
+  <div class="grid">
+    <!-- LAYER STACK -->
+    <div class="stack">
+
+      <!-- 01 PRESENTATION -->
+      <div class="band reveal" data-id="pres">
+        <span class="flag shared">✓ shared · unchanged</span>
+        <div class="band-head" data-toggle>
+          <div class="num">01</div>
+          <div class="titles">
+            <div class="t">Presentation</div>
+            <div class="s">Self-service &amp; admin screens — the only layer end users see</div>
+          </div>
+          <div class="owner interface">Everyone sees<br/>this</div>
+          <button class="toggle" aria-label="expand">+</button>
+        </div>
+        <div class="chips">
+          <span class="chip">Apply Time Off</span><span class="chip">My Summary</span><span class="chip">Org Chart</span>
+          <span class="chip">Announcements</span><span class="chip">Approvals inbox</span><span class="chip">Employee profile</span>
+        </div>
+        <div class="detail"><div class="inner">Thin by design: it renders forms and shows outcomes. It holds <b>no business rules</b> — it calls the engines below. Skinnable per tenant (logo, theme), but the screens themselves are shared code.</div></div>
+      </div>
+
+      <div class="conn"><span class="arr">↓</span> user actions flow down</div>
+
+      <!-- 02 CONFIG -->
+      <div class="band reveal" data-id="config">
+        <span class="flag recfg" id="recfgFlag">↻ reconfigured</span>
+        <div class="band-head" data-toggle>
+          <div class="num">02</div>
+          <div class="titles">
+            <div class="t">Config / Metadata</div>
+            <div class="s">Per-tenant — the output of your “configuration” screens</div>
+          </div>
+          <div class="owner data">Admins set ·<br/>users never see</div>
+          <button class="toggle" aria-label="expand">+</button>
+        </div>
+        <div class="chips" id="configChips"><!-- injected per tenant --></div>
+        <div class="detail"><div class="inner">Every tenant differs <b>here and nowhere else</b>. It is data — rows in a table — that the engines read at runtime. Crucial: this is a <b>tune, not a second engine</b>. The moment real branching logic leaks in here, you've built a programming language with no debugger.</div></div>
+      </div>
+
+      <div class="conn"><span class="arr">↓</span> the engines below <b style="color:var(--engine);font-weight:700;margin:0 .35em">read</b> this config at runtime</div>
+
+      <!-- 03 ENGINES -->
+      <div class="band star reveal" data-id="engines">
+        <span class="flag shared">✓ shared · unchanged</span>
+        <div class="band-head" data-toggle>
+          <div class="num">03</div>
+          <div class="titles">
+            <div class="t">Engines <span class="star-tag">★ the logic lives here</span></div>
+            <div class="s">Shared runtime — written once, identical for all tenants</div>
+          </div>
+          <div class="owner code">Developers own ·<br/>shared by all</div>
+          <button class="toggle" aria-label="expand">+</button>
+        </div>
+        <div class="chips">
+          <span class="chip">Workflow / approvals</span><span class="chip">Rules engine</span><span class="chip">Forms / dynamic fields</span>
+          <span class="chip">Notifications / templates</span><span class="chip">Payroll → integrate</span>
+        </div>
+        <div class="detail"><div class="inner">The heart of the system. This is where business logic lives — <b>not in the screens, not in the config</b>. One workflow engine, one rules engine, one forms engine, one notification engine. Every module configures these four — so you never hand-code “Exit approvers” separately from “Offer approvers.”</div></div>
+      </div>
+
+      <div class="conn"><span class="arr">↓</span> engines read &amp; write</div>
+
+      <!-- 04 DATA -->
+      <div class="band reveal" data-id="data">
+        <span class="flag shared">✓ shared schema</span>
+        <div class="band-head" data-toggle>
+          <div class="num">04</div>
+          <div class="titles">
+            <div class="t">Domain + Data</div>
+            <div class="s">Core model &amp; persistence — the load-bearing foundation</div>
+          </div>
+          <div class="owner persist">Schema ·<br/>tenant-isolated</div>
+          <button class="toggle" aria-label="expand">+</button>
+        </div>
+        <div class="chips">
+          <span class="chip">Employee Master</span><span class="chip">Org / Position</span><span class="chip">Employment records</span>
+          <span class="chip">Documents</span><span class="chip">tenant_id on every row</span>
+        </div>
+        <div class="detail"><div class="inner">The canonical employee/org model and the database. Tenant-neutral <b>schema</b>; isolation enforced at the <b>row level</b>. You can't change this cheaply once everything is built on top — get it right first.</div></div>
+      </div>
+
+    </div>
+
+    <!-- CROSS-CUTTING RAIL -->
+    <aside class="rail reveal">
+      <div class="rh">⟂ Cross-cutting</div>
+      <p class="rsub">Not a layer — these run through all four, top to bottom.</p>
+      <div class="cc"><div class="cct"><span class="dot" style="background:var(--engine)"></span>Security &amp; RBAC</div><div class="ccd">Row-level tenant isolation. Enforce at the DB, not just the app.</div></div>
+      <div class="cc"><div class="cct"><span class="dot" style="background:var(--pres)"></span>Audit log</div><div class="ccd">Immutable record of every config change &amp; data mutation.</div></div>
+      <div class="cc"><div class="cct"><span class="dot" style="background:var(--config)"></span>Localization</div><div class="ccd">Timezones, languages, statutory rules per jurisdiction.</div></div>
+      <div class="cc"><div class="cct"><span class="dot" style="background:var(--data)"></span>Integration</div><div class="ccd">APIs &amp; events out to payroll, identity, finance.</div></div>
+    </aside>
+  </div>
+
+  <!-- INSIGHT -->
+  <div class="insight reveal">
+    <span class="mark">“</span>
+    <p>You originally pictured a <em>“logic GUI layer.”</em> There isn't one. The GUI just edits <b>layer 02 (config data)</b>; the logic lives in <b>layer 03 (the engines)</b>. That single correction is what lets one codebase serve every tenant — <b>change the config, not the code.</b></p>
+  </div>
+
+  <!-- BOUNDARY -->
+  <section class="bound">
+    <div class="sec-head reveal"><span class="n">05</span><h2>What goes where</h2></div>
+    <p class="sec-sub reveal">The line that keeps the platform sane: configure freely, extend carefully, and never let the critical stuff become config.</p>
+    <div class="bcols">
+      <div class="bcol configure reveal"><div class="v">Configure</div><div class="tag">Layer 02 · data</div><p>Lookups, approver chains, templates, reminders, document rules, field visibility, leave policies.</p></div>
+      <div class="bcol extend reveal"><div class="v">Extend</div><div class="tag">Plugin · defined hooks</div><p>Tenant-specific behavior at versioned extension points — <b>sandboxed</b>, not free-form config.</p></div>
+      <div class="bcol never reveal"><div class="v">Never config</div><div class="tag">Layer 03 / 04 · code</div><p>Payroll math, audit trail, tenant isolation. Configure the <b>inputs</b> — never the algorithm.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>HRMS-ARCH-001 · REV B</span>
+    <span>LAYERS <b>4 + 4 cross-cutting</b></span>
+    <span>TENANTS DIFFER AT <b>layer 02 only</b></span>
+  </footer>
+
+</div>
+
+<script>
+const TENANTS = {
+  acme:   {name:"Acme Corp", rows:[["Exit types","Resignation · Termination · Retirement"],["Approver chain","Manager → HR"],["Notice period","30 days"],["Leave policy","18 days / yr"],["Pay grades","5 grades"]]},
+  globex: {name:"Globex",    rows:[["Exit types","Resignation · Layoff · Termination · Absconding"],["Approver chain","Manager → Dept Head → HR → CHRO"],["Notice period","60 days"],["Leave policy","24 days / yr"],["Pay grades","9 grades"]]},
+  initech:{name:"Initech",   rows:[["Exit types","Resignation · Termination"],["Approver chain","Manager → HR (1 step)"],["Notice period","15 days"],["Leave policy","12 days / yr"],["Pay grades","3 grades"]]},
+};
+
+const configChips = document.getElementById('configChips');
+const recfgFlag = document.getElementById('recfgFlag');
+const sharedFlags = [...document.querySelectorAll('.flag.shared')];
+
+function renderConfig(key){
+  const t = TENANTS[key];
+  configChips.innerHTML = t.rows.map(([k,v])=>`<span class="chip"><span class="k">${k}</span> ${v}</span>`).join('');
+}
+
+let firstLoad = true;
+function setTenant(key){
+  renderConfig(key);
+  if(firstLoad){firstLoad=false;return;}
+  // flash flags to prove what changed vs what stayed
+  recfgFlag.textContent = "↻ reconfigured for "+TENANTS[key].name;
+  recfgFlag.classList.add('show');
+  sharedFlags.forEach(f=>f.classList.add('show'));
+  clearTimeout(window.__ft);
+  window.__ft = setTimeout(()=>{
+    recfgFlag.classList.remove('show');
+    sharedFlags.forEach(f=>f.classList.remove('show'));
+  },1600);
+}
+
+document.getElementById('seg').addEventListener('click',e=>{
+  const btn = e.target.closest('button'); if(!btn) return;
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on', b===btn));
+  setTenant(btn.dataset.t);
+});
+setTenant('acme');
+
+// expand/collapse details
+document.querySelectorAll('[data-toggle]').forEach(head=>{
+  head.addEventListener('click',e=>{
+    const band = head.closest('.band');
+    const detail = band.querySelector('.detail');
+    const tog = band.querySelector('.toggle');
+    const open = detail.classList.toggle('open');
+    tog.textContent = open ? '–' : '+';
+  });
+});
+
+// reveal on scroll
+const io = new IntersectionObserver((ents)=>{
+  ents.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target);} });
+},{threshold:.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>

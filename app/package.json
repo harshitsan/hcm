@@ -9,7 +9,13 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "shots": "node scripts/screenshot-roles.mjs",
-    "shots:platform-admin": "node scripts/screenshot-platform-admin.mjs"
+    "shots:platform-admin": "node scripts/screenshot-platform-admin.mjs",
+    "login": "node scripts/kensium-login.mjs",
+    "kensium:explore": "node scripts/kensium-explore.mjs",
+    "kensium:tree": "node scripts/kensium-menu-tree.mjs",
+    "kensium:crawl": "node scripts/kensium-crawl.mjs",
+    "kensium:doc": "node scripts/kensium-doc.mjs",
+    "kensium:map": "node scripts/kensium-menu-tree.mjs && node scripts/kensium-crawl.mjs && node scripts/kensium-doc.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.11.0",
