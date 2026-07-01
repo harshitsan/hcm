@@ -10,8 +10,418 @@
     "semantic_hash": "14df08ee3190b0398f5148a30f814fb7"
   },
   "/Users/harshitsan/Documents/heliverse/hcm/SatelliteHR-FunctionalSpec-CompanyManagement (2).md": {
-    "mtime": 1780872586.5797386,
-    "ast_hash": "642ede894808766bcde5752f5c69a247",
-    "semantic_hash": "642ede894808766bcde5752f5c69a247"
+    "mtime": 1780874004.8788497,
+    "ast_hash": "ef5543b317ee99a3545036663c571d4e",
+    "semantic_hash": "ef5543b317ee99a3545036663c571d4e"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/eslint.config.js": {
+    "mtime": 1780925082.4889488,
+    "ast_hash": "0355276bc79439afe3c53e3a2470ca1e",
+    "semantic_hash": "0355276bc79439afe3c53e3a2470ca1e"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/package.json": {
+    "mtime": 1780939471.3949018,
+    "ast_hash": "9fca8b365431c5205d9b36d495fd3b8b",
+    "semantic_hash": "9fca8b365431c5205d9b36d495fd3b8b"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/postcss.config.js": {
+    "mtime": 1780925120.7441788,
+    "ast_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0",
+    "semantic_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/App.tsx": {
+    "mtime": 1780958805.7335336,
+    "ast_hash": "8c7a21f6c38d483ea3c1119432df52a8",
+    "semantic_hash": "8c7a21f6c38d483ea3c1119432df52a8"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/app/nav.tsx": {
+    "mtime": 1780958776.3296242,
+    "ast_hash": "480bf0619e017cd0feb3eb40652d12ee",
+    "semantic_hash": "480bf0619e017cd0feb3eb40652d12ee"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/app/store.tsx": {
+    "mtime": 1780927402.81822,
+    "ast_hash": "5dc62f52c067029fd93347aa37294544",
+    "semantic_hash": "5dc62f52c067029fd93347aa37294544"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/components/shell.tsx": {
+    "mtime": 1780967822.3872774,
+    "ast_hash": "99237c61531969e8ca1481de2ed956c2",
+    "semantic_hash": "99237c61531969e8ca1481de2ed956c2"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/components/ui.tsx": {
+    "mtime": 1780969845.3057423,
+    "ast_hash": "6951331f8eb259673f0efce25eb635f9",
+    "semantic_hash": "6951331f8eb259673f0efce25eb635f9"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/data/companyData.ts": {
+    "mtime": 1780940543.5818822,
+    "ast_hash": "a2a17c3e08944afbdb7c2edf8634a3ba",
+    "semantic_hash": "a2a17c3e08944afbdb7c2edf8634a3ba"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/data/mock.ts": {
+    "mtime": 1780943004.9646714,
+    "ast_hash": "afdf3af7307b5047fd4280defaf6aa81",
+    "semantic_hash": "afdf3af7307b5047fd4280defaf6aa81"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/lib/cn.ts": {
+    "mtime": 1780925260.4029646,
+    "ast_hash": "2df019bfe2a883e2a12a4582dda3820c",
+    "semantic_hash": "2df019bfe2a883e2a12a4582dda3820c"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/main.tsx": {
+    "mtime": 1780961137.6419275,
+    "ast_hash": "24d115eff50d72348b839bbdca6aecd5",
+    "semantic_hash": "24d115eff50d72348b839bbdca6aecd5"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Attendance.tsx": {
+    "mtime": 1780930947.7182167,
+    "ast_hash": "c6893935c70210c639795358ce69848e",
+    "semantic_hash": "c6893935c70210c639795358ce69848e"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Audit.tsx": {
+    "mtime": 1780930979.4541533,
+    "ast_hash": "5102da61093c4c065e72299a9d51904e",
+    "semantic_hash": "5102da61093c4c065e72299a9d51904e"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Candidates.tsx": {
+    "mtime": 1780930180.4096904,
+    "ast_hash": "8a23878829cb529bbef67634ac6b8689",
+    "semantic_hash": "8a23878829cb529bbef67634ac6b8689"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Companies.tsx": {
+    "mtime": 1780930796.5285478,
+    "ast_hash": "1b6b702103d907641fa95c8b5df347a2",
+    "semantic_hash": "1b6b702103d907641fa95c8b5df347a2"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/CompanySetup.tsx": {
+    "mtime": 1780927215.9513507,
+    "ast_hash": "cbbdec4f5c8e8af1601a6e4aba4c9ccf",
+    "semantic_hash": "cbbdec4f5c8e8af1601a6e4aba4c9ccf"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/CustomFields.tsx": {
+    "mtime": 1780927101.8451579,
+    "ast_hash": "19a48c2d8930fef72f2f8c24c4b17dc4",
+    "semantic_hash": "19a48c2d8930fef72f2f8c24c4b17dc4"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Directory.tsx": {
+    "mtime": 1780931003.243222,
+    "ast_hash": "ad4de5100f9690af3e0d9cb7d4a5d7dd",
+    "semantic_hash": "ad4de5100f9690af3e0d9cb7d4a5d7dd"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Documents.tsx": {
+    "mtime": 1780931019.877076,
+    "ast_hash": "7c46eb7df15c7a7350146a215e3badac",
+    "semantic_hash": "7c46eb7df15c7a7350146a215e3badac"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Employees.tsx": {
+    "mtime": 1780930533.4748595,
+    "ast_hash": "694f34164f0387e42f5758d2ffaf9513",
+    "semantic_hash": "694f34164f0387e42f5758d2ffaf9513"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Home.tsx": {
+    "mtime": 1780969894.2545273,
+    "ast_hash": "4c3732101387b459c1c19e11942a2eca",
+    "semantic_hash": "4c3732101387b459c1c19e11942a2eca"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Leave.tsx": {
+    "mtime": 1780930152.2270722,
+    "ast_hash": "42e43cea96bdb7f32ba8490677b8e3ac",
+    "semantic_hash": "42e43cea96bdb7f32ba8490677b8e3ac"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Login.tsx": {
+    "mtime": 1780967848.0268261,
+    "ast_hash": "dc0be09903cd96576d28a9930a09e593",
+    "semantic_hash": "dc0be09903cd96576d28a9930a09e593"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Onboarding.tsx": {
+    "mtime": 1780930194.9034183,
+    "ast_hash": "62ce663ef77a41f57d96b6f75df6d2a8",
+    "semantic_hash": "62ce663ef77a41f57d96b6f75df6d2a8"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/OrgChart.tsx": {
+    "mtime": 1780950996.732151,
+    "ast_hash": "3aae55eacefab6b8401604de84824fda",
+    "semantic_hash": "3aae55eacefab6b8401604de84824fda"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Policies.tsx": {
+    "mtime": 1780931036.4109566,
+    "ast_hash": "481f074a89ff04edaf04a3885cbd5d9d",
+    "semantic_hash": "481f074a89ff04edaf04a3885cbd5d9d"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Reports.tsx": {
+    "mtime": 1780961005.8486428,
+    "ast_hash": "17508b3c147441d978f8320643bfb08a",
+    "semantic_hash": "17508b3c147441d978f8320643bfb08a"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Requisitions.tsx": {
+    "mtime": 1780930203.5327492,
+    "ast_hash": "63981fd97a97c62ff8419b84b18b31cd",
+    "semantic_hash": "63981fd97a97c62ff8419b84b18b31cd"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Roles.tsx": {
+    "mtime": 1780927186.6758556,
+    "ast_hash": "cff27c5f823e8181f34e9619886f35e5",
+    "semantic_hash": "cff27c5f823e8181f34e9619886f35e5"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/TransfersExit.tsx": {
+    "mtime": 1780930203.6381786,
+    "ast_hash": "1579663c29ff933f7a914ebc644ac849",
+    "semantic_hash": "1579663c29ff933f7a914ebc644ac849"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/WorkflowBuilder.tsx": {
+    "mtime": 1780951137.0510628,
+    "ast_hash": "2135e54b73c2436918d9e4e7229cd0fb",
+    "semantic_hash": "2135e54b73c2436918d9e4e7229cd0fb"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/tailwind.config.js": {
+    "mtime": 1780969083.3725007,
+    "ast_hash": "43299605397c060e68036b4771c009b1",
+    "semantic_hash": "43299605397c060e68036b4771c009b1"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/tsconfig.app.json": {
+    "mtime": 1780925082.497191,
+    "ast_hash": "136630b5accce1ca50663df229534a26",
+    "semantic_hash": "136630b5accce1ca50663df229534a26"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/tsconfig.json": {
+    "mtime": 1780925082.4976335,
+    "ast_hash": "a3d39fa780ebff65444de257f291ce6c",
+    "semantic_hash": "a3d39fa780ebff65444de257f291ce6c"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/tsconfig.node.json": {
+    "mtime": 1780925082.498115,
+    "ast_hash": "70bdd0a673bcfc0e828080b306e7c680",
+    "semantic_hash": "70bdd0a673bcfc0e828080b306e7c680"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/vite.config.ts": {
+    "mtime": 1780925082.4984589,
+    "ast_hash": "88439104b3c207f17d33ef3160e3b080",
+    "semantic_hash": "88439104b3c207f17d33ef3160e3b080"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/SatelliteHR-Explained-and-Product-Roadmap.md": {
+    "mtime": 1780911589.9891407,
+    "ast_hash": "52b52afc40c417de6095e4cd54ce5614",
+    "semantic_hash": "52b52afc40c417de6095e4cd54ce5614"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/TECH-STACK-AND-INFRA-COMPARISON.md": {
+    "mtime": 1780877175.8524253,
+    "ast_hash": "f518774f5b21e23a8155995a06a9b851",
+    "semantic_hash": "f518774f5b21e23a8155995a06a9b851"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/README.md": {
+    "mtime": 1780927511.2102613,
+    "ast_hash": "207c1473e94393b18a21cb403d0f6e95",
+    "semantic_hash": "207c1473e94393b18a21cb403d0f6e95"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/index.html": {
+    "mtime": 1780967547.2599971,
+    "ast_hash": "3b9fefe2a4fd6797f522febdec89d772",
+    "semantic_hash": "3b9fefe2a4fd6797f522febdec89d772"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/architecture.md": {
+    "mtime": 1780878814.883796,
+    "ast_hash": "9d09d48ea21818ebaaa90a462c4351ec",
+    "semantic_hash": "9d09d48ea21818ebaaa90a462c4351ec"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/README.md": {
+    "mtime": 1780952281.4926758,
+    "ast_hash": "514b839c934dc4d02ee4f8931ffa44e2",
+    "semantic_hash": "514b839c934dc4d02ee4f8931ffa44e2"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/candidate.md": {
+    "mtime": 1780951911.835446,
+    "ast_hash": "07b9aed3a724580cdf306bd0db7040ab",
+    "semantic_hash": "07b9aed3a724580cdf306bd0db7040ab"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/company-finance-compliance-viewer.md": {
+    "mtime": 1780952312.2168596,
+    "ast_hash": "e5ac9e446222851d19f872d5f8d88c5c",
+    "semantic_hash": "e5ac9e446222851d19f872d5f8d88c5c"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/company-hr-administrator.md": {
+    "mtime": 1780955528.59847,
+    "ast_hash": "40624e71b59b21c66ea0f064e462f322",
+    "semantic_hash": "40624e71b59b21c66ea0f064e462f322"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/company-it-security-admin.md": {
+    "mtime": 1780955113.7969666,
+    "ast_hash": "cd1dccbd804e954db164bcfe66ef9459",
+    "semantic_hash": "cd1dccbd804e954db164bcfe66ef9459"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/company-super-administrator.md": {
+    "mtime": 1780955103.9616008,
+    "ast_hash": "cca336ecc692d6276d87a9fced515573",
+    "semantic_hash": "cca336ecc692d6276d87a9fced515573"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/department-head-people-manager.md": {
+    "mtime": 1780955068.020571,
+    "ast_hash": "6d53569c9c8ca61fbca377c66b1c9320",
+    "semantic_hash": "6d53569c9c8ca61fbca377c66b1c9320"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/employee-limited-access.md": {
+    "mtime": 1780952319.414862,
+    "ast_hash": "017fa5bb7bab38c912bdf6be7673a276",
+    "semantic_hash": "017fa5bb7bab38c912bdf6be7673a276"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/employee-standard.md": {
+    "mtime": 1780955155.7936926,
+    "ast_hash": "e5ed009506f53f9e7a619cc40313cac4",
+    "semantic_hash": "e5ed009506f53f9e7a619cc40313cac4"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/functional-project-manager.md": {
+    "mtime": 1780952312.2169065,
+    "ast_hash": "71975c9251fbed7e9a1c5d6fddb6af18",
+    "semantic_hash": "71975c9251fbed7e9a1c5d6fddb6af18"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/group-company-administrator.md": {
+    "mtime": 1780952224.585601,
+    "ast_hash": "7cc3cc41baeb3aca326754b47417485f",
+    "semantic_hash": "7cc3cc41baeb3aca326754b47417485f"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/group-reporting-viewer.md": {
+    "mtime": 1780952291.8551297,
+    "ast_hash": "66b94622eb1f9d2489411ebae812608a",
+    "semantic_hash": "66b94622eb1f9d2489411ebae812608a"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/interview-panel-member.md": {
+    "mtime": 1780951689.6308522,
+    "ast_hash": "7a6f91b41ebac2bede591b712bede7e2",
+    "semantic_hash": "7a6f91b41ebac2bede591b712bede7e2"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/platform-operations-admin.md": {
+    "mtime": 1780952215.8546002,
+    "ast_hash": "64df99d73e81dad50185541e8c6635a4",
+    "semantic_hash": "64df99d73e81dad50185541e8c6635a4"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/platform-security-compliance-admin.md": {
+    "mtime": 1780952631.754067,
+    "ast_hash": "2ef919fbd229444ccbd1097658716df6",
+    "semantic_hash": "2ef919fbd229444ccbd1097658716df6"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/platform-super-administrator.md": {
+    "mtime": 1780955092.3735929,
+    "ast_hash": "9920b373e32c4d736002ad69a5818696",
+    "semantic_hash": "9920b373e32c4d736002ad69a5818696"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/portfolio-hr-operations-user.md": {
+    "mtime": 1780952212.200168,
+    "ast_hash": "78c4bba2bae919bbe07cd3431307665f",
+    "semantic_hash": "78c4bba2bae919bbe07cd3431307665f"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/portfolio-manager.md": {
+    "mtime": 1780951601.8484964,
+    "ast_hash": "336f273dd51128552bc8eaf2bb21276d",
+    "semantic_hash": "336f273dd51128552bc8eaf2bb21276d"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/portfolio-read-only-auditor.md": {
+    "mtime": 1780952216.6723058,
+    "ast_hash": "07b4e3433c5cf64d1dd7694c27c5065d",
+    "semantic_hash": "07b4e3433c5cf64d1dd7694c27c5065d"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/system-user.md": {
+    "mtime": 1780952403.285798,
+    "ast_hash": "502b1b2304e1ddcfc35623aa20a3a7dc",
+    "semantic_hash": "502b1b2304e1ddcfc35623aa20a3a7dc"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/execution.md": {
+    "mtime": 1780876455.7423668,
+    "ast_hash": "82ca16b502dcd9ccfe6291f9103d8619",
+    "semantic_hash": "82ca16b502dcd9ccfe6291f9103d8619"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/public/favicon.svg": {
+    "mtime": 1780925082.4906576,
+    "ast_hash": "7e840862161341271697daa99a40d76b",
+    "semantic_hash": "7e840862161341271697daa99a40d76b"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/app/notifications.tsx": {
+    "mtime": 1780961125.3183665,
+    "ast_hash": "d88a11c43c2144feb0921356cfc98008",
+    "semantic_hash": "d88a11c43c2144feb0921356cfc98008"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Announcements.tsx": {
+    "mtime": 1780958207.9413204,
+    "ast_hash": "3d7eaacfec77b3a0a3f861e382aa10dd",
+    "semantic_hash": "3d7eaacfec77b3a0a3f861e382aa10dd"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Assets.tsx": {
+    "mtime": 1780967961.6818502,
+    "ast_hash": "d7bbd47fc426b7ff154203b4485cd4f3",
+    "semantic_hash": "d7bbd47fc426b7ff154203b4485cd4f3"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/DataPorting.tsx": {
+    "mtime": 1780958442.4197702,
+    "ast_hash": "b5f5d5ecb50a73529035418a76c94862",
+    "semantic_hash": "b5f5d5ecb50a73529035418a76c94862"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Feedback.tsx": {
+    "mtime": 1780958372.3122718,
+    "ast_hash": "b1c1bcbe65283addf2098c67ded1f322",
+    "semantic_hash": "b1c1bcbe65283addf2098c67ded1f322"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Interviews.tsx": {
+    "mtime": 1780958647.933051,
+    "ast_hash": "f9b20e87809db57e37967c928c9294bd",
+    "semantic_hash": "f9b20e87809db57e37967c928c9294bd"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Letters.tsx": {
+    "mtime": 1780967961.7480056,
+    "ast_hash": "83fcc8bad9a79eb6f522e2188adc216d",
+    "semantic_hash": "83fcc8bad9a79eb6f522e2188adc216d"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Notifications.tsx": {
+    "mtime": 1780961218.7853107,
+    "ast_hash": "53eb57e174a03ff6aa2e11efa6f4f817",
+    "semantic_hash": "53eb57e174a03ff6aa2e11efa6f4f817"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/OrgData.tsx": {
+    "mtime": 1780958450.8740704,
+    "ast_hash": "b4069c0ab314552f8a0c0cc193a5f449",
+    "semantic_hash": "b4069c0ab314552f8a0c0cc193a5f449"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Performance.tsx": {
+    "mtime": 1780958501.7421882,
+    "ast_hash": "0bb087a0dfeb3adbbb4e9ab9865b8783",
+    "semantic_hash": "0bb087a0dfeb3adbbb4e9ab9865b8783"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Portfolio.tsx": {
+    "mtime": 1780967961.711443,
+    "ast_hash": "4865302e7be42253c5827237314b1047",
+    "semantic_hash": "4865302e7be42253c5827237314b1047"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/src/pages/Profile.tsx": {
+    "mtime": 1780958091.6480706,
+    "ast_hash": "c4cbb8db678683c65e30f35942173ffc",
+    "semantic_hash": "c4cbb8db678683c65e30f35942173ffc"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/DESIGN-SYSTEM.md": {
+    "mtime": 1780957748.5262356,
+    "ast_hash": "8642a2526c9ee8d836db7aef6996e502",
+    "semantic_hash": "8642a2526c9ee8d836db7aef6996e502"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/docs/user-stories/COVERAGE.md": {
+    "mtime": 1780955444.9902031,
+    "ast_hash": "d119f817539d44e6dbb405610e7bcffb",
+    "semantic_hash": "d119f817539d44e6dbb405610e7bcffb"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/public/business-man-illustration-ai-generative-png.webp": {
+    "mtime": 1780968586.9655898,
+    "ast_hash": "7a63bdeb3bee1b952cbc611d0007c506",
+    "semantic_hash": "7a63bdeb3bee1b952cbc611d0007c506"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/public/confident-businessman-in-formal-suit-png.webp": {
+    "mtime": 1780968598.6272037,
+    "ast_hash": "f0f5fb5c3be01ede5839660859249c52",
+    "semantic_hash": "f0f5fb5c3be01ede5839660859249c52"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/public/female.png": {
+    "mtime": 1780968605.9787881,
+    "ast_hash": "7ab1b8363faf636c1775c7e2ab0fb0e5",
+    "semantic_hash": "7ab1b8363faf636c1775c7e2ab0fb0e5"
+  },
+  "/Users/harshitsan/Documents/heliverse/hcm/app/public/male.png": {
+    "mtime": 1780968574.2306402,
+    "ast_hash": "12d52b7003ec3f46f4c7c6a591d5bcb5",
+    "semantic_hash": "12d52b7003ec3f46f4c7c6a591d5bcb5"
   }
 }
