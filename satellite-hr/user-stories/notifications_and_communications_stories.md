@@ -1,0 +1,160 @@
+# Notifications and Communications — User Stories
+
+_Derived from SatelliteHR Phase I BRD — module "Notifications and Communications". 12 user stories._
+
+---
+
+## NTF-01: Mandatory email notification channel
+
+**User story:** As a Company/HR Admin, I want email to be available as a mandatory notification channel, so that all critical HRMS communications reliably reach recipients regardless of other channel availability.
+
+**Acceptance criteria:**
+- Given the notification system is provisioned for a company, when notifications are configured, then email is always enabled and cannot be disabled as a channel.
+- Given an event triggers a notification, when no other channel is selected, then the notification is delivered via email by default.
+
+**Priority:** High
+**Source:** FR 6.27.1 (Channels — Email mandatory)
+
+---
+
+## NTF-02: Optional in-app notifications
+
+**User story:** As an Employee, I want to receive in-app notifications within the HRMS, so that I can see relevant updates without leaving the application.
+
+**Acceptance criteria:**
+- Given in-app notifications are enabled for the company, when an event targets me, then I see the notification inside the application.
+- Given in-app notifications are optional, when the company has not enabled them, then no in-app notifications are shown.
+
+**Priority:** Medium
+**Source:** FR 6.27.1 (Channels — in-app optional)
+
+---
+
+## NTF-03: Microsoft Teams and WhatsApp connectors
+
+**User story:** As a Company/HR Admin, I want to optionally enable Microsoft Teams and WhatsApp delivery via third-party connectors, so that employees can receive notifications on the messaging tools they already use.
+
+**Acceptance criteria:**
+- Given a third-party connector for Teams or WhatsApp is configured, when a notification event fires, then the notification can be delivered through that connector.
+- Given these channels are optional, when no connector is configured, then Teams/WhatsApp delivery is unavailable and other channels are used.
+
+**Priority:** Low
+**Source:** FR 6.27.1 (Channels — Teams/WhatsApp via connectors, optional)
+
+---
+
+## NTF-04: Approval notifications
+
+**User story:** As a Manager, I want to receive approval notifications, so that I am promptly informed when items require my approval.
+
+**Acceptance criteria:**
+- Given an item requires my approval, when it is submitted, then I receive an approval notification through my configured channels.
+- Given an approval notification is sent, when I open it, then it identifies the item awaiting my action.
+
+**Priority:** High
+**Source:** FR 6.27.2 (Events — approval notifications)
+
+---
+
+## NTF-05: Escalation alerts
+
+**User story:** As a Manager, I want to receive escalation alerts, so that overdue or unattended items are surfaced before they are missed.
+
+**Acceptance criteria:**
+- Given an item meets its escalation condition, when the escalation triggers, then an escalation alert is sent to the appropriate recipient.
+- Given an escalation alert is delivered, when it is received, then it indicates the item and the reason for escalation.
+
+**Priority:** High
+**Source:** FR 6.27.2 (Events — escalation alerts)
+
+---
+
+## NTF-06: Workflow status change notifications
+
+**User story:** As an Employee, I want to be notified when the status of a workflow I am involved in changes, so that I stay aware of progress and outcomes.
+
+**Acceptance criteria:**
+- Given a workflow status changes, when the change is committed, then affected participants receive a status change notification.
+- Given a status change notification is received, when I read it, then it reflects the new workflow status.
+
+**Priority:** Medium
+**Source:** FR 6.27.2 (Events — workflow status changes)
+
+---
+
+## NTF-07: Reminders and lifecycle event notifications
+
+**User story:** As an Employee, I want to receive reminders and lifecycle event notifications, so that I do not miss pending actions or key events.
+
+**Acceptance criteria:**
+- Given a reminder condition is met, when it triggers, then a reminder notification is delivered to the relevant recipient.
+- Given a lifecycle event occurs, when it is recorded, then a corresponding lifecycle event notification is sent.
+
+**Priority:** Medium
+**Source:** FR 6.27.2 (Events — reminders and lifecycle events)
+
+---
+
+## NTF-08: Event-driven delivery
+
+**User story:** As the System, I want to deliver notifications in an event-driven manner, so that recipients are informed in real time as events occur.
+
+**Acceptance criteria:**
+- Given a notification-triggering event occurs, when it is processed, then the corresponding notification is generated and dispatched immediately.
+- Given event-driven delivery, when an event fires, then delivery does not wait for a scheduled batch.
+
+**Priority:** High
+**Source:** FR 6.27.3 (Delivery Models — event-driven)
+
+---
+
+## NTF-09: Scheduler-driven digests and summaries
+
+**User story:** As an Employee, I want to receive scheduler-driven digests and summaries, so that I can consolidate multiple updates instead of receiving them individually.
+
+**Acceptance criteria:**
+- Given a digest schedule is configured, when the scheduled time arrives, then accumulated notifications are compiled and delivered as a digest or summary.
+- Given scheduler-driven delivery, when the schedule runs, then it aggregates the relevant events for the period.
+
+**Priority:** Medium
+**Source:** FR 6.27.3 (Delivery Models — scheduler-driven digests/summaries)
+
+---
+
+## NTF-10: Configurable branded templates
+
+**User story:** As a Company/HR Admin, I want configurable notification templates with company branding, so that communications present a consistent, professional identity.
+
+**Acceptance criteria:**
+- Given a notification template, when I edit it, then I can apply company branding and save the configuration.
+- Given branding is configured, when a notification is sent using the template, then it reflects the company branding.
+
+**Priority:** Medium
+**Source:** FR 6.27.4 (Templating — configurable templates with branding)
+
+---
+
+## NTF-11: Template placeholders and dynamic data insertion
+
+**User story:** As a Company/HR Admin, I want templates to support placeholders and dynamic data insertion, so that each notification is populated with the correct context-specific details.
+
+**Acceptance criteria:**
+- Given a template contains placeholders, when a notification is generated, then the placeholders are replaced with the corresponding dynamic data.
+- Given a placeholder has no available value, when the notification is rendered, then the template handles the missing value without breaking delivery.
+
+**Priority:** Medium
+**Source:** FR 6.27.4 (Templating — placeholders and dynamic data insertion)
+
+---
+
+## NTF-12: User notification preferences
+
+**User story:** As an Employee, I want to configure my channel preferences, event subscriptions, and delivery frequency, so that I receive notifications the way I prefer.
+
+**Acceptance criteria:**
+- Given my notification preferences, when I select preferred channels, then future notifications respect my channel selections (subject to mandatory email).
+- Given event subscription settings, when I subscribe to or unsubscribe from an event type, then I only receive notifications for my subscribed events.
+- Given frequency configuration, when I set a delivery frequency, then notifications are delivered according to that frequency.
+
+**Priority:** Medium
+**Source:** FR 6.27.5 (User Preferences — channels, subscriptions, frequency)

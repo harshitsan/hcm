@@ -1,0 +1,129 @@
+# Data Management — User Stories
+
+_Derived from SatelliteHR Phase I BRD — module "Data Management". 9 user stories._
+
+---
+
+## DM-01: Import and export master data
+
+**User story:** As a Company/HR Admin, I want to import and export master data such as Company, Department, Location, Group, and Employee records, so that I can migrate and maintain organizational reference data in bulk instead of entering it manually.
+
+**Acceptance criteria:**
+- Given I am on the Data Management screen, when I select a master data entity (Company, Department, Location, Group, or Employee), then I can choose to import or export records for that entity.
+- Given an export request for a master entity, when the export completes, then a downloadable file containing the current records is produced.
+- Given an import file for a master entity, when I submit it, then the records are created or updated for that entity.
+
+**Priority:** High
+**Source:** FR 6.24.1 (Import/Export Scope — master data)
+
+---
+
+## DM-02: Import and export transactional data
+
+**User story:** As a Company/HR Admin, I want to import and export transactional data such as Leaves and Attendance, so that I can load historical operational data and exchange it with external systems.
+
+**Acceptance criteria:**
+- Given I am on the Data Management screen, when I select a transactional data type (Leaves or Attendance), then I can import or export records for it.
+- Given an import file of Leave or Attendance records, when I submit it, then the transactional records are ingested into the system.
+- Given an export request for Leave or Attendance data, when it completes, then a downloadable file of those records is produced.
+
+**Priority:** High
+**Source:** FR 6.24.1 (Import/Export Scope — transactional data)
+
+---
+
+## DM-03: Support multiple file formats
+
+**User story:** As a Company/HR Admin, I want to import and export data in CSV, XLS, XLSX, and JSON formats, so that I can work with the file type that best fits my source systems and tools.
+
+**Acceptance criteria:**
+- Given I am importing or exporting data, when I select a format, then CSV, XLS, XLSX, and JSON are all available options.
+- Given a file in a supported format, when I submit it for import, then the file is accepted and parsed according to its format.
+- Given a file in an unsupported format, when I submit it, then the system rejects the file with a clear message.
+
+**Priority:** Medium
+**Source:** FR 6.24.2 (File Formats)
+
+---
+
+## DM-04: Enforce file size and batch limits
+
+**User story:** As a Company/HR Admin, I want the system to enforce a 50 MB maximum file size and 10,000 records per batch, so that imports stay within safe processing limits and do not overload the platform.
+
+**Acceptance criteria:**
+- Given an import file larger than 50 MB, when I submit it, then the system rejects it and informs me of the 50 MB limit.
+- Given an import file containing more than 10,000 records, when I submit it, then the system rejects the batch and informs me of the 10,000-record limit.
+- Given a file within both the size and record limits, when I submit it, then it is accepted for processing.
+
+**Priority:** Medium
+**Source:** FR 6.24.2 (File Formats — limits)
+
+---
+
+## DM-05: Sequence imports by dependency
+
+**User story:** As a Company/HR Admin, I want imports to follow the correct dependency sequence — Foundation Masters, then Organizational Masters, then Workforce Masters, then Transactional Data — so that dependent records are only loaded after their prerequisites exist.
+
+**Acceptance criteria:**
+- Given multiple data types to import, when I run the imports, then the system processes them in the order Foundation Masters → Organizational Masters → Workforce Masters → Transactional Data.
+- Given a transactional record that references a master that has not been imported, when the sequence is enforced, then the master is imported before the dependent transactional data.
+- Given an attempt to import data out of dependency order, when the sequence is enforced, then dependent records are not processed before their prerequisites.
+
+**Priority:** High
+**Source:** FR 6.24.3 (Import Sequencing)
+
+---
+
+## DM-06: Pre-import validation with staging mode
+
+**User story:** As a Company/HR Admin, I want to run pre-import validation in a sandbox/staging mode, so that I can verify my data is correct before it is committed to production.
+
+**Acceptance criteria:**
+- Given an import file, when I choose staging/sandbox mode, then the file is validated without committing changes to production data.
+- Given validation runs in staging mode, when it completes, then I can review the outcome before deciding to proceed with the actual import.
+- Given validation errors are found in staging, when I review them, then I can correct the file and re-run validation.
+
+**Priority:** High
+**Source:** FR 6.24.4 (Validation and Error Reporting)
+
+---
+
+## DM-07: Record-level error reporting
+
+**User story:** As a Company/HR Admin, I want detailed error reporting with record-level success and failure results, so that I can pinpoint and fix exactly which records failed.
+
+**Acceptance criteria:**
+- Given an import has been validated or processed, when I view the results, then each record is marked as success or failure.
+- Given a failed record, when I inspect it, then the report shows the specific reason for the failure.
+- Given a completed report, when I review it, then I can distinguish which records succeeded from those that failed.
+
+**Priority:** High
+**Source:** FR 6.24.4 (Validation and Error Reporting — record-level reporting)
+
+---
+
+## DM-08: Transactional rollback for failed imports
+
+**User story:** As a Company/HR Admin, I want failed imports to roll back transactionally with atomic transactions where feasible, so that a partial or failed import does not leave the data in an inconsistent state.
+
+**Acceptance criteria:**
+- Given an import fails, when rollback is applied, then changes from the failed import are reverted.
+- Given an import processed as an atomic transaction, when any part fails, then no records from that transaction are committed.
+- Given a rollback has completed, when I review the data, then it reflects the state prior to the failed import.
+
+**Priority:** High
+**Source:** FR 6.24.5 (Rollback)
+
+---
+
+## DM-09: Real-time import status tracking
+
+**User story:** As a Company/HR Admin, I want real-time status tracking for my imports, so that I always know whether a job is submitted, running, completed, or failed.
+
+**Acceptance criteria:**
+- Given I have submitted an import, when I view its status, then it shows one of Submitted, Validating, In-progress, Completed, Failed, or Partially completed.
+- Given an import is being processed, when its state changes, then the displayed status updates in real time.
+- Given an import finishes with some records succeeding and others failing, when I view the status, then it shows Partially completed.
+
+**Priority:** Medium
+**Source:** FR 6.24.6 (Status Visibility)

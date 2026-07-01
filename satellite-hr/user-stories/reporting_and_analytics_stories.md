@@ -1,0 +1,162 @@
+# Reporting and Analytics — User Stories
+
+_Derived from SatelliteHR Phase I BRD — module "Reporting and Analytics". 12 user stories._
+
+---
+
+## RPT-01: Standard operational and management reports
+
+**User story:** As a Company/HR Admin, I want a library of standard reports covering workforce management, organization structure, leave and attendance, talent acquisition, lifecycle workflows, asset management, and policy compliance, so that I can meet routine operational and management reporting needs without building reports from scratch.
+
+**Acceptance criteria:**
+- Given I am an authorized HR Admin, when I open the reporting area, then a catalog of standard reports across all listed domains (workforce, org structure, leave/attendance, talent acquisition, lifecycle workflows, assets, policy compliance) is available.
+- Given I select a standard report, when I run it, then it returns data scoped to my company.
+- Given a standard report is displayed, when I choose to export it, then the report can be output for sharing.
+
+**Priority:** High
+**Source:** FR 6.23.1 (Standard Reports)
+
+---
+
+## RPT-02: Workforce and organization structure reports
+
+**User story:** As a Company/HR Admin, I want workforce management and organization structure reports, so that I can understand headcount and reporting hierarchy across the company.
+
+**Acceptance criteria:**
+- Given workforce data exists, when I run the workforce management report, then current employee/headcount information is presented.
+- Given an organization hierarchy is defined, when I run the organization structure report, then the reporting structure is presented.
+
+**Priority:** High
+**Source:** FR 6.23.1 (Standard Reports)
+
+---
+
+## RPT-03: Leave, attendance, and asset reports
+
+**User story:** As a Manager, I want standard leave and attendance and asset management reports, so that I can monitor my team's time records and assigned assets.
+
+**Acceptance criteria:**
+- Given leave and attendance data exists, when I run the leave and attendance report, then relevant records are displayed for the applicable scope.
+- Given assets are assigned, when I run the asset management report, then asset allocation details are displayed.
+
+**Priority:** Medium
+**Source:** FR 6.23.1 (Standard Reports)
+
+---
+
+## RPT-04: Interactive dashboards with charts and KPIs
+
+**User story:** As a Company/HR Admin, I want interactive dashboards with charts, KPIs, and drill-down capabilities, so that I can monitor key metrics visually and investigate details on demand.
+
+**Acceptance criteria:**
+- Given I open a dashboard, when it loads, then it displays charts and KPIs summarizing the relevant data.
+- Given a KPI or chart element is shown, when I drill down into it, then more granular underlying data is displayed.
+
+**Priority:** High
+**Source:** FR 6.23.2 (Dashboards)
+
+---
+
+## RPT-05: Role-based default dashboards
+
+**User story:** As a System, I want to present role-based default dashboards, so that each user sees metrics relevant to their role upon login.
+
+**Acceptance criteria:**
+- Given a user logs in, when their dashboard loads, then the default dashboard shown corresponds to their role.
+- Given users have different roles, when they view their dashboards, then the default content differs according to each role.
+
+**Priority:** Medium
+**Source:** FR 6.23.2 (Dashboards)
+
+---
+
+## RPT-06: Ad hoc report builder with field selection
+
+**User story:** As a Company/HR Admin, I want an ad hoc report builder where I can select fields, so that I can construct custom reports tailored to specific questions.
+
+**Acceptance criteria:**
+- Given I open the report builder, when I choose fields to include, then only the selected fields appear in the report output.
+- Given I have selected fields, when I run the report, then results reflect my field selections.
+
+**Priority:** Medium
+**Source:** FR 6.23.3 (Ad Hoc Reporting)
+
+---
+
+## RPT-07: Ad hoc filtering and grouping
+
+**User story:** As a Company/HR Admin, I want to apply filtering and grouping in the ad hoc report builder, so that I can narrow and organize results meaningfully.
+
+**Acceptance criteria:**
+- Given I am building an ad hoc report, when I apply filters, then only records matching the filter criteria are returned.
+- Given I am building an ad hoc report, when I apply grouping, then results are organized by the chosen grouping.
+
+**Priority:** Medium
+**Source:** FR 6.23.3 (Ad Hoc Reporting)
+
+---
+
+## RPT-08: Saved report views
+
+**User story:** As a Company/HR Admin, I want to save my ad hoc report configurations as views, so that I can reuse them without rebuilding.
+
+**Acceptance criteria:**
+- Given I have configured an ad hoc report, when I save it as a view, then the field, filter, and grouping configuration is retained.
+- Given a saved view exists, when I reopen it, then the report is reconstructed with its saved configuration.
+
+**Priority:** Medium
+**Source:** FR 6.23.3 (Ad Hoc Reporting)
+
+---
+
+## RPT-09: Scheduled report delivery via email
+
+**User story:** As a Company/HR Admin, I want to schedule reports for delivery via email with configurable frequency options, so that stakeholders receive reports automatically without manual effort.
+
+**Acceptance criteria:**
+- Given a report, when I configure a schedule, then I can set a delivery frequency from the available frequency options.
+- Given a scheduled report is due, when the scheduled time arrives, then the report is delivered via email to the configured recipients.
+
+**Priority:** Medium
+**Source:** FR 6.23.4 (Scheduled Reports)
+
+---
+
+## RPT-10: Statutory compliance reports and registers
+
+**User story:** As a Company/HR Admin, I want compliance reports including PF/ESIC eligibility, attendance registers, leave registers, and wage register templates, so that I can satisfy statutory reporting obligations.
+
+**Acceptance criteria:**
+- Given eligibility data exists, when I run the PF/ESIC eligibility report, then eligible employees are listed.
+- Given attendance and leave data exists, when I run the attendance register or leave register, then the register is produced in the expected format.
+- Given payroll data exists, when I generate the wage register, then it is produced using the wage register template.
+
+**Priority:** High
+**Source:** FR 6.23.5 (Compliance Reports)
+
+---
+
+## RPT-11: Statutory data completeness reporting
+
+**User story:** As a Company/HR Admin, I want statutory data completeness reports, so that I can identify missing required data before statutory filing.
+
+**Acceptance criteria:**
+- Given employee records exist, when I run the statutory data completeness report, then records with missing statutory data are flagged.
+- Given completeness gaps are flagged, when I review the report, then I can identify which fields or records need to be completed.
+
+**Priority:** High
+**Source:** FR 6.23.5 (Compliance Reports)
+
+---
+
+## RPT-12: Company-scoped report security with cross-company access
+
+**User story:** As a System, I want reports filtered by company access while allowing cross-company reporting for authorized portfolio/group company users, so that data confidentiality is preserved while authorized users get consolidated views.
+
+**Acceptance criteria:**
+- Given a Company/HR Admin runs a report, when results are returned, then only data for companies they have access to is included.
+- Given a user is an authorized Portfolio Admin or Group Company Admin, when they run a cross-company report, then data spanning their authorized companies is included.
+- Given a user lacks access to a company, when a report is run, then that company's data is excluded from the results.
+
+**Priority:** High
+**Source:** FR 6.23.6 (Security)
