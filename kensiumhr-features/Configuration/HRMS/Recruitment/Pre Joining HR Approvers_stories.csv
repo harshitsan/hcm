@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+PJH-01,Recruitment,Pre Joining HR Approvers,"As an HR admin, I want to add a pre joining HR approver, so that HR-side pre-joining tasks are routed for approval","Given I am on the Pre Joining HR Approvers screen; When I click Add new offer approver and select the approver; Then the HR approver is created and listed",High
+PJH-02,Recruitment,Pre Joining HR Approvers,"As an HR admin, I want to edit a pre joining HR approver, so that I can update who approves pre-joining HR tasks","Given an approver is listed; When I click Edit and change the approver; Then the update is saved",Medium
+PJH-03,Recruitment,Pre Joining HR Approvers,"As an HR admin, I want to view the configured pre joining HR approvers, so that I know who is responsible for approvals","Given approvers exist; When I open the list; Then the approvers column shows each configured approver",Low

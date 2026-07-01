@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+SET-01,Templates,Email Templates,"As an HR admin, I want to view the survey email template list, so that I can confirm the survey email is configured","Given I am on the Survey Email Templates screen; When the list loads; Then I see the Email type, Description and Task columns",High
+SET-02,Templates,Email Templates,"As an HR admin, I want to open and view the Survey Email template, so that I can review its content","Given the survey email templates are listed; When I click View on the Survey Email row; Then the template content is displayed",High
+SET-03,Templates,Email Templates,"As an HR admin, I want to refresh the survey email templates list, so that I always see current data","Given I am on the Survey Email Templates screen; When I click Refresh; Then the list reloads",Medium
+SET-04,Templates,Email Templates,"As an HR admin, I want to switch to the Notification Templates view for surveys, so that I can manage the notification channel as well","Given I am on the Survey Email Templates screen; When I select the Notification Templates tab; Then the notification templates are shown",Medium

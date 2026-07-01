@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+SUR-01,Organization,Surveys,"As an employee, I want to filter surveys by period using From and To dates, so that I can find surveys within a timeframe","Given I am on the Surveys screen; When I set a From and To date and click Search; Then surveys within that period are listed",High
+SUR-02,Organization,Surveys,"As an employee, I want to filter surveys by status such as Pending response or Responded, so that I can focus on surveys I still need to complete","Given I am on the Surveys screen; When I select a Status and click Search; Then only surveys in that status are shown",High
+SUR-03,Organization,Surveys,"As an employee, I want to view surveys with title, start date, end date and status, so that I know when each survey is open","Given surveys exist; When the list loads; Then each row shows Title, Start date, End date and Status",Medium
+SUR-04,Organization,Surveys,"As an employee, I want to reset my survey filters, so that I can view all surveys again","Given I have applied filters on the Surveys screen; When I click Reset; Then all filters return to defaults",Low

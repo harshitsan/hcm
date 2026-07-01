@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+RCS-01,Recruitment,Recruiter Strengths,"As an HR admin, I want to add new recruiter strengths, so that recruiters can be matched to vacancies by their areas of strength","Given I am on the Recruiter Strengths screen; When I click Add new recruiter strengths and enter the recruiter name, strengths and applicability; Then the entry is created and listed",High
+RCS-02,Recruitment,Recruiter Strengths,"As an HR admin, I want to view recruiter strengths with their applicability, so that I can review how recruiters are profiled","Given recruiter strengths exist; When I open the list; Then each entry shows Recruiter name, Strengths and Applicability",Medium
+RCS-03,Recruitment,Recruiter Strengths,"As an HR admin, I want to refresh the recruiter strengths list, so that I see the latest entries","Given I am on the Recruiter Strengths screen; When I click Refresh; Then the list reloads with current data",Low

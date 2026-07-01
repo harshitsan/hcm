@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+RCERT-01,Organization,Required Certificates,"As an HR admin, I want to add a new required certificate, so that certification requirements are tracked for employees","Given I am on the Required Certificates screen; When I click Add new certificate and provide the certificate name and authority name; Then the certificate is saved and listed",High
+RCERT-02,Organization,Required Certificates,"As an HR admin, I want to view required certificates with their issuing authority, so that I know the source of each certification","Given certificates exist; When I view the list; Then each row shows Certificate name and Authority name",Medium
+RCERT-03,Organization,Required Certificates,"As an HR admin, I want the list to indicate when no certificates are configured, so that I know setup is still pending","Given no certificates have been added; When I view the list; Then a no records to display message is shown",Low

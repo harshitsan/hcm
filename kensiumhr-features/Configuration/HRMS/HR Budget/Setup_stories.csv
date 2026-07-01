@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+HRB-01,HR Budget,Setup,"As an HR admin, I want to enable or disable the HR budget planner module, so that I can control whether budget planning is available in the system","Given I am on the Setup screen; When I select Yes or No for ""Do you want to enable the hr budget planner module?""; Then my selection is captured",High
+HRB-02,HR Budget,Setup,"As an HR admin, I want to save my HR budget planner configuration, so that the module setting is persisted","Given I have chosen an option for the HR budget planner module; When I click Save; Then the configuration is saved",High
+HRB-03,HR Budget,Setup,"As an HR admin, I want to cancel changes on the Setup screen, so that I can discard unsaved edits to the budget planner setting","Given I have made changes on the Setup screen; When I click Cancel; Then my unsaved changes are discarded",Medium

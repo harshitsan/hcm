@@ -1,0 +1,3 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+OC-01,Organization,Org Chart,"As an employee, I want to view the organizational chart, so that I can understand the company structure and leadership","Given I open the Org Chart screen; When the page loads; Then the organizational chart is displayed",High
+OC-02,Organization,Org Chart,"As an employee, I want to see each person's name, department and role in the org chart, so that I know who leads each function","Given the Org Chart is displayed; When I view a node; Then it shows the person's name, department and designation",Medium

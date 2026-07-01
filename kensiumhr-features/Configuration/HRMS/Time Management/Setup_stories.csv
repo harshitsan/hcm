@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+TM-01,Time Management,Setup,"As an HR admin, I want to enable or disable the timesheet module, so that I control whether timesheet functionality is available in the organization","Given I am on the Setup screen; When I select Yes or No for ""Do you want to enable timesheet module?""; Then the choice is captured for the timesheet module",High
+TM-02,Time Management,Setup,"As an HR admin, I want to save my timesheet module configuration, so that my selection is persisted","Given I have chosen a timesheet module option; When I click Save; Then the setting is stored",High
+TM-03,Time Management,Setup,"As an HR admin, I want to save and proceed to the next configuration step, so that I can continue the setup flow efficiently","Given I have chosen a timesheet module option; When I click Save & Next; Then the setting is saved and I advance to the next step",Medium
+TM-04,Time Management,Setup,"As an HR admin, I want to cancel the setup without saving, so that I can discard unwanted changes","Given I am on the Setup screen; When I click Cancel; Then no changes are persisted",Low

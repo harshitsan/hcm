@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+FIN-01,Templates,Email Templates,"As a Finance admin, I want to view the finance email templates list, so that I can see the configured finance emails","Given I am on the Finance Email Templates screen; When the list loads; Then I see the Email type, Description and Task columns",High
+FIN-02,Templates,Email Templates,"As a Finance admin, I want to open and view the Finance Email template, so that I can review its content","Given the finance email templates are listed; When I click View on the Finance Email row; Then the template content is displayed",High
+FIN-03,Templates,Email Templates,"As a Finance admin, I want to refresh the finance email templates list, so that I always see up to date data","Given I am on the Finance Email Templates screen; When I click Refresh; Then the list reloads",Medium
+FIN-04,Templates,Email Templates,"As a Finance admin, I want to cancel out of the finance email templates screen, so that I can return to the previous page","Given I am on the Finance Email Templates screen; When I click Cancel; Then I am navigated away",Low

@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+CET-01,Confirmation,Email Templates,"As an HR admin, I want to view the list of confirmation email templates with their type and description, so that I know which emails are sent during the confirmation process","Given I am on the Email Templates screen; When the page loads; Then email templates are listed with Template Type ID, Email type, Description and Task columns",High
+CET-02,Confirmation,Email Templates,"As an HR admin, I want to view the details of a specific email template, so that I can review its content and configuration","Given an email template is listed; When I click View on that row; Then the template details are displayed",Medium
+CET-03,Confirmation,Email Templates,"As an HR admin, I want to refresh the email templates list, so that I see the most current set of templates","Given I am on the Email Templates screen; When I click Refresh; Then the list reloads with current data",Low

@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+LTT-01,Recruitment,Letter Templates,"As an HR admin, I want to view the list of letter templates, so that I can see the appointment, offer, joining and cancel offer letters","Given I am on the Letter Templates screen; When the list loads; Then each template shows its Template Type ID, Letter type and Description",High
+LTT-02,Recruitment,Letter Templates,"As an HR admin, I want to view an individual letter template, so that I can inspect its content before it is issued","Given a letter template is listed; When I click View in the Task column; Then the template detail is displayed",High
+LTT-03,Recruitment,Letter Templates,"As an HR admin, I want to refresh the letter template list, so that I see the latest templates","Given I am on the Letter Templates screen; When I click Refresh; Then the list reloads with current data",Low

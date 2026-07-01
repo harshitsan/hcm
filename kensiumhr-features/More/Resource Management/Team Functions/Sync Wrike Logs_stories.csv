@@ -1,0 +1,3 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+SWL-01,Team Functions,Sync Wrike Logs,"As a System admin, I want to see the last activity sync date for Wrike logs, so that I know when data was most recently synchronized","Given I am on the Sync Wrike Logs screen; When the page loads; Then the last activity sync date is displayed",Medium
+SWL-02,Team Functions,Sync Wrike Logs,"As a System admin, I want to see the job running frequency for the Wrike sync, so that I understand how often logs are automatically synchronized","Given I am on the Sync Wrike Logs screen; When the page loads; Then the job running frequency is displayed",Low

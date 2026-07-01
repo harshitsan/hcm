@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+GRP-01,Organization,Group,"As an HR admin, I want to add a new employee group, so that I can manage benefit-eligible cohorts such as ESI or Gratuity","Given I am on the Group screen; When I click Add new group and provide a name and description; Then the group is saved and listed",High
+GRP-02,Organization,Group,"As an HR admin, I want to edit an existing group, so that I can update its description or eligibility notes","Given a group is listed; When I click Edit and change its details; Then the updated group is saved",Medium
+GRP-03,Organization,Group,"As an HR admin, I want to view groups with their names and descriptions, so that I understand the purpose of each group","Given groups exist; When I view the list; Then each row shows the group Name and Description",Low
+GRP-04,Organization,Group,"As an HR admin, I want to refresh the group list, so that I always see the current set of groups","Given the group list is displayed; When I click Refresh; Then the list reloads with current groups",Low

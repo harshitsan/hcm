@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+RAN-01,Organization,Review Announcements,"As an HR admin, I want to review the list of posted announcements, so that I can verify what has been communicated","Given I am on the Review Announcements screen; When the page loads; Then existing announcements are listed with their content",High
+RAN-02,Organization,Review Announcements,"As an HR admin, I want to edit an existing announcement, so that I can correct or update its content","Given an announcement is listed; When I click Edit and save changes; Then the announcement is updated",High
+RAN-03,Organization,Review Announcements,"As an HR admin, I want to delete an announcement, so that I can remove outdated communications","Given an announcement is listed; When I click Delete and confirm; Then the announcement is removed",Medium
+RAN-04,Organization,Review Announcements,"As an HR admin, I want to hide an announcement, so that I can suppress it without deleting it","Given an announcement is listed; When I click Hide; Then the announcement is no longer shown to viewers",Low

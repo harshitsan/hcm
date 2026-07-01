@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+LT-01,Exit,Letter Templates,"As an HR admin, I want to view the list of exit letter templates with their type and description, so that I can see which letters are available.","Given I am on the Letter Templates screen; When the page loads; Then I see a list showing letter type and description",Medium
+LT-02,Exit,Letter Templates,"As an HR admin, I want to view a specific letter template, so that I can review its content before it is used.","Given a letter template exists in the list; When I click View for that template; Then I can see the template details",Medium
+LT-03,Exit,Letter Templates,"As an HR admin, I want to refresh the letter templates list, so that I always see the current set of templates.","Given I am on the Letter Templates screen; When I click Refresh; Then the list reloads with the latest data",Low
+LT-04,Exit,Letter Templates,"As an HR admin, I want to proceed to the next step after reviewing letter templates, so that I can continue the configuration workflow.","Given I have reviewed the letter templates; When I click Next; Then I advance to the next step",Low

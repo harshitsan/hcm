@@ -1,0 +1,2 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+VEN-01,Organization,Vendor,"As an HR admin, I want to access the Vendor configuration screen, so that I can manage vendor records for the organization","Given I navigate to the Vendor screen; When the page loads; Then the Vendor configuration screen is displayed",Low

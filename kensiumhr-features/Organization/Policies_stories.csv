@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+POL-01,Organization,Policies,"As an employee, I want to view active policies, so that I can read the rules currently in force","Given I am on the Policies screen; When I choose Active policies and click Display; Then only active policy documents are listed",High
+POL-02,Organization,Policies,"As an HR admin, I want to view inactive policies, so that I can review superseded or retired documents","Given I am on the Policies screen; When I choose Inactive policies and click Display; Then only inactive policy documents are listed",Medium
+POL-03,Organization,Policies,"As an employee, I want to see each policy's name and effective dates, so that I know which version applies and when","Given policies are listed; When the list loads; Then each row shows Policy document name, Effective from and Effective till",Medium
+POL-04,Organization,Policies,"As an employee, I want to refresh the policies list, so that I see the most current set of documents","Given I am on the Policies screen; When I click Refresh; Then the policy list reloads",Low

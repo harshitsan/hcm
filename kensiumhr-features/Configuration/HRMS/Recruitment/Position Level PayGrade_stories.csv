@@ -1,0 +1,3 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+PLP-01,Recruitment,Position Level PayGrade,"As an HR admin, I want to enable position level paygrade support, so that pay grades can be tied to position levels during recruitment","Given I am on the Position Level PayGrade screen; When I answer Yes to ""Do you support position level paygrade ?"" and click Save; Then the setting is enabled",High
+PLP-02,Recruitment,Position Level PayGrade,"As an HR admin, I want to save and continue to the next configuration, so that I can complete setup in sequence","Given I have set the position level paygrade option; When I click Save & Next; Then the setting is saved and the next screen opens",Medium

@@ -1,0 +1,6 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+ROLE-01,Organization,Role,"As a System admin, I want to add a new role, so that responsibilities can be assigned to employees consistently","Given I am on the Role screen; When I click Add new role and provide a role name, description and admin flag; Then the role is saved and listed",High
+ROLE-02,Organization,Role,"As a System admin, I want to search for roles, so that I can quickly find a specific role","Given roles exist; When I enter a Role name and click Search; Then only matching roles are listed",Medium
+ROLE-03,Organization,Role,"As a System admin, I want to reset the role search, so that I can view the full list again","Given I have applied a search; When I click Reset; Then the filter clears and all roles are shown",Low
+ROLE-04,Organization,Role,"As a System admin, I want to designate whether a role is an admin role, so that administrative access is granted appropriately","Given I am creating or editing a role; When I set the Is admin flag; Then the role's admin status is saved and shown in the list",Medium
+ROLE-05,Organization,Role,"As a System admin, I want to edit an existing role, so that I can update its name or description","Given a role is listed; When I click Edit and change its details; Then the updated role is saved",Medium

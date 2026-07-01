@@ -1,0 +1,3 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+HOME-01,General,Home,"As an Employee, I want to see Announcements on the Home screen, so that I stay informed about company updates","Given I am logged in; When I open the Home screen; Then I see the Announcements section",High
+HOME-02,General,Home,"As an Employee, I want the Home screen to act as my landing page after login, so that I can access key information in one place","Given I have logged into the HRMS; When I am redirected to the Home screen; Then the page loads with my relevant content such as Announcements",Medium

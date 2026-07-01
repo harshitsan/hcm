@@ -1,0 +1,3 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+POC-01,Recruitment,Pre Onboarding Checklist,"As an HR admin, I want to access a pre-onboarding checklist for candidates, so that I can track pre-joining tasks before a new hire starts","Given I navigate to the Pre Onboarding Checklist screen; When the page loads successfully; Then I can view the pre-onboarding checklist for candidates",Medium
+POC-02,Recruitment,Pre Onboarding Checklist,"As an HR admin, I want the Pre Onboarding Checklist page to load reliably, so that I am not blocked by timeout errors when reviewing candidate onboarding","Given I open the Pre Onboarding Checklist screen; When the page is requested; Then it loads within an acceptable time without a navigation timeout",Low

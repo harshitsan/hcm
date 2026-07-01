@@ -1,0 +1,3 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+SET-01,Recruitment,Setup,"As a System admin, I want to enable or disable the recruitment module, so that the organisation only uses recruitment features when needed","Given I am on the Setup screen; When I answer ""Do you want to enable the recruitment module?"" with Yes or No and click Save; Then the module is enabled or disabled accordingly",High
+SET-02,Recruitment,Setup,"As a System admin, I want to save and continue to the next configuration, so that I can complete recruitment setup in sequence","Given I have set the recruitment module option; When I click Save & Next; Then the setting is saved and the next screen opens",Medium

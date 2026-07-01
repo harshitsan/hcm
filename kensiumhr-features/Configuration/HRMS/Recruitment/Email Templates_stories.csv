@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+EMT-01,Recruitment,Email Templates,"As an HR admin, I want to view the list of recruitment email templates, so that I can see every configured email type","Given I am on the Email Templates screen; When the list loads; Then each template shows its Template Type ID, Email type and Description",High
+EMT-02,Recruitment,Email Templates,"As an HR admin, I want to view an individual email template, so that I can inspect its content before it is used","Given a template is listed; When I click View in the Task column; Then the template detail is displayed",High
+EMT-03,Recruitment,Email Templates,"As an HR admin, I want to page through and refresh the template list, so that I can navigate all 34 templates","Given more templates exist than fit on one page; When I use the pagination controls or Refresh; Then the next set of templates is shown",Medium

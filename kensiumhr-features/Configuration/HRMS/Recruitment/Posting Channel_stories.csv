@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+PCH-01,Recruitment,Posting Channel,"As a Recruiter, I want to add a new posting channel, so that vacancies can be published to the right channel","Given I am on the Posting Channel screen; When I click Add new posting channel and enter its name, channel, type and posting mode; Then the channel is created and listed",High
+PCH-02,Recruitment,Posting Channel,"As a Recruiter, I want to view and edit a posting channel, so that I can review or update its configuration","Given a posting channel is listed; When I click View or Edit; Then I can review or modify its Name, Channel, Type, Posting mode and Applicability",Medium
+PCH-03,Recruitment,Posting Channel,"As a Recruiter, I want to refresh the posting channel list, so that I see the latest channels","Given I am on the Posting Channel screen; When I click Refresh; Then the list reloads with current data",Low

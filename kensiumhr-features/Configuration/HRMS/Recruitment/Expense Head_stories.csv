@@ -1,0 +1,4 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+EXH-01,Recruitment,Expense Head,"As an HR admin, I want to add a new expense head, so that recruitment expenses can be categorised","Given I am on the Expense Head screen; When I click Add new expense head and enter a Name and Description; Then the expense head is created and listed",High
+EXH-02,Recruitment,Expense Head,"As an HR admin, I want to view expense heads with their name and description, so that I can review configured categories","Given expense heads exist; When I open the Expense Head list; Then each entry shows its Name and Description",Medium
+EXH-03,Recruitment,Expense Head,"As an HR admin, I want to refresh the expense head list, so that I see the latest entries","Given I am on the Expense Head screen; When I click refresh; Then the list reloads with current data",Low

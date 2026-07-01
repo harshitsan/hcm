@@ -1,0 +1,5 @@
+story_id,module,screen,user_story,acceptance_criteria,priority
+PRT-01,Organization,Project Types,"As a Resource Manager, I want to add a new project type, so that projects can be categorized consistently","Given I am on the Project Types screen; When I click Add new project type and provide type, acronym and description; Then the project type is saved and listed",High
+PRT-02,Organization,Project Types,"As a Resource Manager, I want to search project types, so that I can quickly locate a specific type","Given project types exist; When I enter a Project type and click Search; Then only matching types are listed",Medium
+PRT-03,Organization,Project Types,"As a Resource Manager, I want to reset the project type search, so that I can view the full list again","Given I have applied a search; When I click Reset; Then the filter clears and all project types are shown",Low
+PRT-04,Organization,Project Types,"As a Resource Manager, I want to edit a project type, so that I can update its acronym or description","Given a project type is listed; When I click Edit and change its details; Then the updated project type is saved",Medium
