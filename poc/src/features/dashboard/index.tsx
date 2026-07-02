@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, ShieldAlert } from 'lucide-react'
-import { filterNavGroups } from '@/config/module-access'
+import { ArrowRight, Lock } from 'lucide-react'
+import { canAccess, rolesForPath } from '@/config/module-access'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -12,16 +12,19 @@ const TOTAL_MODULES = 31
 
 /**
  * SatelliteHR POC dashboard — entry point over every implemented module.
- * Navigation mirrors the sidebar groups; the active mock role drives what
- * each module page lets you do.
+ * All modules are listed; the ones the active role cannot open render in a
+ * disabled state. The active mock role also drives what each module page
+ * lets you do once opened.
  */
 export function Dashboard() {
   const { role } = useRole()
-  // Only surface modules the active role may open (RBAC — see module-access.ts).
-  const groups = filterNavGroups(role, sidebarData.navGroups).filter(
-    (g) => g.title !== ''
+  // Show every module; disable the ones this role cannot open (module-access.ts).
+  const groups = sidebarData.navGroups.filter((g) => g.title !== '')
+  const moduleCount = groups.reduce(
+    (n, g) =>
+      n + g.items.filter((i) => canAccess(role, String(i.url))).length,
+    0
   )
-  const moduleCount = groups.reduce((n, g) => n + g.items.length, 0)
 
   const stats = [
     { label: 'Modules you can access', value: `${moduleCount} / ${TOTAL_MODULES}` },
@@ -65,18 +68,13 @@ export function Dashboard() {
           </div>
 
           {moduleCount === 0 && (
-            <Card className='flex flex-col items-center gap-3 p-10 text-center'>
-              <div className='bg-red-100 text-red-1200 flex size-12 items-center justify-center rounded-full'>
-                <ShieldAlert className='size-6' />
-              </div>
-              <h3 className='text-h4 text-neutral-1600 font-medium'>
-                No system access
-              </h3>
-              <p className='text-paragraph-md text-neutral-1200 max-w-md'>
+            <Card className='border-red-300 bg-red-50 flex flex-row items-center gap-3 p-4'>
+              <Lock className='text-red-1200 size-5 shrink-0' />
+              <p className='text-paragraph-md text-neutral-1200'>
                 The role <span className='font-medium'>{role}</span> has no
                 interactive system access — these employees exist as records
-                managed by administrators. Switch to a role with access from the
-                sidebar header.
+                managed by administrators. Every module below is locked. Switch
+                roles from the sidebar header to explore.
               </p>
             </Card>
           )}
@@ -89,6 +87,33 @@ export function Dashboard() {
               <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'>
                 {group.items.map((item) => {
                   const Icon = item.icon
+                  const allowed = canAccess(role, String(item.url))
+
+                  if (!allowed) {
+                    const roles = rolesForPath(String(item.url))
+                    return (
+                      <Card
+                        key={item.title}
+                        className='border-neutral-200 bg-neutral-50 flex h-full cursor-not-allowed flex-row items-center gap-3 p-4'
+                        title={
+                          roles.length
+                            ? `Requires role: ${roles.join(', ')}`
+                            : 'No access for your role'
+                        }
+                      >
+                        {Icon && (
+                          <div className='bg-neutral-200 text-neutral-800 flex size-9 shrink-0 items-center justify-center rounded-lg'>
+                            <Icon className='size-4' />
+                          </div>
+                        )}
+                        <span className='text-paragraph-md text-neutral-1000 flex-1 font-medium'>
+                          {item.title}
+                        </span>
+                        <Lock className='text-neutral-800 size-4' />
+                      </Card>
+                    )
+                  }
+
                   return (
                     <Link key={item.title} to={item.url as string}>
                       <Card className='group hover:border-neutral-600 flex h-full flex-row items-center gap-3 p-4 transition-colors'>

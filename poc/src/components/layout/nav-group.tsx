@@ -1,6 +1,8 @@
 import { type ReactNode } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Lock } from 'lucide-react'
+import { canAccess, rolesForPath } from '@/config/module-access'
+import { useRole } from '@/context/role-context'
 import {
   Collapsible,
   CollapsibleContent,
@@ -62,7 +64,35 @@ function NavBadge({ children }: { children: ReactNode }) {
 
 function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
   const { setOpenMobile } = useSidebar()
+  const { role } = useRole()
   const isActive = checkIsActive(href, item)
+  const accessible = item.url ? canAccess(role, String(item.url)) : true
+
+  if (!accessible) {
+    const allowed = rolesForPath(String(item.url))
+    return (
+      <SidebarMenuItem>
+        <div
+          className='flex cursor-not-allowed flex-col items-center py-1 pb-0'
+          title={
+            allowed.length
+              ? `Requires role: ${allowed.join(', ')}`
+              : 'No access for your role'
+          }
+        >
+          <div className='relative flex h-[44px] w-[44px] items-center justify-center rounded-sm opacity-40'>
+            {item.icon && (
+              <item.icon className='!h-5 !w-5 text-alpha-white-100' />
+            )}
+            <Lock className='absolute right-1 bottom-1 !h-3 !w-3 text-white' />
+          </div>
+          <span className='text-caption-sm text-alpha-white-100 text-center leading-none opacity-40'>
+            {item.title}
+          </span>
+        </div>
+      </SidebarMenuItem>
+    )
+  }
 
   return (
     <SidebarMenuItem>

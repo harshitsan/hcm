@@ -1,4 +1,3 @@
-import { type NavGroup } from '@/components/layout/types'
 import { type Role } from '@/context/role-context'
 
 /**
@@ -10,9 +9,9 @@ import { type Role } from '@/context/role-context'
  * admins, oversight modules for portfolio/group admins, self-service for
  * employees. Employee (Non-User) has no system access, so appears in none.
  *
- * Enforced in three places: the sidebar (hides inaccessible items), the route
- * guard (blocks direct navigation), and the dashboard (hides inaccessible
- * cards). This is the single source of truth for all three.
+ * Enforced in three places: the sidebar and dashboard render inaccessible
+ * modules in a disabled state (visible but not openable), and the route guard
+ * blocks direct navigation. This is the single source of truth for all three.
  */
 const P: Role = 'Platform Admin'
 const PF: Role = 'Portfolio Admin'
@@ -80,16 +79,4 @@ export function canAccess(role: Role, pathname: string): boolean {
 /** Roles permitted for a path (empty if the path isn't a gated module). */
 export function rolesForPath(pathname: string): readonly Role[] {
   return MODULE_ACCESS[moduleKey(pathname)] ?? []
-}
-
-/** Nav groups with inaccessible items removed and empty groups dropped. */
-export function filterNavGroups(role: Role, groups: NavGroup[]): NavGroup[] {
-  return groups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) =>
-        'url' in item && item.url ? canAccess(role, String(item.url)) : true
-      ),
-    }))
-    .filter((group) => group.items.length > 0)
 }

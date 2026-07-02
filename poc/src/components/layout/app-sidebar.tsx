@@ -1,6 +1,4 @@
-import { filterNavGroups } from '@/config/module-access'
 import { useLayout } from '@/context/layout-provider'
-import { useRole } from '@/context/role-context'
 import {
   Sidebar,
   SidebarContent,
@@ -14,9 +12,8 @@ import { RoleSwitcher } from './role-switcher'
 
 export function AppSidebar() {
   const { collapsible, variant } = useLayout()
-  const { role } = useRole()
-  // Only show modules the active role may open (RBAC — see module-access.ts).
-  const navGroups = filterNavGroups(role, sidebarData.navGroups)
+  // All modules are shown; inaccessible ones render disabled (see nav-group).
+  const navGroups = sidebarData.navGroups
   return (
     <Sidebar
       collapsible={collapsible}
