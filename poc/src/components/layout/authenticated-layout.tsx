@@ -2,6 +2,7 @@ import { Outlet } from '@tanstack/react-router'
 import { cn } from '@/utils/helpers'
 import { LayoutProvider } from '@/context/layout-provider'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { AccessGuard } from '@/components/layout/access-guard'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 
 type AuthenticatedLayoutProps = {
@@ -28,7 +29,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
             'peer-data-[variant=inset]:has-[[data-layout=fixed]]:h-[calc(100svh-(var(--spacing)*4))]'
           )}
         >
-          {children ?? <Outlet />}
+          <AccessGuard>{children ?? <Outlet />}</AccessGuard>
         </SidebarInset>
       </SidebarProvider>
     </LayoutProvider>

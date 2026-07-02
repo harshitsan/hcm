@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ShieldAlert } from 'lucide-react'
+import { filterNavGroups } from '@/config/module-access'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -7,12 +8,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { sidebarData } from '@/components/layout/data/sidebar-data'
 
-const STATS = [
-  { label: 'Modules', value: '31' },
-  { label: 'User stories implemented', value: '1,174' },
-  { label: 'Canonical roles', value: '6' },
-  { label: 'Backend', value: 'Mocked in-memory' },
-]
+const TOTAL_MODULES = 31
 
 /**
  * SatelliteHR POC dashboard — entry point over every implemented module.
@@ -21,7 +17,18 @@ const STATS = [
  */
 export function Dashboard() {
   const { role } = useRole()
-  const groups = sidebarData.navGroups.filter((g) => g.title !== '')
+  // Only surface modules the active role may open (RBAC — see module-access.ts).
+  const groups = filterNavGroups(role, sidebarData.navGroups).filter(
+    (g) => g.title !== ''
+  )
+  const moduleCount = groups.reduce((n, g) => n + g.items.length, 0)
+
+  const stats = [
+    { label: 'Modules you can access', value: `${moduleCount} / ${TOTAL_MODULES}` },
+    { label: 'User stories implemented', value: '1,174' },
+    { label: 'Canonical roles', value: '6' },
+    { label: 'Backend', value: 'Mocked in-memory' },
+  ]
 
   return (
     <>
@@ -45,7 +52,7 @@ export function Dashboard() {
           </Card>
 
           <div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
-            {STATS.map((s) => (
+            {stats.map((s) => (
               <Card key={s.label} className='flex flex-col gap-1 p-4'>
                 <span className='text-paragraph-sm text-neutral-1000'>
                   {s.label}
@@ -56,6 +63,23 @@ export function Dashboard() {
               </Card>
             ))}
           </div>
+
+          {moduleCount === 0 && (
+            <Card className='flex flex-col items-center gap-3 p-10 text-center'>
+              <div className='bg-red-100 text-red-1200 flex size-12 items-center justify-center rounded-full'>
+                <ShieldAlert className='size-6' />
+              </div>
+              <h3 className='text-h4 text-neutral-1600 font-medium'>
+                No system access
+              </h3>
+              <p className='text-paragraph-md text-neutral-1200 max-w-md'>
+                The role <span className='font-medium'>{role}</span> has no
+                interactive system access — these employees exist as records
+                managed by administrators. Switch to a role with access from the
+                sidebar header.
+              </p>
+            </Card>
+          )}
 
           {groups.map((group) => (
             <section key={group.title} className='flex flex-col gap-3'>
