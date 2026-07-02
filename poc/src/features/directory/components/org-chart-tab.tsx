@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   CaretDown,
-  CaretRight,
   DownloadSimple,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
 } from 'phosphor-react'
+import Tree, {
+  type CustomNodeElementProps,
+  type RawNodeDatum,
+} from 'react-d3-tree'
 import { toast } from 'sonner'
 import { RoleGate, useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
@@ -35,6 +38,7 @@ import { OrgNodeDetail } from './org-node-detail'
 type ChartView = 'tree' | 'department'
 
 const TODAY = new Date().toISOString().slice(0, 10)
+const VIRTUAL_ROOT = '__root__'
 
 interface OrgChartTabProps {
   store: DirectoryStore
@@ -42,10 +46,11 @@ interface OrgChartTabProps {
 }
 
 /**
- * Org chart (DIR-03/04): interactive top-down tree and department-grouped
- * views with expand/collapse and zoom, effective-dated as-of rendering
- * (DIR-17), PNG/PDF export (DIR-05/14) and portfolio/group scopes (DIR-12).
- * Reports of deactivated managers are lifted per integrity rules (DIR-18).
+ * Org chart (DIR-03/04): an interactive react-d3-tree hierarchy (pan, scroll
+ * zoom, collapsible nodes with elbow connectors) plus a department-grouped
+ * view, effective-dated as-of rendering (DIR-17), PNG/PDF export (DIR-05/14)
+ * and portfolio/group scopes (DIR-12). Reports of deactivated managers are
+ * lifted per integrity rules (DIR-18).
  */
 export function OrgChartTab({ store, config }: OrgChartTabProps) {
   const { role } = useRole()
@@ -54,14 +59,23 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
   const [companyId, setCompanyId] = useState(companies[0]?.id ?? '')
   const [view, setView] = useState<ChartView>('tree')
   const [asOf, setAsOf] = useState(TODAY)
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [zoom, setZoom] = useState(1)
   const [departmentFilter, setDepartmentFilter] = useState('all')
+  const [translate, setTranslate] = useState({ x: 400, y: 72 })
 
   const activeCompanyId = companies.some((c) => c.id === companyId)
     ? companyId
     : (companies[0]?.id ?? '')
+  const activeCompany = companies.find((c) => c.id === activeCompanyId)
+
+  // Center the tree horizontally once the container is laid out.
+  const containerRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      const { width } = node.getBoundingClientRect()
+      setTranslate({ x: Math.max(width / 2, 200), y: 72 })
+    }
+  }, [])
 
   // Chart population: active company members; deactivated records drop out
   // and their reports are re-parented by the integrity rules (DIR-18).
@@ -88,80 +102,143 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
     return map
   }, [chartEmployees, asOf, store.employeeById])
 
-  const childrenOf = (id: string) =>
-    chartEmployees.filter((e) => parentOf.get(e.id) === id)
+  const childrenOf = useCallback(
+    (id: string) => chartEmployees.filter((e) => parentOf.get(e.id) === id),
+    [chartEmployees, parentOf]
+  )
 
   const departments = useMemo(
     () => Array.from(new Set(chartEmployees.map((e) => e.department))).sort(),
     [chartEmployees]
   )
 
-  const toggleCollapse = (id: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+  const roots = useMemo(
+    () => chartEmployees.filter((e) => parentOf.get(e.id) === null),
+    [chartEmployees, parentOf]
+  )
+
+  // Build the react-d3-tree hierarchy (a virtual root joins multiple top-level
+  // managers so the whole org renders as one tree). A visited guard prevents
+  // any accidental reporting cycle from recursing forever.
+  const treeData = useMemo<RawNodeDatum>(() => {
+    const build = (emp: Employee, seen: Set<string>): RawNodeDatum => {
+      const kids = seen.has(emp.id) ? [] : childrenOf(emp.id)
+      const next = new Set(seen).add(emp.id)
+      return {
+        name: emp.name,
+        attributes: {
+          id: emp.id,
+          position: emp.position,
+          isUser: emp.isUser,
+          reports: kids.length,
+        },
+        children: kids.map((k) => build(k, next)),
+      }
+    }
+    const built = roots.map((r) => build(r, new Set()))
+    if (built.length === 1) return built[0]
+    return {
+      name: activeCompany?.name ?? 'Organization',
+      attributes: {
+        id: VIRTUAL_ROOT,
+        position: 'Company',
+        isUser: true,
+        reports: roots.length,
+      },
+      children: built,
+    }
+  }, [roots, childrenOf, activeCompany])
 
   const handleExport = (format: 'PNG' | 'PDF') => {
     const fileName = `org-chart-${view}${departmentFilter !== 'all' ? `-${departmentFilter.toLowerCase().replace(/\s+/g, '-')}` : ''}-asof-${asOf}.${format.toLowerCase()}`
     toast.success(
-      `${fileName} exported — reflects the ${view === 'tree' ? 'tree' : 'department'} view, current expand/collapse state (${collapsed.size} collapsed) and only fields visible to ${role}`
+      `${fileName} exported — reflects the ${view === 'tree' ? 'hierarchy tree' : 'department'} view and only fields visible to ${role}`
     )
   }
 
-  const renderNode = (employee: Employee, depth: number): React.ReactNode => {
-    const children = childrenOf(employee.id)
-    const isCollapsed = collapsed.has(employee.id)
+  // Custom node: an HTML card inside the SVG, click to open the detail panel,
+  // chevron to collapse/expand the sub-tree.
+  const renderNode = ({ nodeDatum, toggleNode }: CustomNodeElementProps) => {
+    const attrs = nodeDatum.attributes ?? {}
+    const id = String(attrs.id ?? '')
+    const isVirtual = id === VIRTUAL_ROOT
+    const isSelected = id === selectedId
+    const reports = Number(attrs.reports ?? 0)
+    const collapsed = nodeDatum.__rd3t.collapsed
+    const W = 208
+    const H = 60
     return (
-      <div key={employee.id}>
-        <button
-          type='button'
-          onClick={() => setSelectedId(employee.id)}
-          className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-            selectedId === employee.id
-              ? 'bg-blue-150 text-blue-1400'
-              : 'hover:bg-neutral-200'
-          }`}
-          style={{ paddingLeft: `${depth * 20 + 8}px` }}
+      <g>
+        <foreignObject
+          x={-W / 2}
+          y={-H / 2}
+          width={W}
+          height={H}
+          style={{ overflow: 'visible' }}
         >
-          {children.length > 0 ? (
-            <span
-              role='button'
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleCollapse(employee.id)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') toggleCollapse(employee.id)
-              }}
-              className='text-neutral-1000'
+          <div
+            onClick={() => !isVirtual && setSelectedId(id)}
+            className={`flex h-[60px] w-[208px] items-center gap-2 rounded-[8px] border bg-white px-3 shadow-sm transition-colors ${
+              isVirtual
+                ? 'border-blue-1200 bg-blue-1200 cursor-default text-white'
+                : isSelected
+                  ? 'border-blue-1200 ring-blue-1200/30 cursor-pointer ring-2'
+                  : 'border-gray-200 hover:border-blue-1000 cursor-pointer'
+            }`}
+          >
+            <div
+              className={`flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                isVirtual
+                  ? 'bg-white/20 text-white'
+                  : 'bg-blue-100 text-blue-1200'
+              }`}
             >
-              {isCollapsed ? (
-                <CaretRight size={12} weight='bold' />
-              ) : (
-                <CaretDown size={12} weight='bold' />
-              )}
-            </span>
-          ) : (
-            <span className='w-3' />
-          )}
-          <span className='text-neutral-1600 font-medium'>{employee.name}</span>
-          <span className='text-neutral-1000 text-xs'>{employee.position}</span>
-          {!employee.isUser && <NonUserBadge />}
-          {children.length > 0 && (
-            <Badge variant='secondary'>{children.length}</Badge>
-          )}
-        </button>
-        {!isCollapsed && children.map((c) => renderNode(c, depth + 1))}
-      </div>
+              {String(nodeDatum.name)
+                .split(' ')
+                .map((p) => p[0])
+                .slice(0, 2)
+                .join('')}
+            </div>
+            <div className='min-w-0 flex-1'>
+              <div
+                className={`truncate text-xs font-semibold ${isVirtual ? 'text-white' : 'text-neutral-1600'}`}
+              >
+                {String(nodeDatum.name)}
+              </div>
+              <div
+                className={`flex items-center gap-1 truncate text-[11px] ${isVirtual ? 'text-white/80' : 'text-neutral-1000'}`}
+              >
+                <span className='truncate'>{String(attrs.position ?? '')}</span>
+                {attrs.isUser === false && <NonUserBadge />}
+              </div>
+            </div>
+            {reports > 0 && (
+              <button
+                type='button'
+                aria-label={collapsed ? 'Expand reports' : 'Collapse reports'}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleNode()
+                }}
+                className={`flex h-5 items-center gap-0.5 rounded-full px-1.5 text-[11px] ${
+                  isVirtual
+                    ? 'bg-white/20 text-white'
+                    : 'bg-neutral-200 text-neutral-1200 hover:bg-neutral-300'
+                }`}
+              >
+                {reports}
+                <CaretDown
+                  size={9}
+                  weight='bold'
+                  className={collapsed ? '-rotate-90' : ''}
+                />
+              </button>
+            )}
+          </div>
+        </foreignObject>
+      </g>
     )
   }
-
-  const roots = chartEmployees.filter((e) => parentOf.get(e.id) === null)
 
   const departmentGroups = (
     departmentFilter === 'all' ? departments : [departmentFilter]
@@ -224,29 +301,33 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
               Organizational chart
             </CardTitle>
             <div className='flex items-center gap-2'>
-              <Button
-                variant='icon2'
-                className='h-7 w-7'
-                aria-label='Zoom out'
-                onClick={() =>
-                  setZoom((z) => Math.max(0.6, +(z - 0.1).toFixed(1)))
-                }
-              >
-                <MagnifyingGlassMinus size={14} />
-              </Button>
-              <span className='text-neutral-1000 w-9 text-center text-xs'>
-                {Math.round(zoom * 100)}%
-              </span>
-              <Button
-                variant='icon2'
-                className='h-7 w-7'
-                aria-label='Zoom in'
-                onClick={() =>
-                  setZoom((z) => Math.min(1.4, +(z + 0.1).toFixed(1)))
-                }
-              >
-                <MagnifyingGlassPlus size={14} />
-              </Button>
+              {view === 'department' && (
+                <>
+                  <Button
+                    variant='icon2'
+                    className='h-7 w-7'
+                    aria-label='Zoom out'
+                    onClick={() =>
+                      setZoom((z) => Math.max(0.6, +(z - 0.1).toFixed(1)))
+                    }
+                  >
+                    <MagnifyingGlassMinus size={14} />
+                  </Button>
+                  <span className='text-neutral-1000 w-9 text-center text-xs'>
+                    {Math.round(zoom * 100)}%
+                  </span>
+                  <Button
+                    variant='icon2'
+                    className='h-7 w-7'
+                    aria-label='Zoom in'
+                    onClick={() =>
+                      setZoom((z) => Math.min(1.4, +(z + 0.1).toFixed(1)))
+                    }
+                  >
+                    <MagnifyingGlassPlus size={14} />
+                  </Button>
+                </>
+              )}
               {/* Export the chart as displayed (DIR-05 admins, DIR-14 employees). */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -354,21 +435,44 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
           )}
         </CardHeader>
         <CardContent>
-          <div
-            className='origin-top-left'
-            style={{ transform: `scale(${zoom})`, width: `${100 / zoom}%` }}
-          >
-            {view === 'tree' ? (
-              roots.length === 0 ? (
-                <p className='text-neutral-1000 text-sm'>
-                  No employees to display.
-                </p>
-              ) : (
-                <div className='space-y-0.5'>
-                  {roots.map((r) => renderNode(r, 0))}
-                </div>
-              )
+          {view === 'tree' ? (
+            roots.length === 0 ? (
+              <p className='text-neutral-1000 text-sm'>
+                No employees to display.
+              </p>
             ) : (
+              <>
+                <div
+                  ref={containerRef}
+                  className='h-[560px] w-full overflow-hidden rounded-md border border-gray-200 bg-[radial-gradient(theme(colors.gray.200)_1px,transparent_1px)] [background-size:18px_18px]'
+                >
+                  <Tree
+                    data={treeData}
+                    translate={translate}
+                    orientation='vertical'
+                    pathFunc='step'
+                    collapsible
+                    zoomable
+                    draggable
+                    zoom={0.8}
+                    scaleExtent={{ min: 0.3, max: 2 }}
+                    nodeSize={{ x: 240, y: 120 }}
+                    separation={{ siblings: 1.05, nonSiblings: 1.3 }}
+                    renderCustomNodeElement={renderNode}
+                    pathClassFunc={() => 'stroke-gray-300'}
+                  />
+                </div>
+                <p className='text-neutral-1000 mt-2 text-center text-xs'>
+                  Scroll to zoom · drag to pan · click a node for details ·
+                  chevron to collapse
+                </p>
+              </>
+            )
+          ) : (
+            <div
+              className='origin-top-left'
+              style={{ transform: `scale(${zoom})`, width: `${100 / zoom}%` }}
+            >
               <div className='space-y-4'>
                 {departmentGroups.map(
                   ({ dept, members, deptRoots, renderDeptNode }) => (
@@ -389,8 +493,8 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
                   )
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
