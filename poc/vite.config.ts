@@ -20,6 +20,10 @@ export default defineConfig({
       '@utils': path.resolve(__dirname, './src/utils'),
     },
   },
+  server: {
+    // Allow tunneling the dev server through any ngrok URL (POC demos).
+    allowedHosts: ['.ngrok-free.app', '.ngrok.app', '.ngrok.io'],
+  },
   build: {
     sourcemap: true,
   },
