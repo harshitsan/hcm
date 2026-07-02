@@ -1,5 +1,8 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
+  ArrowsIn,
+  ArrowsOut,
   CaretDown,
   DownloadSimple,
   MagnifyingGlassMinus,
@@ -63,6 +66,17 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
   const [zoom, setZoom] = useState(1)
   const [departmentFilter, setDepartmentFilter] = useState('all')
   const [translate, setTranslate] = useState({ x: 400, y: 72 })
+  const [fullscreen, setFullscreen] = useState(false)
+
+  // Exit full screen on Escape.
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fullscreen])
 
   const activeCompanyId = companies.some((c) => c.id === companyId)
     ? companyId
@@ -283,6 +297,51 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
     return { dept, members, deptRoots, renderDeptNode }
   })
 
+  // The react-d3-tree canvas, reused inline and in the full-screen overlay.
+  // `keyName` forces a remount on toggle so the centering ref re-measures.
+  const chartCanvas = (heightClass: string, keyName: string) => (
+    <div
+      key={keyName}
+      ref={containerRef}
+      className={`w-full overflow-hidden rounded-md border border-gray-200 bg-[radial-gradient(theme(colors.gray.200)_1px,transparent_1px)] [background-size:18px_18px] ${heightClass}`}
+    >
+      <Tree
+        data={treeData}
+        translate={translate}
+        orientation='vertical'
+        pathFunc='step'
+        collapsible
+        zoomable
+        draggable
+        zoom={0.8}
+        scaleExtent={{ min: 0.3, max: 2 }}
+        nodeSize={{ x: 240, y: 120 }}
+        separation={{ siblings: 1.05, nonSiblings: 1.3 }}
+        renderCustomNodeElement={renderNode}
+        pathClassFunc={() => 'stroke-gray-300'}
+      />
+    </div>
+  )
+
+  const exportMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant='outline' className='h-7 gap-1 px-2 text-xs'>
+          <DownloadSimple size={13} weight='bold' />
+          Export
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align='end' className='min-w-[160px]'>
+        <DropdownMenuItem onClick={() => handleExport('PNG')}>
+          Export as PNG
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleExport('PDF')}>
+          Export as PDF
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
   const selected = selectedId
     ? (chartEmployees.find((e) => e.id === selectedId) ?? null)
     : null
@@ -293,6 +352,7 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
   const selectedReports = selected ? childrenOf(selected.id) : []
 
   return (
+    <>
     <div className='grid gap-4 lg:grid-cols-[1.5fr_1fr]'>
       <Card className='border-gray-200'>
         <CardHeader className='space-y-3'>
@@ -328,23 +388,18 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
                   </Button>
                 </>
               )}
+              {view === 'tree' && (
+                <Button
+                  variant='outline'
+                  className='h-7 gap-1 px-2 text-xs'
+                  onClick={() => setFullscreen(true)}
+                >
+                  <ArrowsOut size={13} weight='bold' />
+                  Full screen
+                </Button>
+              )}
               {/* Export the chart as displayed (DIR-05 admins, DIR-14 employees). */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant='outline' className='h-7 gap-1 px-2 text-xs'>
-                    <DownloadSimple size={13} weight='bold' />
-                    Export
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align='end' className='min-w-[160px]'>
-                  <DropdownMenuItem onClick={() => handleExport('PNG')}>
-                    Export as PNG
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('PDF')}>
-                    Export as PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {exportMenu}
             </div>
           </div>
 
@@ -440,28 +495,23 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
               <p className='text-neutral-1000 text-sm'>
                 No employees to display.
               </p>
+            ) : fullscreen ? (
+              <div className='flex h-[200px] flex-col items-center justify-center gap-2 rounded-md border border-dashed border-gray-200'>
+                <span className='text-neutral-1000 text-sm'>
+                  Chart is open in full screen.
+                </span>
+                <Button
+                  variant='outline'
+                  className='h-7 gap-1 px-2 text-xs'
+                  onClick={() => setFullscreen(false)}
+                >
+                  <ArrowsIn size={13} weight='bold' />
+                  Exit full screen
+                </Button>
+              </div>
             ) : (
               <>
-                <div
-                  ref={containerRef}
-                  className='h-[560px] w-full overflow-hidden rounded-md border border-gray-200 bg-[radial-gradient(theme(colors.gray.200)_1px,transparent_1px)] [background-size:18px_18px]'
-                >
-                  <Tree
-                    data={treeData}
-                    translate={translate}
-                    orientation='vertical'
-                    pathFunc='step'
-                    collapsible
-                    zoomable
-                    draggable
-                    zoom={0.8}
-                    scaleExtent={{ min: 0.3, max: 2 }}
-                    nodeSize={{ x: 240, y: 120 }}
-                    separation={{ siblings: 1.05, nonSiblings: 1.3 }}
-                    renderCustomNodeElement={renderNode}
-                    pathClassFunc={() => 'stroke-gray-300'}
-                  />
-                </div>
+                {chartCanvas('h-[560px]', 'inline')}
                 <p className='text-neutral-1000 mt-2 text-center text-xs'>
                   Scroll to zoom · drag to pan · click a node for details ·
                   chevron to collapse
@@ -510,5 +560,38 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
         onSelect={setSelectedId}
       />
     </div>
+
+      {fullscreen &&
+        createPortal(
+          <div className='fixed inset-0 z-[60] flex flex-col bg-white'>
+            <div className='flex items-center justify-between gap-2 border-b border-gray-200 px-4 py-2'>
+              <div className='flex items-center gap-2'>
+                <span className='text-neutral-1600 text-sm font-medium'>
+                  Organizational chart
+                </span>
+                {activeCompany && (
+                  <Badge variant='secondary'>{activeCompany.name}</Badge>
+                )}
+                {asOf !== TODAY && (
+                  <Badge variant='outline'>as of {asOf}</Badge>
+                )}
+              </div>
+              <div className='flex items-center gap-2'>
+                {exportMenu}
+                <Button
+                  variant='outline'
+                  className='h-7 gap-1 px-2 text-xs'
+                  onClick={() => setFullscreen(false)}
+                >
+                  <ArrowsIn size={13} weight='bold' />
+                  Exit full screen
+                </Button>
+              </div>
+            </div>
+            <div className='flex-1 p-3'>{chartCanvas('h-full', 'fullscreen')}</div>
+          </div>,
+          document.body
+        )}
+    </>
   )
 }
