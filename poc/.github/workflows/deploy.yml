@@ -1,0 +1,90 @@
+name: Deploy to Cloudflare Workers
+
+# Branch -> environment mapping:
+#   develop -> dev         (worker: mls-apartment-frontend-dev)
+#   staging -> staging     (worker: mls-apartment-frontend-staging)
+#   main    -> production  (worker: mls-apartment-frontend-production)
+on:
+  push:
+    branches: [develop, staging, main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, production]
+
+concurrency:
+  # One in-flight deploy per branch; cancel superseded runs.
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0 # don't install git hooks in CI
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve target environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET="${{ github.event.inputs.environment }}"
+          else
+            case "${{ github.ref_name }}" in
+              develop) TARGET="dev" ;;
+              staging) TARGET="staging" ;;
+              main)    TARGET="production" ;;
+              *) echo "::error::Unsupported branch: ${{ github.ref_name }}"; exit 1 ;;
+            esac
+          fi
+          # Per-environment public build config (VITE_* is baked into the bundle,
+          # so these are not secret). Kept here so CI does not depend on
+          # gitignored .env.* files.
+          case "$TARGET" in
+            dev)
+              API_URL="https://mls-api-dev.mls-api-dev.workers.dev"
+              VMODE="development" ;;
+            staging)
+              API_URL="https://mls-api-staging.mls-api-staging.workers.dev"
+              VMODE="staging" ;;
+            production)
+              API_URL="https://mls-api-production.mls-api-production.workers.dev"
+              VMODE="production" ;;
+          esac
+          {
+            echo "target=$TARGET"
+            echo "api_url=$API_URL"
+            echo "vite_mode=$VMODE"
+          } >> "$GITHUB_OUTPUT"
+          echo "Deploying environment: $TARGET (mode=$VMODE)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify Cloudflare credentials
+        run: npx wrangler whoami
+
+      - name: Build (${{ steps.env.outputs.target }})
+        env:
+          VITE_API_URL: ${{ steps.env.outputs.api_url }}
+          VITE_MODE: ${{ steps.env.outputs.vite_mode }}
+        run: npm run build:${{ steps.env.outputs.target }}
+
+      # Call wrangler directly (instead of cloudflare/wrangler-action) so the
+      # full deploy error is visible in the log and there's no node20-runtime
+      # deprecation notice from the action wrapper. Credentials come from the
+      # CLOUDFLARE_* env vars set at the job level.
+      - name: Deploy to Cloudflare Workers
+        run: npx wrangler deploy --env ${{ steps.env.outputs.target }}

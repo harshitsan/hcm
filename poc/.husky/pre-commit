@@ -1,0 +1,11 @@
+#!/bin/sh
+#. "$(dirname "$0")/_/husky.sh"
+
+echo "Checking types..."
+bunx tsc --noEmit || exit 1
+
+echo "Linting..."
+bunx eslint . || exit 1
+
+echo "Checking formatting..."
+bunx prettier --check . || exit 1

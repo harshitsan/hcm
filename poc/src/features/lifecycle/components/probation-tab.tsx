@@ -1,0 +1,307 @@
+import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { DataTable } from '@/components/common/data-table/table'
+import { useRole } from '@/context/role-context'
+import { type ProbationDecisionTable } from '../data/config'
+import {
+  type PeerReview,
+  type PeriodicReview,
+  type ProbationCase,
+} from '../data/probation'
+import { DEPARTMENTS, PERSONAS } from '../data/shared'
+import { type ProbationStore } from '../hooks/use-probation'
+import {
+  peerReviewColumns,
+  periodicReviewColumns,
+  probationColumns,
+} from './probation-columns'
+import { ProbationDetailSheet } from './probation-detail-sheet'
+
+const STATUS_FILTERS = [
+  { value: 'all', label: 'All statuses' },
+  { value: 'pending', label: 'Pending with me' },
+  { value: 'pending-approval', label: 'Pending Confirmation' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'extended', label: 'Extended Probation' },
+  { value: 'separation-initiated', label: 'Terminated / Separation' },
+]
+
+interface ProbationTabProps {
+  store: ProbationStore
+  decisionTable: ProbationDecisionTable
+}
+
+/** Confirmation review dashboard + peer & periodic review grids. */
+export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
+  const { role, hasRole } = useRole()
+  const [status, setStatus] = useState('all')
+  const [department, setDepartment] = useState('all')
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [peerDialog, setPeerDialog] = useState<PeerReview | null>(null)
+  const [periodicDialog, setPeriodicDialog] = useState<PeriodicReview | null>(null)
+  const [dialogText, setDialogText] = useState('')
+  const [requestFor, setRequestFor] = useState('')
+  const [requestReviewer, setRequestReviewer] = useState('')
+
+  const cases = useMemo(
+    () =>
+      store.cases.filter(
+        (c) =>
+          (status === 'all' || c.status === status) &&
+          (department === 'all' || c.department === department) &&
+          (from === '' || c.dueDate >= from) &&
+          (to === '' || c.dueDate <= to)
+      ),
+    [department, from, status, store.cases, to]
+  )
+
+  const selected = store.cases.find((c) => c.id === selectedId) ?? null
+  const isAdmin = hasRole('Company Admin')
+
+  const resetFilters = () => {
+    setStatus('all')
+    setDepartment('all')
+    setFrom('')
+    setTo('')
+  }
+
+  return (
+    <div className='w-full'>
+      <Tabs defaultValue='review' className='w-full'>
+        <TabsList className='mb-2'>
+          <TabsTrigger variant='primary' value='review'>
+            Confirmation Review
+          </TabsTrigger>
+          <TabsTrigger variant='primary' value='peer'>
+            Peer Review
+          </TabsTrigger>
+          <TabsTrigger variant='primary' value='periodic'>
+            Periodic Review
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value='review'>
+          <div className='mb-3 flex flex-wrap items-center gap-2'>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger variant='secondary' className='h-7 w-[190px]'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={department} onValueChange={setDepartment}>
+              <SelectTrigger variant='secondary' className='h-7 w-[160px]'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>All departments</SelectItem>
+                {DEPARTMENTS.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type='date'
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className='h-7 w-[150px]'
+              aria-label='Due from'
+            />
+            <Input
+              type='date'
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className='h-7 w-[150px]'
+              aria-label='Due to'
+            />
+            <Button size='sm' variant='outline' onClick={resetFilters}>
+              Reset
+            </Button>
+          </div>
+          <DataTable
+            columns={probationColumns}
+            data={cases}
+            variant='no-status'
+            onRowClick={(row: ProbationCase) => setSelectedId(row.id)}
+          />
+        </TabsContent>
+
+        <TabsContent value='peer'>
+          {isAdmin && (
+            <div className='mb-3 flex flex-wrap items-end gap-2'>
+              <Input
+                placeholder='Employee under confirmation'
+                value={requestFor}
+                onChange={(e) => setRequestFor(e.target.value)}
+                className='h-7 w-[220px]'
+              />
+              <Input
+                placeholder='Nominated reviewer'
+                value={requestReviewer}
+                onChange={(e) => setRequestReviewer(e.target.value)}
+                className='h-7 w-[200px]'
+              />
+              <Button
+                size='sm'
+                onClick={() => {
+                  if (!requestFor.trim() || !requestReviewer.trim()) {
+                    toast.error('Enter both the employee and the reviewer')
+                    return
+                  }
+                  store.requestPeerReview(
+                    requestFor.trim(),
+                    requestReviewer.trim(),
+                    PERSONAS[role]
+                  )
+                  setRequestFor('')
+                  setRequestReviewer('')
+                }}
+              >
+                Request peer review
+              </Button>
+            </div>
+          )}
+          <DataTable
+            columns={peerReviewColumns}
+            data={store.peerReviews}
+            variant='no-status'
+            onRowClick={(row: PeerReview) => {
+              if (row.status === 'Pending Approval') {
+                setDialogText('')
+                setPeerDialog(row)
+              }
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value='periodic'>
+          <DataTable
+            columns={periodicReviewColumns}
+            data={store.periodicReviews}
+            variant='no-status'
+            onRowClick={(row: PeriodicReview) => {
+              if (row.status === 'Active') {
+                setDialogText('')
+                setPeriodicDialog(row)
+              }
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+
+      <ProbationDetailSheet
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedId(null)
+        }}
+        probationCase={selected}
+        store={store}
+        decisionTable={decisionTable}
+      />
+
+      {/* Submit peer feedback */}
+      <Dialog
+        open={peerDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) setPeerDialog(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Peer review · {peerDialog?.employeeName}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder='Your feedback informs the confirmation decision'
+            value={dialogText}
+            onChange={(e) => setDialogText(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setPeerDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!dialogText.trim()) {
+                  toast.error('Feedback is required before submitting')
+                  return
+                }
+                if (peerDialog) store.submitPeerReview(peerDialog.id, dialogText.trim())
+                setPeerDialog(null)
+              }}
+            >
+              Submit feedback
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Submit periodic feedback */}
+      <Dialog
+        open={periodicDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) setPeriodicDialog(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Periodic review · {periodicDialog?.employeeName}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            placeholder='Interim feedback for this review window'
+            value={dialogText}
+            onChange={(e) => setDialogText(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setPeriodicDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!dialogText.trim()) {
+                  toast.error('Notes are required before submitting')
+                  return
+                }
+                if (periodicDialog)
+                  store.submitPeriodicReview(periodicDialog.id, dialogText.trim())
+                setPeriodicDialog(null)
+              }}
+            >
+              Submit review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

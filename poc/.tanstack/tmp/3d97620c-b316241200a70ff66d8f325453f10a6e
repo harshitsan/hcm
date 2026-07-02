@@ -1,0 +1,17 @@
+import { z } from 'zod'
+import { createFileRoute } from '@tanstack/react-router'
+import { Planning } from '@/features/planning'
+
+const planningSearchSchema = z
+  .object({
+    branch: z.string().optional(),
+    department: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+  })
+  .catch({})
+
+export const Route = createFileRoute('/_authenticated/new-vehicle/planning/')({
+  component: Planning,
+  validateSearch: planningSearchSchema,
+})

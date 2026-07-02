@@ -1,0 +1,567 @@
+import { useEffect, useMemo, useState } from 'react'
+import { z } from 'zod'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Textarea } from '@/components/ui/textarea'
+import { type LeaveType } from '../data/leave-types'
+import { type FmlaReason } from '../data/config'
+import { EMPLOYEES, daySpan, employeeById } from '../data/shared'
+import { type RequestDraft } from '../hooks/use-leave-requests'
+
+const emailList = z
+  .string()
+  .refine(
+    (v) =>
+      v.trim() === '' ||
+      v.split(',').every((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim())),
+    'One or more email ids are invalid'
+  )
+
+const formSchema = z
+  .object({
+    typeId: z.string().min(1, 'Select a leave type'),
+    from: z.string().min(1, 'From date is required'),
+    to: z.string().min(1, 'To date is required'),
+    fromTime: z.string(),
+    toTime: z.string(),
+    halfDay: z.boolean(),
+    reason: z.string().min(3, 'Reason is required'),
+    tentative: z.boolean(),
+    tentativeReason: z.string(),
+    notifyPeersEnabled: z.boolean(),
+    notifyEmails: emailList,
+    fmlaQualifyingReason: z.string(),
+    dynamicExtra: z.string(),
+  })
+  .refine((v) => v.to >= v.from, {
+    message: 'To date must be on or after From date',
+    path: ['to'],
+  })
+  .refine((v) => !v.tentative || v.tentativeReason.trim().length > 0, {
+    message: 'A reason is required for tentative requests',
+    path: ['tentativeReason'],
+  })
+
+type FormValues = z.infer<typeof formSchema>
+
+const emptyValues: FormValues = {
+  typeId: '',
+  from: '',
+  to: '',
+  fromTime: '',
+  toTime: '',
+  halfDay: false,
+  reason: '',
+  tentative: false,
+  tentativeReason: '',
+  notifyPeersEnabled: false,
+  notifyEmails: '',
+  fmlaQualifyingReason: '',
+  dynamicExtra: '',
+}
+
+interface ApplyLeaveOverlayProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  /** The employee the leave is for (self-service or on-behalf). */
+  employeeId: string
+  leaveTypes: LeaveType[]
+  fmlaReasons: FmlaReason[]
+  remainingFor: (employeeId: string, typeId: string) => number
+  hasOverlap: (employeeId: string, from: string, to: string) => boolean
+  onSubmit: (draft: RequestDraft) => void
+  /** Set when a Company Admin records leave on behalf (LVE-17). */
+  onBehalfOf: string | null
+}
+
+/**
+ * Apply Time Off form (LVE-03/16/28/30/31/32/38/49). Fields are rendered
+ * per leave-type config by the dynamic-fields engine; exceeding the balance
+ * triggers the loss-of-pay confirmation.
+ */
+export function ApplyLeaveOverlay({
+  open,
+  onOpenChange,
+  employeeId,
+  leaveTypes,
+  fmlaReasons,
+  remainingFor,
+  hasOverlap,
+  onSubmit,
+  onBehalfOf,
+}: ApplyLeaveOverlayProps) {
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: emptyValues,
+  })
+  const [peers, setPeers] = useState<string[]>([])
+  const [lopConfirm, setLopConfirm] = useState<{
+    draft: RequestDraft
+    excess: number
+    unit: string
+  } | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    form.reset(emptyValues)
+    setPeers([])
+  }, [open, form, employeeId])
+
+  const employee = employeeById(employeeId)
+  const values = form.watch()
+  const selectedType = leaveTypes.find((t) => t.id === values.typeId)
+
+  // LVE-35/36: active types in configured order, minus excluded levels.
+  const selectableTypes = useMemo(
+    () =>
+      leaveTypes
+        .filter(
+          (t) =>
+            t.active &&
+            t.id !== 'lt-lop' &&
+            !(employee && t.excludedLevels.includes(employee.positionLevel))
+        )
+        .sort((a, b) => a.order - b.order),
+    [employee, leaveTypes]
+  )
+
+  // LVE-49: precise duration from date + time for hour-tracked types.
+  const amount = useMemo(() => {
+    if (!values.from || !values.to || !selectedType) return 0
+    if (values.halfDay) return selectedType.unit === 'hours' ? 4 : 0.5
+    const days = daySpan(values.from, values.to)
+    if (selectedType.unit === 'hours') {
+      if (values.from === values.to && values.fromTime && values.toTime) {
+        const [fh, fm] = values.fromTime.split(':').map(Number)
+        const [th, tm] = values.toTime.split(':').map(Number)
+        return Math.max(1, Math.round((th * 60 + tm - fh * 60 - fm) / 60))
+      }
+      return days * 8
+    }
+    return days
+  }, [selectedType, values.from, values.fromTime, values.halfDay, values.to, values.toTime])
+
+  const balance = selectedType ? remainingFor(employeeId, selectedType.id) : 0
+  const excess = selectedType?.category === 'paid' ? Math.max(0, amount - balance) : 0
+  const overlap =
+    values.from && values.to && hasOverlap(employeeId, values.from, values.to)
+
+  const buildDraft = (v: FormValues, lopAmount: number): RequestDraft => ({
+    employeeId,
+    typeId: v.typeId,
+    from: v.from,
+    to: v.to,
+    fromTime: v.fromTime || null,
+    toTime: v.toTime || null,
+    amount,
+    lopAmount,
+    reason: v.dynamicExtra ? `${v.reason} [${v.dynamicExtra}]` : v.reason,
+    tentative: v.tentative,
+    tentativeReason: v.tentative ? v.tentativeReason : null,
+    notifyPeers: v.notifyPeersEnabled ? peers : [],
+    notifyEmails:
+      v.notifyPeersEnabled && v.notifyEmails.trim()
+        ? v.notifyEmails.split(',').map((e) => e.trim())
+        : [],
+    fmlaQualifyingReason: v.fmlaQualifyingReason || null,
+    onBehalfOf,
+  })
+
+  const handleSubmit = (v: FormValues) => {
+    if (overlap) {
+      toast.error('These dates overlap an existing request — adjust the dates')
+      return
+    }
+    if (selectedType?.fmla && !v.fmlaQualifyingReason) {
+      form.setError('fmlaQualifyingReason', {
+        message: 'Select an FMLA qualifying reason',
+      })
+      return
+    }
+    if (selectedType?.id === 'lt-compoff' && amount > balance) {
+      toast.error('Not enough comp-off credits — request is validated against your comp-off balance')
+      return
+    }
+    if (excess > 0 && selectedType?.category === 'paid') {
+      // LVE-32: warn and ask to proceed on loss of pay for the excess.
+      setLopConfirm({
+        draft: buildDraft(v, excess),
+        excess,
+        unit: selectedType.unit,
+      })
+      return
+    }
+    onSubmit(buildDraft(v, selectedType?.category === 'unpaid' ? amount : 0))
+    onOpenChange(false)
+  }
+
+  const qualifying = fmlaReasons.filter((r) => r.kind === 'qualifying')
+  const peerOptions = EMPLOYEES.filter((e) => e.id !== employeeId && e.active)
+
+  return (
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
+          <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+            <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
+              {onBehalfOf
+                ? `Record time off — ${employee?.name}`
+                : 'Apply Time Off'}
+            </SheetTitle>
+          </SheetHeader>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(handleSubmit)}
+              className='flex min-h-0 flex-1 flex-col'
+            >
+              <div className='flex-1 space-y-4 overflow-y-auto px-5 py-5'>
+                <FormField
+                  control={form.control}
+                  name='typeId'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Leave type</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger variant='secondary' className='w-full'>
+                            <SelectValue placeholder='Select leave type' />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {selectableTypes.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name} ({t.unit})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectedType && (
+                        <p className='text-neutral-1000 text-xs'>
+                          Available balance: {balance} {selectedType.unit}
+                          {selectedType.fmla && ' · FMLA-protected'}
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className='grid grid-cols-2 gap-3'>
+                  <FormField
+                    control={form.control}
+                    name='from'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>From date</FormLabel>
+                        <FormControl>
+                          <Input type='date' {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='to'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>To date</FormLabel>
+                        <FormControl>
+                          <Input type='date' {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {selectedType?.unit === 'hours' && (
+                  <div className='grid grid-cols-2 gap-3'>
+                    <FormField
+                      control={form.control}
+                      name='fromTime'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>From time (partial day)</FormLabel>
+                          <FormControl>
+                            <Input type='time' {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name='toTime'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>To time</FormLabel>
+                          <FormControl>
+                            <Input type='time' {...field} />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+
+                {selectedType?.dynamicFields.includes('Half-day option') && (
+                  <FormField
+                    control={form.control}
+                    name='halfDay'
+                    render={({ field }) => (
+                      <FormItem className='flex flex-row items-center gap-2'>
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(v) => field.onChange(!!v)}
+                            variant='blue'
+                          />
+                        </FormControl>
+                        <FormLabel className='mb-0'>Half day</FormLabel>
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {selectedType && values.from && values.to && (
+                  <div className='bg-blue-150 rounded-[6px] px-3 py-2 text-sm'>
+                    Requested: <strong>{amount} {selectedType.unit}</strong>
+                    {excess > 0 && selectedType.category === 'paid' && (
+                      <span className='text-red-1400'>
+                        {' '}— exceeds balance by {excess} {selectedType.unit} (loss of pay confirmation will apply)
+                      </span>
+                    )}
+                    {overlap && (
+                      <span className='text-red-1400'>
+                        {' '}— overlaps an existing request
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {selectedType?.fmla && (
+                  <FormField
+                    control={form.control}
+                    name='fmlaQualifyingReason'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>FMLA qualifying reason</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger variant='secondary' className='w-full'>
+                              <SelectValue placeholder='Select a configured qualifying reason' />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {qualifying.map((r) => (
+                              <SelectItem key={r.id} value={r.reason}>
+                                {r.fmlaType}: {r.reason}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {selectedType?.dynamicFields
+                  .filter((f) => !['Half-day option', 'FMLA qualifying reason'].includes(f))
+                  .map((f) => (
+                    <FormField
+                      key={f}
+                      control={form.control}
+                      name='dynamicExtra'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{f}</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder={`${f} (rendered by the dynamic-fields engine)`}
+                              {...field}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+
+                <FormField
+                  control={form.control}
+                  name='reason'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Reason</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder='Why are you taking time off?' {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='tentative'
+                  render={({ field }) => (
+                    <FormItem className='flex flex-row items-center gap-2'>
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(v) => field.onChange(!!v)}
+                          variant='blue'
+                        />
+                      </FormControl>
+                      <FormLabel className='mb-0'>
+                        Tentative request — dates may change before I confirm
+                      </FormLabel>
+                    </FormItem>
+                  )}
+                />
+                {values.tentative && (
+                  <FormField
+                    control={form.control}
+                    name='tentativeReason'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Why is this tentative?</FormLabel>
+                        <FormControl>
+                          <Input placeholder='e.g. visa appointment pending' {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                <FormField
+                  control={form.control}
+                  name='notifyPeersEnabled'
+                  render={({ field }) => (
+                    <FormItem className='flex flex-row items-center gap-2'>
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(v) => field.onChange(!!v)}
+                          variant='blue'
+                        />
+                      </FormControl>
+                      <FormLabel className='mb-0'>Notify peers of my absence</FormLabel>
+                    </FormItem>
+                  )}
+                />
+                {values.notifyPeersEnabled && (
+                  <div className='space-y-3 rounded-[6px] border border-gray-200 p-3'>
+                    <div className='grid grid-cols-2 gap-2'>
+                      {peerOptions.map((p) => (
+                        <label key={p.id} className='flex items-center gap-2 text-sm'>
+                          <Checkbox
+                            checked={peers.includes(p.name)}
+                            onCheckedChange={(v) =>
+                              setPeers((prev) =>
+                                v ? [...prev, p.name] : prev.filter((x) => x !== p.name)
+                              )
+                            }
+                            variant='blue'
+                          />
+                          {p.name}
+                        </label>
+                      ))}
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name='notifyEmails'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Additional email ids (comma separated)</FormLabel>
+                          <FormControl>
+                            <Input placeholder='a@ext.com, b@ext.com' {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+                <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type='submit'>Submit request</Button>
+              </div>
+            </form>
+          </Form>
+        </FloatingSheetContent>
+      </Sheet>
+
+      {/* LVE-32: loss-of-pay confirmation when the balance is exceeded. */}
+      <AlertDialog
+        open={lopConfirm !== null}
+        onOpenChange={(o) => {
+          if (!o) setLopConfirm(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Proceed on loss of pay?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your request exceeds the available balance by{' '}
+              <strong>
+                {lopConfirm?.excess} {lopConfirm?.unit}
+              </strong>
+              . The excess will be recorded as unpaid (loss of pay) and routed
+              to the loss-of-pay approver. Your paid balance is deducted only
+              for the covered portion.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Don’t submit</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (lopConfirm) onSubmit(lopConfirm.draft)
+                setLopConfirm(null)
+                onOpenChange(false)
+              }}
+            >
+              Confirm LOP & submit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
