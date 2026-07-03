@@ -34,14 +34,15 @@ export function Feedback() {
   const isGovernance = role === 'Platform Admin' || role === 'Portfolio Admin'
   const isNonUser = role === 'Employee (Non-User)'
 
+  const hasAdmin = isCompanyAdmin || isGovernance
+
   const availableTabs = useMemo(() => {
     const tabs: string[] = []
     if (isReviewer) tabs.push('worklist')
     if (!isNonUser) tabs.push('my')
-    if (isCompanyAdmin) tabs.push('config')
-    if (isGovernance) tabs.push('governance')
+    if (hasAdmin) tabs.push('admin')
     return tabs
-  }, [isReviewer, isCompanyAdmin, isGovernance, isNonUser])
+  }, [isReviewer, hasAdmin, isNonUser])
 
   const [tab, setTab] = useState(isReviewer ? 'worklist' : 'my')
 
@@ -79,16 +80,11 @@ export function Feedback() {
                   </TabsTrigger>
                 )}
                 <TabsTrigger variant='primary' value='my'>
-                  My Entries
+                  My Feedback
                 </TabsTrigger>
-                {isCompanyAdmin && (
-                  <TabsTrigger variant='primary' value='config'>
-                    Configuration
-                  </TabsTrigger>
-                )}
-                {isGovernance && (
-                  <TabsTrigger variant='primary' value='governance'>
-                    Governance
+                {hasAdmin && (
+                  <TabsTrigger variant='primary' value='admin'>
+                    Admin
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -103,7 +99,7 @@ export function Feedback() {
                     The per-tenant module toggle is off, so submission and
                     tracking are not available.
                     {isCompanyAdmin
-                      ? ' Re-enable it from the Configuration tab (Setup step).'
+                      ? ' Re-enable it from the Admin tab (Setup step).'
                       : ' Contact your Company Admin to enable it.'}
                   </p>
                 </div>
@@ -121,14 +117,12 @@ export function Feedback() {
                       allowOnBehalf={isCompanyAdmin}
                     />
                   </TabsContent>
-                  {isCompanyAdmin && (
-                    <TabsContent value='config'>
-                      <ConfigTab store={configStore} />
-                    </TabsContent>
-                  )}
-                  {isGovernance && (
-                    <TabsContent value='governance'>
-                      <GovernanceTab store={configStore} />
+                  {hasAdmin && (
+                    <TabsContent value='admin'>
+                      <div className='flex flex-col gap-6'>
+                        {isCompanyAdmin && <ConfigTab store={configStore} />}
+                        {isGovernance && <GovernanceTab store={configStore} />}
+                      </div>
                     </TabsContent>
                   )}
                 </>

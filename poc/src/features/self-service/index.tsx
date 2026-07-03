@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { UserCircleMinus } from 'phosphor-react'
 import { useRole } from '@/context/role-context'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -28,6 +28,36 @@ const ADMIN_ROLES = [
   'Group Company Admin',
   'Company Admin',
 ] as const
+
+type SectionId =
+  | 'attendance'
+  | 'timesheets'
+  | 'travel'
+  | 'learning'
+  | 'assets'
+  | 'tax'
+  | 'work'
+
+const SECTION_LABEL: Record<SectionId, string> = {
+  attendance: 'Attendance',
+  timesheets: 'Timesheets',
+  travel: 'Travel & Expenses',
+  learning: 'Learning',
+  assets: 'Assets',
+  tax: 'Tax & Pay',
+  work: 'Work & Handover',
+}
+
+/** Task-first grouping: everyday sections folded under a few plain-language tabs. */
+const GROUPS: ReadonlyArray<{
+  id: string
+  label: string
+  sections: readonly SectionId[]
+}> = [
+  { id: 'time', label: 'Time', sections: ['attendance', 'timesheets'] },
+  { id: 'requests', label: 'Requests', sections: ['travel', 'learning', 'assets'] },
+  { id: 'pay-work', label: 'Pay & Work', sections: ['tax', 'work'] },
+]
 
 /**
  * Employee Self-Service (ESS-01..39): responsive portal with role/policy
@@ -88,23 +118,15 @@ export function SelfService() {
 
   const availableTabs = useMemo(() => {
     const tabs = ['overview']
-    const sections = [
-      'attendance',
-      'timesheets',
-      'travel',
-      'learning',
-      'assets',
-      'tax',
-      'work',
-    ]
-    sections.forEach((s) => {
-      if (sectionVisible(s)) tabs.push(s)
+    GROUPS.forEach((g) => {
+      if (g.sections.some((s) => sectionVisible(s))) tabs.push(g.id)
     })
     if (isAdmin) tabs.push('admin')
     return tabs
   }, [isAdmin, sectionVisible])
 
-  const [tab, setTab] = useState('overview')
+  /** Employees land on their everyday overview; admins land on the admin surface. */
+  const [tab, setTab] = useState(isAdmin ? 'admin' : 'overview')
 
   useEffect(() => {
     if (!availableTabs.includes(tab)) setTab('overview')
@@ -134,14 +156,18 @@ export function SelfService() {
 
   const tabLabel: Record<string, string> = {
     overview: 'Overview',
-    attendance: 'Attendance',
-    timesheets: 'Timesheets',
-    travel: 'Travel & Expenses',
-    learning: 'Learning',
-    assets: 'Assets',
-    tax: 'Tax & Pay',
-    work: 'Allocation & KT',
-    admin: 'Administration',
+    admin: 'Admin',
+    ...Object.fromEntries(GROUPS.map((g) => [g.id, g.label])),
+  }
+
+  const sectionContent: Record<SectionId, ReactNode> = {
+    attendance: <AttendanceTab store={attendance} />,
+    timesheets: <TimesheetTab store={timesheets} />,
+    travel: <TravelTab store={travel} />,
+    learning: <LearningTab store={learning} />,
+    assets: <AssetsTab store={assets} />,
+    tax: <TaxTab store={tax} />,
+    work: <WorkTab />,
   }
 
   return (
@@ -165,41 +191,43 @@ export function SelfService() {
                 pendingTasks={pendingTasks}
               />
             </TabsContent>
-            {sectionVisible('attendance') && (
-              <TabsContent value='attendance'>
-                <AttendanceTab store={attendance} />
-              </TabsContent>
-            )}
-            {sectionVisible('timesheets') && (
-              <TabsContent value='timesheets'>
-                <TimesheetTab store={timesheets} />
-              </TabsContent>
-            )}
-            {sectionVisible('travel') && (
-              <TabsContent value='travel'>
-                <TravelTab store={travel} />
-              </TabsContent>
-            )}
-            {sectionVisible('learning') && (
-              <TabsContent value='learning'>
-                <LearningTab store={learning} />
-              </TabsContent>
-            )}
-            {sectionVisible('assets') && (
-              <TabsContent value='assets'>
-                <AssetsTab store={assets} />
-              </TabsContent>
-            )}
-            {sectionVisible('tax') && (
-              <TabsContent value='tax'>
-                <TaxTab store={tax} />
-              </TabsContent>
-            )}
-            {sectionVisible('work') && (
-              <TabsContent value='work'>
-                <WorkTab />
-              </TabsContent>
-            )}
+
+            {GROUPS.map((group) => {
+              const visibleSections = group.sections.filter((s) =>
+                sectionVisible(s)
+              )
+              if (visibleSections.length === 0) return null
+              if (visibleSections.length === 1) {
+                return (
+                  <TabsContent key={group.id} value={group.id}>
+                    {sectionContent[visibleSections[0]]}
+                  </TabsContent>
+                )
+              }
+              return (
+                <TabsContent key={group.id} value={group.id}>
+                  <Tabs
+                    key={visibleSections.join('-')}
+                    defaultValue={visibleSections[0]}
+                    className='w-full'
+                  >
+                    <TabsList className='mb-3 flex-wrap bg-transparent p-0'>
+                      {visibleSections.map((s) => (
+                        <TabsTrigger key={s} variant='ghost' value={s}>
+                          {SECTION_LABEL[s]}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    {visibleSections.map((s) => (
+                      <TabsContent key={s} value={s}>
+                        {sectionContent[s]}
+                      </TabsContent>
+                    ))}
+                  </Tabs>
+                </TabsContent>
+              )
+            })}
+
             {isAdmin && (
               <TabsContent value='admin'>
                 <AdminTab profile={profile} portal={portal} />

@@ -75,17 +75,18 @@ export function Positions() {
 
   const tabs = useMemo<TabDef[]>(() => {
     if (isEmployee) return [{ value: 'my', label: 'My Position' }]
-    const list: TabDef[] = [{ value: 'catalogue', label: 'Catalogue' }]
+    const list: TabDef[] = [{ value: 'catalogue', label: 'All Positions' }]
     if (isCompanyAdmin) {
       list.push(
         { value: 'assignments', label: 'Assignments' },
-        { value: 'recruitment', label: 'Recruitment' },
-        { value: 'reports', label: 'Reports' },
-        { value: 'config', label: 'Configuration' }
+        { value: 'recruitment', label: 'Hiring' },
+        { value: 'reports', label: 'Reports' }
       )
     }
-    if (isOversight) {
-      list.push({ value: 'governance', label: 'Governance' })
+    // Configuration + Governance fold into a single Admin tab; the same
+    // role gates apply inside it, so it only appears for roles with content.
+    if (isCompanyAdmin || isOversight) {
+      list.push({ value: 'admin', label: 'Admin' })
     }
     return list
   }, [isEmployee, isCompanyAdmin, isOversight])
@@ -164,26 +165,49 @@ export function Positions() {
                     assignmentHistory={employees.assignmentHistory}
                   />
                 </TabsContent>
-                <TabsContent value='config'>
-                  <ConfigTab
-                    companyId={activeCompanyId}
-                    store={store}
-                    orgConfig={orgConfig}
-                  />
-                </TabsContent>
               </>
             )}
 
-            {isOversight && (
-              <TabsContent value='governance'>
-                <GovernanceTab
-                  companies={scopedCompanies}
-                  departments={DEPARTMENTS}
-                  positions={store.positions}
-                  employees={employees.employees}
-                  orgConfig={orgConfig}
-                  store={store}
-                />
+            {(isCompanyAdmin || isOversight) && (
+              <TabsContent value='admin'>
+                <Tabs
+                  defaultValue={isCompanyAdmin ? 'settings' : 'oversight'}
+                  className='w-full'
+                >
+                  <TabsList className='mb-2'>
+                    {isCompanyAdmin && (
+                      <TabsTrigger variant='primary' value='settings'>
+                        Settings
+                      </TabsTrigger>
+                    )}
+                    {isOversight && (
+                      <TabsTrigger variant='primary' value='oversight'>
+                        Company Oversight
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
+                  {isCompanyAdmin && (
+                    <TabsContent value='settings'>
+                      <ConfigTab
+                        companyId={activeCompanyId}
+                        store={store}
+                        orgConfig={orgConfig}
+                      />
+                    </TabsContent>
+                  )}
+                  {isOversight && (
+                    <TabsContent value='oversight'>
+                      <GovernanceTab
+                        companies={scopedCompanies}
+                        departments={DEPARTMENTS}
+                        positions={store.positions}
+                        employees={employees.employees}
+                        orgConfig={orgConfig}
+                        store={store}
+                      />
+                    </TabsContent>
+                  )}
+                </Tabs>
               </TabsContent>
             )}
 

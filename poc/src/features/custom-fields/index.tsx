@@ -31,12 +31,11 @@ export function CustomFields() {
   const conditionsStore = useWorkflowConditions()
 
   const isAdmin = ADMIN_ROLES.includes(role)
-  const [tab, setTab] = useState(isAdmin ? 'definitions' : 'records')
+  const [tab, setTab] = useState(isAdmin ? 'admin' : 'records')
 
-  // Employees have no definition/governance surface; snap to their tabs.
+  // Employees have no admin surface; snap to their tabs.
   useEffect(() => {
-    if (!isAdmin && (tab === 'definitions' || tab === 'governance'))
-      setTab('records')
+    if (!isAdmin && tab === 'admin') setTab('records')
   }, [isAdmin, tab])
 
   return (
@@ -48,23 +47,10 @@ export function CustomFields() {
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className='mb-2'>
-              {isAdmin && (
-                <TabsTrigger value='definitions'>Field Definitions</TabsTrigger>
-              )}
               <TabsTrigger value='records'>Records & Forms</TabsTrigger>
               <TabsTrigger value='integration'>Data & Automation</TabsTrigger>
-              {isAdmin && (
-                <TabsTrigger value='governance'>
-                  Governance & History
-                </TabsTrigger>
-              )}
+              {isAdmin && <TabsTrigger value='admin'>Admin</TabsTrigger>}
             </TabsList>
-
-            {isAdmin && (
-              <TabsContent value='definitions'>
-                <DefinitionsTab store={fieldStore} />
-              </TabsContent>
-            )}
 
             <TabsContent value='records'>
               <RecordsTab fields={fieldStore.fields} store={recordStore} />
@@ -79,12 +65,25 @@ export function CustomFields() {
             </TabsContent>
 
             {isAdmin && (
-              <TabsContent value='governance'>
-                <GovernanceTab
-                  fields={fieldStore.fields}
-                  versions={fieldStore.versions}
-                  valueHistory={recordStore.valueHistory}
-                />
+              <TabsContent value='admin'>
+                <Tabs defaultValue='fields'>
+                  <TabsList className='mb-2'>
+                    <TabsTrigger value='fields'>Manage Fields</TabsTrigger>
+                    <TabsTrigger value='history'>History</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value='fields'>
+                    <DefinitionsTab store={fieldStore} />
+                  </TabsContent>
+
+                  <TabsContent value='history'>
+                    <GovernanceTab
+                      fields={fieldStore.fields}
+                      versions={fieldStore.versions}
+                      valueHistory={recordStore.valueHistory}
+                    />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
             )}
           </Tabs>

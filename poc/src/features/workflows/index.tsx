@@ -27,26 +27,16 @@ interface TabDef {
 }
 
 /**
- * Which tabs each role sees; the first visible tab is the default.
- * Configuration surfaces belong to Company/Group admins (WFE-01, WFE-16);
- * Portfolio Admins get cross-company monitoring (WFE-17); Platform Admins
- * get tenant provisioning + engine health (WFE-18, WFE-19); Employee (User)
- * gets the approver inbox (WFE-13, WFE-26).
+ * Task-first top-level tabs; the first visible tab is the default for the
+ * active role. Everyday surfaces (approver inbox / running requests, then the
+ * workflow list) come first; every configuration surface (approver groups,
+ * routing rules, SLAs, platform toggles, audit trail) is folded into a single
+ * role-gated "Admin" tab with nested tabs (WFE-01 … WFE-42).
  */
 const TABS: TabDef[] = [
   {
-    value: 'definitions',
-    label: 'Definitions',
-    roles: [
-      'Company Admin',
-      'Group Company Admin',
-      'Portfolio Admin',
-      'Platform Admin',
-    ],
-  },
-  {
     value: 'instances',
-    label: 'Instances',
+    label: 'In progress',
     roles: [
       'Company Admin',
       'Group Company Admin',
@@ -55,28 +45,52 @@ const TABS: TabDef[] = [
     ],
   },
   {
+    value: 'definitions',
+    label: 'Workflows',
+    roles: [
+      'Company Admin',
+      'Group Company Admin',
+      'Portfolio Admin',
+      'Platform Admin',
+    ],
+  },
+  {
+    value: 'admin',
+    label: 'Admin',
+    roles: [
+      'Company Admin',
+      'Group Company Admin',
+      'Portfolio Admin',
+      'Platform Admin',
+    ],
+  },
+]
+
+/** Nested tabs inside "Admin"; each keeps the role gate its former top-level tab had. */
+const ADMIN_TABS: TabDef[] = [
+  {
     value: 'approvers',
-    label: 'Approver Groups',
+    label: 'Approver groups',
     roles: ['Company Admin', 'Group Company Admin'],
   },
   {
     value: 'routing',
-    label: 'Routing & Rules',
+    label: 'Approval rules',
     roles: ['Company Admin', 'Group Company Admin'],
   },
   {
     value: 'sla',
-    label: 'SLA & Escalations',
+    label: 'Deadlines & escalations',
     roles: ['Company Admin', 'Group Company Admin', 'Portfolio Admin'],
   },
   {
     value: 'platform',
-    label: 'Platform & Configuration',
+    label: 'Settings',
     roles: ['Platform Admin', 'Company Admin'],
   },
   {
     value: 'audit',
-    label: 'Audit Trail',
+    label: 'History',
     roles: [
       'Company Admin',
       'Group Company Admin',
@@ -130,11 +144,16 @@ export function Workflows() {
   const platform = usePlatform({ append: audit.append })
 
   const canConfigure = hasRole('Company Admin', 'Group Company Admin')
-  const visibleTabs = TABS.filter((t) => t.roles.includes(role))
+  const visibleAdminTabs = ADMIN_TABS.filter((t) => t.roles.includes(role))
+  const visibleTabs = TABS.filter(
+    (t) =>
+      t.roles.includes(role) &&
+      (t.value !== 'admin' || visibleAdminTabs.length > 0)
+  )
 
   return (
     <>
-      <CommonHeader title='Workflow Engine' className='bg-blue-150' />
+      <CommonHeader title='Workflows' className='bg-blue-150' />
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
           {visibleTabs.length === 0 ? (
@@ -179,33 +198,58 @@ export function Workflows() {
                 />
               </TabsContent>
 
-              <TabsContent value='approvers'>
-                <ApproverGroupsTab store={approverGroups} />
-              </TabsContent>
+              <TabsContent value='admin'>
+                <Tabs defaultValue={visibleAdminTabs[0]?.value} key={role}>
+                  <TabsList className='mb-2 flex-wrap'>
+                    {visibleAdminTabs.map((t) => (
+                      <TabsTrigger key={t.value} value={t.value}>
+                        {t.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
 
-              <TabsContent value='routing'>
-                <RoutingTab
-                  routing={routing}
-                  attendance={attendanceConfig}
-                  definitions={definitions.definitions}
-                  canConfigure={canConfigure}
-                />
-              </TabsContent>
+                  {visibleAdminTabs.some((t) => t.value === 'approvers') && (
+                    <TabsContent value='approvers'>
+                      <ApproverGroupsTab store={approverGroups} />
+                    </TabsContent>
+                  )}
 
-              <TabsContent value='sla'>
-                <SlaTab store={slaConfig} canConfigure={canConfigure} />
-              </TabsContent>
+                  {visibleAdminTabs.some((t) => t.value === 'routing') && (
+                    <TabsContent value='routing'>
+                      <RoutingTab
+                        routing={routing}
+                        attendance={attendanceConfig}
+                        definitions={definitions.definitions}
+                        canConfigure={canConfigure}
+                      />
+                    </TabsContent>
+                  )}
 
-              <TabsContent value='platform'>
-                <PlatformTab platform={platform} attendance={attendanceConfig} />
-              </TabsContent>
+                  {visibleAdminTabs.some((t) => t.value === 'sla') && (
+                    <TabsContent value='sla'>
+                      <SlaTab store={slaConfig} canConfigure={canConfigure} />
+                    </TabsContent>
+                  )}
 
-              <TabsContent value='audit'>
-                <AuditTab
-                  events={audit.events}
-                  companies={companies}
-                  showPlatformEvents={hasRole('Platform Admin')}
-                />
+                  {visibleAdminTabs.some((t) => t.value === 'platform') && (
+                    <TabsContent value='platform'>
+                      <PlatformTab
+                        platform={platform}
+                        attendance={attendanceConfig}
+                      />
+                    </TabsContent>
+                  )}
+
+                  {visibleAdminTabs.some((t) => t.value === 'audit') && (
+                    <TabsContent value='audit'>
+                      <AuditTab
+                        events={audit.events}
+                        companies={companies}
+                        showPlatformEvents={hasRole('Platform Admin')}
+                      />
+                    </TabsContent>
+                  )}
+                </Tabs>
               </TabsContent>
             </Tabs>
           )}

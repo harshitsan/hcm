@@ -38,16 +38,15 @@ export function Assets() {
 
   const availableTabs = useMemo(() => {
     const tabs: string[] = []
-    if (isCompanyAdmin || isOversight) tabs.push('inventory')
     if (isEmployeeUser) tabs.push('my-assets')
     if (isCompanyAdmin || isEmployeeUser) tabs.push('requisitions')
-    if (isCompanyAdmin) tabs.push('movements', 'workflows')
-    if (isCompanyAdmin || isOversight) tabs.push('reports')
+    if (isCompanyAdmin || isOversight) tabs.push('inventory')
+    if (isCompanyAdmin) tabs.push('activity')
     if (isCompanyAdmin || isPlatformAdmin) tabs.push('config')
     return tabs
   }, [isCompanyAdmin, isOversight, isEmployeeUser, isPlatformAdmin])
 
-  const [tab, setTab] = useState('inventory')
+  const [tab, setTab] = useState(isEmployeeUser ? 'my-assets' : 'inventory')
 
   useEffect(() => {
     if (availableTabs.length > 0 && !availableTabs.includes(tab)) setTab(availableTabs[0])
@@ -75,11 +74,6 @@ export function Assets() {
           ) : (
             <Tabs value={tab} onValueChange={setTab} className='w-full'>
               <TabsList className='mb-3 bg-transparent p-0'>
-                {(isCompanyAdmin || isOversight) && (
-                  <TabsTrigger variant='primary' value='inventory'>
-                    Inventory
-                  </TabsTrigger>
-                )}
                 {isEmployeeUser && (
                   <TabsTrigger variant='primary' value='my-assets'>
                     My Assets
@@ -87,27 +81,22 @@ export function Assets() {
                 )}
                 {(isCompanyAdmin || isEmployeeUser) && (
                   <TabsTrigger variant='primary' value='requisitions'>
-                    Requisitions
+                    Requests
+                  </TabsTrigger>
+                )}
+                {(isCompanyAdmin || isOversight) && (
+                  <TabsTrigger variant='primary' value='inventory'>
+                    Inventory
                   </TabsTrigger>
                 )}
                 {isCompanyAdmin && (
-                  <>
-                    <TabsTrigger variant='primary' value='movements'>
-                      Arrivals & Outbound
-                    </TabsTrigger>
-                    <TabsTrigger variant='primary' value='workflows'>
-                      Workflows
-                    </TabsTrigger>
-                  </>
-                )}
-                {(isCompanyAdmin || isOversight) && (
-                  <TabsTrigger variant='primary' value='reports'>
-                    Reports
+                  <TabsTrigger variant='primary' value='activity'>
+                    Activity
                   </TabsTrigger>
                 )}
                 {(isCompanyAdmin || isPlatformAdmin) && (
                   <TabsTrigger variant='primary' value='config'>
-                    Configuration
+                    Admin
                   </TabsTrigger>
                 )}
               </TabsList>
@@ -122,17 +111,12 @@ export function Assets() {
                     The enable-asset-module setting is No, so requisition, issuance,
                     arrival and outbound screens are hidden.
                     {isCompanyAdmin
-                      ? ' Re-enable it from the Configuration tab.'
+                      ? ' Re-enable it from the Admin tab.'
                       : ' Contact your Company Admin to enable it.'}
                   </p>
                 </div>
               ) : (
                 <>
-                  {(isCompanyAdmin || isOversight) && (
-                    <TabsContent value='inventory'>
-                      <InventoryTab store={store} config={config} />
-                    </TabsContent>
-                  )}
                   {isEmployeeUser && (
                     <TabsContent value='my-assets'>
                       <MyAssetsTab store={store} config={config} />
@@ -147,23 +131,52 @@ export function Assets() {
                       />
                     </TabsContent>
                   )}
-                  {isCompanyAdmin && (
-                    <>
-                      <TabsContent value='movements'>
-                        <MovementsTab
-                          movements={movements}
-                          assetsStore={store}
-                          config={config}
-                        />
-                      </TabsContent>
-                      <TabsContent value='workflows'>
-                        <WorkflowsTab store={store} />
-                      </TabsContent>
-                    </>
-                  )}
                   {(isCompanyAdmin || isOversight) && (
-                    <TabsContent value='reports'>
-                      <ReportsTab assetsStore={store} reqStore={reqStore} config={config} />
+                    <TabsContent value='inventory'>
+                      <Tabs defaultValue='assets' className='w-full'>
+                        <TabsList className='mb-3 bg-transparent p-0'>
+                          <TabsTrigger variant='ghost' value='assets'>
+                            All assets
+                          </TabsTrigger>
+                          <TabsTrigger variant='ghost' value='reports'>
+                            Reports
+                          </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value='assets'>
+                          <InventoryTab store={store} config={config} />
+                        </TabsContent>
+                        <TabsContent value='reports'>
+                          <ReportsTab
+                            assetsStore={store}
+                            reqStore={reqStore}
+                            config={config}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    </TabsContent>
+                  )}
+                  {isCompanyAdmin && (
+                    <TabsContent value='activity'>
+                      <Tabs defaultValue='movements' className='w-full'>
+                        <TabsList className='mb-3 bg-transparent p-0'>
+                          <TabsTrigger variant='ghost' value='movements'>
+                            Arrivals & outbound
+                          </TabsTrigger>
+                          <TabsTrigger variant='ghost' value='tasks'>
+                            Onboarding & exit tasks
+                          </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value='movements'>
+                          <MovementsTab
+                            movements={movements}
+                            assetsStore={store}
+                            config={config}
+                          />
+                        </TabsContent>
+                        <TabsContent value='tasks'>
+                          <WorkflowsTab store={store} />
+                        </TabsContent>
+                      </Tabs>
                     </TabsContent>
                   )}
                   {(isCompanyAdmin || isPlatformAdmin) && (

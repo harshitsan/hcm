@@ -36,10 +36,8 @@ export function PolicyDistribution() {
   const canConfigure = (CONFIG_ROLES as readonly string[]).includes(role)
 
   const availableTabs = useMemo(() => {
-    const tabs: string[] = []
-    if (isAdmin) tabs.push('distributions')
-    tabs.push('inbox')
-    if (isAdmin) tabs.push('compliance')
+    const tabs: string[] = ['inbox']
+    if (isAdmin) tabs.push('distributions', 'compliance')
     if (canConfigure) tabs.push('config')
     return tabs
   }, [isAdmin, canConfigure])
@@ -57,14 +55,14 @@ export function PolicyDistribution() {
         <div className='w-full'>
           <Tabs value={tab} onValueChange={setTab} className='w-full'>
             <TabsList className='mb-3 bg-transparent p-0'>
+              <TabsTrigger variant='primary' value='inbox'>
+                My Policy Inbox
+              </TabsTrigger>
               {isAdmin && (
                 <TabsTrigger variant='primary' value='distributions'>
                   Distributions
                 </TabsTrigger>
               )}
-              <TabsTrigger variant='primary' value='inbox'>
-                My Policy Inbox
-              </TabsTrigger>
               {isAdmin && (
                 <TabsTrigger variant='primary' value='compliance'>
                   Compliance
@@ -72,19 +70,19 @@ export function PolicyDistribution() {
               )}
               {canConfigure && (
                 <TabsTrigger variant='primary' value='config'>
-                  Configuration
+                  Admin
                 </TabsTrigger>
               )}
             </TabsList>
 
+            <TabsContent value='inbox'>
+              <InboxTab store={store} config={config} />
+            </TabsContent>
             {isAdmin && (
               <TabsContent value='distributions'>
                 <DistributionsTab store={store} config={config} />
               </TabsContent>
             )}
-            <TabsContent value='inbox'>
-              <InboxTab store={store} config={config} />
-            </TabsContent>
             {isAdmin && (
               <TabsContent value='compliance'>
                 <ComplianceTab store={store} />

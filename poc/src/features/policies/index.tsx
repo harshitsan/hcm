@@ -45,17 +45,16 @@ export function Policies() {
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className='mb-2'>
-              {isAdmin && (
-                <TabsTrigger value='documents'>Policy Documents</TabsTrigger>
-              )}
-              {isAdmin && (
-                <TabsTrigger value='applicability'>Applicability</TabsTrigger>
-              )}
               <TabsTrigger value='library'>Policy Library</TabsTrigger>
               {isAdmin && (
-                <TabsTrigger value='governance'>Governance</TabsTrigger>
+                <TabsTrigger value='documents'>All Policies</TabsTrigger>
               )}
+              {isAdmin && <TabsTrigger value='admin'>Admin</TabsTrigger>}
             </TabsList>
+
+            <TabsContent value='library'>
+              <LibraryTab store={store} />
+            </TabsContent>
 
             {isAdmin && (
               <TabsContent value='documents'>
@@ -64,18 +63,25 @@ export function Policies() {
             )}
 
             {isAdmin && (
-              <TabsContent value='applicability'>
-                <ApplicabilityTab store={store} />
-              </TabsContent>
-            )}
+              <TabsContent value='admin'>
+                <Tabs defaultValue='applicability'>
+                  <TabsList className='mb-2'>
+                    <TabsTrigger value='applicability'>
+                      Who policies apply to
+                    </TabsTrigger>
+                    <TabsTrigger value='governance'>
+                      Permissions & audit
+                    </TabsTrigger>
+                  </TabsList>
 
-            <TabsContent value='library'>
-              <LibraryTab store={store} />
-            </TabsContent>
+                  <TabsContent value='applicability'>
+                    <ApplicabilityTab store={store} />
+                  </TabsContent>
 
-            {isAdmin && (
-              <TabsContent value='governance'>
-                <GovernanceTab store={store} />
+                  <TabsContent value='governance'>
+                    <GovernanceTab store={store} />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
             )}
           </Tabs>

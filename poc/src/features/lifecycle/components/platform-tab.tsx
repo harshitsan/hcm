@@ -74,7 +74,7 @@ export function PlatformTab({ transfers }: PlatformTabProps) {
   return (
     <div className='w-full'>
       <SectionCard
-        title='Effective-dated bitemporal assignment history'
+        title='Assignment history (as of a date)'
         description='Every transfer appends a new assignment record with valid-from/valid-to (effective time) and recorded-at (system time); prior records are never overwritten.'
       >
         <div className='mb-3 flex flex-wrap items-end gap-2'>
@@ -177,7 +177,7 @@ export function PlatformTab({ transfers }: PlatformTabProps) {
       </SectionCard>
 
       <SectionCard
-        title='Lifecycle status integrity constraints'
+        title='Status change rules'
         description='Exactly one active assignment and one current lifecycle status per employee at any effective time; only valid transitions are accepted.'
       >
         <div className='flex flex-wrap items-end gap-2'>
@@ -238,7 +238,7 @@ export function PlatformTab({ transfers }: PlatformTabProps) {
       </SectionCard>
 
       <SectionCard
-        title='Immutable tenant-scoped audit store'
+        title='Audit log (append-only)'
         description='Append-only records with actor, timestamp, action, before/after state and outcome. Row-level security scopes every query to the requesting tenant; lifecycle reports read from this canonical trail.'
       >
         <div className='flex flex-wrap gap-2'>

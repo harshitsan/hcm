@@ -20,12 +20,16 @@ import { useSecurity } from './hooks/use-security'
 import { useTenants } from './hooks/use-tenants'
 
 const TAB_LABELS: Record<string, string> = {
-  tenants: 'Tenants & Companies',
-  identity: 'Identity & Access',
-  config: 'Governed Config',
-  security: 'Security & Compliance',
-  governance: 'Data Governance',
-  operations: 'Operations & SLA',
+  tenants: 'Tenants & companies',
+  identity: 'Users & access',
+  operations: 'Operations',
+  settings: 'Settings',
+}
+
+const SETTINGS_TAB_LABELS: Record<string, string> = {
+  config: 'Configuration',
+  security: 'Security',
+  governance: 'Data rules',
 }
 
 /**
@@ -34,8 +38,10 @@ const TAB_LABELS: Record<string, string> = {
  * configuration, security/compliance, data governance and operations.
  */
 export function PlatformAdmin() {
-  const { role } = useRole()
-  const [tab, setTab] = useState('tenants')
+  const { role, hasRole } = useRole()
+  const [tab, setTab] = useState(() =>
+    hasRole('Employee (User)', 'Employee (Non-User)') ? 'identity' : 'tenants'
+  )
 
   const tenants = useTenants()
   const identity = useIdentity()
@@ -101,17 +107,28 @@ export function PlatformAdmin() {
                 activeCompanyId={tenants.activeCompanyId}
               />
             </TabsContent>
-            <TabsContent value='config'>
-              <ConfigTab store={config} />
-            </TabsContent>
-            <TabsContent value='security'>
-              <SecurityTab store={security} />
-            </TabsContent>
-            <TabsContent value='governance'>
-              <GovernanceTab store={governance} />
-            </TabsContent>
             <TabsContent value='operations'>
               <OperationsTab store={operations} />
+            </TabsContent>
+            <TabsContent value='settings'>
+              <Tabs defaultValue='config' className='w-full'>
+                <TabsList className='mb-3 flex-wrap bg-transparent p-0'>
+                  {Object.entries(SETTINGS_TAB_LABELS).map(([value, label]) => (
+                    <TabsTrigger key={value} variant='primary' value={value}>
+                      {label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                <TabsContent value='config'>
+                  <ConfigTab store={config} />
+                </TabsContent>
+                <TabsContent value='security'>
+                  <SecurityTab store={security} />
+                </TabsContent>
+                <TabsContent value='governance'>
+                  <GovernanceTab store={governance} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

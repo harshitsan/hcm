@@ -96,27 +96,27 @@ export function Lifecycle() {
     if (isEmployee) return [{ value: 'my', label: 'My Lifecycle' }]
     if (isPlatformAdmin)
       return [
-        { value: 'platform', label: 'Data Model' },
-        { value: 'config', label: 'Configuration' },
+        { value: 'config', label: 'Settings' },
+        { value: 'platform', label: 'Data & History' },
         { value: 'audit', label: 'Audit & Reports' },
       ]
     if (isGroupAdmin)
       return [
         { value: 'transfers', label: 'Transfers' },
-        { value: 'config', label: 'Configuration' },
-        { value: 'audit', label: 'Audit & Reports' },
+        { value: 'admin', label: 'Admin' },
       ]
     if (isCompanyAdmin) {
       const list: TabDef[] = [
-        { value: 'onboarding', label: 'Onboarding' },
-        ...(config.settings.confirmationModuleEnabled
-          ? [{ value: 'probation', label: 'Probation & Confirmation' }]
-          : []),
+        {
+          value: 'onboarding',
+          label: config.settings.confirmationModuleEnabled
+            ? 'Onboarding & Probation'
+            : 'Onboarding',
+        },
         { value: 'transfers', label: 'Transfers' },
         { value: 'exits', label: 'Exits' },
         { value: 'disciplinary', label: 'Disciplinary' },
-        { value: 'config', label: 'Configuration' },
-        { value: 'audit', label: 'Audit & Reports' },
+        { value: 'admin', label: 'Admin' },
       ]
       return list
     }
@@ -184,19 +184,36 @@ export function Lifecycle() {
             {isCompanyAdmin && (
               <>
                 <TabsContent value='onboarding'>
-                  <OnboardingTab
-                    store={onboarding}
-                    templateVersion={config.publishedTemplate.version}
-                  />
-                </TabsContent>
-                {config.settings.confirmationModuleEnabled && (
-                  <TabsContent value='probation'>
-                    <ProbationTab
-                      store={probation}
-                      decisionTable={config.decisionTable}
+                  {config.settings.confirmationModuleEnabled ? (
+                    <Tabs defaultValue='onboarding' className='w-full'>
+                      <TabsList className='mb-2'>
+                        <TabsTrigger variant='ghost' value='onboarding'>
+                          Onboarding
+                        </TabsTrigger>
+                        <TabsTrigger variant='ghost' value='probation'>
+                          Probation & Confirmation
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value='onboarding'>
+                        <OnboardingTab
+                          store={onboarding}
+                          templateVersion={config.publishedTemplate.version}
+                        />
+                      </TabsContent>
+                      <TabsContent value='probation'>
+                        <ProbationTab
+                          store={probation}
+                          decisionTable={config.decisionTable}
+                        />
+                      </TabsContent>
+                    </Tabs>
+                  ) : (
+                    <OnboardingTab
+                      store={onboarding}
+                      templateVersion={config.publishedTemplate.version}
                     />
-                  </TabsContent>
-                )}
+                  )}
+                </TabsContent>
                 <TabsContent value='exits'>
                   <ExitsTab
                     store={exits}
@@ -222,13 +239,36 @@ export function Lifecycle() {
               </TabsContent>
             )}
 
-            {(isCompanyAdmin || isGroupAdmin || isPlatformAdmin) && (
+            {isPlatformAdmin && (
               <TabsContent value='config'>
                 <ConfigTab config={config} />
               </TabsContent>
             )}
 
-            {!isEmployee && (
+            {/* Company / Group admins reach settings and the audit log
+                through a single Admin tab; other roles keep audit top-level. */}
+            {(isCompanyAdmin || isGroupAdmin) && (
+              <TabsContent value='admin'>
+                <Tabs defaultValue='settings' className='w-full'>
+                  <TabsList className='mb-2'>
+                    <TabsTrigger variant='ghost' value='settings'>
+                      Settings
+                    </TabsTrigger>
+                    <TabsTrigger variant='ghost' value='audit'>
+                      Audit & Reports
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value='settings'>
+                    <ConfigTab config={config} />
+                  </TabsContent>
+                  <TabsContent value='audit'>
+                    <AuditTab log={lifecycleLog} />
+                  </TabsContent>
+                </Tabs>
+              </TabsContent>
+            )}
+
+            {!isEmployee && !isCompanyAdmin && !isGroupAdmin && (
               <TabsContent value='audit'>
                 <AuditTab log={lifecycleLog} />
               </TabsContent>

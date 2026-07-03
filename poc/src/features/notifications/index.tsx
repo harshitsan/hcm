@@ -13,11 +13,11 @@ import { useNotifications } from './hooks/use-notifications'
 import { useTemplates } from './hooks/use-templates'
 
 /**
- * Notifications & Communications (FR 6.27): the in-app notification center,
- * the persisted delivery log with retry/fallback/dead-letter handling, the
- * HR-domain template library with branded editor, channel/connector and
- * delivery-model configuration, Kensium alert toggles and personal
- * preferences — with actions gated per role.
+ * Notifications & Communications (FR 6.27): the in-app notification center
+ * and personal preferences up front, with the admin-only surfaces (template
+ * library, channel/connector and delivery-model configuration, Kensium alert
+ * toggles, and the persisted delivery history with retry/fallback/dead-letter
+ * handling) grouped under a single Admin tab — actions gated per role.
  */
 export function Notifications() {
   const {
@@ -54,20 +54,11 @@ export function Notifications() {
               <TabsTrigger value='inbox' variant='primary'>
                 Inbox{unreadCount > 0 ? ` (${unreadCount})` : ''}
               </TabsTrigger>
-              <TabsTrigger value='templates' variant='primary'>
-                Templates
-              </TabsTrigger>
-              <TabsTrigger value='channels' variant='primary'>
-                Channels &amp; Delivery
-              </TabsTrigger>
-              <TabsTrigger value='alerts' variant='primary'>
-                Alerts
-              </TabsTrigger>
-              <TabsTrigger value='log' variant='primary'>
-                Delivery Log
-              </TabsTrigger>
               <TabsTrigger value='preferences' variant='primary'>
                 My Preferences
+              </TabsTrigger>
+              <TabsTrigger value='admin' variant='primary'>
+                Admin
               </TabsTrigger>
             </TabsList>
 
@@ -83,41 +74,52 @@ export function Notifications() {
               />
             </TabsContent>
 
-            <TabsContent value='templates'>
-              <TemplatesTab
-                templates={templates}
-                saveTemplate={saveTemplate}
-                restoreDefault={restoreDefault}
-                overrideAtCompany={overrideAtCompany}
-              />
-            </TabsContent>
-
-            <TabsContent value='channels'>
-              <ChannelsTab settings={settings} runDigest={runDigest} />
-            </TabsContent>
-
-            <TabsContent value='alerts'>
-              <AlertsTab
-                alerts={settings.alerts}
-                saveAlerts={settings.saveAlerts}
-              />
-            </TabsContent>
-
-            <TabsContent value='log'>
-              <DeliveryLogTab
-                deliveries={deliveries}
-                retryDelivery={retryDelivery}
-                fallbackToEmail={fallbackToEmail}
-                resolveDeadLetter={resolveDeadLetter}
-              />
-            </TabsContent>
-
             <TabsContent value='preferences'>
               <PreferencesTab
                 current={settings.currentPreferences}
                 versions={settings.preferenceVersions}
                 savePreferences={settings.savePreferences}
               />
+            </TabsContent>
+
+            <TabsContent value='admin'>
+              <Tabs defaultValue='templates' className='w-full'>
+                <TabsList className='mb-2'>
+                  <TabsTrigger value='templates'>Templates</TabsTrigger>
+                  <TabsTrigger value='channels'>Channels</TabsTrigger>
+                  <TabsTrigger value='alerts'>Alerts</TabsTrigger>
+                  <TabsTrigger value='log'>Delivery history</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value='templates'>
+                  <TemplatesTab
+                    templates={templates}
+                    saveTemplate={saveTemplate}
+                    restoreDefault={restoreDefault}
+                    overrideAtCompany={overrideAtCompany}
+                  />
+                </TabsContent>
+
+                <TabsContent value='channels'>
+                  <ChannelsTab settings={settings} runDigest={runDigest} />
+                </TabsContent>
+
+                <TabsContent value='alerts'>
+                  <AlertsTab
+                    alerts={settings.alerts}
+                    saveAlerts={settings.saveAlerts}
+                  />
+                </TabsContent>
+
+                <TabsContent value='log'>
+                  <DeliveryLogTab
+                    deliveries={deliveries}
+                    retryDelivery={retryDelivery}
+                    fallbackToEmail={fallbackToEmail}
+                    resolveDeadLetter={resolveDeadLetter}
+                  />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

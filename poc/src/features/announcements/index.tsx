@@ -35,10 +35,9 @@ export function Announcements() {
     const tabs: string[] = []
     if (isAdmin) tabs.push('manage')
     tabs.push('feed')
-    if (isAdmin) tabs.push('images')
-    if (isPlatformAdmin) tabs.push('config')
+    if (isAdmin) tabs.push('admin')
     return tabs
-  }, [isAdmin, isPlatformAdmin])
+  }, [isAdmin])
 
   const [tab, setTab] = useState(isAdmin ? 'manage' : 'feed')
 
@@ -64,18 +63,13 @@ export function Announcements() {
                 My Feed
               </TabsTrigger>
               {isAdmin && (
-                <TabsTrigger variant='primary' value='images'>
-                  Announcement Images
-                </TabsTrigger>
-              )}
-              {isPlatformAdmin && (
-                <TabsTrigger variant='primary' value='config'>
-                  Configuration
+                <TabsTrigger variant='primary' value='admin'>
+                  Admin
                 </TabsTrigger>
               )}
             </TabsList>
 
-            {moduleDisabled && tab !== 'config' ? (
+            {moduleDisabled && !(tab === 'admin' && isPlatformAdmin) ? (
               <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
                 <MegaphoneSimple size={32} className='text-neutral-1000' />
                 <p className='text-neutral-1600 text-paragraph-md font-medium'>
@@ -85,7 +79,7 @@ export function Announcements() {
                   The module toggle in the tenant configuration is off, so no
                   compose or view surfaces are available.
                   {isPlatformAdmin
-                    ? ' Re-enable it from the Configuration tab.'
+                    ? ' Re-enable it from the Admin tab.'
                     : ' Contact your Platform Admin to enable it.'}
                 </p>
               </div>
@@ -100,16 +94,38 @@ export function Announcements() {
                   <FeedTab store={store} images={settings.images} />
                 </TabsContent>
                 {isAdmin && (
-                  <TabsContent value='images'>
-                    <ImagesTab settings={settings} />
-                  </TabsContent>
-                )}
-                {isPlatformAdmin && (
-                  <TabsContent value='config'>
-                    <ConfigTab
-                      settings={settings}
-                      onRunSchedulingEngine={store.runSchedulingEngine}
-                    />
+                  <TabsContent value='admin'>
+                    {isPlatformAdmin ? (
+                      <Tabs
+                        key={moduleDisabled ? 'disabled' : 'enabled'}
+                        defaultValue={moduleDisabled ? 'settings' : 'images'}
+                        className='w-full'
+                      >
+                        <TabsList className='mb-3 bg-transparent p-0'>
+                          {!moduleDisabled && (
+                            <TabsTrigger variant='primary' value='images'>
+                              Images
+                            </TabsTrigger>
+                          )}
+                          <TabsTrigger variant='primary' value='settings'>
+                            Settings
+                          </TabsTrigger>
+                        </TabsList>
+                        {!moduleDisabled && (
+                          <TabsContent value='images'>
+                            <ImagesTab settings={settings} />
+                          </TabsContent>
+                        )}
+                        <TabsContent value='settings'>
+                          <ConfigTab
+                            settings={settings}
+                            onRunSchedulingEngine={store.runSchedulingEngine}
+                          />
+                        </TabsContent>
+                      </Tabs>
+                    ) : (
+                      <ImagesTab settings={settings} />
+                    )}
                   </TabsContent>
                 )}
               </>

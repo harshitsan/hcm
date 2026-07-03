@@ -35,35 +35,35 @@ interface TabDef {
 }
 
 /**
- * Which tabs each role sees; the first visible tab is the default. Employees
- * get self-service, Company Admins the full capture/review/approval desk,
- * Group and Portfolio Admins cross-company oversight, Platform Admins the
- * integration and data-model surfaces.
+ * Which tabs each role sees; the first visible tab is the default and tabs
+ * are ordered task-first. Employees get self-service, Company Admins land on
+ * the attendance list (review + capture nested) with approvals next, Group
+ * and Portfolio Admins get the cross-company overview, and every admin-only
+ * surface (company settings, platform integrations & data model) lives under
+ * a single Admin tab with the same role gates as before.
  */
 const TABS: TabDef[] = [
   { value: 'my', label: 'My Attendance', roles: ['Employee (User)'] },
   { value: 'my-requests', label: 'My Requests', roles: ['Employee (User)'] },
   { value: 'records', label: 'My Records', roles: ['Employee (Non-User)'] },
   {
-    value: 'review',
-    label: 'Review & Compliance',
+    value: 'attendance',
+    label: 'Attendance',
     roles: ['Company Admin', 'Group Company Admin'],
   },
-  { value: 'capture', label: 'Capture Desk', roles: ['Company Admin'] },
+  { value: 'team', label: 'Approvals', roles: ['Company Admin'] },
   { value: 'shifts', label: 'Shifts & Rosters', roles: ['Company Admin'] },
   { value: 'overtime', label: 'Overtime', roles: ['Company Admin'] },
-  { value: 'team', label: 'Team Functions', roles: ['Company Admin'] },
-  {
-    value: 'config',
-    label: 'Configuration',
-    roles: ['Company Admin', 'Group Company Admin'],
-  },
   {
     value: 'group',
-    label: 'Group Oversight',
+    label: 'Group Overview',
     roles: ['Group Company Admin', 'Portfolio Admin'],
   },
-  { value: 'platform', label: 'Platform', roles: ['Platform Admin'] },
+  {
+    value: 'admin',
+    label: 'Admin',
+    roles: ['Company Admin', 'Group Company Admin', 'Platform Admin'],
+  },
 ]
 
 /**
@@ -128,12 +128,23 @@ export function TimeAttendance() {
               <NonUserTab attendance={attendance} requests={requests} />
             </TabsContent>
 
-            <TabsContent value='review'>
-              <ReviewTab attendance={attendance} />
-            </TabsContent>
-
-            <TabsContent value='capture'>
-              <CaptureTab attendance={attendance} config={config} />
+            <TabsContent value='attendance'>
+              {role === 'Company Admin' ? (
+                <Tabs defaultValue='review'>
+                  <TabsList className='mb-2 flex-wrap'>
+                    <TabsTrigger value='review'>Review</TabsTrigger>
+                    <TabsTrigger value='capture'>Capture</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value='review'>
+                    <ReviewTab attendance={attendance} />
+                  </TabsContent>
+                  <TabsContent value='capture'>
+                    <CaptureTab attendance={attendance} config={config} />
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <ReviewTab attendance={attendance} />
+              )}
             </TabsContent>
 
             <TabsContent value='shifts'>
@@ -153,16 +164,16 @@ export function TimeAttendance() {
               />
             </TabsContent>
 
-            <TabsContent value='config'>
-              <ConfigTab config={config} />
-            </TabsContent>
-
             <TabsContent value='group'>
               <OversightTab config={config} />
             </TabsContent>
 
-            <TabsContent value='platform'>
-              <PlatformTab config={config} attendance={attendance} />
+            <TabsContent value='admin'>
+              {role === 'Platform Admin' ? (
+                <PlatformTab config={config} attendance={attendance} />
+              ) : (
+                <ConfigTab config={config} />
+              )}
             </TabsContent>
           </Tabs>
         </div>

@@ -38,17 +38,16 @@ export function Departments() {
     if (isEmployee) return [{ value: 'my', label: 'My Departments' }]
     const list: TabDef[] = [
       { value: 'directory', label: 'Directory' },
-      { value: 'tree', label: 'Org Tree' },
+      { value: 'tree', label: 'Org Chart' },
     ]
     if (isCompanyAdmin) {
       list.push(
         { value: 'members', label: 'Members' },
-        { value: 'shifts', label: 'Shifts & Sites' },
-        { value: 'config', label: 'Configuration' }
+        { value: 'shifts', label: 'Shifts & Sites' }
       )
     }
     if (isCompanyAdmin || isPlatformAdmin) {
-      list.push({ value: 'governance', label: 'Governance' })
+      list.push({ value: 'admin', label: 'Admin' })
     }
     return list
   }, [isEmployee, isCompanyAdmin, isPlatformAdmin])
@@ -100,14 +99,30 @@ export function Departments() {
                 <TabsContent value='shifts'>
                   <ShiftsTab store={store} />
                 </TabsContent>
-                <TabsContent value='config'>
-                  <ConfigTab store={store} config={config} />
-                </TabsContent>
               </>
             )}
             {(isCompanyAdmin || isPlatformAdmin) && (
-              <TabsContent value='governance'>
-                <GovernanceTab store={store} config={config} />
+              <TabsContent value='admin'>
+                {isCompanyAdmin ? (
+                  <Tabs defaultValue='settings' className='w-full'>
+                    <TabsList className='bg-transparent p-0'>
+                      <TabsTrigger variant='ghost' value='settings'>
+                        Settings
+                      </TabsTrigger>
+                      <TabsTrigger variant='ghost' value='reports'>
+                        Reports & audit
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value='settings'>
+                      <ConfigTab store={store} config={config} />
+                    </TabsContent>
+                    <TabsContent value='reports'>
+                      <GovernanceTab store={store} config={config} />
+                    </TabsContent>
+                  </Tabs>
+                ) : (
+                  <GovernanceTab store={store} config={config} />
+                )}
               </TabsContent>
             )}
             {isEmployee && (

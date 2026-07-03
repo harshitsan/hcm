@@ -32,6 +32,10 @@ export function GroupCompanies() {
   const locations = useSharedLocations(audit.record)
   const policies = usePolicyTemplates(audit.record)
 
+  // Employees land on the directory/reporting view; admins land on the group list.
+  const isEmployee = role === 'Employee (User)' || role === 'Employee (Non-User)'
+  const defaultTab = isEmployee ? 'reporting' : 'groups'
+
   return (
     <>
       <CommonHeader
@@ -43,45 +47,55 @@ export function GroupCompanies() {
         <div className='w-full'>
           <GroupSummary groups={store.groups} auditCount={audit.entries.length} />
 
-          <Tabs defaultValue='constructs'>
+          <Tabs defaultValue={defaultTab}>
             <TabsList className='mb-3'>
-              <TabsTrigger value='constructs' variant='primary'>
-                Constructs & Members
-              </TabsTrigger>
-              <TabsTrigger value='sharing' variant='primary'>
-                Sharing & Roles
-              </TabsTrigger>
-              <TabsTrigger value='locations' variant='primary'>
-                Shared Locations
-              </TabsTrigger>
-              <TabsTrigger value='policies' variant='primary'>
-                Policy Templates
+              <TabsTrigger value='groups' variant='primary'>
+                Groups & Members
               </TabsTrigger>
               <TabsTrigger value='reporting' variant='primary'>
-                Reporting & Directory
+                Reports & Directory
               </TabsTrigger>
-              <TabsTrigger value='audit' variant='primary'>
-                Audit Trail
+              <TabsTrigger value='admin' variant='primary'>
+                Admin
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value='constructs'>
+            <TabsContent value='groups'>
               <ConstructsTab store={store} />
-            </TabsContent>
-            <TabsContent value='sharing'>
-              <SharingTab store={store} auditEntries={audit.entries} />
-            </TabsContent>
-            <TabsContent value='locations'>
-              <LocationsTab store={store} locations={locations} />
-            </TabsContent>
-            <TabsContent value='policies'>
-              <PoliciesTab store={store} policies={policies} />
             </TabsContent>
             <TabsContent value='reporting'>
               <ReportingTab store={store} record={audit.record} />
             </TabsContent>
-            <TabsContent value='audit'>
-              <AuditTab audit={audit} />
+            <TabsContent value='admin'>
+              <Tabs defaultValue='sharing'>
+                <TabsList className='mb-3'>
+                  <TabsTrigger value='sharing' variant='ghost'>
+                    Sharing & Roles
+                  </TabsTrigger>
+                  <TabsTrigger value='locations' variant='ghost'>
+                    Shared Locations
+                  </TabsTrigger>
+                  <TabsTrigger value='policies' variant='ghost'>
+                    Policy Templates
+                  </TabsTrigger>
+                  <TabsTrigger value='audit' variant='ghost'>
+                    Activity Log
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value='sharing'>
+                  <SharingTab store={store} auditEntries={audit.entries} />
+                </TabsContent>
+                <TabsContent value='locations'>
+                  <LocationsTab store={store} locations={locations} />
+                </TabsContent>
+                <TabsContent value='policies'>
+                  <PoliciesTab store={store} policies={policies} />
+                </TabsContent>
+                <TabsContent value='audit'>
+                  <AuditTab audit={audit} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

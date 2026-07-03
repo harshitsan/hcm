@@ -89,7 +89,7 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
           Access Policy
         </TabsTrigger>
         <TabsTrigger variant='primary' value='fields'>
-          Field Schema & UDFs
+          Fields & custom fields
         </TabsTrigger>
         <TabsTrigger variant='primary' value='nonusers'>
           Non-User Employees

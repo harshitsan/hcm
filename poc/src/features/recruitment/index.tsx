@@ -122,6 +122,12 @@ export function Recruitment() {
     'Group Company Admin',
     'Company Admin'
   )
+  const showAdmin = showConfig || showGovernance
+
+  // Employees land on the self-service portal; admin/recruiting roles land
+  // on the operational job-openings list.
+  const isEmployee = hasRole('Employee (User)', 'Employee (Non-User)')
+  const defaultTab = isEmployee ? 'portal' : 'openings'
 
   return (
     <>
@@ -134,84 +140,26 @@ export function Recruitment() {
             offers={offers.offers}
           />
 
-          <Tabs defaultValue='requisitions' className='w-full'>
+          <Tabs defaultValue={defaultTab} className='w-full'>
             <TabsList className='mb-2 flex-wrap'>
-              <TabsTrigger value='requisitions' variant='primary'>
-                Requisitions
-              </TabsTrigger>
-              <TabsTrigger value='vacancies' variant='primary'>
-                Vacancies &amp; Postings
-              </TabsTrigger>
-              <TabsTrigger value='talent-pool' variant='primary'>
-                Talent Pool
-              </TabsTrigger>
-              <TabsTrigger value='pipeline' variant='primary'>
-                Hiring Pipeline
-              </TabsTrigger>
-              <TabsTrigger value='offers' variant='primary'>
-                Offers &amp; Letters
-              </TabsTrigger>
               <TabsTrigger value='portal' variant='primary'>
                 Candidate Portal
               </TabsTrigger>
-              {showConfig && (
-                <TabsTrigger value='configuration' variant='primary'>
-                  Configuration
-                </TabsTrigger>
-              )}
-              {showGovernance && (
-                <TabsTrigger value='governance' variant='primary'>
-                  Governance
+              <TabsTrigger value='openings' variant='primary'>
+                Job Openings
+              </TabsTrigger>
+              <TabsTrigger value='candidates' variant='primary'>
+                Candidates
+              </TabsTrigger>
+              <TabsTrigger value='offers' variant='primary'>
+                Offers
+              </TabsTrigger>
+              {showAdmin && (
+                <TabsTrigger value='admin' variant='primary'>
+                  Admin
                 </TabsTrigger>
               )}
             </TabsList>
-
-            <TabsContent value='requisitions'>
-              <RequisitionsTab
-                store={requisitions}
-                customFields={config.customFields}
-                applications={candidates.applications}
-              />
-            </TabsContent>
-
-            <TabsContent value='vacancies'>
-              <VacanciesTab
-                store={vacancies}
-                postingChannels={config.postingChannels}
-                assignmentMethod={config.assignmentMethod}
-              />
-            </TabsContent>
-
-            <TabsContent value='talent-pool'>
-              <TalentPoolTab
-                store={candidates}
-                requisitions={requisitions.requisitions}
-                mailboxEnabled={config.mailbox.enabled && isCompanyAdmin}
-              />
-            </TabsContent>
-
-            <TabsContent value='pipeline'>
-              <HiringPipelineTab
-                store={candidates}
-                offersStore={offers}
-                panels={config.panels}
-                roundsConfigs={config.roundsConfigs}
-                checklistQuestions={config.checklistQuestions}
-                criteria={config.criteria}
-                criteriaVersion={config.criteriaVersion}
-                letterTemplates={config.letterTemplates}
-                offerApproverRules={config.offerApproverRules}
-                outOfBandApprover={config.outOfBandApprover}
-              />
-            </TabsContent>
-
-            <TabsContent value='offers'>
-              <OffersTab
-                store={offers}
-                applications={candidates.applications}
-                checklistQuestions={config.checklistQuestions}
-              />
-            </TabsContent>
 
             <TabsContent value='portal'>
               <PortalTab
@@ -222,15 +170,104 @@ export function Recruitment() {
               />
             </TabsContent>
 
-            {showConfig && (
-              <TabsContent value='configuration'>
-                <ConfigurationTab config={config} />
-              </TabsContent>
-            )}
+            <TabsContent value='openings'>
+              <Tabs defaultValue='requisitions' className='w-full'>
+                <TabsList className='mb-2'>
+                  <TabsTrigger value='requisitions' variant='ghost'>
+                    Job Requests
+                  </TabsTrigger>
+                  <TabsTrigger value='vacancies' variant='ghost'>
+                    Postings
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value='requisitions'>
+                  <RequisitionsTab
+                    store={requisitions}
+                    customFields={config.customFields}
+                    applications={candidates.applications}
+                  />
+                </TabsContent>
+                <TabsContent value='vacancies'>
+                  <VacanciesTab
+                    store={vacancies}
+                    postingChannels={config.postingChannels}
+                    assignmentMethod={config.assignmentMethod}
+                  />
+                </TabsContent>
+              </Tabs>
+            </TabsContent>
 
-            {showGovernance && (
-              <TabsContent value='governance'>
-                <GovernanceTab config={config} />
+            <TabsContent value='candidates'>
+              <Tabs defaultValue='pipeline' className='w-full'>
+                <TabsList className='mb-2'>
+                  <TabsTrigger value='pipeline' variant='ghost'>
+                    Hiring Pipeline
+                  </TabsTrigger>
+                  <TabsTrigger value='talent-pool' variant='ghost'>
+                    Talent Pool
+                  </TabsTrigger>
+                </TabsList>
+                <TabsContent value='pipeline'>
+                  <HiringPipelineTab
+                    store={candidates}
+                    offersStore={offers}
+                    panels={config.panels}
+                    roundsConfigs={config.roundsConfigs}
+                    checklistQuestions={config.checklistQuestions}
+                    criteria={config.criteria}
+                    criteriaVersion={config.criteriaVersion}
+                    letterTemplates={config.letterTemplates}
+                    offerApproverRules={config.offerApproverRules}
+                    outOfBandApprover={config.outOfBandApprover}
+                  />
+                </TabsContent>
+                <TabsContent value='talent-pool'>
+                  <TalentPoolTab
+                    store={candidates}
+                    requisitions={requisitions.requisitions}
+                    mailboxEnabled={config.mailbox.enabled && isCompanyAdmin}
+                  />
+                </TabsContent>
+              </Tabs>
+            </TabsContent>
+
+            <TabsContent value='offers'>
+              <OffersTab
+                store={offers}
+                applications={candidates.applications}
+                checklistQuestions={config.checklistQuestions}
+              />
+            </TabsContent>
+
+            {showAdmin && (
+              <TabsContent value='admin'>
+                <Tabs
+                  defaultValue={showConfig ? 'settings' : 'policies'}
+                  className='w-full'
+                >
+                  <TabsList className='mb-2'>
+                    {showConfig && (
+                      <TabsTrigger value='settings' variant='ghost'>
+                        Settings
+                      </TabsTrigger>
+                    )}
+                    {showGovernance && (
+                      <TabsTrigger value='policies' variant='ghost'>
+                        Company &amp; Platform Policies
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
+                  {showConfig && (
+                    <TabsContent value='settings'>
+                      <ConfigurationTab config={config} />
+                    </TabsContent>
+                  )}
+                  {showGovernance && (
+                    <TabsContent value='policies'>
+                      <GovernanceTab config={config} />
+                    </TabsContent>
+                  )}
+                </Tabs>
               </TabsContent>
             )}
           </Tabs>

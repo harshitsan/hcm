@@ -15,14 +15,14 @@ import { useDocuments } from './hooks/use-documents'
 import { useMasters } from './hooks/use-masters'
 
 /**
- * Documents & Attachments module. One page, role-aware tabs:
+ * Documents & Attachments module. One page, role-aware tabs (task-first):
  * - Documents: tenant/group/portfolio-scoped grid with upload, expiry
  *   tracking, category filters, and role-gated actions
  * - My Documents: employee self-service view/upload on own record
  * - Policies: policy documents with effective windows and applicability
- * - Document Types / Certificates / Custodians: Kensium masters
- * - Configuration: governed taxonomy, access matrix, upload policy,
- *   lead time, notification engine, and security posture
+ * - Admin: single admin surface with nested tabs for document types,
+ *   required certificates, custodians, and settings (governed taxonomy,
+ *   access matrix, upload policy, notifications, security posture)
  */
 export function Documents() {
   const { role } = useRole()
@@ -39,23 +39,36 @@ export function Documents() {
   const isEmployeeUser = role === 'Employee (User)'
   const showCustodians = isCompanyAdmin || role === 'Group Company Admin'
   const showConfig = isCompanyAdmin || role === 'Platform Admin'
+  const showAdminTab = isCompanyAdmin || showCustodians || showConfig
 
   const availableTabs = useMemo(() => {
     const tabs: string[] = []
-    if (isAdmin) tabs.push('grid')
     if (isEmployeeUser) tabs.push('mine')
+    if (isAdmin) tabs.push('grid')
     tabs.push('policies')
+    if (showAdminTab) tabs.push('admin')
+    return tabs
+  }, [isAdmin, isEmployeeUser, showAdminTab])
+
+  const adminSubTabs = useMemo(() => {
+    const tabs: string[] = []
     if (isCompanyAdmin) tabs.push('types', 'certificates')
     if (showCustodians) tabs.push('custodians')
     if (showConfig) tabs.push('config')
     return tabs
-  }, [isAdmin, isEmployeeUser, isCompanyAdmin, showCustodians, showConfig])
+  }, [isCompanyAdmin, showCustodians, showConfig])
 
   const [tab, setTab] = useState(availableTabs[0])
+  const [adminTab, setAdminTab] = useState(adminSubTabs[0] ?? 'types')
 
   useEffect(() => {
     if (!availableTabs.includes(tab)) setTab(availableTabs[0])
   }, [availableTabs, tab])
+
+  useEffect(() => {
+    if (adminSubTabs.length > 0 && !adminSubTabs.includes(adminTab))
+      setAdminTab(adminSubTabs[0])
+  }, [adminSubTabs, adminTab])
 
   return (
     <>
@@ -64,50 +77,26 @@ export function Documents() {
         <div className='w-full'>
           <Tabs value={tab} onValueChange={setTab} className='w-full'>
             <TabsList className='mb-3 bg-transparent p-0'>
-              {isAdmin && (
-                <TabsTrigger variant='primary' value='grid'>
-                  Documents
-                </TabsTrigger>
-              )}
               {isEmployeeUser && (
                 <TabsTrigger variant='primary' value='mine'>
                   My Documents
                 </TabsTrigger>
               )}
+              {isAdmin && (
+                <TabsTrigger variant='primary' value='grid'>
+                  Documents
+                </TabsTrigger>
+              )}
               <TabsTrigger variant='primary' value='policies'>
                 Policies
               </TabsTrigger>
-              {isCompanyAdmin && (
-                <TabsTrigger variant='primary' value='types'>
-                  Document Types
-                </TabsTrigger>
-              )}
-              {isCompanyAdmin && (
-                <TabsTrigger variant='primary' value='certificates'>
-                  Required Certificates
-                </TabsTrigger>
-              )}
-              {showCustodians && (
-                <TabsTrigger variant='primary' value='custodians'>
-                  Custodians
-                </TabsTrigger>
-              )}
-              {showConfig && (
-                <TabsTrigger variant='primary' value='config'>
-                  Configuration
+              {showAdminTab && (
+                <TabsTrigger variant='primary' value='admin'>
+                  Admin
                 </TabsTrigger>
               )}
             </TabsList>
 
-            {isAdmin && (
-              <TabsContent value='grid'>
-                <DocumentsTab
-                  store={store}
-                  settings={settings}
-                  documentTypes={masters.documentTypes}
-                />
-              </TabsContent>
-            )}
             {isEmployeeUser && (
               <TabsContent value='mine'>
                 <MyDocumentsTab
@@ -117,27 +106,62 @@ export function Documents() {
                 />
               </TabsContent>
             )}
+            {isAdmin && (
+              <TabsContent value='grid'>
+                <DocumentsTab
+                  store={store}
+                  settings={settings}
+                  documentTypes={masters.documentTypes}
+                />
+              </TabsContent>
+            )}
             <TabsContent value='policies'>
               <PoliciesTab masters={masters} />
             </TabsContent>
-            {isCompanyAdmin && (
-              <TabsContent value='types'>
-                <TypesTab masters={masters} />
-              </TabsContent>
-            )}
-            {isCompanyAdmin && (
-              <TabsContent value='certificates'>
-                <CertificatesTab masters={masters} />
-              </TabsContent>
-            )}
-            {showCustodians && (
-              <TabsContent value='custodians'>
-                <CustodiansTab masters={masters} />
-              </TabsContent>
-            )}
-            {showConfig && (
-              <TabsContent value='config'>
-                <ConfigTab store={store} settings={settings} />
+            {showAdminTab && (
+              <TabsContent value='admin'>
+                <Tabs
+                  value={adminTab}
+                  onValueChange={setAdminTab}
+                  className='w-full'
+                >
+                  <TabsList className='mb-3'>
+                    {isCompanyAdmin && (
+                      <TabsTrigger value='types'>Document types</TabsTrigger>
+                    )}
+                    {isCompanyAdmin && (
+                      <TabsTrigger value='certificates'>
+                        Required certificates
+                      </TabsTrigger>
+                    )}
+                    {showCustodians && (
+                      <TabsTrigger value='custodians'>Custodians</TabsTrigger>
+                    )}
+                    {showConfig && (
+                      <TabsTrigger value='config'>Settings</TabsTrigger>
+                    )}
+                  </TabsList>
+                  {isCompanyAdmin && (
+                    <TabsContent value='types'>
+                      <TypesTab masters={masters} />
+                    </TabsContent>
+                  )}
+                  {isCompanyAdmin && (
+                    <TabsContent value='certificates'>
+                      <CertificatesTab masters={masters} />
+                    </TabsContent>
+                  )}
+                  {showCustodians && (
+                    <TabsContent value='custodians'>
+                      <CustodiansTab masters={masters} />
+                    </TabsContent>
+                  )}
+                  {showConfig && (
+                    <TabsContent value='config'>
+                      <ConfigTab store={store} settings={settings} />
+                    </TabsContent>
+                  )}
+                </Tabs>
               </TabsContent>
             )}
           </Tabs>

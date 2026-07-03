@@ -1,3 +1,4 @@
+import { useRole } from '@/context/role-context'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -17,10 +18,16 @@ import { useLoginSession } from './hooks/use-login-session'
  * configuration and the append-only authentication audit log.
  */
 export function Authentication() {
+  const { role } = useRole()
   const audit = useAuthAudit()
   const usersStore = useAuthUsers(audit.logEvent)
   const config = useAuthConfig(audit.logEvent)
   const sessionStore = useLoginSession(usersStore.users, audit.logEvent)
+
+  // Employees land on their own sign-in & session view; admins land on the
+  // operational user list.
+  const isEmployee = role === 'Employee (User)' || role === 'Employee (Non-User)'
+  const defaultTab = isEmployee ? 'sign-in' : 'users'
 
   return (
     <>
@@ -34,19 +41,16 @@ export function Authentication() {
             enabledMethodCount={config.enabledMethods.length}
           />
 
-          <Tabs defaultValue='sign-in' className='w-full'>
+          <Tabs defaultValue={defaultTab} className='w-full'>
             <TabsList className='mb-2'>
               <TabsTrigger value='sign-in' variant='primary'>
-                Sign-in &amp; Session
+                Sign in &amp; sessions
               </TabsTrigger>
               <TabsTrigger value='users' variant='primary'>
-                Users &amp; Access
+                Users &amp; access
               </TabsTrigger>
-              <TabsTrigger value='config' variant='primary'>
-                Configuration
-              </TabsTrigger>
-              <TabsTrigger value='audit' variant='primary'>
-                Audit Log
+              <TabsTrigger value='admin' variant='primary'>
+                Admin
               </TabsTrigger>
             </TabsList>
 
@@ -65,12 +69,21 @@ export function Authentication() {
               <UsersTab store={usersStore} />
             </TabsContent>
 
-            <TabsContent value='config'>
-              <ConfigTab config={config} />
-            </TabsContent>
+            <TabsContent value='admin'>
+              <Tabs defaultValue='settings' className='w-full'>
+                <TabsList className='mb-2'>
+                  <TabsTrigger value='settings'>Sign-in settings</TabsTrigger>
+                  <TabsTrigger value='audit'>Audit log</TabsTrigger>
+                </TabsList>
 
-            <TabsContent value='audit'>
-              <AuditTab events={audit.events} />
+                <TabsContent value='settings'>
+                  <ConfigTab config={config} />
+                </TabsContent>
+
+                <TabsContent value='audit'>
+                  <AuditTab events={audit.events} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

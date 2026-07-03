@@ -121,10 +121,10 @@ export function WorkTab() {
           My Project Allocation
         </TabsTrigger>
         <TabsTrigger variant='primary' value='kt-provide'>
-          KT To Be Provided
+          Handover to give
         </TabsTrigger>
         <TabsTrigger variant='primary' value='kt-receive'>
-          KT To Be Received
+          Handover to receive
         </TabsTrigger>
       </TabsList>
 

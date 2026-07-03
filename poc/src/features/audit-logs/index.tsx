@@ -19,7 +19,7 @@ import { useAuditLog } from './hooks/use-audit-log'
  * the active role's tenant boundary.
  */
 export function AuditLogs() {
-  const { role } = useRole()
+  const { role, hasRole } = useRole()
   const {
     entries,
     securityEvents,
@@ -44,6 +44,12 @@ export function AuditLogs() {
   /** RBAC + tenant boundary applied before anything renders (FR 6.29.5). */
   const scoped = useMemo(() => scopeEntries(entries, role), [entries, role])
 
+  /**
+   * Retention and governance are Platform Admin surfaces (both self-gate to
+   * that role) — folded into a single Admin tab, hidden for everyone else.
+   */
+  const isPlatformAdmin = hasRole('Platform Admin')
+
   return (
     <>
       <CommonHeader title='Audit & Logging' className='bg-blue-150' />
@@ -55,7 +61,7 @@ export function AuditLogs() {
             policy={currentPolicy}
           />
 
-          <Tabs defaultValue='trail' className='w-full'>
+          <Tabs key={role} defaultValue='trail' className='w-full'>
             <TabsList className='mb-2'>
               <TabsTrigger value='trail' variant='primary'>
                 Audit Trail
@@ -63,12 +69,11 @@ export function AuditLogs() {
               <TabsTrigger value='history' variant='primary'>
                 Record History
               </TabsTrigger>
-              <TabsTrigger value='retention' variant='primary'>
-                Retention &amp; Archival
-              </TabsTrigger>
-              <TabsTrigger value='governance' variant='primary'>
-                Governance
-              </TabsTrigger>
+              {isPlatformAdmin && (
+                <TabsTrigger value='admin' variant='primary'>
+                  Admin
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value='trail'>
@@ -89,26 +94,45 @@ export function AuditLogs() {
               />
             </TabsContent>
 
-            <TabsContent value='retention'>
-              <RetentionTab
-                entries={entries}
-                policyVersions={policyVersions}
-                currentPolicy={currentPolicy}
-                onSavePolicy={savePolicy}
-                onRunArchival={() => runArchivalSweep(currentPolicy.activeMonths)}
-                onDisposeExpired={() => disposeExpired(currentPolicy.totalYears)}
-              />
-            </TabsContent>
+            {isPlatformAdmin && (
+              <TabsContent value='admin'>
+                <Tabs defaultValue='retention' className='w-full'>
+                  <TabsList className='mb-2'>
+                    <TabsTrigger value='retention' variant='primary'>
+                      Data Retention
+                    </TabsTrigger>
+                    <TabsTrigger value='access' variant='primary'>
+                      Scope &amp; Access
+                    </TabsTrigger>
+                  </TabsList>
 
-            <TabsContent value='governance'>
-              <GovernanceTab
-                scopeEntities={scopeEntities}
-                onToggleEntity={toggleEntityEnabled}
-                onToggleField={toggleScopeField}
-                accessConfig={accessConfig}
-                onToggleAccess={toggleAccess}
-              />
-            </TabsContent>
+                  <TabsContent value='retention'>
+                    <RetentionTab
+                      entries={entries}
+                      policyVersions={policyVersions}
+                      currentPolicy={currentPolicy}
+                      onSavePolicy={savePolicy}
+                      onRunArchival={() =>
+                        runArchivalSweep(currentPolicy.activeMonths)
+                      }
+                      onDisposeExpired={() =>
+                        disposeExpired(currentPolicy.totalYears)
+                      }
+                    />
+                  </TabsContent>
+
+                  <TabsContent value='access'>
+                    <GovernanceTab
+                      scopeEntities={scopeEntities}
+                      onToggleEntity={toggleEntityEnabled}
+                      onToggleField={toggleScopeField}
+                      accessConfig={accessConfig}
+                      onToggleAccess={toggleAccess}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </Main>

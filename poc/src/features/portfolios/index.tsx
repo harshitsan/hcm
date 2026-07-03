@@ -50,7 +50,7 @@ export function Portfolios() {
     const tabs: string[] = []
     if (isAdmin) tabs.push('portfolios')
     tabs.push('context')
-    if (canOperate) tabs.push('reporting', 'operations', 'audit')
+    if (canOperate) tabs.push('reporting', 'admin')
     return tabs
   }, [isAdmin, canOperate])
 
@@ -79,18 +79,15 @@ export function Portfolios() {
                 </TabsTrigger>
               )}
               <TabsTrigger variant='primary' value='context'>
-                Company Context
+                Company access
               </TabsTrigger>
               {canOperate && (
                 <>
                   <TabsTrigger variant='primary' value='reporting'>
                     Reporting
                   </TabsTrigger>
-                  <TabsTrigger variant='primary' value='operations'>
-                    Operations
-                  </TabsTrigger>
-                  <TabsTrigger variant='primary' value='audit'>
-                    Audit Trail
+                  <TabsTrigger variant='primary' value='admin'>
+                    Admin
                   </TabsTrigger>
                 </>
               )}
@@ -109,11 +106,23 @@ export function Portfolios() {
                 <TabsContent value='reporting'>
                   <ReportingTab store={store} ops={ops} />
                 </TabsContent>
-                <TabsContent value='operations'>
-                  <OperationsTab store={store} ops={ops} />
-                </TabsContent>
-                <TabsContent value='audit'>
-                  <AuditTab audit={audit} />
+                <TabsContent value='admin'>
+                  <Tabs defaultValue='operations' className='w-full'>
+                    <TabsList className='mb-3 bg-transparent p-0'>
+                      <TabsTrigger variant='primary' value='operations'>
+                        Bulk changes
+                      </TabsTrigger>
+                      <TabsTrigger variant='primary' value='audit'>
+                        Activity log
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value='operations'>
+                      <OperationsTab store={store} ops={ops} />
+                    </TabsContent>
+                    <TabsContent value='audit'>
+                      <AuditTab audit={audit} />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
               </>
             )}

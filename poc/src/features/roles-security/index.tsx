@@ -50,45 +50,57 @@ const ADMINS: Role[] = [
 ]
 
 /**
- * Which tabs each role sees — the first visible tab is the default. Admins
- * land on role governance; employees land on their own access surface.
+ * Top-level tabs, ordered task-first: everyday self-service surfaces come
+ * before the operational lists; all admin/config surfaces live under Admin.
  */
 const TABS: TabDef[] = [
-  { value: 'roles', label: 'Role Catalog', roles: ADMINS },
-  { value: 'assignments', label: 'Assignments', roles: ADMINS },
   {
-    value: 'screens',
-    label: 'Screen Access',
-    roles: ['Platform Admin', 'Company Admin'],
-  },
-  { value: 'scope', label: 'Scope Rules', roles: ADMINS },
-  {
-    value: 'context',
-    label: 'Company Context',
-    roles: ['Platform Admin', 'Portfolio Admin', 'Group Company Admin'],
+    value: 'access',
+    label: 'My Access',
+    roles: ['Employee (User)', 'Employee (Non-User)'],
   },
   {
     value: 'delegations',
     label: 'Delegations',
     roles: ['Company Admin', 'Employee (User)'],
   },
+  { value: 'roles', label: 'Roles', roles: ADMINS },
+  { value: 'assignments', label: 'Assignments', roles: ADMINS },
+  { value: 'admin', label: 'Admin', roles: ADMINS },
+]
+
+/**
+ * Admin sub-tabs — each keeps the same role gate it had as a top-level tab.
+ * The Admin tab itself is only shown to admin roles (see TABS above).
+ */
+const ADMIN_TABS: TabDef[] = [
   {
-    value: 'impersonation',
-    label: 'Impersonation',
+    value: 'screens',
+    label: 'Screen Access',
     roles: ['Platform Admin', 'Company Admin'],
   },
-  { value: 'authentication', label: 'Authentication', roles: ['Company Admin'] },
+  { value: 'scope', label: 'Data Access', roles: ADMINS },
+  {
+    value: 'context',
+    label: 'Company Switching',
+    roles: ['Platform Admin', 'Portfolio Admin', 'Group Company Admin'],
+  },
+  {
+    value: 'impersonation',
+    label: 'Act as User',
+    roles: ['Platform Admin', 'Company Admin'],
+  },
+  {
+    value: 'authentication',
+    label: 'Sign-in Settings',
+    roles: ['Company Admin'],
+  },
   {
     value: 'jobs',
     label: 'Jobs & Support',
     roles: ['Platform Admin', 'Company Admin'],
   },
-  { value: 'audit', label: 'Audit & Alerts', roles: ADMINS },
-  {
-    value: 'access',
-    label: 'My Access',
-    roles: ['Employee (User)', 'Employee (Non-User)'],
-  },
+  { value: 'audit', label: 'Activity & Alerts', roles: ADMINS },
 ]
 
 /**
@@ -157,6 +169,11 @@ export function RolesSecurity() {
   ]
 
   const visibleTabs = TABS.filter((t) => t.roles.includes(role))
+  const visibleAdminTabs = ADMIN_TABS.filter((t) => t.roles.includes(role))
+
+  // Role-relevant landing tab: employees start on their own access surface,
+  // admins start on the roles list.
+  const defaultTab = ADMINS.includes(role) ? 'roles' : 'access'
 
   return (
     <>
@@ -177,7 +194,7 @@ export function RolesSecurity() {
             </Badge>
           </div>
 
-          <Tabs defaultValue={visibleTabs[0]?.value} key={role}>
+          <Tabs defaultValue={defaultTab} key={role}>
             <TabsList className='mb-2 flex-wrap'>
               {visibleTabs.map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>
@@ -185,6 +202,19 @@ export function RolesSecurity() {
                 </TabsTrigger>
               ))}
             </TabsList>
+
+            <TabsContent value='access'>
+              <AccessTab
+                assignments={assignments.assignments}
+                roles={rolesStore.roles}
+                scopeRules={scopeRules.rules}
+                config={config}
+              />
+            </TabsContent>
+
+            <TabsContent value='delegations'>
+              <DelegationsTab store={delegations} />
+            </TabsContent>
 
             <TabsContent value='roles'>
               <RolesTab store={rolesStore} />
@@ -194,45 +224,44 @@ export function RolesSecurity() {
               <AssignmentsTab store={assignments} roles={rolesStore.roles} />
             </TabsContent>
 
-            <TabsContent value='screens'>
-              <PermissionsTab store={rolesStore} />
-            </TabsContent>
+            <TabsContent value='admin'>
+              <Tabs defaultValue={visibleAdminTabs[0]?.value}>
+                <TabsList className='mb-2 flex-wrap'>
+                  {visibleAdminTabs.map((t) => (
+                    <TabsTrigger key={t.value} value={t.value}>
+                      {t.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
 
-            <TabsContent value='scope'>
-              <ScopeTab store={scopeRules} />
-            </TabsContent>
+                <TabsContent value='screens'>
+                  <PermissionsTab store={rolesStore} />
+                </TabsContent>
 
-            <TabsContent value='context'>
-              <ContextTab store={context} audit={audit} />
-            </TabsContent>
+                <TabsContent value='scope'>
+                  <ScopeTab store={scopeRules} />
+                </TabsContent>
 
-            <TabsContent value='delegations'>
-              <DelegationsTab store={delegations} />
-            </TabsContent>
+                <TabsContent value='context'>
+                  <ContextTab store={context} audit={audit} />
+                </TabsContent>
 
-            <TabsContent value='impersonation'>
-              <ImpersonationTab store={impersonation} />
-            </TabsContent>
+                <TabsContent value='impersonation'>
+                  <ImpersonationTab store={impersonation} />
+                </TabsContent>
 
-            <TabsContent value='authentication'>
-              <AuthenticationTab store={config} />
-            </TabsContent>
+                <TabsContent value='authentication'>
+                  <AuthenticationTab store={config} />
+                </TabsContent>
 
-            <TabsContent value='jobs'>
-              <JobsTab store={config} />
-            </TabsContent>
+                <TabsContent value='jobs'>
+                  <JobsTab store={config} />
+                </TabsContent>
 
-            <TabsContent value='audit'>
-              <AuditTab audit={audit} />
-            </TabsContent>
-
-            <TabsContent value='access'>
-              <AccessTab
-                assignments={assignments.assignments}
-                roles={rolesStore.roles}
-                scopeRules={scopeRules.rules}
-                config={config}
-              />
+                <TabsContent value='audit'>
+                  <AuditTab audit={audit} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

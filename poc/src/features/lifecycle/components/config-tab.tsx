@@ -73,7 +73,7 @@ export function ConfigTab({ config }: ConfigTabProps) {
             Exit Routing & Tasks
           </TabsTrigger>
           <TabsTrigger variant='primary' value='approvals'>
-            Approver Graphs
+            Approvals
           </TabsTrigger>
           <TabsTrigger variant='primary' value='templates'>
             Letter Templates

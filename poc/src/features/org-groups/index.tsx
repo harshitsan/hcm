@@ -21,7 +21,9 @@ interface TabDef {
  * Groups module (FR 6.6.x + Kensium Organization > Group): scoped group
  * register, n-level hierarchy, effective-dated membership, approval-controlled
  * changes, policy applicability with a rules-engine preview, and portfolio
- * governance. Visible tabs vary with the active role.
+ * governance. Task-first tab order; admin-only surfaces (policy rules,
+ * portfolio governance) live under a single Admin tab. Visible tabs vary
+ * with the active role.
  */
 export function OrgGroups() {
   const { role } = useRole()
@@ -32,22 +34,26 @@ export function OrgGroups() {
   const isApproverAdmin =
     role === 'Group Company Admin' || role === 'Platform Admin'
   const isGovernance = role === 'Portfolio Admin' || role === 'Platform Admin'
+  const isApprover = role === 'Company Admin' || isApproverAdmin
 
   const tabs = useMemo<TabDef[]>(() => {
     if (isEmployee) return [{ value: 'my', label: 'My Groups' }]
-    const list: TabDef[] = [
-      { value: 'groups', label: 'Groups' },
-      { value: 'hierarchy', label: 'Hierarchy' },
-      { value: 'policies', label: 'Policies & Engine' },
-    ]
-    if (role === 'Company Admin' || isApproverAdmin) {
+    const list: TabDef[] = [{ value: 'groups', label: 'Groups' }]
+    if (isApprover) {
       list.push({ value: 'approvals', label: 'Approvals' })
     }
-    if (isGovernance) {
-      list.push({ value: 'governance', label: 'Governance' })
-    }
+    list.push({ value: 'hierarchy', label: 'Hierarchy' })
+    list.push({ value: 'admin', label: 'Admin' })
     return list
-  }, [isEmployee, isApproverAdmin, isGovernance, role])
+  }, [isEmployee, isApprover])
+
+  // Land each role on its most relevant tab: employees on self-service,
+  // portfolio admins on the Admin surface, everyone else on the main list.
+  const defaultTab = isEmployee
+    ? 'my'
+    : role === 'Portfolio Admin'
+      ? 'admin'
+      : 'groups'
 
   return (
     <>
@@ -63,7 +69,7 @@ export function OrgGroups() {
           )}
 
           {/* Remount when the role changes so the default tab stays valid. */}
-          <Tabs key={role} defaultValue={tabs[0].value} className='w-full'>
+          <Tabs key={role} defaultValue={defaultTab} className='w-full'>
             <TabsList className='mb-2'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>
@@ -80,19 +86,34 @@ export function OrgGroups() {
                 <TabsContent value='hierarchy'>
                   <HierarchyTab store={store} />
                 </TabsContent>
-                <TabsContent value='policies'>
-                  <PoliciesTab store={store} />
+                <TabsContent value='admin'>
+                  {isGovernance ? (
+                    <Tabs
+                      defaultValue={
+                        role === 'Portfolio Admin' ? 'governance' : 'policies'
+                      }
+                      className='w-full'
+                    >
+                      <TabsList className='mb-2'>
+                        <TabsTrigger value='policies'>Policies</TabsTrigger>
+                        <TabsTrigger value='governance'>Governance</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value='policies'>
+                        <PoliciesTab store={store} />
+                      </TabsContent>
+                      <TabsContent value='governance'>
+                        <GovernanceTab store={store} />
+                      </TabsContent>
+                    </Tabs>
+                  ) : (
+                    <PoliciesTab store={store} />
+                  )}
                 </TabsContent>
               </>
             )}
-            {(role === 'Company Admin' || isApproverAdmin) && (
+            {isApprover && (
               <TabsContent value='approvals'>
                 <ApprovalsTab store={store} />
-              </TabsContent>
-            )}
-            {isGovernance && (
-              <TabsContent value='governance'>
-                <GovernanceTab store={store} />
               </TabsContent>
             )}
             {isEmployee && (

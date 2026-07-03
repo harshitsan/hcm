@@ -38,26 +38,40 @@ interface TabDef {
 }
 
 /**
- * Which tabs each role sees. The first visible tab becomes the default —
- * self-service for employees, the request desk for Company Admins,
- * configuration for group admins, reports for portfolio oversight and the
- * platform/engines surfaces for Platform Admins.
+ * Admin-only surfaces folded into the single "Admin" tab. Each sub-tab keeps
+ * the exact role gating its old top-level tab had.
+ */
+const ADMIN_TABS: TabDef[] = [
+  {
+    value: 'config',
+    label: 'Settings',
+    roles: ['Company Admin', 'Group Company Admin', 'Portfolio Admin'],
+  },
+  {
+    value: 'audit',
+    label: 'Activity log',
+    roles: ['Company Admin', 'Platform Admin'],
+  },
+  { value: 'platform', label: 'Platform', roles: ['Platform Admin'] },
+  { value: 'engines', label: 'Shared services', roles: ['Platform Admin'] },
+]
+
+/**
+ * Which tabs each role sees, ordered task-first. The first visible tab
+ * becomes the default — self-service for employees, the request desk for
+ * Company Admins, the calendar for group admins and reports for portfolio /
+ * platform oversight. Admin surfaces sit together in the last tab.
  */
 const TABS: TabDef[] = [
   { value: 'my-leave', label: 'My Leave', roles: ['Employee (User)'] },
   { value: 'holidays', label: 'Holiday List', roles: ['Employee (User)'] },
-  { value: 'team', label: 'Team Functions', roles: ['Employee (User)'] },
+  { value: 'team', label: 'Team', roles: ['Employee (User)'] },
   { value: 'records', label: 'My Records', roles: ['Employee (Non-User)'] },
   { value: 'requests', label: 'Requests', roles: ['Company Admin'] },
   {
     value: 'calendar',
     label: 'Company Calendar',
     roles: ['Company Admin', 'Group Company Admin'],
-  },
-  {
-    value: 'config',
-    label: 'Configuration',
-    roles: ['Company Admin', 'Group Company Admin', 'Portfolio Admin'],
   },
   {
     value: 'reports',
@@ -70,12 +84,15 @@ const TABS: TabDef[] = [
     ],
   },
   {
-    value: 'audit',
-    label: 'Audit & Notifications',
-    roles: ['Company Admin', 'Platform Admin'],
+    value: 'admin',
+    label: 'Admin',
+    roles: [
+      'Company Admin',
+      'Group Company Admin',
+      'Portfolio Admin',
+      'Platform Admin',
+    ],
   },
-  { value: 'platform', label: 'Platform', roles: ['Platform Admin'] },
-  { value: 'engines', label: 'Shared Engines', roles: ['Platform Admin'] },
 ]
 
 /**
@@ -113,7 +130,12 @@ export function LeaveManagement() {
     actor,
   })
 
-  const visibleTabs = TABS.filter((t) => t.roles.includes(role))
+  const visibleAdminTabs = ADMIN_TABS.filter((t) => t.roles.includes(role))
+  const visibleTabs = TABS.filter(
+    (t) =>
+      t.roles.includes(role) &&
+      (t.value !== 'admin' || visibleAdminTabs.length > 0)
+  )
   const isEmployee = hasRole('Employee (User)', 'Employee (Non-User)')
 
   return (
@@ -137,8 +159,7 @@ export function LeaveManagement() {
                 <p className='text-paragraph-sm text-neutral-1000 pt-1'>
                   Your organization has switched off the leave module. Leave
                   requests, balances and holiday lists will be available again
-                  once a Company Admin re-enables it under Configuration →
-                  Setup & Rules.
+                  once a Company Admin re-enables it under Admin → Settings.
                 </p>
               </div>
             </div>
@@ -199,10 +220,6 @@ export function LeaveManagement() {
                 <CompanyCalendarTab requests={requests} settings={settings} />
               </TabsContent>
 
-              <TabsContent value='config'>
-                <ConfigTab config={config} settings={settings} />
-              </TabsContent>
-
               <TabsContent value='reports'>
                 <ReportsTab
                   balances={balances}
@@ -211,16 +228,32 @@ export function LeaveManagement() {
                 />
               </TabsContent>
 
-              <TabsContent value='audit'>
-                <AuditTab audit={audit} />
-              </TabsContent>
+              <TabsContent value='admin'>
+                <Tabs defaultValue={visibleAdminTabs[0]?.value} key={role}>
+                  <TabsList className='mb-2 flex-wrap'>
+                    {visibleAdminTabs.map((t) => (
+                      <TabsTrigger key={t.value} value={t.value}>
+                        {t.label}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
 
-              <TabsContent value='platform'>
-                <PlatformTab settings={settings} />
-              </TabsContent>
+                  <TabsContent value='config'>
+                    <ConfigTab config={config} settings={settings} />
+                  </TabsContent>
 
-              <TabsContent value='engines'>
-                <EnginesTab config={config} balances={balances} />
+                  <TabsContent value='audit'>
+                    <AuditTab audit={audit} />
+                  </TabsContent>
+
+                  <TabsContent value='platform'>
+                    <PlatformTab settings={settings} />
+                  </TabsContent>
+
+                  <TabsContent value='engines'>
+                    <EnginesTab config={config} balances={balances} />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
             </Tabs>
           )}

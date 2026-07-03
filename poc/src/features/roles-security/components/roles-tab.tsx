@@ -46,7 +46,7 @@ export function RolesTab({ store }: { store: RolesStore }) {
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-2'>
           <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
-            Role Catalog ({filtered.length})
+            Roles ({filtered.length})
           </h2>
           <Input
             placeholder='Search by role name'

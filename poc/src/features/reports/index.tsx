@@ -36,12 +36,14 @@ interface TabDef {
 }
 
 /**
- * Which tabs each role sees. Dashboards come first so every user lands on
- * their role-based default dashboard (RPT-05); employees get self-service
- * surfaces, admins the catalog/builder/schedules/compliance desks and
- * Platform Admins the governance surface.
+ * Which tabs each role sees, ordered task-first: employees land on their
+ * self-service surface, admins on their role-based default dashboard
+ * (RPT-05). Admin-only desks (schedules, compliance registers, governance)
+ * are folded into a single "Admin" tab with the same role gates.
  */
 const TABS: TabDef[] = [
+  { value: 'my-reports', label: 'My Reports', roles: ['Employee (User)'] },
+  { value: 'my-data', label: 'My Data', roles: ['Employee (Non-User)'] },
   {
     value: 'dashboards',
     label: 'Dashboards',
@@ -55,7 +57,7 @@ const TABS: TabDef[] = [
   },
   {
     value: 'catalog',
-    label: 'Report Catalog',
+    label: 'All Reports',
     roles: [
       'Platform Admin',
       'Portfolio Admin',
@@ -63,24 +65,35 @@ const TABS: TabDef[] = [
       'Company Admin',
     ],
   },
-  { value: 'my-reports', label: 'My Reports', roles: ['Employee (User)'] },
   {
     value: 'builder',
-    label: 'Report Builder',
+    label: 'Build a Report',
     roles: ['Portfolio Admin', 'Group Company Admin', 'Company Admin'],
   },
   {
+    value: 'admin',
+    label: 'Admin',
+    roles: ['Company Admin', 'Platform Admin'],
+  },
+]
+
+/** Admin-only surfaces nested under the "Admin" tab; same gates as before. */
+const ADMIN_TABS: TabDef[] = [
+  {
     value: 'schedules',
-    label: 'Schedules',
+    label: 'Scheduled Emails',
     roles: ['Company Admin', 'Platform Admin'],
   },
   {
     value: 'compliance',
-    label: 'Compliance & Registers',
+    label: 'Compliance',
     roles: ['Company Admin', 'Platform Admin'],
   },
-  { value: 'governance', label: 'Governance', roles: ['Platform Admin'] },
-  { value: 'my-data', label: 'My Data', roles: ['Employee (Non-User)'] },
+  {
+    value: 'governance',
+    label: 'Access & Settings',
+    roles: ['Platform Admin'],
+  },
 ]
 
 /**
@@ -110,7 +123,12 @@ export function ReportsAnalytics() {
   // "Schedule delivery" launched from a catalog report run (RPT-09).
   const [presetReport, setPresetReport] = useState<string | null>(null)
 
-  const visibleTabs = TABS.filter((t) => t.roles.includes(role))
+  const visibleAdminTabs = ADMIN_TABS.filter((t) => t.roles.includes(role))
+  const visibleTabs = TABS.filter(
+    (t) =>
+      t.roles.includes(role) &&
+      (t.value !== 'admin' || visibleAdminTabs.length > 0)
+  )
   const isAdmin = hasRole(
     'Platform Admin',
     'Portfolio Admin',
@@ -184,25 +202,37 @@ export function ReportsAnalytics() {
               />
             </TabsContent>
 
-            <TabsContent value='schedules'>
-              <SchedulesTab
-                store={schedules}
-                reports={config.reports}
-                actor={actor}
-                scope={scopeLabel}
-              />
-            </TabsContent>
+            <TabsContent value='admin'>
+              <Tabs defaultValue={visibleAdminTabs[0]?.value} key={role}>
+                <TabsList className='mb-2 flex-wrap'>
+                  {visibleAdminTabs.map((t) => (
+                    <TabsTrigger key={t.value} value={t.value}>
+                      {t.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
 
-            <TabsContent value='compliance'>
-              <ComplianceTab
-                store={compliance}
-                templates={config.templates}
-                companies={companies}
-              />
-            </TabsContent>
+                <TabsContent value='schedules'>
+                  <SchedulesTab
+                    store={schedules}
+                    reports={config.reports}
+                    actor={actor}
+                    scope={scopeLabel}
+                  />
+                </TabsContent>
 
-            <TabsContent value='governance'>
-              <GovernanceTab config={config} />
+                <TabsContent value='compliance'>
+                  <ComplianceTab
+                    store={compliance}
+                    templates={config.templates}
+                    companies={companies}
+                  />
+                </TabsContent>
+
+                <TabsContent value='governance'>
+                  <GovernanceTab config={config} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
 
             <TabsContent value='my-data'>

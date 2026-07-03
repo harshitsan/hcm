@@ -19,9 +19,9 @@ interface TabDef {
 
 /**
  * Directory & Org Chart module: privacy-governed employee directory with
- * multiple views and advanced search, an effective-dated organizational
- * chart, governed privacy/field configuration and platform data governance.
- * Visible tabs vary with the active role.
+ * multiple views and advanced search, an organizational chart viewable as of
+ * a date, and a single Admin tab that groups privacy/field configuration and
+ * platform data checks. Visible tabs vary with the active role.
  */
 export function DirectoryOrgChart() {
   const { role } = useRole()
@@ -30,20 +30,18 @@ export function DirectoryOrgChart() {
 
   const isCompanyAdmin = role === 'Company Admin'
   const isPlatformAdmin = role === 'Platform Admin'
+  const showAdmin = isCompanyAdmin || isPlatformAdmin
 
   const tabs = useMemo<TabDef[]>(() => {
     const list: TabDef[] = [
       { value: 'directory', label: 'Directory' },
       { value: 'org-chart', label: 'Org Chart' },
     ]
-    if (isCompanyAdmin || isPlatformAdmin) {
-      list.push({ value: 'privacy', label: 'Privacy & Fields' })
-    }
-    if (isPlatformAdmin) {
-      list.push({ value: 'governance', label: 'Data Governance' })
+    if (showAdmin) {
+      list.push({ value: 'admin', label: 'Admin' })
     }
     return list
-  }, [isCompanyAdmin, isPlatformAdmin])
+  }, [showAdmin])
 
   const companies = useMemo(() => scopedCompanies(role), [role])
   const scopedEmployees = useMemo(() => {
@@ -81,14 +79,24 @@ export function DirectoryOrgChart() {
             <TabsContent value='org-chart'>
               <OrgChartTab store={store} config={config} />
             </TabsContent>
-            {(isCompanyAdmin || isPlatformAdmin) && (
-              <TabsContent value='privacy'>
-                <PrivacyConfigTab config={config} />
-              </TabsContent>
-            )}
-            {isPlatformAdmin && (
-              <TabsContent value='governance'>
-                <GovernanceTab store={store} />
+            {showAdmin && (
+              <TabsContent value='admin'>
+                <Tabs defaultValue='privacy' className='w-full'>
+                  <TabsList className='mb-2'>
+                    <TabsTrigger value='privacy'>Privacy & fields</TabsTrigger>
+                    {isPlatformAdmin && (
+                      <TabsTrigger value='data-checks'>Data checks</TabsTrigger>
+                    )}
+                  </TabsList>
+                  <TabsContent value='privacy'>
+                    <PrivacyConfigTab config={config} />
+                  </TabsContent>
+                  {isPlatformAdmin && (
+                    <TabsContent value='data-checks'>
+                      <GovernanceTab store={store} />
+                    </TabsContent>
+                  )}
+                </Tabs>
               </TabsContent>
             )}
           </Tabs>

@@ -50,7 +50,7 @@ export function ConfigTab({ store }: { store: GovernedConfigStore }) {
     <div className='w-full'>
       {/* Versioned governed configuration (SYS-35, 33) */}
       <SectionCard
-        title={`Governed configuration registry (${store.configEntries.length})`}
+        title={`Configuration settings (${store.configEntries.length})`}
         description='Roles, permission sets, jurisdiction rule-packs, locale formats, security policies and UDF schemas — versioned and effective-dated; changes apply without code deployment.'
         actions={
           <RoleGate roles={['Company Admin', 'Platform Admin']}>

@@ -124,16 +124,16 @@ export function DataManagement() {
             <div className='mb-3 flex items-center justify-between'>
               <TabsList className='bg-transparent p-0'>
                 <TabsTrigger value='jobs' variant='primary'>
-                  Job Dashboard
+                  Imports & Exports
                 </TabsTrigger>
                 <TabsTrigger value='log' variant='primary'>
-                  Import Data Log
+                  Import History
                 </TabsTrigger>
                 <TabsTrigger value='mappings' variant='primary'>
                   Saved Mappings
                 </TabsTrigger>
                 <TabsTrigger value='config' variant='primary'>
-                  Configuration
+                  Admin
                 </TabsTrigger>
               </TabsList>
               <span className='text-paragraph-sm text-neutral-1000'>

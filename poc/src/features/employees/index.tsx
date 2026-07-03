@@ -157,8 +157,8 @@ export function Employees() {
 
           <Tabs defaultValue={defaultTab} key={role}>
             <TabsList className='mb-2'>
-              <TabsTrigger value='directory'>Directory</TabsTrigger>
               <TabsTrigger value='profile'>My Profile</TabsTrigger>
+              <TabsTrigger value='directory'>Directory</TabsTrigger>
               <TabsTrigger value='delegations'>
                 Managers & Delegation
               </TabsTrigger>

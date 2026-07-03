@@ -34,7 +34,7 @@ export function Jurisdictions() {
   const isAdmin = ADMIN_ROLES.includes(role)
   const [tab, setTab] = useState(isAdmin ? 'catalog' : 'applicability')
 
-  // Employees only have the applicability surface; snap them to it.
+  // Employees only have the "What applies to me" surface; snap them to it.
   useEffect(() => {
     if (!isAdmin && tab !== 'applicability') setTab('applicability')
   }, [isAdmin, tab])
@@ -53,18 +53,24 @@ export function Jurisdictions() {
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className='mb-2'>
-              {isAdmin && <TabsTrigger value='catalog'>Catalog</TabsTrigger>}
+              <TabsTrigger value='applicability'>
+                What applies to me
+              </TabsTrigger>
+              {isAdmin && <TabsTrigger value='catalog'>Regions</TabsTrigger>}
               {isAdmin && (
                 <TabsTrigger value='assignments'>
                   Company Assignments
                 </TabsTrigger>
               )}
-              {isAdmin && <TabsTrigger value='policies'>Policies</TabsTrigger>}
-              {isAdmin && (
-                <TabsTrigger value='rule-packs'>Rule Packs</TabsTrigger>
-              )}
-              <TabsTrigger value='applicability'>My Applicability</TabsTrigger>
+              {isAdmin && <TabsTrigger value='admin'>Admin</TabsTrigger>}
             </TabsList>
+
+            <TabsContent value='applicability'>
+              <ApplicabilityTab
+                store={assignmentsStore}
+                catalog={jurisdictionsStore.jurisdictions}
+              />
+            </TabsContent>
 
             {isAdmin && (
               <TabsContent value='catalog'>
@@ -86,30 +92,30 @@ export function Jurisdictions() {
             )}
 
             {isAdmin && (
-              <TabsContent value='policies'>
-                <PoliciesTab
-                  store={assignmentsStore}
-                  catalog={jurisdictionsStore.jurisdictions}
-                />
+              <TabsContent value='admin'>
+                <Tabs defaultValue='policies'>
+                  <TabsList className='mb-2'>
+                    <TabsTrigger value='policies'>Policies</TabsTrigger>
+                    <TabsTrigger value='rules'>Rules</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value='policies'>
+                    <PoliciesTab
+                      store={assignmentsStore}
+                      catalog={jurisdictionsStore.jurisdictions}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value='rules'>
+                    <RulePacksTab
+                      store={rulePacksStore}
+                      assignments={assignmentsStore}
+                      catalog={jurisdictionsStore.jurisdictions}
+                    />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
             )}
-
-            {isAdmin && (
-              <TabsContent value='rule-packs'>
-                <RulePacksTab
-                  store={rulePacksStore}
-                  assignments={assignmentsStore}
-                  catalog={jurisdictionsStore.jurisdictions}
-                />
-              </TabsContent>
-            )}
-
-            <TabsContent value='applicability'>
-              <ApplicabilityTab
-                store={assignmentsStore}
-                catalog={jurisdictionsStore.jurisdictions}
-              />
-            </TabsContent>
           </Tabs>
         </div>
       </Main>

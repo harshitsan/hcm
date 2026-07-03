@@ -54,11 +54,8 @@ export function Companies() {
               <TabsTrigger value='subscriptions' variant='primary'>
                 Subscriptions
               </TabsTrigger>
-              <TabsTrigger value='lifecycle' variant='primary'>
-                Lifecycle & Retention
-              </TabsTrigger>
-              <TabsTrigger value='audit' variant='primary'>
-                Audit & Isolation
+              <TabsTrigger value='admin' variant='primary'>
+                Admin
               </TabsTrigger>
             </TabsList>
 
@@ -75,11 +72,19 @@ export function Companies() {
             <TabsContent value='subscriptions'>
               <SubscriptionsTab store={store} subscriptions={subscriptions} />
             </TabsContent>
-            <TabsContent value='lifecycle'>
-              <LifecycleTab store={store} />
-            </TabsContent>
-            <TabsContent value='audit'>
-              <AuditTab store={store} />
+            <TabsContent value='admin'>
+              <Tabs defaultValue='lifecycle'>
+                <TabsList className='mb-3'>
+                  <TabsTrigger value='lifecycle'>Lifecycle</TabsTrigger>
+                  <TabsTrigger value='audit'>Audit log</TabsTrigger>
+                </TabsList>
+                <TabsContent value='lifecycle'>
+                  <LifecycleTab store={store} />
+                </TabsContent>
+                <TabsContent value='audit'>
+                  <AuditTab store={store} />
+                </TabsContent>
+              </Tabs>
             </TabsContent>
           </Tabs>
         </div>

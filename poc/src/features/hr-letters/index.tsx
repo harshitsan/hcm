@@ -16,20 +16,20 @@ import { useLetterConfig } from './hooks/use-letter-config'
 import { useLetterTemplates } from './hooks/use-letter-templates'
 
 /**
- * HR Letters & Certificates module. One page, role-aware tabs:
+ * HR Letters & Certificates module. One page, role-aware tabs (task-first):
+ * - My Documents: employee self-service view/download + agreement
+ *   acknowledgment; Employee (Non-User) sees their email/print delivery record
  * - Documents: search/filter grid over generated letters with manual, batch,
  *   and event-driven generation, approval, distribution, versioning, reissue
  * - Approvals: Company Admin approval queue (approve / reject with reason)
- * - My Documents: employee self-service view/download + agreement
- *   acknowledgment; Employee (Non-User) sees their email/print delivery record
- * - Templates: the eight versioned, effective-dated HR letter templates with
- *   merge fields
- * - Catalogs: domain-scoped email/notification template catalogs with
- *   Template Type IDs, paging, and co-located approver/receiver routing
- * - Agreements: agreement letter templates, certification questionnaire, and
- *   acknowledgment tracking
- * - Configuration: auto triggers, decision tables, notification engine,
- *   retention; group governance; platform data-model posture
+ * - Admin: everything setup-related, grouped as nested tabs:
+ *   - Letter Templates: the eight versioned HR letter templates with merge fields
+ *   - Email & Notifications: domain-scoped email/notification template catalogs
+ *     with Template Type IDs, paging, and co-located approver/receiver routing
+ *   - Agreements: agreement letter templates, certification questionnaire, and
+ *     acknowledgment tracking
+ *   - Settings: auto triggers, decision tables, notification engine,
+ *     retention; group governance; platform data-model posture
  */
 export function HrLetters() {
   const { role } = useRole()
@@ -46,23 +46,24 @@ export function HrLetters() {
   const isEmployee = role === 'Employee (User)' || role === 'Employee (Non-User)'
   const showTemplates = isCompanyAdmin || isGroupAdmin
   const showConfig = isCompanyAdmin || isGroupAdmin || isPlatformAdmin
+  const showAdminTab = showTemplates || isCompanyAdmin || showConfig
 
   const availableTabs = useMemo(() => {
     const tabs: string[] = []
+    if (isEmployee) tabs.push('mine')
     if (isAdmin) tabs.push('documents')
     if (isCompanyAdmin) tabs.push('approvals')
-    if (isEmployee) tabs.push('mine')
-    if (showTemplates) tabs.push('templates', 'catalogs')
-    if (isCompanyAdmin) tabs.push('agreements')
-    if (showConfig) tabs.push('config')
+    if (showAdminTab) tabs.push('admin')
     return tabs
-  }, [isAdmin, isCompanyAdmin, isEmployee, showTemplates, showConfig])
+  }, [isEmployee, isAdmin, isCompanyAdmin, showAdminTab])
 
   const [tab, setTab] = useState(availableTabs[0])
 
   useEffect(() => {
     if (!availableTabs.includes(tab)) setTab(availableTabs[0])
   }, [availableTabs, tab])
+
+  const adminDefaultTab = showTemplates ? 'templates' : 'config'
 
   return (
     <>
@@ -71,6 +72,11 @@ export function HrLetters() {
         <div className='w-full'>
           <Tabs value={tab} onValueChange={setTab} className='w-full'>
             <TabsList className='mb-3 bg-transparent p-0'>
+              {isEmployee && (
+                <TabsTrigger variant='primary' value='mine'>
+                  My Documents
+                </TabsTrigger>
+              )}
               {isAdmin && (
                 <TabsTrigger variant='primary' value='documents'>
                   Documents
@@ -81,33 +87,22 @@ export function HrLetters() {
                   Approvals
                 </TabsTrigger>
               )}
-              {isEmployee && (
-                <TabsTrigger variant='primary' value='mine'>
-                  My Documents
-                </TabsTrigger>
-              )}
-              {showTemplates && (
-                <TabsTrigger variant='primary' value='templates'>
-                  Letter Templates
-                </TabsTrigger>
-              )}
-              {showTemplates && (
-                <TabsTrigger variant='primary' value='catalogs'>
-                  Template Catalogs
-                </TabsTrigger>
-              )}
-              {isCompanyAdmin && (
-                <TabsTrigger variant='primary' value='agreements'>
-                  Agreements
-                </TabsTrigger>
-              )}
-              {showConfig && (
-                <TabsTrigger variant='primary' value='config'>
-                  Configuration
+              {showAdminTab && (
+                <TabsTrigger variant='primary' value='admin'>
+                  Admin
                 </TabsTrigger>
               )}
             </TabsList>
 
+            {isEmployee && (
+              <TabsContent value='mine'>
+                <MyDocumentsTab
+                  store={documentsStore}
+                  templates={templatesStore.templates}
+                  questions={catalogs.questions}
+                />
+              </TabsContent>
+            )}
             {isAdmin && (
               <TabsContent value='documents'>
                 <DocumentsTab
@@ -125,37 +120,57 @@ export function HrLetters() {
                 />
               </TabsContent>
             )}
-            {isEmployee && (
-              <TabsContent value='mine'>
-                <MyDocumentsTab
-                  store={documentsStore}
-                  templates={templatesStore.templates}
-                  questions={catalogs.questions}
-                />
-              </TabsContent>
-            )}
-            {showTemplates && (
-              <TabsContent value='templates'>
-                <TemplatesTab store={templatesStore} />
-              </TabsContent>
-            )}
-            {showTemplates && (
-              <TabsContent value='catalogs'>
-                <CatalogsTab store={catalogs} />
-              </TabsContent>
-            )}
-            {isCompanyAdmin && (
-              <TabsContent value='agreements'>
-                <AgreementsTab
-                  templatesStore={templatesStore}
-                  documentsStore={documentsStore}
-                  catalogs={catalogs}
-                />
-              </TabsContent>
-            )}
-            {showConfig && (
-              <TabsContent value='config'>
-                <ConfigTab config={config} />
+            {showAdminTab && (
+              <TabsContent value='admin'>
+                <Tabs defaultValue={adminDefaultTab} className='w-full'>
+                  <TabsList className='mb-3 bg-transparent p-0'>
+                    {showTemplates && (
+                      <TabsTrigger variant='primary' value='templates'>
+                        Letter Templates
+                      </TabsTrigger>
+                    )}
+                    {showTemplates && (
+                      <TabsTrigger variant='primary' value='catalogs'>
+                        Email & Notifications
+                      </TabsTrigger>
+                    )}
+                    {isCompanyAdmin && (
+                      <TabsTrigger variant='primary' value='agreements'>
+                        Agreements
+                      </TabsTrigger>
+                    )}
+                    {showConfig && (
+                      <TabsTrigger variant='primary' value='config'>
+                        Settings
+                      </TabsTrigger>
+                    )}
+                  </TabsList>
+
+                  {showTemplates && (
+                    <TabsContent value='templates'>
+                      <TemplatesTab store={templatesStore} />
+                    </TabsContent>
+                  )}
+                  {showTemplates && (
+                    <TabsContent value='catalogs'>
+                      <CatalogsTab store={catalogs} />
+                    </TabsContent>
+                  )}
+                  {isCompanyAdmin && (
+                    <TabsContent value='agreements'>
+                      <AgreementsTab
+                        templatesStore={templatesStore}
+                        documentsStore={documentsStore}
+                        catalogs={catalogs}
+                      />
+                    </TabsContent>
+                  )}
+                  {showConfig && (
+                    <TabsContent value='config'>
+                      <ConfigTab config={config} />
+                    </TabsContent>
+                  )}
+                </Tabs>
               </TabsContent>
             )}
           </Tabs>

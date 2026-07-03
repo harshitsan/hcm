@@ -49,7 +49,7 @@ export function ScopeTab({ store }: { store: ScopeRulesStore }) {
       <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
         <div className='mb-3 flex items-center justify-between'>
           <h3 className='text-neutral-1600 text-sm font-medium'>
-            Scope Rules ({store.rules.length})
+            Data Access Rules ({store.rules.length})
             <span className='text-neutral-1000 ml-2 text-xs'>
               governed, versioned configuration — the access engine reads them
               at evaluation time, no code change
