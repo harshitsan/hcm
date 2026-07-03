@@ -5,6 +5,7 @@ import { Main } from '@/components/layout/main'
 import { useRole, type Role } from '@/context/role-context'
 import { ApproverGroupsTab } from './components/approver-groups-tab'
 import { AuditTab } from './components/audit-tab'
+import { BusinessLogicTab } from './components/business-logic-tab'
 import { DefinitionsTab } from './components/definitions-tab'
 import { InstancesTab } from './components/instances-tab'
 import { PlatformTab } from './components/platform-tab'
@@ -14,6 +15,7 @@ import { ACTORS, companiesForRole } from './data/shared'
 import { useApproverGroups } from './hooks/use-approver-groups'
 import { useAttendanceConfig } from './hooks/use-attendance-config'
 import { useAuditTrail } from './hooks/use-audit-trail'
+import { useBusinessLogic } from './hooks/use-business-logic'
 import { useDefinitions } from './hooks/use-definitions'
 import { useInstances } from './hooks/use-instances'
 import { usePlatform } from './hooks/use-platform'
@@ -47,6 +49,18 @@ const TABS: TabDef[] = [
   {
     value: 'definitions',
     label: 'Workflows',
+    roles: [
+      'Company Admin',
+      'Group Company Admin',
+      'Portfolio Admin',
+      'Platform Admin',
+    ],
+  },
+  {
+    // One business-logic engine behind every configuration screen: artifacts
+    // authored once, attached to any module, scoped per level (WFE-43 … WFE-49).
+    value: 'business-logic',
+    label: 'Business logic',
     roles: [
       'Company Admin',
       'Group Company Admin',
@@ -107,7 +121,9 @@ const ADMIN_TABS: TabDef[] = [
  * approver inbox; per-process approver chains; a governed routing decision
  * table; business-hour SLAs with 50/75/100 thresholds and escalation
  * strategies; per-module toggles and platform tenant health; and a complete
- * audit trail (WFE-01 … WFE-42).
+ * audit trail (WFE-01 … WFE-42). The "Business logic" tab generalizes every
+ * configuration screen into one artifact catalog — authored once, attached to
+ * any module, enabled per scope level (WFE-43 … WFE-49).
  */
 export function Workflows() {
   const { role, hasRole } = useRole()
@@ -142,6 +158,7 @@ export function Workflows() {
     actorRole: role,
   })
   const platform = usePlatform({ append: audit.append })
+  const businessLogic = useBusinessLogic({ actor })
 
   const canConfigure = hasRole('Company Admin', 'Group Company Admin')
   const visibleAdminTabs = ADMIN_TABS.filter((t) => t.roles.includes(role))
@@ -196,6 +213,10 @@ export function Workflows() {
                   calendars={slaConfig.calendars}
                   canConfigure={canConfigure}
                 />
+              </TabsContent>
+
+              <TabsContent value='business-logic'>
+                <BusinessLogicTab store={businessLogic} role={role} />
               </TabsContent>
 
               <TabsContent value='admin'>
