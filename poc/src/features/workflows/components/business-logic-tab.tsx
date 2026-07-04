@@ -17,7 +17,10 @@ import { LongText } from '@/components/common/long-text'
 import {
   ARTIFACT_TYPES,
   ARTIFACT_TYPE_LABELS,
+  blockingLevel,
+  isEffectivelyActive,
   ROLE_SCOPE,
+  SCOPE_LABELS,
   SCOPE_LEVELS,
   SCOPE_SHORT,
   TARGET_MODULES,
@@ -94,20 +97,36 @@ const columns: ColumnDef<ArtifactRow>[] = [
   {
     id: 'scopes',
     header: () => (
-      <span className='text-paragraph-sm font-medium'>Enabled scopes</span>
+      <span className='text-paragraph-sm font-medium'>Effective scopes</span>
     ),
+    // Layered governance made visible (WFE-47): green = effectively active,
+    // grey pill with dot = enabled at this level but blocked upstream.
     cell: ({ row }) => (
       <div className='flex gap-1 p-1'>
-        {SCOPE_LEVELS.map((level) => (
-          <Badge
-            key={level}
-            variant={
-              row.original.scopes[level] ? 'badge_active' : 'badge_inactive'
-            }
-          >
-            {SCOPE_SHORT[level]}
-          </Badge>
-        ))}
+        {SCOPE_LEVELS.map((level) => {
+          const enabled = row.original.scopes[level]
+          const effective = isEffectivelyActive(row.original.scopes, level)
+          const blocker = blockingLevel(row.original.scopes, level)
+          const title =
+            enabled && !effective && blocker
+              ? `Enabled at ${SCOPE_LABELS[level]} — blocked because ${SCOPE_LABELS[blocker]} is disabled`
+              : `${SCOPE_LABELS[level]}: ${effective ? 'effectively active' : 'disabled'}`
+          return (
+            <span key={level} title={title}>
+              <Badge
+                variant={
+                  effective
+                    ? 'badge_active'
+                    : enabled
+                      ? 'pending'
+                      : 'badge_inactive'
+                }
+              >
+                {SCOPE_SHORT[level]}
+              </Badge>
+            </span>
+          )
+        })}
       </div>
     ),
   },
@@ -151,8 +170,11 @@ export function BusinessLogicTab({
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editing, setEditing] = useState<Artifact | null>(null)
 
-  /** Authoring is reserved for Company and Platform Admins (WFE-44). */
+  /** Authoring new artifacts is reserved for Company and Platform Admins (WFE-44). */
   const canAuthor = role === 'Company Admin' || role === 'Platform Admin'
+  /** Governance (edit/delete existing artifacts) extends to Portfolio Admins. */
+  const canGovern =
+    canAuthor || role === 'Portfolio Admin'
   const myScope = ROLE_SCOPE[role]
 
   const rows = useMemo<ArtifactRow[]>(() => {
@@ -174,10 +196,10 @@ export function BusinessLogicTab({
     () => [
       { label: 'Artifacts', value: artifacts.length },
       {
-        label: myScope ? 'Enabled at your scope' : 'Enabled anywhere',
+        label: myScope ? 'Active at your scope' : 'Enabled anywhere',
         value: artifacts.filter((a) =>
           myScope
-            ? a.scopes[myScope]
+            ? isEffectivelyActive(a.scopes, myScope)
             : SCOPE_LEVELS.some((l) => a.scopes[l])
         ).length,
       },
@@ -200,7 +222,7 @@ export function BusinessLogicTab({
       <SummaryCards title='One engine — every configuration screen' items={summary} />
 
       <p className='text-neutral-1000 mb-3 text-sm'>
-        {`Modules consume these artifacts — a module's Admin view is this catalog filtered to that module.`}
+        {`Authored once in the engine → enabled per scope level by each admin → consumed by the target module. Modules consume these artifacts — a module's Admin view is this catalog filtered to that module.`}
       </p>
 
       <SectionToolbar title={`Artifact catalog (${rows.length})`}>
@@ -265,7 +287,7 @@ export function BusinessLogicTab({
           if (!open) setDetailId(null)
         }}
         role={role}
-        canAuthor={canAuthor}
+        canAuthor={canGovern}
         onToggleScope={(level) => {
           if (detail) toggleScope(detail.id, level)
         }}

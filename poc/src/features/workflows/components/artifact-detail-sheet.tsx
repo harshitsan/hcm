@@ -24,7 +24,9 @@ import {
 } from '@/components/ui/tooltip'
 import {
   ARTIFACT_TYPE_LABELS,
+  blockingLevel,
   FIELD_TYPE_LABELS,
+  isEffectivelyActive,
   SCOPE_LABELS,
   SCOPE_LEVELS,
   SCOPE_TOGGLE_ROLE,
@@ -242,16 +244,28 @@ export function ArtifactDetailSheet({
                   Scope matrix
                 </h3>
                 <p className='text-neutral-1000 mb-2 text-xs'>
-                  The artifact is active only where enabled; each level is
-                  toggled by the admin who owns that level.
+                  Hierarchy: Platform → Portfolio → Group company → Company. A
+                  level is effectively active only when every level above it
+                  is also enabled; each switch is owned by that level's admin.
                 </p>
                 <div className='space-y-2'>
                   {SCOPE_LEVELS.map((level) => {
                     const gate = SCOPE_TOGGLE_ROLE[level]
                     const allowed = role === gate
+                    const enabled = artifact.scopes[level]
+                    const effective = isEffectivelyActive(
+                      artifact.scopes,
+                      level
+                    )
+                    const blocker = blockingLevel(artifact.scopes, level)
+                    const stateText = effective
+                      ? 'Effectively active'
+                      : enabled && blocker
+                        ? `Enabled here — blocked at ${SCOPE_LABELS[blocker]}`
+                        : 'Disabled'
                     const control = (
                       <Switch
-                        checked={artifact.scopes[level]}
+                        checked={enabled}
                         disabled={!allowed}
                         onCheckedChange={() => onToggleScope(level)}
                         aria-label={`Toggle ${SCOPE_LABELS[level]} scope`}
@@ -267,8 +281,7 @@ export function ArtifactDetailSheet({
                             {SCOPE_LABELS[level]}
                           </span>
                           <span className='text-neutral-1000 text-xs'>
-                            {artifact.scopes[level] ? 'Enabled' : 'Disabled'} ·
-                            governed by {gate}
+                            {stateText} · governed by {gate}
                           </span>
                         </div>
                         {allowed ? (

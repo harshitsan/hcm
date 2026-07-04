@@ -91,6 +91,32 @@ export const ROLE_SCOPE: Partial<Record<Role, ScopeLevel>> = {
   'Company Admin': 'company',
 }
 
+/**
+ * Hierarchical effective state (WFE-47): an artifact is effectively active at
+ * a level only when that level AND every ancestor level (platform → … →
+ * level) are enabled. Toggles stay independent per level — each admin governs
+ * their own switch — but activation cascades down the tenant hierarchy.
+ */
+export function isEffectivelyActive(
+  scopes: Record<ScopeLevel, boolean>,
+  level: ScopeLevel
+): boolean {
+  const idx = SCOPE_LEVELS.indexOf(level)
+  return SCOPE_LEVELS.slice(0, idx + 1).every((l) => scopes[l])
+}
+
+/** The topmost disabled level preventing activation at `level`, if any. */
+export function blockingLevel(
+  scopes: Record<ScopeLevel, boolean>,
+  level: ScopeLevel
+): ScopeLevel | null {
+  const idx = SCOPE_LEVELS.indexOf(level)
+  for (const l of SCOPE_LEVELS.slice(0, idx + 1)) {
+    if (!scopes[l]) return l
+  }
+  return null
+}
+
 /** Named roles resolvable as chain-step approvers. */
 export const APPROVER_STEP_ROLES = [
   'Reporting Manager',
