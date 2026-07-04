@@ -10,7 +10,9 @@ type AuthenticatedLayoutProps = {
 }
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
-  const defaultOpen = false
+  // Sidebar opens expanded so the tenant header + accordion groups show;
+  // the header trigger still collapses it to the icon rail.
+  const defaultOpen = true
   return (
     <LayoutProvider>
       <SidebarProvider defaultOpen={defaultOpen}>

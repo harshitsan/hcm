@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/collapsible'
 import {
   SidebarGroup,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -34,27 +35,123 @@ import {
   type NavGroup as NavGroupProps,
 } from './types'
 
-export function NavGroup({ items }: NavGroupProps) {
+/**
+ * Sidebar module group. Expanded sidebar: an accordion section (collapsible
+ * label + row links, the group holding the active route opens by default).
+ * Collapsed icon rail: the original icon-tile rendering.
+ */
+export function NavGroup({ title, items }: NavGroupProps) {
   const { state } = useSidebar()
   const href = useLocation({ select: (location) => location.href })
-  return (
-    <SidebarGroup>
-      <SidebarMenu>
-        {items.map((item) => {
-          const key = `${item.title}-${item.url}`
 
-          if (!item.items)
-            return <SidebarMenuLink key={key} item={item} href={href} />
-
-          if (state === 'collapsed')
+  // Collapsed icon rail keeps the compact tile style.
+  if (state === 'collapsed') {
+    return (
+      <SidebarGroup>
+        <SidebarMenu>
+          {items.map((item) => {
+            const key = `${item.title}-${item.url}`
+            if (!item.items)
+              return <SidebarMenuLink key={key} item={item} href={href} />
             return (
               <SidebarMenuCollapsedDropdown key={key} item={item} href={href} />
             )
+          })}
+        </SidebarMenu>
+      </SidebarGroup>
+    )
+  }
 
-          return <SidebarMenuCollapsible key={key} item={item} href={href} />
-        })}
-      </SidebarMenu>
-    </SidebarGroup>
+  const rows = (
+    <SidebarMenu>
+      {items.map((item) => {
+        const key = `${item.title}-${item.url}`
+        if (!item.items)
+          return <SidebarMenuRow key={key} item={item} href={href} />
+        return <SidebarMenuCollapsible key={key} item={item} href={href} />
+      })}
+    </SidebarMenu>
+  )
+
+  // Ungrouped items (e.g. Dashboard) render as plain rows without a label.
+  if (!title) return <SidebarGroup className='pb-0'>{rows}</SidebarGroup>
+
+  const containsActive = items.some((item) => checkIsActive(href, item, true))
+
+  return (
+    <Collapsible
+      defaultOpen={containsActive}
+      className='group/nav-group'
+      asChild
+    >
+      <SidebarGroup className='py-1'>
+        <SidebarGroupLabel asChild>
+          <CollapsibleTrigger className='w-full cursor-pointer text-white/60 uppercase tracking-wider hover:text-white'>
+            {title}
+            <ChevronRight className='ms-auto transition-transform duration-200 group-data-[state=open]/nav-group:rotate-90' />
+          </CollapsibleTrigger>
+        </SidebarGroupLabel>
+        <CollapsibleContent className='CollapsibleContent'>
+          {rows}
+        </CollapsibleContent>
+      </SidebarGroup>
+    </Collapsible>
+  )
+}
+
+/** Expanded-sidebar row: icon + title link, with the lock state for roles without access. */
+function SidebarMenuRow({ item, href }: { item: NavLink; href: string }) {
+  const { setOpenMobile } = useSidebar()
+  const { role } = useRole()
+  const isActive = checkIsActive(href, item)
+  const accessible = item.url ? canAccess(role, String(item.url)) : true
+
+  if (!accessible) {
+    const allowed = rolesForPath(String(item.url))
+    return (
+      <SidebarMenuItem>
+        <div
+          className='flex h-8 cursor-not-allowed items-center gap-2 rounded-sm px-2 opacity-40'
+          title={
+            allowed.length
+              ? `Requires role: ${allowed.join(', ')}`
+              : 'No access for your role'
+          }
+        >
+          {item.icon && (
+            <item.icon className='text-alpha-white-100 !h-4 !w-4 shrink-0' />
+          )}
+          <span className='text-alpha-white-100 truncate text-sm'>
+            {item.title}
+          </span>
+          <Lock className='ms-auto !h-3 !w-3 shrink-0 text-white' />
+        </div>
+      </SidebarMenuItem>
+    )
+  }
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        className={`hover:!bg-blue-1300 !rounded-sm text-white hover:text-white ${isActive ? '!bg-blue-1300' : ''}`}
+      >
+        <Link
+          to={item.url}
+          onClick={() => setOpenMobile(false)}
+          className='text-white hover:text-white'
+        >
+          {item.icon && (
+            <item.icon
+              className={`!h-4 !w-4 ${isActive ? 'text-neutral-100' : 'text-alpha-white-100'}`}
+            />
+          )}
+          <span className='truncate'>{item.title}</span>
+          {item.badge && <NavBadge>{item.badge}</NavBadge>}
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   )
 }
 

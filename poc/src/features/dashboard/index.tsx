@@ -19,7 +19,11 @@ const TOTAL_MODULES = 31
 export function Dashboard() {
   const { role } = useRole()
   // Show every module; disable the ones this role cannot open (module-access.ts).
-  const groups = sidebarData.navGroups.filter((g) => g.title !== '')
+  // The bottom (Administration) sidebar group still counts as modules here.
+  const groups = [
+    ...sidebarData.navGroups.filter((g) => g.title !== ''),
+    sidebarData.bottomGroup,
+  ]
   const moduleCount = groups.reduce(
     (n, g) =>
       n + g.items.filter((i) => canAccess(role, String(i.url))).length,

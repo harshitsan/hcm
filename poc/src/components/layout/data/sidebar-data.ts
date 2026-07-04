@@ -60,6 +60,24 @@ export const sidebarData: SidebarData = {
       plan: 'Group tenant',
     },
   ],
+  /** Tenants selectable in the sidebar header, each with its environment. */
+  tenants: [
+    {
+      name: 'Aurora Group',
+      logo: AudioWaveform,
+      environment: 'Production',
+    },
+    {
+      name: 'Acme Inc',
+      logo: GalleryVerticalEnd,
+      environment: 'Production',
+    },
+    {
+      name: 'SatelliteHR POC',
+      logo: Command,
+      environment: 'Sandbox',
+    },
+  ],
   navGroups: [
     {
       title: '',
@@ -122,11 +140,17 @@ export const sidebarData: SidebarData = {
           url: '/reports',
           icon: ChartColumnBig,
         },
-        { title: 'Roles & Security', url: '/roles-security', icon: ShieldCheck },
-        { title: 'Authentication', url: '/authentication', icon: KeyRound },
-        { title: 'Audit & Logging', url: '/audit-logs', icon: ScrollText },
-        { title: 'Platform Admin', url: '/platform-admin', icon: ServerCog },
       ],
     },
   ],
+  /** Rarely used security/ops modules — pinned to the sidebar bottom. */
+  bottomGroup: {
+    title: 'Administration',
+    items: [
+      { title: 'Roles & Security', url: '/roles-security', icon: ShieldCheck },
+      { title: 'Authentication', url: '/authentication', icon: KeyRound },
+      { title: 'Audit & Logging', url: '/audit-logs', icon: ScrollText },
+      { title: 'Platform Admin', url: '/platform-admin', icon: ServerCog },
+    ],
+  },
 }

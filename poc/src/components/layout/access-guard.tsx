@@ -10,7 +10,7 @@ import { sidebarData } from './data/sidebar-data'
 /** Human title for a module path, from the sidebar nav. */
 function moduleTitle(pathname: string): string {
   const key = moduleKey(pathname)
-  for (const group of sidebarData.navGroups) {
+  for (const group of [...sidebarData.navGroups, sidebarData.bottomGroup]) {
     for (const item of group.items) {
       if ('url' in item && String(item.url) === key) return item.title
     }

@@ -12,6 +12,13 @@ type Team = {
   plan: string
 }
 
+/** Tenant shown in the sidebar header with its environment (mock switch). */
+type Tenant = {
+  name: string
+  logo: React.ElementType
+  environment: 'Production' | 'Sandbox' | 'Staging'
+}
+
 type BaseNavItem = {
   title: string
   badge?: string
@@ -38,7 +45,10 @@ type NavGroup = {
 type SidebarData = {
   user: User
   teams: Team[]
+  tenants: Tenant[]
   navGroups: NavGroup[]
+  /** Less-important modules pinned to the bottom of the sidebar. */
+  bottomGroup: NavGroup
 }
 
-export type { SidebarData, NavGroup, NavItem, NavCollapsible, NavLink }
+export type { SidebarData, NavGroup, NavItem, NavCollapsible, NavLink, Tenant }
