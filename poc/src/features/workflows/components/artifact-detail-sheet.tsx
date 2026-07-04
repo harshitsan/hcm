@@ -161,10 +161,14 @@ function DefinitionView({ definition }: { definition: ArtifactDefinition }) {
         <div className='space-y-2'>
           <div className='flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm'>
             <span className='text-neutral-1900'>
-              Trigger: Scheduler ·{' '}
-              <span className='font-mono'>
-                {String(definition.doc.trigger.config.cron ?? '—')}
-              </span>
+              Trigger:{' '}
+              <span className='font-medium'>
+                {String(
+                  definition.doc.trigger.config.event ??
+                    definition.doc.trigger.label
+                )}
+              </span>{' '}
+              · {String(definition.doc.trigger.config.module ?? '—')}
             </span>
             <Badge
               variant={

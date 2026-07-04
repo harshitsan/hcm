@@ -1,10 +1,19 @@
 export type Config = Record<string, unknown>
 
-export type LeafKind = 'transform' | 'http' | 'log' | 'delay' | 'setVariable'
+/** HRMS action vocabulary — each kind is one registry entry (registry.ts). */
+export type LeafKind =
+  | 'approvalTask'
+  | 'notify'
+  | 'updateRecord'
+  | 'generateDocument'
+  | 'transform'
+  | 'delay'
+  | 'setVariable'
 export type ContainerKind = 'tryCatch' | 'ifElse' | 'choiceWhen' | 'for' | 'forEach' | 'group'
 export type StepKind = LeafKind | ContainerKind
 
-export type TriggerNode = { id: string; kind: 'scheduler'; label: string; config: Config }
+/** Flows start from an HRMS module event (e.g. "Leave request submitted"). */
+export type TriggerNode = { id: string; kind: 'moduleEvent'; label: string; config: Config }
 
 export type LeafStep = { id: string; kind: LeafKind; label: string; config: Config }
 

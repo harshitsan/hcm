@@ -1,6 +1,7 @@
 import {
   Zap, Repeat, Repeat2, GitBranch, Split, Boxes, ShieldAlert,
-  Globe, FileText, Timer, Variable, type LucideIcon,
+  BellRing, DatabaseZap, FileSignature, Timer, UserCheck, Variable,
+  type LucideIcon,
 } from 'lucide-react'
 import { makeId } from './model'
 import type { Branch, Config, Step, StepKind } from './model'
@@ -15,7 +16,7 @@ export type FieldDef = {
 export type BranchDef = { key: string; label: string; conditional?: boolean }
 export type BranchSpec = { fixed: BranchDef[]; addable?: { def: BranchDef; insertBeforeLast: boolean } }
 export type NodeDef = {
-  kind: StepKind | 'scheduler'
+  kind: StepKind | 'moduleEvent'
   label: string
   icon: LucideIcon
   category: 'trigger' | 'action' | 'controlFlow'
@@ -26,17 +27,50 @@ export type NodeDef = {
   validateConfig?: (config: Config) => string[]
 }
 
+/* Option lists mirror the Business logic catalog (data/business-logic.ts);
+   kept local so the designer core stays free of feature-data imports. */
+
+const MODULE_OPTIONS = [
+  'Leave Management', 'Time & Attendance', 'Recruitment', 'Employees',
+  'Employee Lifecycle', 'Notifications', 'HR Letters & Certificates',
+  'Asset Management', 'Custom Fields', 'Data Management',
+  'Policy Management', 'Companies',
+]
+
+const MODULE_EVENTS = [
+  'Leave request submitted', 'Overtime request submitted',
+  'Comp-off request submitted', 'Attendance shortfall detected',
+  'Exit initiated', 'Offer approved', 'New employee joined',
+  'Probation ending in 15 days', 'Policy published',
+]
+
+const APPROVER_ROLES = [
+  'Reporting Manager', 'Department Head', 'HR Director',
+  'Finance Controller', 'Operations Head', 'Compliance Officer',
+  'Recruitment Lead', 'Hiring Manager', 'Group HR Head', 'CEO',
+]
+
+const RECIPIENTS = [
+  'Employee', 'Reporting Manager', 'HR Director', 'Department Head',
+  'Finance Controller', 'All employees',
+]
+
+const DOCUMENT_TEMPLATES = [
+  'Offer Letter', 'Confirmation Letter', 'Experience Letter',
+  'Relieving Letter', 'Warning Letter', 'Policy Acknowledgement',
+]
+
 const defs: NodeDef[] = [
   {
-    kind: 'scheduler', label: 'Scheduler', icon: Zap, category: 'trigger', accent: 'green',
+    kind: 'moduleEvent', label: 'Module event', icon: Zap, category: 'trigger', accent: 'green',
     defaultConfig: {
-      cron: '0 * * * *', timezone: 'UTC',
-      samplePayload: '{\n  "user": { "name": "Ada", "age": 36 },\n  "items": [\n    { "sku": "A1", "qty": 2 },\n    { "sku": "B2", "qty": 0 }\n  ]\n}',
+      module: 'Leave Management', event: 'Leave request submitted',
+      samplePayload: '{\n  "request": { "type": "Casual", "days": 3, "from": "2026-07-10" },\n  "employee": { "name": "Ananya Sharma", "department": "Engineering", "balance": 12 }\n}',
     },
     configFields: [
-      { key: 'cron', label: 'Cron expression', type: 'text', required: true },
-      { key: 'timezone', label: 'Timezone', type: 'text' },
-      { key: 'samplePayload', label: 'Sample payload (JSON)', type: 'textarea' },
+      { key: 'module', label: 'Source module', type: 'select', options: MODULE_OPTIONS, required: true },
+      { key: 'event', label: 'Event', type: 'select', options: MODULE_EVENTS, required: true },
+      { key: 'samplePayload', label: 'Sample event payload (JSON)', type: 'textarea' },
     ],
     validateConfig: config => {
       const raw = config.samplePayload
@@ -45,7 +79,41 @@ const defs: NodeDef[] = [
     },
   },
   {
-    kind: 'transform', label: 'Transform', icon: Repeat, category: 'action', accent: 'purple',
+    kind: 'approvalTask', label: 'Approval task', icon: UserCheck, category: 'action', accent: 'purple',
+    defaultConfig: { approverRole: 'Reporting Manager', slaHours: 24, mockDecision: 'approved' },
+    configFields: [
+      { key: 'approverRole', label: 'Approver role', type: 'select', options: APPROVER_ROLES, required: true },
+      { key: 'slaHours', label: 'SLA (business hours)', type: 'number', required: true },
+      { key: 'mockDecision', label: 'Decision in test runs', type: 'select', options: ['approved', 'rejected'] },
+    ],
+  },
+  {
+    kind: 'notify', label: 'Notify', icon: BellRing, category: 'action', accent: 'neutral',
+    defaultConfig: { recipient: 'Employee', channel: 'Email', message: '' },
+    configFields: [
+      { key: 'recipient', label: 'Recipient', type: 'select', options: RECIPIENTS, required: true },
+      { key: 'channel', label: 'Channel', type: 'select', options: ['Email', 'In-app', 'SMS'] },
+      { key: 'message', label: 'Message ({{ expr }} interpolates)', type: 'textarea', required: true },
+    ],
+  },
+  {
+    kind: 'updateRecord', label: 'Update record', icon: DatabaseZap, category: 'action', accent: 'neutral',
+    defaultConfig: { module: 'Leave Management', field: '', value: '' },
+    configFields: [
+      { key: 'module', label: 'Module', type: 'select', options: MODULE_OPTIONS, required: true },
+      { key: 'field', label: 'Field', type: 'text', required: true },
+      { key: 'value', label: 'Value ({{ expr }} interpolates)', type: 'text' },
+    ],
+  },
+  {
+    kind: 'generateDocument', label: 'Generate document', icon: FileSignature, category: 'action', accent: 'neutral',
+    defaultConfig: { template: 'Offer Letter' },
+    configFields: [
+      { key: 'template', label: 'Letter template', type: 'select', options: DOCUMENT_TEMPLATES, required: true },
+    ],
+  },
+  {
+    kind: 'transform', label: 'Data mapping', icon: Repeat, category: 'action', accent: 'purple',
     defaultConfig: { mode: 'expression', expression: '', template: '', code: 'return input', mappings: [] },
     configFields: [], // custom editor in the right panel (mode-dependent)
     validateConfig: config => {
@@ -62,28 +130,12 @@ const defs: NodeDef[] = [
     },
   },
   {
-    kind: 'http', label: 'HTTP Request', icon: Globe, category: 'action', accent: 'neutral',
-    defaultConfig: { method: 'GET', url: '' },
-    configFields: [
-      { key: 'method', label: 'Method', type: 'select', options: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], required: true },
-      { key: 'url', label: 'URL', type: 'text', required: true },
-    ],
+    kind: 'delay', label: 'Wait / SLA timer', icon: Timer, category: 'action', accent: 'neutral',
+    defaultConfig: { hours: 24 },
+    configFields: [{ key: 'hours', label: 'Business hours to wait', type: 'number', required: true }],
   },
   {
-    kind: 'log', label: 'Log', icon: FileText, category: 'action', accent: 'neutral',
-    defaultConfig: { message: '', level: 'info' },
-    configFields: [
-      { key: 'message', label: 'Message', type: 'text', required: true },
-      { key: 'level', label: 'Level', type: 'select', options: ['debug', 'info', 'warn', 'error'] },
-    ],
-  },
-  {
-    kind: 'delay', label: 'Delay', icon: Timer, category: 'action', accent: 'neutral',
-    defaultConfig: { ms: 1000 },
-    configFields: [{ key: 'ms', label: 'Milliseconds', type: 'number', required: true }],
-  },
-  {
-    kind: 'setVariable', label: 'Set Variable', icon: Variable, category: 'action', accent: 'neutral',
+    kind: 'setVariable', label: 'Set variable', icon: Variable, category: 'action', accent: 'neutral',
     defaultConfig: { name: '', value: '' },
     configFields: [
       { key: 'name', label: 'Name', type: 'text', required: true },
@@ -140,6 +192,11 @@ export function getDef(kind: string): NodeDef {
 
 export function allDefs(): NodeDef[] {
   return defs
+}
+
+/** True when a persisted node kind exists in this registry (see store hydration). */
+export function isKnownKind(kind: string): boolean {
+  return byKind.has(kind as StepKind)
 }
 
 export function createBranch(def: BranchDef): Branch {

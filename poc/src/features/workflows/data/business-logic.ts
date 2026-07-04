@@ -1,5 +1,6 @@
 import type { Role } from '@/context/role-context'
 import type { WorkflowDoc } from '../designer/core/model'
+import { seedDoc } from '../designer/core/seed'
 
 /**
  * Business-logic artifact catalog (WFE-43 … WFE-49).
@@ -634,6 +635,24 @@ export const seedArtifacts: Artifact[] = [
     history: [
       { at: '2025-05-12 10:05', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
       { at: '2026-06-10 11:34', actor: 'Platform Ops', event: 'Edited — v2 (currency default corrected)' },
+    ],
+  },
+  {
+    // Author → Govern → Consume, closed out of the box: this flow was
+    // authored on the Designer canvas and published into the catalog.
+    id: 'bl-19',
+    name: 'Leave Approval — Standard',
+    type: 'flow',
+    targetModule: 'Leave Management',
+    description:
+      'Canvas-authored flow: leave request → manager approval → approved/rejected branches (notify + balance update).',
+    version: 1,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: { kind: 'flow', doc: seedDoc() },
+    updatedBy: 'Sunita Patil',
+    updatedAt: '2026-07-04',
+    history: [
+      { at: '2026-07-04 12:00', actor: 'Sunita Patil', event: 'Published from Designer — v1' },
     ],
   },
 ]

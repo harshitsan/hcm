@@ -31,6 +31,7 @@ import {
 import type { BusinessLogicStore } from '../hooks/use-business-logic'
 import { ArtifactBuilderSheet } from './artifact-builder-sheet'
 import { ArtifactDetailSheet } from './artifact-detail-sheet'
+import { LayerBanner } from './layer-banner'
 import { SummaryCards } from './summary-cards'
 import { SectionToolbar, SortableHeader } from './table-helpers'
 
@@ -221,6 +222,9 @@ export function BusinessLogicTab({
 
   return (
     <div className='w-full'>
+      {/* Filtering to one module IS the consume layer — that module's config view. */}
+      <LayerBanner active={moduleFilter === 'all' ? 'govern' : 'consume'} />
+
       <SummaryCards title='One engine — every configuration screen' items={summary} />
 
       <p className='text-neutral-1000 mb-3 text-sm'>

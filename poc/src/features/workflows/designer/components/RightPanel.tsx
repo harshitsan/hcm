@@ -280,7 +280,7 @@ function DataBrowser({ nodeId }: { nodeId: string }) {
       <h5>payload <span className="data-sub">(trigger sample)</span></h5>
       {payloadPaths.length > 0
         ? <PathList entries={payloadPaths} copied={copied} onCopy={copy} />
-        : <div className="data-note">Sample payload is empty or not valid JSON — edit it on the Scheduler.</div>}
+        : <div className="data-note">Sample payload is empty or not valid JSON — edit it on the module-event trigger.</div>}
       {vars.length > 0 && (
         <>
           <h5>vars</h5>

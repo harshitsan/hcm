@@ -6,17 +6,19 @@ export function TriggerNode() {
   const selected = useStore(s => s.selection?.id === trigger.id)
   const runStatus = useStore(s => s.run?.statuses[trigger.id])
   const select = useStore(s => s.select)
+  const module = String(trigger.config.module ?? 'Module event')
+  const event = String(trigger.config.event ?? trigger.label)
   return (
     <div
       className={`node leaf accent-green ${selected ? 'selected' : ''} ${runStatus ?? ''}`}
       onClick={e => { e.stopPropagation(); select({ type: 'trigger', id: trigger.id }) }}
     >
       <div className="node-head">
-        <span className="kind-chip accent-green"><Zap size={12} /> Scheduler</span>
+        <span className="kind-chip accent-green"><Zap size={12} /> {module}</span>
       </div>
       <div className="node-body">
-        <strong>1. Scheduler</strong>
-        <div className="hint">Triggers start your workflow</div>
+        <strong>1. {event}</strong>
+        <div className="hint">Module events start this flow</div>
       </div>
     </div>
   )

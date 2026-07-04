@@ -1,12 +1,15 @@
 import { useSyncExternalStore } from 'react'
 import { setAllCollapsed, validate } from '../core/ops'
 import type { InsertTarget, ValidationIssue } from '../core/ops'
-import type { WorkflowDoc } from '../core/model'
+import { isContainer } from '../core/model'
+import type { Step, WorkflowDoc } from '../core/model'
+import { isKnownKind } from '../core/registry'
 import { runWorkflow } from '../core/runner'
 import type { RunEvent } from '../core/runner'
 import { seedDoc } from '../core/seed'
 
-const STORAGE_KEY = 'satellitehr-poc:workflow-designer'
+// v2: HRMS node vocabulary (moduleEvent trigger + approvalTask/notify/… kinds)
+const STORAGE_KEY = 'satellitehr-poc:workflow-designer:v2'
 
 export type Selection = { type: 'step' | 'branch' | 'trigger'; id: string } | null
 export type RunState = {
@@ -46,10 +49,20 @@ type State = {
   importJson: (text: string) => string | null
 }
 
+function allKindsKnown(steps: Step[]): boolean {
+  return steps.every(
+    (s) =>
+      isKnownKind(s.kind) &&
+      (!isContainer(s) || s.branches.every((b) => allKindsKnown(b.steps)))
+  )
+}
+
 function isValidDocShape(parsed: unknown): parsed is WorkflowDoc {
   const p = parsed as WorkflowDoc
   return !!p && typeof p === 'object' && typeof p.id === 'string'
     && typeof p.name === 'string' && !!p.trigger && Array.isArray(p.body)
+    // Docs persisted with a retired node vocabulary fall back to the seed.
+    && p.trigger.kind === 'moduleEvent' && allKindsKnown(p.body)
 }
 
 function loadDoc(): WorkflowDoc {

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { LayerBanner } from '../components/layer-banner'
 import { TARGET_MODULES, type TargetModule } from '../data/business-logic'
 import type { ArtifactDraft } from '../hooks/use-business-logic'
 import { Canvas } from './components/Canvas'
@@ -40,8 +41,13 @@ export function DesignerTab({
   onPublish: (draft: ArtifactDraft) => void
 }) {
   const doc = useStore((s) => s.doc)
-  const [targetModule, setTargetModule] =
-    useState<TargetModule>('Employee Lifecycle')
+  const [targetModule, setTargetModule] = useState<TargetModule>(() => {
+    // Default the publish target to the trigger's source module.
+    const m = String(useStore.getState().doc.trigger.config.module ?? '')
+    return (TARGET_MODULES as readonly string[]).includes(m)
+      ? (m as TargetModule)
+      : 'Leave Management'
+  })
 
   // Cmd/Ctrl+Z / +Y undo-redo while the designer is mounted (from App.tsx).
   useEffect(() => {
@@ -63,9 +69,10 @@ export function DesignerTab({
   const canPublish = role === 'Company Admin' || role === 'Platform Admin'
 
   const publish = () => {
+    const event = String(doc.trigger.config.event ?? 'module event')
     onPublish({
       name: doc.name,
-      description: `Canvas-authored flow — scheduler trigger, ${doc.body.length} top-level step(s).`,
+      description: `Canvas-authored flow — triggers on "${event}", ${doc.body.length} top-level step(s).`,
       type: 'flow',
       targetModule,
       definition: { kind: 'flow', doc: structuredClone(doc) },
@@ -74,6 +81,8 @@ export function DesignerTab({
 
   return (
     <div className='w-full'>
+      <LayerBanner active='author' />
+
       <div className='mb-3 flex flex-wrap items-center justify-between gap-3'>
         <p className='text-neutral-1000 text-sm'>
           Author process flows on the canvas, test them against a sample

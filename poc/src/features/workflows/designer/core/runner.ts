@@ -77,16 +77,37 @@ export async function runWorkflow(
         output = value
         break
       }
-      case 'log': {
-        const message = interpolate(String(step.config.message ?? ''), ctx)
-        emit({ type: 'log', id: step.id, message: `[${step.config.level ?? 'info'}] ${message}` })
-        output = message
+      case 'approvalTask': {
+        // Simulated approval: the configured mock decision stands in for the
+        // approver's real action, so branches downstream can route on it.
+        const approver = String(step.config.approverRole ?? 'Reporting Manager')
+        const decision = String(step.config.mockDecision ?? 'approved')
+        const sla = Number(step.config.slaHours ?? 24)
+        emit({ type: 'log', id: step.id, message: `Approval task → ${approver} (SLA ${sla} h): ${decision}` })
+        output = { decision, approver, slaHours: sla }
         break
       }
-      case 'http': {
-        // Simulated request: URL is templated against the context, response is a stub
-        const url = interpolate(String(step.config.url ?? ''), ctx)
-        output = { status: 200, url, method: step.config.method ?? 'GET', body: { simulated: true } }
+      case 'notify': {
+        const message = interpolate(String(step.config.message ?? ''), ctx)
+        const recipient = String(step.config.recipient ?? 'Employee')
+        const channel = String(step.config.channel ?? 'Email')
+        emit({ type: 'log', id: step.id, message: `[${channel} → ${recipient}] ${message}` })
+        output = { delivered: true, recipient, channel, message }
+        break
+      }
+      case 'updateRecord': {
+        const moduleName = String(step.config.module ?? 'Employees')
+        const field = String(step.config.field ?? '')
+        const value = interpolate(String(step.config.value ?? ''), ctx)
+        emit({ type: 'log', id: step.id, message: `Updated ${moduleName} · ${field} = ${value}` })
+        output = { module: moduleName, field, value, simulated: true }
+        break
+      }
+      case 'generateDocument': {
+        const template = String(step.config.template ?? 'Offer Letter')
+        const slug = template.replace(/\s+/g, '-').toLowerCase()
+        emit({ type: 'log', id: step.id, message: `Generated document: ${template}` })
+        output = { document: template, url: `https://docs.satellitehr.example/${slug}.pdf`, simulated: true }
         break
       }
       case 'delay':
