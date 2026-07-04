@@ -156,6 +156,30 @@ function DefinitionView({ definition }: { definition: ArtifactDefinition }) {
           </span>
         </div>
       )
+    case 'flow':
+      return (
+        <div className='space-y-2'>
+          <div className='flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm'>
+            <span className='text-neutral-1900'>
+              Trigger: Scheduler ·{' '}
+              <span className='font-mono'>
+                {String(definition.doc.trigger.config.cron ?? '—')}
+              </span>
+            </span>
+            <Badge
+              variant={
+                definition.doc.status === 'active' ? 'badge_active' : 'pending'
+              }
+            >
+              {definition.doc.status === 'active' ? 'Active' : 'Draft'}
+            </Badge>
+          </div>
+          <p className='text-neutral-1000 text-xs'>
+            {definition.doc.body.length} top-level step(s) — authored on the
+            Designer canvas; open the Designer tab to edit the flow.
+          </p>
+        </div>
+      )
   }
 }
 

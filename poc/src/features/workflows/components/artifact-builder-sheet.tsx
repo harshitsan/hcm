@@ -29,9 +29,9 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   ALERT_CHANNELS,
   APPROVER_STEP_ROLES,
-  ARTIFACT_TYPES,
   ARTIFACT_TYPE_LABELS,
   FIELD_TYPE_LABELS,
+  FORM_ARTIFACT_TYPES,
   FORM_FIELD_TYPES,
   RULE_OPERATORS,
   RULE_OUTCOMES,
@@ -52,7 +52,7 @@ const builderSchema = z
   .object({
     name: z.string().min(2, 'Artifact name is required'),
     description: z.string(),
-    type: z.enum(ARTIFACT_TYPES),
+    type: z.enum(FORM_ARTIFACT_TYPES),
     targetModule: z.enum(TARGET_MODULES),
     steps: z.array(
       z.object({ approverRole: z.string(), slaHours: z.string() })
@@ -152,6 +152,8 @@ const emptyValues: BuilderValues = {
 }
 
 function toValues(artifact: Artifact): BuilderValues {
+  // Flow artifacts are authored on the Designer canvas, never in this form.
+  if (artifact.type === 'flow') return emptyValues
   const values: BuilderValues = {
     ...emptyValues,
     name: artifact.name,
@@ -351,7 +353,7 @@ export function ArtifactBuilderSheet({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {ARTIFACT_TYPES.map((t) => (
+                          {FORM_ARTIFACT_TYPES.map((t) => (
                             <SelectItem key={t} value={t}>
                               {ARTIFACT_TYPE_LABELS[t]}
                             </SelectItem>

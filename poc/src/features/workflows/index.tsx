@@ -12,6 +12,7 @@ import { PlatformTab } from './components/platform-tab'
 import { RoutingTab } from './components/routing-tab'
 import { SlaTab } from './components/sla-tab'
 import { ACTORS, companiesForRole } from './data/shared'
+import { DesignerTab } from './designer/designer-tab'
 import { useApproverGroups } from './hooks/use-approver-groups'
 import { useAttendanceConfig } from './hooks/use-attendance-config'
 import { useAuditTrail } from './hooks/use-audit-trail'
@@ -61,6 +62,18 @@ const TABS: TabDef[] = [
     // authored once, attached to any module, scoped per level (WFE-43 … WFE-49).
     value: 'business-logic',
     label: 'Business logic',
+    roles: [
+      'Company Admin',
+      'Group Company Admin',
+      'Portfolio Admin',
+      'Platform Admin',
+    ],
+  },
+  {
+    // Canvas authoring surface for process flows; publishes `flow` artifacts
+    // into the Business logic catalog (ported workflow-designer POC).
+    value: 'designer',
+    label: 'Designer',
     roles: [
       'Company Admin',
       'Group Company Admin',
@@ -217,6 +230,13 @@ export function Workflows() {
 
               <TabsContent value='business-logic'>
                 <BusinessLogicTab store={businessLogic} role={role} />
+              </TabsContent>
+
+              <TabsContent value='designer'>
+                <DesignerTab
+                  role={role}
+                  onPublish={businessLogic.createArtifact}
+                />
               </TabsContent>
 
               <TabsContent value='admin'>

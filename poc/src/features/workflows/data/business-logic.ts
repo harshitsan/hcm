@@ -1,4 +1,5 @@
 import type { Role } from '@/context/role-context'
+import type { WorkflowDoc } from '../designer/core/model'
 
 /**
  * Business-logic artifact catalog (WFE-43 … WFE-49).
@@ -10,7 +11,8 @@ import type { Role } from '@/context/role-context'
  * Kensium HRMS's 190 bespoke Configuration screens into a single catalog.
  */
 
-export const ARTIFACT_TYPES = [
+/** Types authored in the form-based artifact builder. */
+export const FORM_ARTIFACT_TYPES = [
   'approver-chain',
   'decision-rule',
   'custom-form',
@@ -19,6 +21,11 @@ export const ARTIFACT_TYPES = [
   'alert',
   'setting',
 ] as const
+
+export type FormArtifactType = (typeof FORM_ARTIFACT_TYPES)[number]
+
+/** All types — `flow` is authored on the Designer canvas, not in the form. */
+export const ARTIFACT_TYPES = [...FORM_ARTIFACT_TYPES, 'flow'] as const
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number]
 
@@ -30,6 +37,7 @@ export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   template: 'Template',
   alert: 'Alert',
   setting: 'Setting',
+  flow: 'Flow',
 }
 
 /** POC modules an artifact can attach to (WFE-44: any HRMS module). */
@@ -198,6 +206,8 @@ export type ArtifactDefinition =
   | { kind: 'template'; body: string }
   | { kind: 'alert'; trigger: string; channels: string[] }
   | { kind: 'setting'; key: string; value: string }
+  /** Canvas-authored process flow — the Designer's WorkflowDoc is the payload. */
+  | { kind: 'flow'; doc: WorkflowDoc }
 
 /** Version / enable / disable audit line (WFE-48). */
 export interface ArtifactHistoryEntry {

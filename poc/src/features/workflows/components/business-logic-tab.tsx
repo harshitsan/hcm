@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'phosphor-react'
+import { toast } from 'sonner'
 import type { Role } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -44,6 +45,7 @@ const TYPE_BADGE_VARIANT: Record<
   template: 'badge_inactive',
   alert: 'overdue',
   setting: 'badge_active',
+  flow: 'open',
 }
 
 function TypeBadge({ type }: { type: ArtifactType }) {
@@ -292,6 +294,10 @@ export function BusinessLogicTab({
           if (detail) toggleScope(detail.id, level)
         }}
         onEdit={() => {
+          if (detail?.type === 'flow') {
+            toast.info('Flow artifacts are authored on the Designer tab canvas')
+            return
+          }
           setEditing(detail)
           setBuilderOpen(true)
         }}
