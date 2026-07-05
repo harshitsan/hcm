@@ -2,6 +2,20 @@ import { isContainer, makeId } from './model'
 import type { WorkflowDoc } from './model'
 import { createStep, getDef } from './registry'
 
+/** Fresh empty workflow for "+ New workflow" — just a trigger and an end. */
+export function blankDoc(): WorkflowDoc {
+  return {
+    id: makeId('wf'),
+    name: 'Untitled workflow',
+    status: 'draft',
+    trigger: {
+      id: makeId('t'), kind: 'moduleEvent', label: 'Module event',
+      config: structuredClone(getDef('moduleEvent').defaultConfig),
+    },
+    body: [],
+  }
+}
+
 /**
  * Seed flow — "Leave Approval — Standard": a Leave Management module event
  * routes through a Reporting Manager approval task; the decision branches to

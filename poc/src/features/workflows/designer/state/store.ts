@@ -1,15 +1,15 @@
 import { useSyncExternalStore } from 'react'
 import { setAllCollapsed, validate } from '../core/ops'
 import type { InsertTarget, ValidationIssue } from '../core/ops'
-import { isContainer } from '../core/model'
+import { isContainer, makeId } from '../core/model'
 import type { Step, WorkflowDoc } from '../core/model'
 import { isKnownKind } from '../core/registry'
 import { runWorkflow } from '../core/runner'
 import type { RunEvent } from '../core/runner'
-import { seedDoc } from '../core/seed'
+import { blankDoc, seedDoc } from '../core/seed'
 
-// v2: HRMS node vocabulary (moduleEvent trigger + approvalTask/notify/… kinds)
-const STORAGE_KEY = 'satellitehr-poc:workflow-designer:v2'
+// v3: multi-workflow library + catalog links (HRMS vocabulary since v2)
+const STORAGE_KEY = 'satellitehr-poc:workflow-designer:v3'
 
 export type Selection = { type: 'step' | 'branch' | 'trigger'; id: string } | null
 export type RunState = {
@@ -19,8 +19,20 @@ export type RunState = {
   outputs: Record<string, unknown>
 }
 
+/** Link between a canvas doc and the catalog artifact it was loaded from. */
+export type DocSource = {
+  artifactId: string
+  artifactName: string
+  version: number
+}
+
 type State = {
   doc: WorkflowDoc
+  /** Other workflows saved in this browser (the active one lives in `doc`). */
+  library: WorkflowDoc[]
+  /** Catalog provenance per doc id — drives update-vs-create on publish. */
+  sources: Record<string, DocSource>
+  activeSource: DocSource | null
   selection: Selection
   insertTarget: InsertTarget | null
   extended: boolean
@@ -40,6 +52,14 @@ type State = {
   setName: (name: string) => void
   tryActivate: () => boolean
   deactivate: () => void
+  /** Stash the current doc in the library and start a blank workflow. */
+  newDoc: () => void
+  /** Switch to another workflow saved in the library. */
+  openDoc: (id: string) => void
+  /** Load a catalog flow into the canvas as a linked working copy. */
+  loadExternal: (doc: WorkflowDoc, source: DocSource) => void
+  /** Record that the active doc is published as this catalog artifact. */
+  linkArtifact: (source: DocSource) => void
   /** Starts a test run; optional JSON overrides the trigger's sample payload.
       Returns an error message if the JSON is invalid (run not started). */
   startTestRun: (payloadJson?: string) => string | null
@@ -65,16 +85,35 @@ function isValidDocShape(parsed: unknown): parsed is WorkflowDoc {
     && p.trigger.kind === 'moduleEvent' && allKindsKnown(p.body)
 }
 
-function loadDoc(): WorkflowDoc {
+type Persisted = {
+  doc: WorkflowDoc
+  library: WorkflowDoc[]
+  sources: Record<string, DocSource>
+}
+
+function loadPersisted(): Persisted {
+  const fallback = (): Persisted => ({ doc: seedDoc(), library: [], sources: {} })
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return seedDoc()
-    const parsed: unknown = JSON.parse(raw)
-    return isValidDocShape(parsed) ? parsed : seedDoc()
+    if (!raw) return fallback()
+    const parsed = JSON.parse(raw) as Partial<Persisted> | null
+    if (!parsed || !isValidDocShape(parsed.doc)) return fallback()
+    return {
+      doc: parsed.doc,
+      library: Array.isArray(parsed.library)
+        ? parsed.library.filter(isValidDocShape)
+        : [],
+      sources:
+        parsed.sources && typeof parsed.sources === 'object'
+          ? parsed.sources
+          : {},
+    }
   } catch {
-    return seedDoc()
+    return fallback()
   }
 }
+
+const persisted = loadPersisted()
 
 let runController: AbortController | null = null
 
@@ -108,7 +147,10 @@ function get(): State {
 }
 
 state = {
-  doc: loadDoc(),
+  doc: persisted.doc,
+  library: persisted.library,
+  sources: persisted.sources,
+  activeSource: persisted.sources[persisted.doc.id] ?? null,
   selection: null,
   insertTarget: null,
   extended: true,
@@ -184,6 +226,54 @@ state = {
 
   deactivate: () => set(s => ({ doc: { ...s.doc, status: 'draft' } })),
 
+  newDoc: () => {
+    runController?.abort()
+    const { doc, library } = get()
+    set({
+      doc: blankDoc(),
+      library: [doc, ...library.filter(d => d.id !== doc.id)],
+      activeSource: null,
+      past: [], future: [], canUndo: false, canRedo: false,
+      selection: null, insertTarget: null, run: null, issues: [],
+    })
+  },
+
+  openDoc: (id: string) => {
+    const { doc, library, sources } = get()
+    if (id === doc.id) return
+    const next = library.find(d => d.id === id)
+    if (!next) return
+    runController?.abort()
+    set({
+      doc: structuredClone(next),
+      library: [doc, ...library.filter(d => d.id !== id && d.id !== doc.id)],
+      activeSource: sources[id] ?? null,
+      past: [], future: [], canUndo: false, canRedo: false,
+      selection: null, insertTarget: null, run: null, issues: [],
+    })
+  },
+
+  loadExternal: (extDoc, source) => {
+    runController?.abort()
+    const { doc, library, sources } = get()
+    const clone = structuredClone(extDoc)
+    clone.id = makeId('wf')
+    clone.status = 'draft'
+    set({
+      doc: clone,
+      library: [doc, ...library.filter(d => d.id !== doc.id)],
+      sources: { ...sources, [clone.id]: source },
+      activeSource: source,
+      past: [], future: [], canUndo: false, canRedo: false,
+      selection: null, insertTarget: null, run: null, issues: [],
+    })
+  },
+
+  linkArtifact: source => {
+    const { doc, sources } = get()
+    set({ sources: { ...sources, [doc.id]: source }, activeSource: source })
+  },
+
   startTestRun: (payloadJson?: string) => {
     let payloadOverride: unknown
     if (payloadJson !== undefined) {
@@ -241,11 +331,14 @@ function useStoreImpl<T>(selector: (s: State) => T): T {
 
 export const useStore = Object.assign(useStoreImpl, { getState, subscribe })
 
-// Debounced autosave
+// Debounced autosave — active doc + library + catalog links
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 subscribe(() => {
   clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.doc)) } catch { /* quota exceeded: skip save */ }
+    try {
+      const { doc, library, sources } = state
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ doc, library, sources }))
+    } catch { /* quota exceeded: skip save */ }
   }, 500)
 })

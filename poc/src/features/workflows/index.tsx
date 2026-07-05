@@ -379,7 +379,11 @@ export function Workflows() {
               <TabsContent value='designer'>
                 <DesignerTab
                   role={role}
+                  flows={businessLogic.artifacts.filter(
+                    (a) => a.type === 'flow'
+                  )}
                   onPublish={businessLogic.createArtifact}
+                  onUpdate={businessLogic.updateArtifact}
                 />
               </TabsContent>
 
