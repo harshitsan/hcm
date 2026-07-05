@@ -86,7 +86,7 @@ export function DesignerTab({
       <div className='mb-3 flex flex-wrap items-center justify-between gap-3'>
         <p className='text-neutral-1000 text-sm'>
           Author process flows on the canvas, test them against a sample
-          payload, then publish into the Business logic catalog as a governed
+          payload, then publish into the Configure catalog as a governed
           artifact.
         </p>
         {canPublish && (

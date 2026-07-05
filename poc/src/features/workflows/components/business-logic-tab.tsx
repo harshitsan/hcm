@@ -159,16 +159,20 @@ const columns: ColumnDef<ArtifactRow>[] = [
 export function BusinessLogicTab({
   store,
   role,
+  search,
+  onSearchChange,
 }: {
   store: BusinessLogicStore
   role: Role
+  /** Lifted so the module-wide "Find any setting…" search can pre-filter. */
+  search: string
+  onSearchChange: (value: string) => void
 }) {
   const { artifacts, createArtifact, updateArtifact, toggleScope, deleteArtifact } =
     store
 
   const [moduleFilter, setModuleFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [search, setSearch] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editing, setEditing] = useState<Artifact | null>(null)
@@ -234,7 +238,7 @@ export function BusinessLogicTab({
       <SectionToolbar title={`Artifact catalog (${rows.length})`}>
         <Input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => onSearchChange(e.target.value)}
           placeholder='Search artifacts'
           className='h-7 w-[180px]'
         />
@@ -299,7 +303,7 @@ export function BusinessLogicTab({
         }}
         onEdit={() => {
           if (detail?.type === 'flow') {
-            toast.info('Flow artifacts are authored on the Designer tab canvas')
+            toast.info('Flow artifacts are authored on the Build tab canvas')
             return
           }
           setEditing(detail)

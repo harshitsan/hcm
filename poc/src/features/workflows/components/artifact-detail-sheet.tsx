@@ -180,7 +180,7 @@ function DefinitionView({ definition }: { definition: ArtifactDefinition }) {
           </div>
           <p className='text-neutral-1000 text-xs'>
             {definition.doc.body.length} top-level step(s) — authored on the
-            Designer canvas; open the Designer tab to edit the flow.
+            Build canvas; open the Build tab to edit the flow.
           </p>
         </div>
       )
