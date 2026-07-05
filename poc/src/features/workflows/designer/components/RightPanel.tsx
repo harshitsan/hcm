@@ -4,10 +4,10 @@ import { RULE_OPS, VALUE_TYPES } from '../core/expr'
 import type { Cond, MappingRow, RuleOp } from '../core/expr'
 import type { Config, StepKind } from '../core/model'
 import {
-  collectVarNames, findBranch, findParentContainer, findPrevSibling, findStep,
+  collectVarNames, findBranch, findInputStep, findParentContainer, findStep,
   insertStep, isInsideLoopBody, updateBranchConfig, updateStepConfig,
 } from '../core/ops'
-import { collectPaths } from '../core/paths'
+import { collectPaths, type PathEntry } from '../core/paths'
 import { allDefs, createStep, getDef, type FieldDef } from '../core/registry'
 import { useStore } from '../state/store'
 
@@ -255,12 +255,24 @@ function DataBrowser({ nodeId }: { nodeId: string }) {
   try { payload = JSON.parse(String(doc.trigger.config.samplePayload ?? '')) } catch { /* unparsable */ }
   const payloadPaths = payload === null ? [] : collectPaths(payload, 'payload')
 
-  // For a branch, "previous step" means the step before its parent container
-  const parentOfBranch = findParentContainer(doc, nodeId)
-  const prev = findPrevSibling(doc, parentOfBranch ? parentOfBranch.id : nodeId)
-  const inputPaths = prev && outputs && prev.id in outputs
-    ? collectPaths(outputs[prev.id], 'input')
-    : null
+  // What actually feeds this node: previous sibling, or — at the start of a
+  // branch/flow — the nearest ancestor's previous step / trigger payload.
+  const inputSource = findInputStep(doc, nodeId)
+  let inputPaths: PathEntry[] | null = null
+  let inputSub: string
+  if (inputSource === 'trigger') {
+    inputPaths = payload === null ? [] : collectPaths(payload, 'input')
+    inputSub = 'flow start — equals the trigger payload'
+  } else if (inputSource) {
+    if (outputs && inputSource.id in outputs) {
+      inputPaths = collectPaths(outputs[inputSource.id], 'input')
+      inputSub = `output of "${inputSource.label}" — from the last test run`
+    } else {
+      inputSub = `output of "${inputSource.label}" — run a Test to browse its shape`
+    }
+  } else {
+    inputSub = 'output of the previous step'
+  }
   const inLoop = isInsideLoopBody(doc, nodeId)
   const vars = collectVarNames(doc)
 
@@ -270,12 +282,15 @@ function DataBrowser({ nodeId }: { nodeId: string }) {
       {inLoop && (
         <div className="data-note"><code>item</code> and <code>index</code> — current loop element</div>
       )}
-      <div className="data-note"><code>input</code> — output of the previous step</div>
-      {inputPaths && (
-        <>
-          <h5>input <span className="data-sub">(from last test run)</span></h5>
-          <PathList entries={inputPaths} copied={copied} onCopy={copy} />
-        </>
+      <h5>input <span className="data-sub">({inputSub})</span></h5>
+      {inputPaths && inputPaths.length > 0 ? (
+        <PathList entries={inputPaths} copied={copied} onCopy={copy} />
+      ) : (
+        <div className="data-note">
+          {inputSource === 'trigger'
+            ? 'Trigger sample payload is empty or not valid JSON.'
+            : 'Not captured yet — the paths will appear here after a test run.'}
+        </div>
       )}
       <h5>payload <span className="data-sub">(trigger sample)</span></h5>
       {payloadPaths.length > 0

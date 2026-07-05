@@ -160,6 +160,43 @@ export function findPrevSibling(doc: WorkflowDoc, id: string): Step | null {
   return loc.siblings[loc.index - 1]
 }
 
+type PathFrame = { steps: Step[]; index: number }
+
+/** Frames from the root sequence down to the step/branch with `target` id. */
+function pathTo(steps: Step[], target: string): PathFrame[] | null {
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i]
+    if (s.id === target) return [{ steps, index: i }]
+    if (isContainer(s)) {
+      for (const b of s.branches) {
+        // A branch's input is its container's input.
+        if (b.id === target) return [{ steps, index: i }]
+        const sub = pathTo(b.steps, target)
+        if (sub) return [{ steps, index: i }, ...sub]
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * The step whose output feeds `nodeId` (a step or a branch), mirroring the
+ * runner's data threading: the previous sibling if there is one, otherwise
+ * the previous sibling of the nearest ancestor container. 'trigger' means the
+ * node sits at the very start of the flow, so its input IS the trigger event
+ * payload. Null when the id is unknown.
+ */
+export function findInputStep(doc: WorkflowDoc, nodeId: string): Step | 'trigger' | null {
+  if (nodeId === doc.trigger.id) return 'trigger'
+  const path = pathTo(doc.body, nodeId)
+  if (!path) return null
+  for (let i = path.length - 1; i >= 0; i--) {
+    const { steps, index } = path[i]
+    if (index > 0) return steps[index - 1]
+  }
+  return 'trigger'
+}
+
 /** True if the node (step or branch) sits inside a For / For Each body. */
 export function isInsideLoopBody(doc: WorkflowDoc, id: string): boolean {
   function search(steps: Step[], inLoop: boolean): boolean | null {
