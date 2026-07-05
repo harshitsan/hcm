@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   // Base config. Shared keys (compatibility_date, observability) are inherited
   // by every named environment below. Always deploy with an explicit `--env`.
-  "name": "mls-apartment-frontend",
+  "name": "satellitehr-poc",
   "compatibility_date": "2026-06-01",
   "observability": {
     "enabled": true
@@ -11,21 +11,21 @@
   // unknown paths to index.html so TanStack Router can handle client routing.
   "env": {
     "dev": {
-      "name": "mls-apartment-frontend-dev",
+      "name": "satellitehr-poc-dev",
       "assets": {
         "directory": "./dist",
         "not_found_handling": "single-page-application"
       }
     },
     "staging": {
-      "name": "mls-apartment-frontend-staging",
+      "name": "satellitehr-poc-staging",
       "assets": {
         "directory": "./dist",
         "not_found_handling": "single-page-application"
       }
     },
     "production": {
-      "name": "mls-apartment-frontend-production",
+      "name": "satellitehr-poc-production",
       "assets": {
         "directory": "./dist",
         "not_found_handling": "single-page-application"
