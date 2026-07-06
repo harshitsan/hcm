@@ -6,6 +6,7 @@ export const LIFECYCLE_MODULES = [
   'Transfer',
   'Exit',
   'Disciplinary',
+  'Performance Review',
   'Configuration',
   'Notification',
 ] as const
