@@ -1,6 +1,6 @@
 import { isContainer, makeId } from './model'
 import type { WorkflowDoc } from './model'
-import { createStep, getDef } from './registry'
+import { createStep, getDef, sampleFor } from './registry'
 
 /** Fresh empty workflow for "+ New workflow" — just a trigger and an end. */
 export function blankDoc(): WorkflowDoc {
@@ -63,5 +63,66 @@ export function seedDoc(): WorkflowDoc {
       config: structuredClone(getDef('moduleEvent').defaultConfig),
     },
     body: [approval, decision],
+  }
+}
+
+/**
+ * Cross-module orchestration demo — one event in Employee Lifecycle fans out
+ * into three OTHER modules: Asset Management (flag assets for collection),
+ * Leave Management (encash remaining balance) and HR Letters (relieving
+ * letter), then notifies the manager. Proof that a change in one module can
+ * drive changes in any other module through a single flow.
+ */
+export function exitFlowDoc(): WorkflowDoc {
+  const approval = createStep('approvalTask')
+  approval.label = 'Exit approval'
+  approval.config.approverRole = 'HR Director'
+  approval.config.slaHours = 48
+
+  const flagAssets = createStep('updateRecord')
+  flagAssets.label = 'Flag assets for collection'
+  flagAssets.config.module = 'Asset Management'
+  flagAssets.config.field = 'returnStatus'
+  flagAssets.config.value = 'Collection due {{payload.exit.lastWorkingDay}}'
+
+  const encashLeave = createStep('updateRecord')
+  encashLeave.label = 'Encash remaining leave'
+  encashLeave.config.module = 'Leave Management'
+  encashLeave.config.field = 'balanceAction'
+  encashLeave.config.value = 'Encash on final settlement'
+
+  const relievingLetter = createStep('generateDocument')
+  relievingLetter.label = 'Generate relieving letter'
+  relievingLetter.config.template = 'Relieving Letter'
+
+  const effects = createStep('group')
+  effects.label = 'Cross-module effects'
+  if (isContainer(effects)) {
+    effects.branches[0].steps = [flagAssets, encashLeave, relievingLetter]
+  }
+
+  const notifyManager = createStep('notify')
+  notifyManager.label = 'Notify manager'
+  notifyManager.config.recipient = 'Reporting Manager'
+  notifyManager.config.message =
+    'Exit approved for {{payload.employee.name}} — asset collection, leave encashment and relieving letter are in motion.'
+
+  const trigger = {
+    id: makeId('t'),
+    kind: 'moduleEvent' as const,
+    label: 'Exit initiated',
+    config: {
+      module: 'Employee Lifecycle',
+      event: 'Exit initiated',
+      samplePayload: sampleFor('Exit initiated'),
+    },
+  }
+
+  return {
+    id: makeId('wf'),
+    name: 'Exit Orchestration — Cross-module',
+    status: 'draft',
+    trigger,
+    body: [approval, effects, notifyManager],
   }
 }

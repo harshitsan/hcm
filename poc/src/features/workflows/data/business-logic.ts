@@ -1,6 +1,6 @@
 import type { Role } from '@/context/role-context'
 import type { WorkflowDoc } from '../designer/core/model'
-import { seedDoc } from '../designer/core/seed'
+import { exitFlowDoc, seedDoc } from '../designer/core/seed'
 
 /**
  * Business-logic artifact catalog (WFE-43 … WFE-49).
@@ -653,6 +653,24 @@ export const seedArtifacts: Artifact[] = [
     updatedAt: '2026-07-04',
     history: [
       { at: '2026-07-04 12:00', actor: 'Sunita Patil', event: 'Published from Designer — v1' },
+    ],
+  },
+  {
+    // Cross-module orchestration: one Employee Lifecycle event drives
+    // changes in Asset Management, Leave Management and HR Letters.
+    id: 'bl-20',
+    name: 'Exit Orchestration — Cross-module',
+    type: 'flow',
+    targetModule: 'Employee Lifecycle',
+    description:
+      'Exit initiated → HR approval → updates Asset Management (collection) + Leave Management (encashment) + HR Letters (relieving letter) → notifies the manager.',
+    version: 1,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: { kind: 'flow', doc: exitFlowDoc() },
+    updatedBy: 'Sunita Patil',
+    updatedAt: '2026-07-05',
+    history: [
+      { at: '2026-07-05 10:30', actor: 'Sunita Patil', event: 'Published from Designer — v1' },
     ],
   },
 ]

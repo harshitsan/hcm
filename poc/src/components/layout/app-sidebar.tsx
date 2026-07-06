@@ -22,7 +22,8 @@ export function AppSidebar() {
   const { collapsible, variant } = useLayout()
   const { navGroups, bottomGroup, tenants } = sidebarData
   return (
-    <Sidebar collapsible={collapsible} variant={variant} className='space-bg'>
+    // Rail bg comes from the --sidebar token (space-900); stars overlay content.
+    <Sidebar collapsible={collapsible} variant={variant}>
       <SidebarHeader>
         <div className='flex items-center gap-2 px-1.5 pt-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0'>
           <SatelliteMark size={26} />
@@ -34,7 +35,7 @@ export function AppSidebar() {
         <TenantSwitcher tenants={tenants} />
         <RoleSwitcher />
       </SidebarHeader>
-      <SidebarContent className='border-t border-white/10 bg-transparent'>
+      <SidebarContent className='space-bg border-t border-white/10'>
         {navGroups.map((props) => (
           <NavGroup key={props.title} {...props} />
         ))}
