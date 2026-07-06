@@ -8,12 +8,14 @@ import { CaptureTab } from './components/capture-tab'
 import { ConfigTab } from './components/config-tab'
 import { MyAttendanceTab } from './components/my-attendance-tab'
 import { MyRequestsPanel } from './components/my-requests-panel'
+import { MyTimesheetTab } from './components/my-timesheet-tab'
 import { NonUserTab } from './components/non-user-tab'
 import { OversightTab } from './components/oversight-tab'
 import { OvertimeTab } from './components/overtime-tab'
 import { PlatformTab } from './components/platform-tab'
 import { ReviewTab } from './components/review-tab'
 import { ShiftsTab } from './components/shifts-tab'
+import { TrackingTab } from './components/tracking-tab'
 import { useAttendance } from './hooks/use-attendance'
 import { useAttendanceConfig } from './hooks/use-attendance-config'
 import { useRequests } from './hooks/use-requests'
@@ -46,6 +48,7 @@ interface TabDef {
 const TABS: TabDef[] = [
   { value: 'my', label: 'My Attendance', roles: ['Employee (User)'] },
   { value: 'my-requests', label: 'My Requests', roles: ['Employee (User)'] },
+  { value: 'my-timesheet', label: 'My Timesheet', roles: ['Employee (User)'] },
   { value: 'records', label: 'My Records', roles: ['Employee (Non-User)'] },
   {
     value: 'attendance',
@@ -55,6 +58,7 @@ const TABS: TabDef[] = [
   { value: 'team', label: 'Approvals', roles: ['Company Admin'] },
   { value: 'shifts', label: 'Shifts & Rosters', roles: ['Company Admin'] },
   { value: 'overtime', label: 'Overtime', roles: ['Company Admin'] },
+  { value: 'tracking', label: 'Tracking', roles: ['Company Admin'] },
   {
     value: 'group',
     label: 'Group Overview',
@@ -125,6 +129,10 @@ export function TimeAttendance() {
               />
             </TabsContent>
 
+            <TabsContent value='my-timesheet'>
+              <MyTimesheetTab />
+            </TabsContent>
+
             <TabsContent value='records'>
               <NonUserTab attendance={attendance} requests={requests} />
             </TabsContent>
@@ -154,6 +162,10 @@ export function TimeAttendance() {
 
             <TabsContent value='overtime'>
               <OvertimeTab attendance={attendance} config={config} />
+            </TabsContent>
+
+            <TabsContent value='tracking'>
+              <TrackingTab requests={requests} shifts={shifts} />
             </TabsContent>
 
             <TabsContent value='team'>

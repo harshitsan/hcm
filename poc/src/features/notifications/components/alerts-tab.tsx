@@ -156,12 +156,27 @@ export function AlertsTab({ alerts, saveAlerts }: AlertsTabProps) {
                     {t.description}
                   </p>
                 </div>
-                <Switch
-                  checked={draft[t.key]}
-                  disabled={!canConfigure}
-                  onCheckedChange={(v) => setField(t.key, v)}
-                  aria-label={t.label}
-                />
+                <div className='flex shrink-0 items-center gap-3'>
+                  <Badge
+                    variant={
+                      alerts[t.key] && alerts.moduleEnabled
+                        ? 'badge_active'
+                        : 'badge_inactive'
+                    }
+                  >
+                    {alerts[t.key] && alerts.moduleEnabled
+                      ? 'Firing'
+                      : alerts[t.key]
+                        ? 'On (module off)'
+                        : 'Off'}
+                  </Badge>
+                  <Switch
+                    checked={draft[t.key]}
+                    disabled={!canConfigure}
+                    onCheckedChange={(v) => setField(t.key, v)}
+                    aria-label={t.label}
+                  />
+                </div>
               </div>
             ))}
             <div className='flex items-center justify-between'>

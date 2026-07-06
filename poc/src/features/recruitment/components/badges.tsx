@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge'
+import type { HiringAs } from '../data/requisitions'
 
 type BadgeVariant =
   | 'badge_active'
@@ -72,4 +73,13 @@ export function OutOfBandBadge() {
 /** Approved-for-sourcing requisitions without an owner are flagged (TA-04). */
 export function UnassignedBadge() {
   return <Badge variant='overdue'>Unassigned</Badge>
+}
+
+/** RL-04: reason-for-vacancy pill — New Join vs Replacement. */
+export function HiringAsBadge({ hiringAs }: { hiringAs: HiringAs }) {
+  return (
+    <Badge variant={hiringAs === 'New Join' ? 'open' : 'pending'}>
+      {hiringAs}
+    </Badge>
+  )
 }

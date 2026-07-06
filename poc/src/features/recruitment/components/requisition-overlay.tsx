@@ -27,23 +27,37 @@ import type { CustomFieldDef } from '../data/config'
 import {
   DEPARTMENTS,
   EMPLOYEE_CLASSES,
+  HIRING_AS,
   LOCATIONS,
   type Requisition,
 } from '../data/requisitions'
 import type { RequisitionDraft } from '../hooks/use-requisitions'
 
-const requisitionSchema = z.object({
-  title: z.string().min(3, 'Position title is required'),
-  department: z.enum(DEPARTMENTS),
-  location: z.enum(LOCATIONS),
-  employeeClass: z.enum(EMPLOYEE_CLASSES),
-  headcount: z.coerce.number<number>().int().min(1, 'At least 1 opening'),
-  description: z.string().min(10, 'Job description is required'),
-  requirements: z.string().min(5, 'Requirements are required'),
-  nonBudgeted: z.boolean(),
-  closingDate: z.string().min(1, 'Closing date is required'),
-  custom: z.record(z.string(), z.string()),
-})
+const requisitionSchema = z
+  .object({
+    title: z.string().min(3, 'Position title is required'),
+    department: z.enum(DEPARTMENTS),
+    location: z.enum(LOCATIONS),
+    employeeClass: z.enum(EMPLOYEE_CLASSES),
+    // RL-04: hiring type — New Join vs Replacement (reason for the vacancy).
+    hiringAs: z.enum(HIRING_AS),
+    replacementFor: z.string(),
+    headcount: z.coerce.number<number>().int().min(1, 'At least 1 opening'),
+    description: z.string().min(10, 'Job description is required'),
+    requirements: z.string().min(5, 'Requirements are required'),
+    nonBudgeted: z.boolean(),
+    closingDate: z.string().min(1, 'Closing date is required'),
+    custom: z.record(z.string(), z.string()),
+  })
+  .superRefine((values, ctx) => {
+    if (values.hiringAs === 'Replacement' && !values.replacementFor.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['replacementFor'],
+        message: 'Name the employee being replaced',
+      })
+    }
+  })
 
 type RequisitionFormValues = z.infer<typeof requisitionSchema>
 
@@ -52,6 +66,8 @@ const emptyValues: RequisitionFormValues = {
   department: 'Engineering',
   location: 'Bengaluru',
   employeeClass: 'Full-time',
+  hiringAs: 'New Join',
+  replacementFor: '',
   headcount: 1,
   description: '',
   requirements: '',
@@ -96,6 +112,8 @@ export function RequisitionOverlay({
             department: requisition.department,
             location: requisition.location,
             employeeClass: requisition.employeeClass,
+            hiringAs: requisition.hiringAs,
+            replacementFor: requisition.replacementFor ?? '',
             headcount: requisition.headcount,
             description: requisition.description,
             requirements: requisition.requirements,
@@ -117,7 +135,14 @@ export function RequisitionOverlay({
         return
       }
     }
-    onSubmit(values)
+    // RL-04: only Replacement requisitions carry the backfilled employee.
+    onSubmit({
+      ...values,
+      replacementFor:
+        values.hiringAs === 'Replacement'
+          ? values.replacementFor.trim()
+          : null,
+    })
     onOpenChange(false)
   }
 
@@ -239,6 +264,52 @@ export function RequisitionOverlay({
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* RL-04: hiring type — reason for the vacancy */}
+              <div className='grid grid-cols-2 gap-3'>
+                <FormField
+                  control={form.control}
+                  name='hiringAs'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Hiring as</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className='w-full'>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {HIRING_AS.map((h) => (
+                            <SelectItem key={h} value={h}>
+                              {h}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {form.watch('hiringAs') === 'Replacement' && (
+                  <FormField
+                    control={form.control}
+                    name='replacementFor'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Replacing employee</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder='e.g. Nikhil Kulkarni (EMP-0231)'
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </div>
 
               <FormField

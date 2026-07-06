@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -36,11 +37,16 @@ interface MovementsTabProps {
 /**
  * Inbound + outbound movements: new asset arrivals with procurement details
  * and approval into inventory (ASM-32/33), and outbound records gated by a
- * security pass and approval (ASM-34/35).
+ * security pass and approval (ASM-34/35). Both lists share status, asset
+ * category and From/To period filters — arrivals filter on the procured
+ * date (NAAL-04) and outbound records on the gate-pass date (OAL-03).
  */
 export function MovementsTab({ movements, assetsStore, config }: MovementsTabProps) {
   const [tab, setTab] = useState('arrivals')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [categoryFilter, setCategoryFilter] = useState('All')
+  const [fromFilter, setFromFilter] = useState('')
+  const [toFilter, setToFilter] = useState('')
   const [pendingWithMe, setPendingWithMe] = useState(false)
   const [arrivalFormOpen, setArrivalFormOpen] = useState(false)
   const [outboundFormOpen, setOutboundFormOpen] = useState(false)
@@ -52,22 +58,28 @@ export function MovementsTab({ movements, assetsStore, config }: MovementsTabPro
     () =>
       movements.arrivals.filter((a) => {
         if (statusFilter !== 'All' && a.status !== statusFilter) return false
+        if (categoryFilter !== 'All' && a.category !== categoryFilter) return false
+        if (fromFilter && a.procuredDate < fromFilter) return false
+        if (toFilter && a.procuredDate > toFilter) return false
         if (pendingWithMe && !(a.status === 'Pending Approval' && arrivalApprover === CURRENT_ADMIN))
           return false
         return true
       }),
-    [movements.arrivals, statusFilter, pendingWithMe, arrivalApprover]
+    [movements.arrivals, statusFilter, categoryFilter, fromFilter, toFilter, pendingWithMe, arrivalApprover]
   )
 
   const filteredOutbound = useMemo(
     () =>
       movements.outbound.filter((o) => {
         if (statusFilter !== 'All' && o.status !== statusFilter) return false
+        if (categoryFilter !== 'All' && o.category !== categoryFilter) return false
+        if (fromFilter && o.passDate < fromFilter) return false
+        if (toFilter && o.passDate > toFilter) return false
         if (pendingWithMe && !(o.status === 'Pending Approval' && outboundApprover === CURRENT_ADMIN))
           return false
         return true
       }),
-    [movements.outbound, statusFilter, pendingWithMe, outboundApprover]
+    [movements.outbound, statusFilter, categoryFilter, fromFilter, toFilter, pendingWithMe, outboundApprover]
   )
 
   const handleArrivalDecision = (id: string, approved: boolean) => {
@@ -94,6 +106,46 @@ export function MovementsTab({ movements, assetsStore, config }: MovementsTabPro
             </SelectContent>
           </Select>
         </div>
+        <div className='flex flex-col gap-1'>
+          <Label className='text-paragraph-sm'>Asset category</Label>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className='h-7! w-[180px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='All'>All categories</SelectItem>
+              {config.categories.map((c) => (
+                <SelectItem key={c.id} value={c.name}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className='flex flex-col gap-1'>
+          <Label htmlFor='mov-from' className='text-paragraph-sm'>
+            Period from
+          </Label>
+          <Input
+            id='mov-from'
+            type='date'
+            value={fromFilter}
+            onChange={(e) => setFromFilter(e.target.value)}
+            className='h-7 w-[145px]'
+          />
+        </div>
+        <div className='flex flex-col gap-1'>
+          <Label htmlFor='mov-to' className='text-paragraph-sm'>
+            Period to
+          </Label>
+          <Input
+            id='mov-to'
+            type='date'
+            value={toFilter}
+            onChange={(e) => setToFilter(e.target.value)}
+            className='h-7 w-[145px]'
+          />
+        </div>
         <div className='mb-1 flex items-center gap-2'>
           <Switch id='mov-pwm' checked={pendingWithMe} onCheckedChange={setPendingWithMe} />
           <Label htmlFor='mov-pwm' className='text-paragraph-sm'>
@@ -106,6 +158,9 @@ export function MovementsTab({ movements, assetsStore, config }: MovementsTabPro
             className='h-7 rounded-[6px] px-2.5'
             onClick={() => {
               setStatusFilter('All')
+              setCategoryFilter('All')
+              setFromFilter('')
+              setToFilter('')
               setPendingWithMe(false)
             }}
           >

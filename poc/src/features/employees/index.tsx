@@ -14,6 +14,7 @@ import { EmployeesSummary } from './components/employees-summary'
 import { employeesTableColumns } from './components/employees-table-columns'
 import { MassUpdateDialog } from './components/mass-update-dialog'
 import { MyProfileTab } from './components/my-profile-tab'
+import { ProjectsTab } from './components/projects/projects-tab'
 import { FilterSelect } from './components/shared'
 import {
   COMPANIES,
@@ -163,6 +164,7 @@ export function Employees() {
               <TabsTrigger value='delegations'>
                 Managers & Delegation
               </TabsTrigger>
+              <TabsTrigger value='projects'>Projects</TabsTrigger>
             </TabsList>
 
             <TabsContent value='directory'>
@@ -287,6 +289,10 @@ export function Employees() {
 
             <TabsContent value='delegations'>
               <DelegationsTab store={store} />
+            </TabsContent>
+
+            <TabsContent value='projects'>
+              <ProjectsTab />
             </TabsContent>
           </Tabs>
 

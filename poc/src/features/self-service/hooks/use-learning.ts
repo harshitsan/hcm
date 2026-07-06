@@ -16,8 +16,8 @@ export type LearningRequestDraft = Pick<
 export function useLearning() {
   const [requests, setRequests] =
     useState<LearningRequest[]>(seedLearningRequests)
-  const [programs] = useState(seedTrainingPrograms)
-  const [certifications] = useState(seedCertifications)
+  const [programs, setPrograms] = useState(seedTrainingPrograms)
+  const [certifications, setCertifications] = useState(seedCertifications)
 
   const raiseRequest = useCallback((draft: LearningRequestDraft) => {
     setRequests((prev) => [
@@ -51,7 +51,38 @@ export function useLearning() {
     toast.success('Task completed — the pending indicator is cleared')
   }, [])
 
-  return { requests, programs, certifications, raiseRequest, cancelRequest, completeTask }
+  /** Completes the pending task on a training program card (TP-06). */
+  const completeProgramTask = useCallback((id: string) => {
+    setPrograms((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p
+        const confirming = p.task === 'Confirm participation'
+        return {
+          ...p,
+          task: null,
+          status: confirming ? 'Confirmed' : p.status,
+        }
+      })
+    )
+    toast.success('Training program task completed')
+  }, [])
+
+  /** Simulated re-fetch of certification records (CERT-04). */
+  const refreshCertifications = useCallback(() => {
+    setCertifications((prev) => [...prev])
+    toast.success('Certifications refreshed — showing the latest records')
+  }, [])
+
+  return {
+    requests,
+    programs,
+    certifications,
+    raiseRequest,
+    cancelRequest,
+    completeTask,
+    completeProgramTask,
+    refreshCertifications,
+  }
 }
 
 export type LearningStore = ReturnType<typeof useLearning>

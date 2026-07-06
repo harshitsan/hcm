@@ -53,8 +53,8 @@ interface InventoryTabProps {
 }
 
 /**
- * Asset inventory (ASM-01/02/11/12/13/36/41): register/edit, category and
- * state filters, lifecycle transactions via the decision table, and the
+ * Asset inventory (ASM-01/02/11/12/13/36/41, AL-02): register/edit, category,
+ * state and From/To period (PO date) filters, lifecycle transactions via the decision table, and the
  * append-only history view. Oversight roles get read-consistent, company-
  * dimensioned visibility without operational actions (ASM-16/18/26).
  */
@@ -75,6 +75,8 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
   const [stateFilter, setStateFilter] = useState('All')
   const [vendorFilter, setVendorFilter] = useState('')
   const [companyFilter, setCompanyFilter] = useState('All')
+  const [fromFilter, setFromFilter] = useState('')
+  const [toFilter, setToFilter] = useState('')
 
   const today = todayIso()
 
@@ -91,9 +93,11 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
         if (companyFilter !== 'All' && a.company !== companyFilter) return false
         if (vendorFilter && !a.vendor.toLowerCase().includes(vendorFilter.toLowerCase()))
           return false
+        if (fromFilter && a.poDate < fromFilter) return false
+        if (toFilter && a.poDate > toFilter) return false
         return true
       }),
-    [scoped, categoryFilter, stateFilter, companyFilter, vendorFilter]
+    [scoped, categoryFilter, stateFilter, companyFilter, vendorFilter, fromFilter, toFilter]
   )
 
   const summary = useMemo(() => {
@@ -179,6 +183,30 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
             className='h-7 w-[160px]'
           />
         </div>
+        <div className='flex flex-col gap-1'>
+          <Label htmlFor='inv-from' className='text-paragraph-sm'>
+            Period from (PO date)
+          </Label>
+          <Input
+            id='inv-from'
+            type='date'
+            value={fromFilter}
+            onChange={(e) => setFromFilter(e.target.value)}
+            className='h-7 w-[145px]'
+          />
+        </div>
+        <div className='flex flex-col gap-1'>
+          <Label htmlFor='inv-to' className='text-paragraph-sm'>
+            Period to
+          </Label>
+          <Input
+            id='inv-to'
+            type='date'
+            value={toFilter}
+            onChange={(e) => setToFilter(e.target.value)}
+            className='h-7 w-[145px]'
+          />
+        </div>
         {showCompany && (
           <div className='flex flex-col gap-1'>
             <Label className='text-paragraph-sm'>Company</Label>
@@ -211,6 +239,8 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
               setStateFilter('All')
               setVendorFilter('')
               setCompanyFilter('All')
+              setFromFilter('')
+              setToFilter('')
             }}
           >
             Reset

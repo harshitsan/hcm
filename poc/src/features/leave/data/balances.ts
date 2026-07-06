@@ -78,6 +78,11 @@ export const seedBalances: LeaveBalance[] = [
   bal('emp-1008', 'lt-sick', 96, { taken: 16 }),
   // Lakshmi Devi (non-user, contract)
   bal('emp-1009', 'lt-casual', 6, { taken: 2 }),
+  // Deepak Kulkarni (inactive — exited 2026-05; shown only when the
+  // include-inactive toggle is on, ETOS-05)
+  bal('emp-1011', 'lt-privileged', 18, { taken: 11 }),
+  bal('emp-1011', 'lt-casual', 8, { taken: 6 }),
+  bal('emp-1011', 'lt-sick', 96, { taken: 32 }),
 ]
 
 export interface CompOffCredit {

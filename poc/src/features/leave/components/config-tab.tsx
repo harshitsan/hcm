@@ -3,13 +3,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { type LeaveConfigStore } from '../hooks/use-leave-config'
 import { type LeaveSettingsStore } from '../hooks/use-leave-settings'
 import { ConfigApprovers } from './config-approvers'
+import { ConfigCalendar } from './config-calendar'
 import { ConfigGeneral } from './config-general'
 import { ConfigHolidays } from './config-holidays'
 import { ConfigPolicies } from './config-policies'
 import { ConfigTypes } from './config-types'
 import { ConfigWorkflows } from './config-workflows'
 
-const STEPS = ['setup', 'types', 'policies', 'workflows', 'approvers', 'holidays'] as const
+const STEPS = ['setup', 'calendar', 'types', 'policies', 'workflows', 'approvers', 'holidays'] as const
 
 interface ConfigTabProps {
   config: LeaveConfigStore
@@ -31,6 +32,9 @@ export function ConfigTab({ config, settings }: ConfigTabProps) {
         <TabsTrigger variant='ghost' value='setup'>
           Setup & Rules
         </TabsTrigger>
+        <TabsTrigger variant='ghost' value='calendar'>
+          Calendar
+        </TabsTrigger>
         <TabsTrigger variant='ghost' value='types'>
           Time Off Types
         </TabsTrigger>
@@ -50,6 +54,9 @@ export function ConfigTab({ config, settings }: ConfigTabProps) {
 
       <TabsContent value='setup'>
         <ConfigGeneral settings={settings} onNextStep={nextStep} />
+      </TabsContent>
+      <TabsContent value='calendar'>
+        <ConfigCalendar settings={settings} onNextStep={nextStep} />
       </TabsContent>
       <TabsContent value='types'>
         <ConfigTypes config={config} />

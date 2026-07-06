@@ -320,6 +320,58 @@ export const seedTenants: Tenant[] = [
   { id: 'tn-3', name: 'Nimbus Holdings', leaveRows: 24980, isolated: true },
 ]
 
+/**
+ * Calendar accessibility configuration (CAL-01..05, Configure Calendar) —
+ * who may view an employee's calendar events and whether event-based
+ * announcements surface on the calendar.
+ */
+export interface CalendarAccessConfig {
+  /** CAL-01: employees can add and view other employees' calendars. */
+  peerCalendars: boolean
+  /** CAL-02: the reporting-manager hierarchy can view calendar events. */
+  managerHierarchy: boolean
+  /** CAL-03: HR can view any employee's calendar events. */
+  hrVisibility: boolean
+  /** CAL-04: event-based announcements are shown on the calendar. */
+  eventAnnouncements: boolean
+}
+
+export const seedCalendarAccess: CalendarAccessConfig = {
+  peerCalendars: false,
+  managerHierarchy: true,
+  hrVisibility: true,
+  eventAnnouncements: true,
+}
+
+/** Event-based announcements surfaced on the calendar when enabled (CAL-04). */
+export interface CalendarAnnouncement {
+  id: string
+  date: string
+  title: string
+  detail: string
+}
+
+export const seedCalendarAnnouncements: CalendarAnnouncement[] = [
+  {
+    id: 'ca-1',
+    date: '2026-07-10',
+    title: 'Quarterly Town Hall',
+    detail: 'All-hands at 4:00 PM IST — auditorium & livestream. Attendance encouraged.',
+  },
+  {
+    id: 'ca-2',
+    date: '2026-07-15',
+    title: 'Benefits Enrollment Window Opens',
+    detail: 'Annual benefits enrollment runs 15–31 July. Complete elections in the portal.',
+  },
+  {
+    id: 'ca-3',
+    date: '2026-08-15',
+    title: 'Independence Day Celebration',
+    detail: 'Flag hoisting at 9:00 AM at all India offices; cultural events follow.',
+  },
+]
+
 export interface IntegrityConstraint {
   id: string
   name: string

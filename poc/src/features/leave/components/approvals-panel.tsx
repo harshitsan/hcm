@@ -9,6 +9,7 @@ import {
 import { DataTable } from '@/components/common/data-table/table'
 import { type FmlaReason } from '../data/config'
 import { type LeaveRequest } from '../data/requests'
+import { employeeById } from '../data/shared'
 import { type BalancesStore } from '../hooks/use-balances'
 import { type LeaveRequestsStore } from '../hooks/use-leave-requests'
 import { RequestDetailSheet } from './request-detail-sheet'
@@ -36,6 +37,8 @@ export function ApprovalsPanel({
   asSupervisor,
 }: ApprovalsPanelProps) {
   const [statusFilter, setStatusFilter] = useState('pending')
+  // ETOR-05: managers toggle between active and inactive employees.
+  const [empStatus, setEmpStatus] = useState('active')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const data = useMemo(() => {
@@ -43,8 +46,12 @@ export function ApprovalsPanel({
     if (teamIds) rows = rows.filter((r) => teamIds.includes(r.employeeId))
     if (statusFilter !== 'all')
       rows = rows.filter((r) => r.status === statusFilter)
+    if (empStatus !== 'all')
+      rows = rows.filter(
+        (r) => (employeeById(r.employeeId)?.active ?? true) === (empStatus === 'active')
+      )
     return rows
-  }, [requests.requests, statusFilter, teamIds])
+  }, [empStatus, requests.requests, statusFilter, teamIds])
 
   const selected =
     requests.requests.find((r) => r.id === selectedId) ?? null
@@ -56,20 +63,32 @@ export function ApprovalsPanel({
         <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
           Requests awaiting decision ({data.length})
         </h2>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger variant='secondary' className='h-7 w-[200px]'>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='pending'>Pending with me</SelectItem>
-            <SelectItem value='cancellation-requested'>
-              Cancellation requested
-            </SelectItem>
-            <SelectItem value='approved'>Approved</SelectItem>
-            <SelectItem value='rejected'>Rejected</SelectItem>
-            <SelectItem value='all'>All</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className='flex items-center gap-2'>
+          <Select value={empStatus} onValueChange={setEmpStatus}>
+            <SelectTrigger variant='secondary' className='h-7 w-[180px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='active'>Active employees</SelectItem>
+              <SelectItem value='inactive'>Inactive employees</SelectItem>
+              <SelectItem value='all'>All employees</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger variant='secondary' className='h-7 w-[200px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='pending'>Pending with me</SelectItem>
+              <SelectItem value='cancellation-requested'>
+                Cancellation requested
+              </SelectItem>
+              <SelectItem value='approved'>Approved</SelectItem>
+              <SelectItem value='rejected'>Rejected</SelectItem>
+              <SelectItem value='all'>All</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <DataTable
         columns={columns}

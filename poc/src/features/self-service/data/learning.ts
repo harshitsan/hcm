@@ -39,21 +39,37 @@ export const seedLearningRequests: LearningRequest[] = [
   { id: 'lr-06', program: 'PMP prep bootcamp', learningType: 'Certification', sponsorship: 'Reimbursement', result: '—', status: 'Cancelled', raisedOn: '2026-02-14', task: null },
 ]
 
-export type ProgramStatus = 'Enrolled' | 'In Progress' | 'Completed'
+export const TRAINING_PROGRAM_STATUSES = [
+  'Scheduled',
+  'Confirmed',
+  'Published',
+  'Completed',
+  'Enrolled',
+  'In Progress',
+] as const
+export type ProgramStatus = (typeof TRAINING_PROGRAM_STATUSES)[number]
 
-/** Enrolled training programs (ESS-30). */
+/** Enrolled training programs (ESS-30, TP-02/03/06). */
 export interface TrainingProgram {
   id: string
   title: string
   description: string
   status: ProgramStatus
   schedule: string
+  /** Schedule window used by the From/To filter (TP-02). */
+  scheduleStart: string
+  scheduleEnd: string
+  /** Pending action on the program, e.g. confirm attendance (TP-06). */
+  task: string | null
 }
 
 export const seedTrainingPrograms: TrainingProgram[] = [
-  { id: 'tp-01', title: 'Prompt engineering for engineers', description: 'Applied LLM patterns for product teams', status: 'In Progress', schedule: 'Tue, Thu — 5 to 6 PM' },
-  { id: 'tp-02', title: 'Advanced React performance workshop', description: 'Profiling, memoisation and RSC migration', status: 'Completed', schedule: 'Mon, Wed — 4 to 5:30 PM' },
-  { id: 'tp-03', title: 'Secure coding essentials', description: 'OWASP top-10 with hands-on labs (mandatory)', status: 'Enrolled', schedule: 'Fri — 3 to 5 PM' },
+  { id: 'tp-01', title: 'Prompt engineering for engineers', description: 'Applied LLM patterns for product teams', status: 'In Progress', schedule: 'Tue, Thu — 5 to 6 PM', scheduleStart: '2026-05-19', scheduleEnd: '2026-07-16', task: null },
+  { id: 'tp-02', title: 'Advanced React performance workshop', description: 'Profiling, memoisation and RSC migration', status: 'Completed', schedule: 'Mon, Wed — 4 to 5:30 PM', scheduleStart: '2026-04-13', scheduleEnd: '2026-05-06', task: 'Submit feedback form' },
+  { id: 'tp-03', title: 'Secure coding essentials', description: 'OWASP top-10 with hands-on labs (mandatory)', status: 'Enrolled', schedule: 'Fri — 3 to 5 PM', scheduleStart: '2026-07-10', scheduleEnd: '2026-08-14', task: null },
+  { id: 'tp-04', title: 'Kubernetes operations bootcamp', description: 'Cluster operations, monitoring and incident drills', status: 'Scheduled', scheduleStart: '2026-09-01', scheduleEnd: '2026-09-25', schedule: 'Sat, Sun — 10 AM to 1 PM', task: 'Confirm participation' },
+  { id: 'tp-05', title: 'Data privacy & DPDP act briefing', description: 'Compliance briefing for all staff', status: 'Published', schedule: 'Self-paced', scheduleStart: '2026-08-01', scheduleEnd: '2026-08-31', task: null },
+  { id: 'tp-06', title: 'Design thinking sprint', description: 'Five-day facilitated product discovery sprint', status: 'Confirmed', schedule: 'Mon–Fri — full day', scheduleStart: '2026-09-07', scheduleEnd: '2026-09-11', task: null },
 ]
 
 export type CertificationStatus = 'Completed' | 'In Progress' | 'Expired'

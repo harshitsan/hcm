@@ -8,18 +8,27 @@ import { AuditTab } from './components/audit-tab'
 import { ConfigTab } from './components/config-tab'
 import { DisciplinaryTab } from './components/disciplinary-tab'
 import { ExitsTab } from './components/exits-tab'
+import { KtConfig } from './components/kt-config'
+import { KtTasksTab } from './components/kt-tasks-tab'
+import { MyKnowledgeTransferTab } from './components/kt-my-tab'
 import { LifecycleSummary } from './components/lifecycle-summary'
 import { MyLifecycleTab } from './components/my-lifecycle-tab'
 import { OnboardingTab } from './components/onboarding-tab'
+import { PerformanceReviewSetup } from './components/performance-review-setup'
+import { PerformanceReviewTab } from './components/performance-review-tab'
+import { OrientationTab } from './components/orientation-tab'
 import { PlatformTab } from './components/platform-tab'
 import { ProbationTab } from './components/probation-tab'
 import { TransfersTab } from './components/transfers-tab'
 import { PERSONAS } from './data/shared'
 import { useDisciplinary } from './hooks/use-disciplinary'
 import { useExits } from './hooks/use-exits'
+import { useKnowledgeTransfer } from './hooks/use-knowledge-transfer'
 import { useLifecycleConfig } from './hooks/use-lifecycle-config'
 import { useLifecycleLog, type LogInput } from './hooks/use-lifecycle-log'
 import { useOnboarding } from './hooks/use-onboarding'
+import { useOrientation } from './hooks/use-orientation'
+import { usePerformanceReview } from './hooks/use-performance-review'
 import { useProbation } from './hooks/use-probation'
 import { useTransfers } from './hooks/use-transfers'
 
@@ -86,6 +95,9 @@ export function Lifecycle() {
     notify,
     approverGroups: config.disciplinaryApprovers.items,
   })
+  const orientation = useOrientation({ log, notify })
+  const knowledgeTransfer = useKnowledgeTransfer({ log })
+  const performance = usePerformanceReview({ log })
 
   const isEmployee =
     role === 'Employee (User)' || role === 'Employee (Non-User)'
@@ -94,7 +106,11 @@ export function Lifecycle() {
   const isPlatformAdmin = role === 'Platform Admin'
 
   const tabs = useMemo<TabDef[]>(() => {
-    if (isEmployee) return [{ value: 'my', label: 'My Lifecycle' }]
+    if (isEmployee)
+      return [
+        { value: 'my', label: 'My Lifecycle' },
+        { value: 'kt', label: 'Knowledge Transfer' },
+      ]
     if (isPlatformAdmin)
       return [
         { value: 'config', label: 'Settings' },
@@ -116,6 +132,7 @@ export function Lifecycle() {
         },
         { value: 'transfers', label: 'Transfers' },
         { value: 'exits', label: 'Exits' },
+        { value: 'orientation', label: 'Orientation' },
         { value: 'disciplinary', label: 'Disciplinary' },
         { value: 'admin', label: 'Admin' },
       ]
@@ -185,42 +202,65 @@ export function Lifecycle() {
             {isCompanyAdmin && (
               <>
                 <TabsContent value='onboarding'>
-                  {config.settings.confirmationModuleEnabled ? (
-                    <Tabs defaultValue='onboarding' className='w-full'>
-                      <TabsList className='mb-2'>
-                        <TabsTrigger variant='ghost' value='onboarding'>
-                          Onboarding
-                        </TabsTrigger>
+                  <Tabs defaultValue='onboarding' className='w-full'>
+                    <TabsList className='mb-2'>
+                      <TabsTrigger variant='ghost' value='onboarding'>
+                        Onboarding
+                      </TabsTrigger>
+                      {config.settings.confirmationModuleEnabled && (
                         <TabsTrigger variant='ghost' value='probation'>
                           Probation & Confirmation
                         </TabsTrigger>
-                      </TabsList>
-                      <TabsContent value='onboarding'>
-                        <OnboardingTab
-                          store={onboarding}
-                          templateVersion={config.publishedTemplate.version}
-                        />
-                      </TabsContent>
+                      )}
+                      <TabsTrigger variant='ghost' value='performance'>
+                        Performance Review
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value='onboarding'>
+                      <OnboardingTab
+                        store={onboarding}
+                        templateVersion={config.publishedTemplate.version}
+                      />
+                    </TabsContent>
+                    {config.settings.confirmationModuleEnabled && (
                       <TabsContent value='probation'>
                         <ProbationTab
                           store={probation}
                           decisionTable={config.decisionTable}
                         />
                       </TabsContent>
-                    </Tabs>
-                  ) : (
-                    <OnboardingTab
-                      store={onboarding}
-                      templateVersion={config.publishedTemplate.version}
-                    />
-                  )}
+                    )}
+                    <TabsContent value='performance'>
+                      <PerformanceReviewTab store={performance} />
+                    </TabsContent>
+                  </Tabs>
                 </TabsContent>
                 <TabsContent value='exits'>
-                  <ExitsTab
-                    store={exits}
-                    exitTypes={config.exitTypes.items}
-                    exitManagementEnabled={config.settings.exitManagementEnabled}
-                  />
+                  <Tabs defaultValue='cases' className='w-full'>
+                    <TabsList className='mb-2'>
+                      <TabsTrigger variant='ghost' value='cases'>
+                        Exit Cases
+                      </TabsTrigger>
+                      <TabsTrigger variant='ghost' value='kt-tasks'>
+                        KT Tasks
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value='cases'>
+                      <ExitsTab
+                        store={exits}
+                        exitTypes={config.exitTypes.items}
+                        exitManagementEnabled={
+                          config.settings.exitManagementEnabled
+                        }
+                      />
+                    </TabsContent>
+                    <TabsContent value='kt-tasks'>
+                      <KtTasksTab store={knowledgeTransfer} />
+                    </TabsContent>
+                  </Tabs>
+                </TabsContent>
+                <TabsContent value='orientation'>
+                  <OrientationTab store={orientation} />
                 </TabsContent>
                 <TabsContent value='disciplinary'>
                   <DisciplinaryTab store={disciplinary} />
@@ -256,12 +296,24 @@ export function Lifecycle() {
                     <TabsTrigger variant='ghost' value='settings'>
                       Settings
                     </TabsTrigger>
+                    <TabsTrigger variant='ghost' value='kt-setup'>
+                      Knowledge Transfer
+                    </TabsTrigger>
+                    <TabsTrigger variant='ghost' value='performance-setup'>
+                      Performance Review
+                    </TabsTrigger>
                     <TabsTrigger variant='ghost' value='audit'>
                       Audit & Reports
                     </TabsTrigger>
                   </TabsList>
                   <TabsContent value='settings'>
                     <ConfigTab config={config} />
+                  </TabsContent>
+                  <TabsContent value='kt-setup'>
+                    <KtConfig store={knowledgeTransfer} />
+                  </TabsContent>
+                  <TabsContent value='performance-setup'>
+                    <PerformanceReviewSetup store={performance} />
                   </TabsContent>
                   <TabsContent value='audit'>
                     <AuditTab log={lifecycleLog} />
@@ -277,15 +329,20 @@ export function Lifecycle() {
             )}
 
             {isEmployee && (
-              <TabsContent value='my'>
-                <MyLifecycleTab
-                  onboarding={onboarding}
-                  exits={exits}
-                  probation={probation}
-                  log={lifecycleLog}
-                  exitTypes={config.exitTypes.items}
-                />
-              </TabsContent>
+              <>
+                <TabsContent value='my'>
+                  <MyLifecycleTab
+                    onboarding={onboarding}
+                    exits={exits}
+                    probation={probation}
+                    log={lifecycleLog}
+                    exitTypes={config.exitTypes.items}
+                  />
+                </TabsContent>
+                <TabsContent value='kt'>
+                  <MyKnowledgeTransferTab store={knowledgeTransfer} />
+                </TabsContent>
+              </>
             )}
           </Tabs>
         </div>

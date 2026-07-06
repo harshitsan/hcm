@@ -5,9 +5,11 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { DirectorySummary } from './components/directory-summary'
 import { DirectoryTab } from './components/directory-tab'
+import { FeedbackWorklistTab } from './components/feedback-worklist-tab'
 import { GovernanceTab } from './components/governance-tab'
 import { OrgChartTab } from './components/org-chart-tab'
 import { PrivacyConfigTab } from './components/privacy-config-tab'
+import { VacanciesTab } from './components/vacancies-tab'
 import { useDirectory } from './hooks/use-directory'
 import { useDirectoryConfig } from './hooks/use-directory-config'
 import { scopedCompanies } from './utils/org'
@@ -36,8 +38,10 @@ export function DirectoryOrgChart() {
     const list: TabDef[] = [
       { value: 'directory', label: 'Directory' },
       { value: 'org-chart', label: 'Org Chart' },
+      { value: 'vacancies', label: 'Vacancies' },
     ]
     if (showAdmin) {
+      list.push({ value: 'feedback', label: 'Feedback & Grievance' })
       list.push({ value: 'admin', label: 'Admin' })
     }
     return list
@@ -79,6 +83,14 @@ export function DirectoryOrgChart() {
             <TabsContent value='org-chart'>
               <OrgChartTab store={store} config={config} />
             </TabsContent>
+            <TabsContent value='vacancies'>
+              <VacanciesTab />
+            </TabsContent>
+            {showAdmin && (
+              <TabsContent value='feedback'>
+                <FeedbackWorklistTab store={store} />
+              </TabsContent>
+            )}
             {showAdmin && (
               <TabsContent value='admin'>
                 <Tabs defaultValue='privacy' className='w-full'>

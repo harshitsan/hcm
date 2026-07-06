@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -60,7 +61,8 @@ interface ReportsTabProps {
 /**
  * Reporting surface (ASM-10, ASM-16, ASM-26, ASM-38, ASM-39): assignment,
  * inventory, pending acknowledgements (with on-behalf capture, ASM-14),
- * overdue returns, and the per-employee holding/valuation summary. Oversight
+ * overdue returns, and the per-employee holding/valuation summary, with a
+ * From/To period (issue-date) range filter across reports (EAL-03). Oversight
  * roles read consolidated data with company/group dimensions; export applies
  * the current scope.
  */
@@ -73,6 +75,8 @@ export function ReportsTab({ assetsStore, reqStore, config }: ReportsTabProps) {
   const [report, setReport] = useState<ReportId>('assignment')
   const [companyFilter, setCompanyFilter] = useState('All')
   const [categoryFilter, setCategoryFilter] = useState('All')
+  const [fromFilter, setFromFilter] = useState('')
+  const [toFilter, setToFilter] = useState('')
   const [deptFilter, setDeptFilter] = useState('All')
   const [activeOnly, setActiveOnly] = useState(true)
   const [onBehalfTarget, setOnBehalfTarget] = useState<Acknowledgement | null>(null)
@@ -85,9 +89,14 @@ export function ReportsTab({ assetsStore, reqStore, config }: ReportsTabProps) {
         if (!scope.includes(a.company)) return false
         if (companyFilter !== 'All' && a.company !== companyFilter) return false
         if (categoryFilter !== 'All' && a.category !== categoryFilter) return false
+        // Period date-range filter (EAL-03): keep assets whose issue date
+        // falls inside the chosen From/To window.
+        if ((fromFilter || toFilter) && !a.issueDate) return false
+        if (fromFilter && a.issueDate && a.issueDate < fromFilter) return false
+        if (toFilter && a.issueDate && a.issueDate > toFilter) return false
         return true
       }),
-    [assetsStore.assets, scope, companyFilter, categoryFilter]
+    [assetsStore.assets, scope, companyFilter, categoryFilter, fromFilter, toFilter]
   )
 
   const scopedEmployees = useMemo(
@@ -184,6 +193,30 @@ export function ReportsTab({ assetsStore, reqStore, config }: ReportsTabProps) {
             </SelectContent>
           </Select>
         </div>
+        <div className='flex flex-col gap-1'>
+          <Label htmlFor='rep-from' className='text-paragraph-sm'>
+            Period from (issue date)
+          </Label>
+          <Input
+            id='rep-from'
+            type='date'
+            value={fromFilter}
+            onChange={(e) => setFromFilter(e.target.value)}
+            className='h-7 w-[145px]'
+          />
+        </div>
+        <div className='flex flex-col gap-1'>
+          <Label htmlFor='rep-to' className='text-paragraph-sm'>
+            Period to
+          </Label>
+          <Input
+            id='rep-to'
+            type='date'
+            value={toFilter}
+            onChange={(e) => setToFilter(e.target.value)}
+            className='h-7 w-[145px]'
+          />
+        </div>
         {report === 'employee-summary' && (
           <>
             <div className='flex flex-col gap-1'>
@@ -210,7 +243,21 @@ export function ReportsTab({ assetsStore, reqStore, config }: ReportsTabProps) {
             </div>
           </>
         )}
-        <div className='ms-auto'>
+        <div className='ms-auto flex items-center gap-2'>
+          <Button
+            variant='outline'
+            className='h-7 rounded-[6px] px-2.5'
+            onClick={() => {
+              setCompanyFilter('All')
+              setCategoryFilter('All')
+              setFromFilter('')
+              setToFilter('')
+              setDeptFilter('All')
+              setActiveOnly(true)
+            }}
+          >
+            Reset
+          </Button>
           <Button
             variant='outline'
             className='h-7 gap-1 rounded-[6px] px-2.5'

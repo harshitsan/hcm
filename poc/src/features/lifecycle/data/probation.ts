@@ -209,6 +209,8 @@ export type PeerReviewStatus = 'Pending Approval' | 'Submitted'
 export interface PeerReview {
   id: string
   employeeName: string
+  /** Whether the reviewed employee is still on active rolls. */
+  employeeActive: boolean
   reviewer: string
   requestedBy: string
   reviewDate: string
@@ -220,6 +222,7 @@ export const seedPeerReviews: PeerReview[] = [
   {
     id: 'peer-01',
     employeeName: 'Ishaan Gupta',
+    employeeActive: true,
     reviewer: 'Rohan Verma',
     requestedBy: 'Anita Desai',
     reviewDate: '2026-07-03',
@@ -229,6 +232,7 @@ export const seedPeerReviews: PeerReview[] = [
   {
     id: 'peer-02',
     employeeName: 'Ishaan Gupta',
+    employeeActive: true,
     reviewer: 'Kavya Menon',
     requestedBy: 'Anita Desai',
     reviewDate: '2026-07-03',
@@ -238,6 +242,7 @@ export const seedPeerReviews: PeerReview[] = [
   {
     id: 'peer-03',
     employeeName: 'Meghna Iyer',
+    employeeActive: true,
     reviewer: 'Arjun Rao',
     requestedBy: 'Carlos Mendes',
     reviewDate: '2026-06-20',
@@ -247,6 +252,7 @@ export const seedPeerReviews: PeerReview[] = [
   {
     id: 'peer-04',
     employeeName: 'Peter Novak',
+    employeeActive: true,
     reviewer: 'Rohan Verma',
     requestedBy: 'Elena Petrova',
     reviewDate: '2026-07-10',
@@ -256,11 +262,22 @@ export const seedPeerReviews: PeerReview[] = [
   {
     id: 'peer-05',
     employeeName: 'Harold Kim',
+    employeeActive: true,
     reviewer: 'Grace Obi',
     requestedBy: 'Anita Desai',
     reviewDate: '2026-07-15',
     status: 'Pending Approval',
     feedback: null,
+  },
+  {
+    id: 'peer-06',
+    employeeName: 'Ritika Bansal',
+    employeeActive: false,
+    reviewer: 'Kavya Menon',
+    requestedBy: 'Anita Desai',
+    reviewDate: '2026-04-10',
+    status: 'Submitted',
+    feedback: 'Feedback archived — employee separated during probation.',
   },
 ]
 
@@ -269,6 +286,8 @@ export type PeriodicReviewStatus = 'Active' | 'Submitted'
 export interface PeriodicReview {
   id: string
   employeeName: string
+  /** Whether the reviewed employee is still on active rolls. */
+  employeeActive: boolean
   employeeCode: string
   department: string
   positionLevel: string
@@ -283,6 +302,7 @@ export const seedPeriodicReviews: PeriodicReview[] = [
   {
     id: 'per-01',
     employeeName: 'Ishaan Gupta',
+    employeeActive: true,
     employeeCode: 'EMP-2381',
     department: 'Engineering',
     positionLevel: 'L1 - Associate',
@@ -295,6 +315,7 @@ export const seedPeriodicReviews: PeriodicReview[] = [
   {
     id: 'per-02',
     employeeName: 'Peter Novak',
+    employeeActive: true,
     employeeCode: 'EMP-2308',
     department: 'IT Support',
     positionLevel: 'L1 - Associate',
@@ -307,6 +328,7 @@ export const seedPeriodicReviews: PeriodicReview[] = [
   {
     id: 'per-03',
     employeeName: 'Harold Kim',
+    employeeActive: true,
     employeeCode: 'EMP-2385',
     department: 'Engineering',
     positionLevel: 'L2 - Senior',
@@ -319,6 +341,7 @@ export const seedPeriodicReviews: PeriodicReview[] = [
   {
     id: 'per-04',
     employeeName: 'Dev Malhotra',
+    employeeActive: true,
     employeeCode: 'EMP-2350',
     department: 'Finance',
     positionLevel: 'L1 - Associate',
@@ -327,5 +350,18 @@ export const seedPeriodicReviews: PeriodicReview[] = [
     periodTo: '2026-07-01',
     status: 'Active',
     notes: null,
+  },
+  {
+    id: 'per-05',
+    employeeName: 'Ritika Bansal',
+    employeeActive: false,
+    employeeCode: 'EMP-2290',
+    department: 'Human Resources',
+    positionLevel: 'L2 - Senior',
+    manager: 'Anita Desai',
+    periodFrom: '2026-01-20',
+    periodTo: '2026-02-20',
+    status: 'Submitted',
+    notes: 'Archived — employee separated during probation.',
   },
 ]

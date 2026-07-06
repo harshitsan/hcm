@@ -4,6 +4,7 @@ import { Plus } from 'phosphor-react'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable } from '@/components/common/data-table/table'
 import {
@@ -43,6 +44,8 @@ export function TravelTab({ store }: TravelTabProps) {
     useState<PeriodStatusFilter>(EMPTY_FILTER)
   const [expenseFilter, setExpenseFilter] =
     useState<PeriodStatusFilter>(EMPTY_FILTER)
+  /** Exact amount filter for My Expenses (MEX-04); empty = all amounts. */
+  const [expenseAmount, setExpenseAmount] = useState('')
   const [advanceFilter, setAdvanceFilter] =
     useState<PeriodStatusFilter>(EMPTY_FILTER)
 
@@ -200,16 +203,16 @@ export function TravelTab({ store }: TravelTabProps) {
       ),
     [store.travelRequests, travelFilter]
   )
-  const filteredExpenses = useMemo(
-    () =>
-      applyFilter(
-        store.expenses,
-        expenseFilter,
-        (e) => e.addedOn,
-        (e) => e.status
-      ),
-    [store.expenses, expenseFilter]
-  )
+  const filteredExpenses = useMemo(() => {
+    const rows = applyFilter(
+      store.expenses,
+      expenseFilter,
+      (e) => e.addedOn,
+      (e) => e.status
+    )
+    if (!expenseAmount) return rows
+    return rows.filter((e) => e.amount === Number(expenseAmount))
+  }, [store.expenses, expenseFilter, expenseAmount])
   const filteredAdvances = useMemo(
     () =>
       applyFilter(
@@ -293,8 +296,21 @@ export function TravelTab({ store }: TravelTabProps) {
           <FilterBar
             statuses={EXPENSE_STATUSES}
             value={expenseFilter}
-            onChange={setExpenseFilter}
+            onChange={(next) => {
+              setExpenseFilter(next)
+              // FilterBar's Reset passes the shared EMPTY_FILTER object:
+              // clear the amount criterion alongside it (MEX-04).
+              if (next === EMPTY_FILTER) setExpenseAmount('')
+            }}
           >
+            <Input
+              type='number'
+              aria-label='Amount'
+              placeholder='Amount (₹)'
+              value={expenseAmount}
+              onChange={(e) => setExpenseAmount(e.target.value)}
+              className='h-8 w-[120px] bg-white'
+            />
             <span className='ml-auto'>
               {newButton('Submit Expense', () => setExpenseOpen(true))}
             </span>

@@ -3,7 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus } from 'phosphor-react'
+import { ArrowsClockwise, Plus } from 'phosphor-react'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,6 +36,7 @@ import {
   LEARNING_STATUSES,
   LEARNING_TYPES,
   SPONSORSHIP_MODES,
+  TRAINING_PROGRAM_STATUSES,
   type Certification,
   type LearningRequest,
 } from '../data/learning'
@@ -68,6 +69,9 @@ export function LearningTab({ store }: LearningTabProps) {
 
   const [filter, setFilter] = useState<PeriodStatusFilter>(EMPTY_FILTER)
   const [typeFilter, setTypeFilter] = useState('All')
+  const [programFilter, setProgramFilter] =
+    useState<PeriodStatusFilter>(EMPTY_FILTER)
+  const [certRefreshKey, setCertRefreshKey] = useState(0)
   const [overlayOpen, setOverlayOpen] = useState(false)
 
   const form = useForm<RequestValues>({
@@ -190,6 +194,24 @@ export function LearningTab({ store }: LearningTabProps) {
       : base.filter((r) => r.learningType === typeFilter)
   }, [store.requests, filter, typeFilter])
 
+  /** Programs whose schedule window overlaps the From/To range (TP-02/03). */
+  const filteredPrograms = useMemo(
+    () =>
+      store.programs.filter((p) => {
+        if (programFilter.from && p.scheduleEnd < programFilter.from)
+          return false
+        if (programFilter.to && p.scheduleStart > programFilter.to)
+          return false
+        if (
+          programFilter.status !== 'All' &&
+          p.status !== programFilter.status
+        )
+          return false
+        return true
+      }),
+    [store.programs, programFilter]
+  )
+
   return (
     <Tabs defaultValue='requests' className='w-full'>
       <TabsList className='mb-3 bg-transparent p-0'>
@@ -244,8 +266,13 @@ export function LearningTab({ store }: LearningTabProps) {
       </TabsContent>
 
       <TabsContent value='programs'>
+        <FilterBar
+          statuses={TRAINING_PROGRAM_STATUSES}
+          value={programFilter}
+          onChange={setProgramFilter}
+        />
         <div className='grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'>
-          {store.programs.map((program) => (
+          {filteredPrograms.map((program) => (
             <div
               key={program.id}
               className='rounded-[6px] border border-gray-200 bg-white px-4 py-3'
@@ -260,13 +287,47 @@ export function LearningTab({ store }: LearningTabProps) {
               <p className='text-paragraph-sm mt-2 font-medium'>
                 Schedule: {program.schedule}
               </p>
+              <p className='text-paragraph-sm text-neutral-1000 mt-1'>
+                {formatDate(program.scheduleStart)} –{' '}
+                {formatDate(program.scheduleEnd)}
+              </p>
+              {isEmployee && program.task && (
+                <Button
+                  className='mt-2 h-6 rounded-[6px] px-2 text-xs'
+                  onClick={() => store.completeProgramTask(program.id)}
+                >
+                  {program.task}
+                </Button>
+              )}
             </div>
           ))}
+          {filteredPrograms.length === 0 && (
+            <p className='text-paragraph-sm text-neutral-1000 col-span-full rounded-[6px] border border-gray-200 bg-white px-4 py-6 text-center'>
+              No training programs match the selected filters.
+            </p>
+          )}
         </div>
       </TabsContent>
 
       <TabsContent value='certifications'>
+        <div className='mb-3 flex items-center justify-between'>
+          <span className='text-paragraph-sm text-neutral-1000'>
+            Your certification records with validity
+          </span>
+          <Button
+            variant='outline'
+            className='h-7 gap-1 rounded-[6px] px-2'
+            onClick={() => {
+              setCertRefreshKey((k) => k + 1)
+              store.refreshCertifications()
+            }}
+          >
+            <ArrowsClockwise size={13} weight='bold' />
+            Refresh
+          </Button>
+        </div>
         <DataTable
+          key={certRefreshKey}
           columns={certColumns}
           data={store.certifications}
           variant='no-status'

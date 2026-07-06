@@ -193,6 +193,22 @@ export const seedAssets: Asset[] = [
     ],
   },
   {
+    id: 'a-19', assetTag: 'AST-0019', serial: 'SN-LAT7440-2231', name: 'Dell Latitude 7440', category: 'IT Equipment', vendor: 'Ingram Micro', poDate: '2024-12-20', warrantyMonths: 36, value: 142000, company: 'Aster Digital', state: 'Returned', holderId: null, issueDate: null, expectedReturnDate: null,
+    history: [
+      h('ah-19a', 'Registered', null, 'Available', 'Priya Sharma', null, '2025-01-05', null),
+      h('ah-19b', 'Issued', 'Available', 'Issued', 'Priya Sharma', 'Anita Rao', '2025-01-10', 'R-ISSUE', 'Interim laptop during MacBook procurement'),
+      h('ah-19c', 'Returned', 'Issued', 'Returned', 'Priya Sharma', 'Anita Rao', '2026-06-22', 'R-RETURN', 'Handed to IT desk — employee return confirmation pending'),
+    ],
+  },
+  {
+    id: 'a-20', assetTag: 'AST-0020', serial: 'SN-JBR-EVO2-518', name: 'Jabra Evolve2 65 Headset', category: 'Peripherals', vendor: 'Redington', poDate: '2024-07-15', warrantyMonths: 24, value: 21500, company: 'Aster Digital', state: 'Returned', holderId: null, issueDate: null, expectedReturnDate: null,
+    history: [
+      h('ah-20a', 'Registered', null, 'Available', 'Priya Sharma', null, '2024-07-25', null),
+      h('ah-20b', 'Issued', 'Available', 'Issued', 'Priya Sharma', 'Anita Rao', '2024-08-01', 'R-ISSUE'),
+      h('ah-20c', 'Returned', 'Issued', 'Returned', 'Priya Sharma', 'Anita Rao', '2025-12-15', 'R-RETURN', 'Return acknowledged with condition assessment'),
+    ],
+  },
+  {
     id: 'a-15', assetTag: 'AMF-0001', serial: 'SN-FORK-889', name: 'Zebra Handheld Scanner', category: 'IT Equipment', vendor: 'Zebra Partner', poDate: '2025-06-01', warrantyMonths: 24, value: 54000, company: 'Aster Manufacturing', state: 'Issued', holderId: 'e-11', issueDate: '2025-06-20', expectedReturnDate: null,
     history: [
       h('ah-15a', 'Registered', null, 'Available', 'AM Admin', null, '2025-06-10', null),

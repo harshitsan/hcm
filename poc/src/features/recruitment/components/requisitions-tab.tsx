@@ -21,6 +21,7 @@ import { RoleGate } from '@/context/role-context'
 import type { Application } from '../data/candidates'
 import type { CustomFieldDef } from '../data/config'
 import {
+  HIRING_AS,
   HIRING_MANAGERS,
   RECRUITERS,
   REQUISITION_STATUSES,
@@ -48,6 +49,7 @@ export function RequisitionsTab({
   applications,
 }: RequisitionsTabProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [hiringAsFilter, setHiringAsFilter] = useState<string>('all')
   const [selected, setSelected] = useState<Requisition[]>([])
   const [resetKey, setResetKey] = useState(0)
   const [overlayOpen, setOverlayOpen] = useState(false)
@@ -61,10 +63,12 @@ export function RequisitionsTab({
 
   const rows = useMemo(
     () =>
-      statusFilter === 'all'
-        ? store.requisitions
-        : store.requisitions.filter((r) => r.status === statusFilter),
-    [store.requisitions, statusFilter]
+      store.requisitions.filter(
+        (r) =>
+          (statusFilter === 'all' || r.status === statusFilter) &&
+          (hiringAsFilter === 'all' || r.hiringAs === hiringAsFilter)
+      ),
+    [store.requisitions, statusFilter, hiringAsFilter]
   )
 
   const one = selected.length === 1 ? selected[0] : null
@@ -105,6 +109,20 @@ export function RequisitionsTab({
               {REQUISITION_STATUSES.map((s) => (
                 <SelectItem key={s} value={s}>
                   {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* RL-04: filter by hiring type (New Join / Replacement) */}
+          <Select value={hiringAsFilter} onValueChange={setHiringAsFilter}>
+            <SelectTrigger className='h-7 w-[160px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All hiring types</SelectItem>
+              {HIRING_AS.map((h) => (
+                <SelectItem key={h} value={h}>
+                  {h}
                 </SelectItem>
               ))}
             </SelectContent>

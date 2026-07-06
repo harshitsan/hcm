@@ -63,6 +63,18 @@ export const seedAcknowledgements: Acknowledgement[] = [
   {
     id: 'ack-06', assetId: 'a-04', assetLabel: 'AST-0004 · ThinkPad X1 Carbon', employeeId: 'e-09', employeeName: 'Karan Mehta', type: 'Return', status: 'Pending', raisedOn: '2026-06-16', completedOn: null, recordedBy: null, onBehalf: false, templateVersion: 2, responses: [],
   },
+  {
+    id: 'ack-07', assetId: 'a-19', assetLabel: 'AST-0019 · Dell Latitude 7440', employeeId: 'e-01', employeeName: 'Anita Rao', type: 'Return', status: 'Pending', raisedOn: '2026-06-22', completedOn: null, recordedBy: null, onBehalf: false, templateVersion: 2, responses: [],
+  },
+  {
+    id: 'ack-08', assetId: 'a-20', assetLabel: 'AST-0020 · Jabra Evolve2 65 Headset', employeeId: 'e-01', employeeName: 'Anita Rao', type: 'Return', status: 'Completed', raisedOn: '2025-12-15', completedOn: '2025-12-15', recordedBy: 'Anita Rao', onBehalf: false, templateVersion: 2,
+    responses: [
+      { fieldId: 'q-cond', label: 'Overall condition', value: 'Good' },
+      { fieldId: 'q-damage', label: 'Any visible damage?', value: 'No' },
+      { fieldId: 'q-acc', label: 'All accessories present?', value: 'Yes' },
+      { fieldId: 'q-notes', label: 'Notes', value: 'Ear cushions replaced once' },
+    ],
+  },
 ]
 
 export interface WorkflowTask {

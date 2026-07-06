@@ -2,6 +2,15 @@ import { useMemo, useState } from 'react'
 import { BellRinging, Package } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -11,6 +20,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { type Acknowledgement } from '../data/acknowledgements'
+import { type Asset } from '../data/assets'
 import { SELF_EMPLOYEE_ID, employeeName, formatDate, todayIso } from '../data/org'
 import { type AssetConfigStore } from '../hooks/use-asset-config'
 import { type AssetsStore } from '../hooks/use-assets'
@@ -23,14 +33,38 @@ interface MyAssetsTabProps {
   config: AssetConfigStore
 }
 
+/** Employee-facing statuses derived per asset (AST-03). */
+const MY_ASSET_STATUSES = [
+  'Acknowledged / Issued',
+  'Pending for Receipt Acknowledgement',
+  'Pending for Confirm Return',
+  'Returned',
+] as const
+
+type MyAssetStatus = (typeof MY_ASSET_STATUSES)[number]
+
+const MY_STATUS_VARIANTS: Record<MyAssetStatus, 'completed' | 'pending' | 'overdue' | 'open'> = {
+  'Acknowledged / Issued': 'completed',
+  'Pending for Receipt Acknowledgement': 'pending',
+  'Pending for Confirm Return': 'overdue',
+  Returned: 'open',
+}
+
 /**
  * Employee self-service (ASM-15): my allocated assets with acknowledgement
  * flags and overdue indicators, templated notifications (ASM-22), pending
  * receipt/return acknowledgements completed via the dynamic condition form
- * (ASM-07/08/24), and receipt-vs-return condition comparison.
+ * (ASM-07/08/24), and receipt-vs-return condition comparison. The list can be
+ * narrowed by a From/To period range (AST-02) and by employee-facing status —
+ * Acknowledged/Issued, Pending for Receipt Acknowledgement, Pending for
+ * Confirm Return, Returned (AST-03) — with a Reset control to clear the
+ * selections (AST-04).
  */
 export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
   const [ackTarget, setAckTarget] = useState<Acknowledgement | null>(null)
+  const [statusFilter, setStatusFilter] = useState('All')
+  const [fromFilter, setFromFilter] = useState('')
+  const [toFilter, setToFilter] = useState('')
   const today = todayIso()
   const selfName = employeeName(SELF_EMPLOYEE_ID)
 
@@ -44,6 +78,64 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
   )
   const pendingAcks = myAcks.filter((k) => k.status === 'Pending')
   const completedAcks = myAcks.filter((k) => k.status === 'Completed')
+
+  interface MyAssetRow {
+    asset: Asset
+    myStatus: MyAssetStatus
+    pending: Acknowledgement | undefined
+    issuedOn: string | null
+    /** Business date the From/To period filter is applied against (AST-02). */
+    periodDate: string | null
+  }
+
+  // My asset list rows: assets I currently hold plus assets I returned,
+  // each with an employee-facing status (AST-02/03).
+  const rows = useMemo<MyAssetRow[]>(() => {
+    const returnedByMe = store.assets.filter(
+      (a) =>
+        a.holderId !== SELF_EMPLOYEE_ID &&
+        a.history.some((e) => e.newState === 'Returned' && e.employee === selfName)
+    )
+    return [...myAssets, ...returnedByMe].map((asset) => {
+      const pending = pendingAcks.find((k) => k.assetId === asset.id)
+      const returnedEntry = [...asset.history]
+        .reverse()
+        .find((e) => e.newState === 'Returned' && e.employee === selfName)
+      const myStatus: MyAssetStatus =
+        pending?.type === 'Receipt'
+          ? 'Pending for Receipt Acknowledgement'
+          : pending?.type === 'Return'
+            ? 'Pending for Confirm Return'
+            : asset.holderId === SELF_EMPLOYEE_ID
+              ? 'Acknowledged / Issued'
+              : 'Returned'
+      const issuedOn =
+        asset.issueDate ??
+        [...asset.history].reverse().find((e) => e.event.startsWith('Issued'))?.effectiveDate ??
+        null
+      return {
+        asset,
+        myStatus,
+        pending,
+        issuedOn,
+        periodDate: asset.issueDate ?? returnedEntry?.effectiveDate ?? issuedOn,
+      }
+    })
+  }, [store.assets, myAssets, pendingAcks, selfName])
+
+  const filteredRows = useMemo(
+    () =>
+      rows.filter((r) => {
+        if (statusFilter !== 'All' && r.myStatus !== statusFilter) return false
+        if ((fromFilter || toFilter) && !r.periodDate) return false
+        if (fromFilter && r.periodDate && r.periodDate < fromFilter) return false
+        if (toFilter && r.periodDate && r.periodDate > toFilter) return false
+        return true
+      }),
+    [rows, statusFilter, fromFilter, toFilter]
+  )
+
+  const filtersActive = statusFilter !== 'All' || fromFilter !== '' || toFilter !== ''
 
   const notifications = useMemo(() => {
     const items: { id: string; title: string; body: string; ack?: Acknowledgement }[] = []
@@ -99,9 +191,67 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
 
       <div>
         <h2 className='text-neutral-1600 text-paragraph-md mb-2 font-medium'>
-          My allocated assets ({myAssets.length})
+          My asset list ({filteredRows.length}
+          {filteredRows.length !== rows.length ? ` of ${rows.length}` : ''})
         </h2>
-        {myAssets.length === 0 ? (
+
+        <div className='border-grey-200 mb-3 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
+          <div className='flex flex-col gap-1'>
+            <Label className='text-paragraph-sm'>Status</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className='h-7! w-[250px]'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='All'>All statuses</SelectItem>
+                {MY_ASSET_STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className='flex flex-col gap-1'>
+            <Label htmlFor='my-from' className='text-paragraph-sm'>
+              Period from
+            </Label>
+            <Input
+              id='my-from'
+              type='date'
+              value={fromFilter}
+              onChange={(e) => setFromFilter(e.target.value)}
+              className='h-7 w-[145px]'
+            />
+          </div>
+          <div className='flex flex-col gap-1'>
+            <Label htmlFor='my-to' className='text-paragraph-sm'>
+              Period to
+            </Label>
+            <Input
+              id='my-to'
+              type='date'
+              value={toFilter}
+              onChange={(e) => setToFilter(e.target.value)}
+              className='h-7 w-[145px]'
+            />
+          </div>
+          <div className='ms-auto'>
+            <Button
+              variant='outline'
+              className='h-7 rounded-[6px] px-2.5'
+              onClick={() => {
+                setStatusFilter('All')
+                setFromFilter('')
+                setToFilter('')
+              }}
+            >
+              Reset
+            </Button>
+          </div>
+        </div>
+
+        {rows.length === 0 ? (
           <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
             <Package size={32} className='text-neutral-1000' />
             <p className='text-neutral-1600 text-paragraph-md font-medium'>
@@ -111,6 +261,18 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
               Raise an asset requisition from the Requisitions tab when you need equipment.
             </p>
           </div>
+        ) : filteredRows.length === 0 ? (
+          <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+            <Package size={32} className='text-neutral-1000' />
+            <p className='text-neutral-1600 text-paragraph-md font-medium'>
+              No assets match the applied filters
+            </p>
+            {filtersActive && (
+              <p className='text-paragraph-sm text-neutral-1000'>
+                Adjust the status or From/To period, or press Reset to view all your assets.
+              </p>
+            )}
+          </div>
         ) : (
           <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
             <Table>
@@ -119,13 +281,13 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
                   <TableHead>Asset</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Issued on</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>State</TableHead>
                   <TableHead>Pending action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {myAssets.map((asset) => {
-                  const pending = pendingAcks.find((k) => k.assetId === asset.id)
+                {filteredRows.map(({ asset, myStatus, pending, issuedOn }) => {
                   const overdue = daysOverdue(asset, today)
                   return (
                     <TableRow key={asset.id}>
@@ -140,7 +302,10 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
                         </div>
                       </TableCell>
                       <TableCell className='text-sm'>{asset.category}</TableCell>
-                      <TableCell className='text-sm'>{formatDate(asset.issueDate)}</TableCell>
+                      <TableCell className='text-sm'>{formatDate(issuedOn)}</TableCell>
+                      <TableCell>
+                        <Badge variant={MY_STATUS_VARIANTS[myStatus]}>{myStatus}</Badge>
+                      </TableCell>
                       <TableCell>
                         <div className='flex items-center gap-1.5'>
                           <AssetStateBadge state={asset.state} />

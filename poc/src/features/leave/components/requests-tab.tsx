@@ -12,7 +12,7 @@ import { DataTable } from '@/components/common/data-table/table'
 import { type FmlaReason } from '../data/config'
 import { type LeaveType } from '../data/leave-types'
 import { type LeaveRequest } from '../data/requests'
-import { DEPARTMENTS, EMPLOYEES } from '../data/shared'
+import { DEPARTMENTS, EMPLOYEES, employeeById } from '../data/shared'
 import { type BalancesStore } from '../hooks/use-balances'
 import { type LeaveRequestsStore } from '../hooks/use-leave-requests'
 import { ApplyLeaveOverlay } from './apply-leave-overlay'
@@ -43,6 +43,8 @@ export function RequestsTab({
 }: RequestsTabProps) {
   const [deptFilter, setDeptFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  // ETOR-05: toggle which employees' requests appear — active, inactive or all.
+  const [empStatus, setEmpStatus] = useState('active')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [recordFor, setRecordFor] = useState('')
   const [recordOpen, setRecordOpen] = useState(false)
@@ -53,9 +55,12 @@ export function RequestsTab({
       requests.requests.filter(
         (r) =>
           (deptFilter === 'all' || r.department === deptFilter) &&
-          (statusFilter === 'all' || r.status === statusFilter)
+          (statusFilter === 'all' || r.status === statusFilter) &&
+          (empStatus === 'all' ||
+            (employeeById(r.employeeId)?.active ?? true) ===
+              (empStatus === 'active'))
       ),
-    [deptFilter, requests.requests, statusFilter]
+    [deptFilter, empStatus, requests.requests, statusFilter]
   )
 
   const cards = [
@@ -89,6 +94,16 @@ export function RequestsTab({
           All Requests ({data.length})
         </h2>
         <div className='flex items-center gap-2'>
+          <Select value={empStatus} onValueChange={setEmpStatus}>
+            <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='active'>Active employees</SelectItem>
+              <SelectItem value='inactive'>Inactive employees</SelectItem>
+              <SelectItem value='all'>All employees</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
               <SelectValue />

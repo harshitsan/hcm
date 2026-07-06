@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import {
   seedAdjustmentApprovers,
+  seedCalendarAccess,
   seedClassRules,
   seedClosures,
   seedFmlaApprovers,
@@ -11,6 +12,7 @@ import {
   seedTenants,
   seedTimeOffApprovers,
   type ApproverMapping,
+  type CalendarAccessConfig,
   type EmployeeClassRule,
   type FmlaReason,
   type NotificationTemplate,
@@ -63,6 +65,9 @@ export function useLeaveSettings({ notify }: Deps) {
     OptionalHolidayRequest[]
   >(seedOptionalRequests)
   const [moduleEnabled, setModuleEnabled] = useState(true)
+  const [calendarModuleEnabled, setCalendarModuleEnabledState] = useState(true)
+  const [calendarAccess, setCalendarAccess] =
+    useState<CalendarAccessConfig>(seedCalendarAccess)
   const [platformDefaults, setPlatformDefaults] = useState<PlatformDefaults>(
     seedPlatformDefaults
   )
@@ -203,6 +208,31 @@ export function useLeaveSettings({ notify }: Deps) {
     toast.success(approve ? 'Optional holiday approved' : 'Optional holiday rejected')
   }
 
+  /** CAL-01/02 (Setup): enable or disable the calendar module. */
+  const setCalendarModuleEnabled = (enabled: boolean) => {
+    setCalendarModuleEnabledState(enabled)
+    toast.success(
+      enabled
+        ? 'Calendar module enabled — calendar features are now available to the organization'
+        : 'Calendar module disabled — calendar features are switched off'
+    )
+  }
+
+  /** CAL-05 (Configure Calendar): persist the accessibility configuration. */
+  const saveCalendarAccess = (next: CalendarAccessConfig) => {
+    setCalendarAccess(next)
+    notify(
+      'Adjusted',
+      'All employees',
+      'Calendar accessibility updated — peer calendars ' +
+        `${next.peerCalendars ? 'enabled' : 'disabled'}, manager hierarchy ` +
+        `${next.managerHierarchy ? 'enabled' : 'disabled'}, HR visibility ` +
+        `${next.hrVisibility ? 'enabled' : 'disabled'}, event announcements ` +
+        `${next.eventAnnouncements ? 'shown' : 'hidden'}.`
+    )
+    toast.success('Calendar accessibility configuration saved')
+  }
+
   const toggleCatalogEntry = (id: string) => {
     setCatalog((prev) =>
       prev.map((c) =>
@@ -237,6 +267,8 @@ export function useLeaveSettings({ notify }: Deps) {
     calendars,
     optionalRequests,
     moduleEnabled,
+    calendarModuleEnabled,
+    calendarAccess,
     platformDefaults,
     catalog,
     tenants,
@@ -253,6 +285,8 @@ export function useLeaveSettings({ notify }: Deps) {
     swapOptionalHoliday,
     decideOptionalRequest,
     setModuleEnabled,
+    setCalendarModuleEnabled,
+    saveCalendarAccess,
     toggleCatalogEntry,
     setDefaults,
     probeCrossTenant,

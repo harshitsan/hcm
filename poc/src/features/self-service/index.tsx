@@ -8,19 +8,23 @@ import { AdminTab } from './components/admin-tab'
 import { AssetsTab } from './components/assets-tab'
 import { AttendanceTab } from './components/attendance-tab'
 import { LearningTab } from './components/learning-tab'
+import { LearningTeamTab } from './components/learning-team-tab'
 import { OverviewTab, type PendingTask } from './components/overview-tab'
 import { TaxTab } from './components/tax-tab'
 import { TimesheetTab } from './components/timesheet-tab'
 import { TravelTab } from './components/travel-tab'
+import { TravelTeamTab } from './components/travel-team-tab'
 import { WorkTab } from './components/work-tab'
 import { useAssets } from './hooks/use-assets'
 import { useAttendance } from './hooks/use-attendance'
 import { useLearning } from './hooks/use-learning'
+import { useLearningTeam } from './hooks/use-learning-team'
 import { usePortal } from './hooks/use-portal'
 import { useProfile } from './hooks/use-profile'
 import { useTax } from './hooks/use-tax'
 import { useTimesheets } from './hooks/use-timesheets'
 import { useTravel } from './hooks/use-travel'
+import { useTravelTeam } from './hooks/use-travel-team'
 
 const ADMIN_ROLES = [
   'Platform Admin',
@@ -33,7 +37,9 @@ type SectionId =
   | 'attendance'
   | 'timesheets'
   | 'travel'
+  | 'travel-team'
   | 'learning'
+  | 'learning-team'
   | 'assets'
   | 'tax'
   | 'work'
@@ -42,11 +48,16 @@ const SECTION_LABEL: Record<SectionId, string> = {
   attendance: 'Attendance',
   timesheets: 'Timesheets',
   travel: 'Travel & Expenses',
+  'travel-team': 'Team Travel & Trips',
   learning: 'Learning',
+  'learning-team': 'Team Learning',
   assets: 'Assets',
   tax: 'Tax & Pay',
   work: 'Work & Handover',
 }
+
+/** Manager/coordinator-only review surfaces, hidden from employee roles. */
+const MANAGER_SECTIONS: readonly SectionId[] = ['travel-team', 'learning-team']
 
 /** Task-first grouping: everyday sections folded under a few plain-language tabs. */
 const GROUPS: ReadonlyArray<{
@@ -55,7 +66,7 @@ const GROUPS: ReadonlyArray<{
   sections: readonly SectionId[]
 }> = [
   { id: 'time', label: 'Time', sections: ['attendance', 'timesheets'] },
-  { id: 'requests', label: 'Requests', sections: ['travel', 'learning', 'assets'] },
+  { id: 'requests', label: 'Requests', sections: ['travel', 'travel-team', 'learning', 'learning-team', 'assets'] },
   { id: 'pay-work', label: 'Pay & Work', sections: ['tax', 'work'] },
 ]
 
@@ -74,7 +85,9 @@ export function SelfService() {
   const attendance = useAttendance()
   const timesheets = useTimesheets()
   const travel = useTravel()
+  const travelTeam = useTravelTeam()
   const learning = useLearning()
+  const learningTeam = useLearningTeam()
   const assets = useAssets()
   const tax = useTax()
 
@@ -112,7 +125,12 @@ export function SelfService() {
   /** Section visibility follows the configured policy for employees (ESS-08). */
   const { policyFor } = portal
   const sectionVisible = useCallback(
-    (id: string) => isAdmin || (policyFor(id)?.view ?? true),
+    (id: string) => {
+      // Manager/coordinator review surfaces are admin-only in the POC
+      // (admin roles stand in for Manager and Travel Coordinator).
+      if ((MANAGER_SECTIONS as readonly string[]).includes(id)) return isAdmin
+      return isAdmin || (policyFor(id)?.view ?? true)
+    },
     [isAdmin, policyFor]
   )
 
@@ -164,7 +182,9 @@ export function SelfService() {
     attendance: <AttendanceTab store={attendance} />,
     timesheets: <TimesheetTab store={timesheets} />,
     travel: <TravelTab store={travel} />,
+    'travel-team': <TravelTeamTab store={travelTeam} />,
     learning: <LearningTab store={learning} />,
+    'learning-team': <LearningTeamTab store={learningTeam} />,
     assets: <AssetsTab store={assets} />,
     tax: <TaxTab store={tax} />,
     work: <WorkTab />,

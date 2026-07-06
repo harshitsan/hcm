@@ -33,6 +33,8 @@ export function ReportsTab({ balances, config, portfolio }: ReportsTabProps) {
   const [dept, setDept] = useState('all')
   const [location, setLocation] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  // ETOS-05: include or exclude former (inactive) employees from the summary.
+  const [empStatus, setEmpStatus] = useState('active')
 
   const balanceRows = useMemo(
     () =>
@@ -48,9 +50,10 @@ export function ReportsTab({ balances, config, portfolio }: ReportsTabProps) {
             type &&
             (dept === 'all' || emp.department === dept) &&
             (location === 'all' || emp.location === location) &&
-            (typeFilter === 'all' || type.id === typeFilter)
+            (typeFilter === 'all' || type.id === typeFilter) &&
+            (empStatus === 'all' || emp.active === (empStatus === 'active'))
         ),
-    [balances.balances, config.leaveTypes, dept, location, typeFilter]
+    [balances.balances, config.leaveTypes, dept, empStatus, location, typeFilter]
   )
 
   const policyRows = useMemo(
@@ -82,6 +85,16 @@ export function ReportsTab({ balances, config, portfolio }: ReportsTabProps) {
           </Select>
           {dataset === 'balances' && (
             <>
+              <Select value={empStatus} onValueChange={setEmpStatus}>
+                <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='active'>Active employees</SelectItem>
+                  <SelectItem value='inactive'>Inactive employees</SelectItem>
+                  <SelectItem value='all'>All employees</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={dept} onValueChange={setDept}>
                 <SelectTrigger variant='secondary' className='h-7 w-[160px]'>
                   <SelectValue />
@@ -159,6 +172,9 @@ export function ReportsTab({ balances, config, portfolio }: ReportsTabProps) {
                     {emp?.name}
                     {!emp?.selfService && (
                       <span className='text-neutral-1000 ml-1 text-xs'>(non-user)</span>
+                    )}
+                    {emp && !emp.active && (
+                      <span className='text-red-1400 ml-1 text-xs'>(inactive)</span>
                     )}
                   </td>
                   {portfolio && <td className='px-2'>{emp?.company}</td>}

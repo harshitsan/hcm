@@ -6,7 +6,12 @@ import { HighlightedCell } from '@/components/common/data-table/highlighted-cell
 import { SearchableHeader } from '@/components/common/data-table/searchable-header'
 import { LongText } from '@/components/common/long-text'
 import type { Requisition } from '../data/requisitions'
-import { NonBudgetedBadge, StatusBadge, UnassignedBadge } from './badges'
+import {
+  HiringAsBadge,
+  NonBudgetedBadge,
+  StatusBadge,
+  UnassignedBadge,
+} from './badges'
 
 const dateFmt = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
@@ -94,6 +99,28 @@ export const requisitionColumns: ColumnDef<Requisition>[] = [
         </span>
       </HighlightedCell>
     ),
+  },
+  {
+    // RL-04: reason for the vacancy — New Join vs Replacement (with backfill).
+    accessorKey: 'hiringAs',
+    header: sortableHeader('Hiring As'),
+    meta: { requiresWholeWordMatch: true },
+    cell: ({ row }) => {
+      const r = row.original
+      return (
+        <div className='flex flex-col gap-0.5 p-1.5'>
+          <div>
+            <HiringAsBadge hiringAs={r.hiringAs} />
+          </div>
+          {r.hiringAs === 'Replacement' && r.replacementFor && (
+            <span className='text-paragraph-sm text-neutral-1000 truncate'>
+              Replacing {r.replacementFor}
+            </span>
+          )}
+        </div>
+      )
+    },
+    size: 150,
   },
   {
     accessorKey: 'headcount',

@@ -214,6 +214,7 @@ export function useProbation({ log, notify, onSeparation }: Deps) {
       const review: PeerReview = {
         id: shortId('peer'),
         employeeName,
+        employeeActive: true,
         reviewer,
         requestedBy,
         reviewDate: addDays(todayISO(), 7),

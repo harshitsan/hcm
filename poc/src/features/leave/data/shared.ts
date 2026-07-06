@@ -210,6 +210,22 @@ export const EMPLOYEES: Employee[] = [
     managerId: 'emp-1002',
     active: false,
   },
+  // Former team member of Ananya Sharma — exercises the active/inactive
+  // toggles on manager request lists and summaries (ETOR-05 / ETOS-05).
+  {
+    id: 'emp-1011',
+    code: 'STI-0188',
+    name: 'Deepak Kulkarni',
+    department: 'Engineering',
+    location: 'Hyderabad',
+    employeeType: 'Full-time',
+    employeeClass: 'Regular',
+    positionLevel: 'L2 - Senior',
+    company: 'Satellite Tech India',
+    selfService: true,
+    managerId: 'emp-1001',
+    active: false,
+  },
 ]
 
 export function employeeById(id: string): Employee | undefined {

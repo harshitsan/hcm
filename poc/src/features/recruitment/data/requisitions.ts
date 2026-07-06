@@ -35,6 +35,10 @@ export const EMPLOYEE_CLASSES = [
   'Intern',
 ] as const
 
+/** RL-04 — reason for the vacancy: fresh headcount vs backfill. */
+export const HIRING_AS = ['New Join', 'Replacement'] as const
+export type HiringAs = (typeof HIRING_AS)[number]
+
 export const RECRUITERS = [
   'Meera Iyer',
   'Rahul Verma',
@@ -74,6 +78,10 @@ export interface Requisition {
   department: (typeof DEPARTMENTS)[number]
   location: (typeof LOCATIONS)[number]
   employeeClass: (typeof EMPLOYEE_CLASSES)[number]
+  /** RL-04: why the position is open — New Join (fresh) or Replacement. */
+  hiringAs: HiringAs
+  /** RL-04: employee being backfilled when hiringAs = 'Replacement'. */
+  replacementFor: string | null
   headcount: number
   description: string
   requirements: string
@@ -109,6 +117,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Engineering',
     location: 'Bengaluru',
     employeeClass: 'Full-time',
+    hiringAs: 'New Join',
+    replacementFor: null,
     headcount: 2,
     description: 'Own core platform services and mentor mid-level engineers.',
     requirements: '6+ yrs Java/Go, distributed systems, PostgreSQL',
@@ -153,6 +163,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Product',
     location: 'Pune',
     employeeClass: 'Full-time',
+    hiringAs: 'Replacement',
+    replacementFor: 'Nikhil Kulkarni (EMP-0231)',
     headcount: 1,
     description: 'Design end-to-end flows for the HR self-service portal.',
     requirements: '4+ yrs product design, Figma, design systems',
@@ -183,6 +195,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Finance',
     location: 'Mumbai',
     employeeClass: 'Full-time',
+    hiringAs: 'New Join',
+    replacementFor: null,
     headcount: 1,
     description: 'Run monthly payroll and statutory filings.',
     requirements: '3+ yrs payroll, Indian statutory compliance',
@@ -214,6 +228,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Customer Support',
     location: 'Hyderabad',
     employeeClass: 'Full-time',
+    hiringAs: 'Replacement',
+    replacementFor: 'Shreya Kapoor (EMP-0187)',
     headcount: 1,
     description: 'Lead the L1 support pod and own CSAT.',
     requirements: '5+ yrs support ops, team leadership',
@@ -244,6 +260,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Sales',
     location: 'Remote — India',
     employeeClass: 'Contract',
+    hiringAs: 'New Join',
+    replacementFor: null,
     headcount: 4,
     description: 'Outbound prospecting for the mid-market segment.',
     requirements: '1+ yr SaaS outbound, CRM hygiene',
@@ -266,6 +284,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Human Resources',
     location: 'Bengaluru',
     employeeClass: 'Full-time',
+    hiringAs: 'Replacement',
+    replacementFor: 'Amit Trivedi (EMP-0092)',
     headcount: 1,
     description: 'Generalist support across onboarding and engagement.',
     requirements: '2+ yrs HR operations',
@@ -285,6 +305,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Engineering',
     location: 'Hyderabad',
     employeeClass: 'Full-time',
+    hiringAs: 'New Join',
+    replacementFor: null,
     headcount: 1,
     description: 'Build the analytics lakehouse and pipelines.',
     requirements: 'Spark, dbt, warehouse modelling',
@@ -307,6 +329,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Engineering',
     location: 'Pune',
     employeeClass: 'Full-time',
+    hiringAs: 'New Join',
+    replacementFor: null,
     headcount: 2,
     description: 'Own the Playwright regression suite.',
     requirements: 'Playwright/Cypress, CI pipelines',
@@ -329,6 +353,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Finance',
     location: 'Mumbai',
     employeeClass: 'Intern',
+    hiringAs: 'New Join',
+    replacementFor: null,
     headcount: 2,
     description: 'Support AP/AR reconciliation.',
     requirements: 'B.Com final year',
@@ -351,6 +377,8 @@ export const seedRequisitions: Requisition[] = [
     department: 'Engineering',
     location: 'Remote — India',
     employeeClass: 'Full-time',
+    hiringAs: 'Replacement',
+    replacementFor: 'Kavya Nair (EMP-0310)',
     headcount: 1,
     description: 'Kubernetes platform and release tooling.',
     requirements: 'K8s, Terraform, observability stack',

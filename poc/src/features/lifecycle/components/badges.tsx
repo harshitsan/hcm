@@ -37,10 +37,24 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeVariant }> = {
   verified: { label: 'Verified', variant: 'completed' },
   // disciplinary
   'letter-issued': { label: 'Letter Issued', variant: 'completed' },
+  // orientation programs
+  cancelled: { label: 'Cancelled', variant: 'dropped' },
   // reviews
   'Pending Approval': { label: 'Pending Approval', variant: 'pending' },
   Submitted: { label: 'Submitted', variant: 'completed' },
   Active: { label: 'Active', variant: 'open' },
+  // performance review
+  Initiated: { label: 'Initiated', variant: 'open' },
+  'Pending Initiation': { label: 'Pending Initiation', variant: 'pending' },
+  Completed: { label: 'Completed', variant: 'completed' },
+  'Pending Submission': { label: 'Pending Submission', variant: 'pending' },
+  Closed: { label: 'Closed', variant: 'completed' },
+  // knowledge transfer
+  Assigned: { label: 'Assigned', variant: 'open' },
+  Reassigned: { label: 'Reassigned', variant: 'pending' },
+  Received: { label: 'Received', variant: 'completed' },
+  'Pre Closed': { label: 'Pre Closed', variant: 'badge_inactive' },
+  Withdrawn: { label: 'Withdrawn', variant: 'dropped' },
   // config
   published: { label: 'Published', variant: 'badge_active' },
   superseded: { label: 'Superseded', variant: 'badge_inactive' },
