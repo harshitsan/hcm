@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { ConfigTab } from './components/config-tab'
 import { DepartmentsSummary } from './components/departments-summary'
 import { DirectoryTab } from './components/directory-tab'
@@ -103,6 +104,7 @@ export function Departments() {
             )}
             {(isCompanyAdmin || isPlatformAdmin) && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Departments' />
                 {isCompanyAdmin ? (
                   <Tabs defaultValue='settings' className='w-full'>
                     <TabsList className='bg-transparent p-0'>

@@ -2,6 +2,7 @@ import { ShieldCheck } from 'lucide-react'
 import { RoleGate } from '@/context/role-context'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { type DataConfigStore } from '../hooks/use-data-config'
 import { ConfigCatalog } from './config-catalog'
 import { ConfigGovernance } from './config-governance'
@@ -33,6 +34,8 @@ export function ConfigTab({ store }: ConfigTabProps) {
       }
     >
       <div className='space-y-4'>
+        <EngineArtifactsPanel module='Data Management' />
+
         <Alert>
           <ShieldCheck className='size-4' />
           <AlertTitle className='flex items-center gap-2'>

@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { ApplicabilityTab } from './components/applicability-tab'
 import { CatalogTab } from './components/catalog-tab'
 import { GovernanceTab } from './components/governance-tab'
@@ -64,6 +65,7 @@ export function Policies() {
 
             {isAdmin && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Policy Management' />
                 <Tabs defaultValue='applicability'>
                   <TabsList className='mb-2'>
                     <TabsTrigger value='applicability'>

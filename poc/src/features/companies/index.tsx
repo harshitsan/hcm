@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { AuditTab } from './components/audit-tab'
 import { DirectoryTab } from './components/directory-tab'
 import { GroupsTab } from './components/groups-tab'
@@ -73,6 +74,7 @@ export function Companies() {
               <SubscriptionsTab store={store} subscriptions={subscriptions} />
             </TabsContent>
             <TabsContent value='admin'>
+              <EngineArtifactsPanel module='Companies' />
               <Tabs defaultValue='lifecycle'>
                 <TabsList className='mb-3'>
                   <TabsTrigger value='lifecycle'>Lifecycle</TabsTrigger>

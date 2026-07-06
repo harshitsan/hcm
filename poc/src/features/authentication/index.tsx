@@ -2,6 +2,7 @@ import { useRole } from '@/context/role-context'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { AuditTab } from './components/audit-tab'
 import { AuthSummary } from './components/auth-summary'
 import { ConfigTab } from './components/config-tab'
@@ -70,6 +71,7 @@ export function Authentication() {
             </TabsContent>
 
             <TabsContent value='admin'>
+              <EngineArtifactsPanel module='Authentication' />
               <Tabs defaultValue='settings' className='w-full'>
                 <TabsList className='mb-2'>
                   <TabsTrigger value='settings'>Sign-in settings</TabsTrigger>

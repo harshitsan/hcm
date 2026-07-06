@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole, type Role } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { AuditTab } from './components/audit-tab'
 import { CompanyCalendarTab } from './components/company-calendar-tab'
 import { ConfigTab } from './components/config-tab'
@@ -229,6 +230,7 @@ export function LeaveManagement() {
               </TabsContent>
 
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Leave Management' />
                 <Tabs defaultValue={visibleAdminTabs[0]?.value} key={role}>
                   <TabsList className='mb-2 flex-wrap'>
                     {visibleAdminTabs.map((t) => (

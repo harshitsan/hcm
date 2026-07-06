@@ -55,6 +55,17 @@ export const TARGET_MODULES = [
   'Data Management',
   'Policy Management',
   'Companies',
+  'Self Service',
+  'Feedback & Grievance',
+  'Announcements',
+  'Documents',
+  'Locations',
+  'Departments',
+  'Positions',
+  'Groups',
+  'Roles & Security',
+  'Authentication',
+  'Platform Admin',
 ] as const
 
 export type TargetModule = (typeof TARGET_MODULES)[number]

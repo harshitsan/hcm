@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { AssignmentsTab } from './components/assignments-tab'
 import { CatalogueTab } from './components/catalogue-tab'
 import { ConfigTab } from './components/config-tab'
@@ -170,6 +171,7 @@ export function Positions() {
 
             {(isCompanyAdmin || isOversight) && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Positions' />
                 <Tabs
                   defaultValue={isCompanyAdmin ? 'settings' : 'oversight'}
                   className='w-full'

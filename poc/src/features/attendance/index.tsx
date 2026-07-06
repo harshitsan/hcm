@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole, type Role } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { ApprovalsTab } from './components/approvals-tab'
 import { CaptureTab } from './components/capture-tab'
 import { ConfigTab } from './components/config-tab'
@@ -169,6 +170,7 @@ export function TimeAttendance() {
             </TabsContent>
 
             <TabsContent value='admin'>
+              <EngineArtifactsPanel module='Time & Attendance' />
               {role === 'Platform Admin' ? (
                 <PlatformTab config={config} attendance={attendance} />
               ) : (

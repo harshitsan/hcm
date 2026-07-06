@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus } from 'phosphor-react'
 import { toast } from 'sonner'
 import { RoleGate } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -83,8 +84,10 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
   }, [udfOpen, form])
 
   return (
-    <Tabs defaultValue='access' className='w-full'>
-      <TabsList className='mb-3 bg-transparent p-0'>
+    <div className='flex w-full flex-col gap-4'>
+      <EngineArtifactsPanel module='Self Service' />
+      <Tabs defaultValue='access' className='w-full'>
+        <TabsList className='mb-3 bg-transparent p-0'>
         <TabsTrigger variant='primary' value='access'>
           Access Policy
         </TabsTrigger>
@@ -393,6 +396,7 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
           </Form>
         </DialogContent>
       </Dialog>
-    </Tabs>
+      </Tabs>
+    </div>
   )
 }

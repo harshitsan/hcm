@@ -2,6 +2,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRole } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { ConfigurationTab } from './components/configuration-tab'
 import { GovernanceTab } from './components/governance-tab'
 import { HiringPipelineTab } from './components/hiring-pipeline-tab'
@@ -241,6 +242,7 @@ export function Recruitment() {
 
             {showAdmin && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Recruitment' />
                 <Tabs
                   defaultValue={showConfig ? 'settings' : 'policies'}
                   className='w-full'

@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { AuditTab } from './components/audit-tab'
 import { ConfigTab } from './components/config-tab'
 import { DisciplinaryTab } from './components/disciplinary-tab'
@@ -249,6 +250,7 @@ export function Lifecycle() {
                 through a single Admin tab; other roles keep audit top-level. */}
             {(isCompanyAdmin || isGroupAdmin) && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Employee Lifecycle' />
                 <Tabs defaultValue='settings' className='w-full'>
                   <TabsList className='mb-2'>
                     <TabsTrigger variant='ghost' value='settings'>

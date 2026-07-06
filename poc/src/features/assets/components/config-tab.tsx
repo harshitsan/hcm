@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { type Asset } from '../data/assets'
 import { TRANSITION_RULES } from '../data/config'
 import { COMPANIES, EMPLOYEES, HOME_COMPANY } from '../data/org'
@@ -61,6 +62,9 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
 
   return (
     <div className='w-full'>
+      <div className='mb-4'>
+        <EngineArtifactsPanel module='Asset Management' />
+      </div>
       <Tabs value={tab} onValueChange={setTab} className='w-full'>
         <TabsList className='mb-3 bg-transparent p-0'>
           {isCompanyAdmin && (

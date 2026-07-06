@@ -6,6 +6,7 @@ import { DataTable } from '@/components/common/data-table/table'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { RoleGate, useRole } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { DelegationsTab } from './components/delegations-tab'
 import { EmployeeDetailSheet } from './components/employee-detail-sheet'
 import { EmployeeOverlay } from './components/employee-overlay'
@@ -288,6 +289,19 @@ export function Employees() {
               <DelegationsTab store={store} />
             </TabsContent>
           </Tabs>
+
+          <RoleGate
+            roles={[
+              'Platform Admin',
+              'Portfolio Admin',
+              'Group Company Admin',
+              'Company Admin',
+            ]}
+          >
+            <div className='mt-4'>
+              <EngineArtifactsPanel module='Employees' />
+            </div>
+          </RoleGate>
         </div>
       </Main>
 

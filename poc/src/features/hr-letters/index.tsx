@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRole } from '@/context/role-context'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { Main } from '@/components/layout/main'
 import { AgreementsTab } from './components/agreements-tab'
 import { ApprovalsTab } from './components/approvals-tab'
@@ -122,6 +123,7 @@ export function HrLetters() {
             )}
             {showAdminTab && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='HR Letters & Certificates' />
                 <Tabs defaultValue={adminDefaultTab} className='w-full'>
                   <TabsList className='mb-3 bg-transparent p-0'>
                     {showTemplates && (

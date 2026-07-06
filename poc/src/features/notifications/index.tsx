@@ -1,5 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { Main } from '@/components/layout/main'
 import { AlertsTab } from './components/alerts-tab'
 import { ChannelsTab } from './components/channels-tab'
@@ -83,6 +84,7 @@ export function Notifications() {
             </TabsContent>
 
             <TabsContent value='admin'>
+              <EngineArtifactsPanel module='Notifications' />
               <Tabs defaultValue='templates' className='w-full'>
                 <TabsList className='mb-2'>
                   <TabsTrigger value='templates'>Templates</TabsTrigger>

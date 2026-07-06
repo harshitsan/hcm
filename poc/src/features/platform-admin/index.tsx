@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { ConfigTab } from './components/config-tab'
 import { GovernanceTab } from './components/governance-tab'
 import { IdentityTab } from './components/identity-tab'
@@ -111,6 +112,9 @@ export function PlatformAdmin() {
               <OperationsTab store={operations} />
             </TabsContent>
             <TabsContent value='settings'>
+              <div className='mb-3'>
+                <EngineArtifactsPanel module='Platform Admin' />
+              </div>
               <Tabs defaultValue='config' className='w-full'>
                 <TabsList className='mb-3 flex-wrap bg-transparent p-0'>
                   {Object.entries(SETTINGS_TAB_LABELS).map(([value, label]) => (

@@ -4,6 +4,7 @@ import { useRole } from '@/context/role-context'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { ConfigTab } from './components/config-tab'
 import { FeedTab } from './components/feed-tab'
 import { ImagesTab } from './components/images-tab'
@@ -95,6 +96,9 @@ export function Announcements() {
                 </TabsContent>
                 {isAdmin && (
                   <TabsContent value='admin'>
+                    <div className='mb-3'>
+                      <EngineArtifactsPanel module='Announcements' />
+                    </div>
                     {isPlatformAdmin ? (
                       <Tabs
                         key={moduleDisabled ? 'disabled' : 'enabled'}

@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole, type Role } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { AccessTab } from './components/access-tab'
 import { AssignmentsTab } from './components/assignments-tab'
 import { AuditTab } from './components/audit-tab'
@@ -225,6 +226,7 @@ export function RolesSecurity() {
             </TabsContent>
 
             <TabsContent value='admin'>
+              <EngineArtifactsPanel module='Roles & Security' />
               <Tabs defaultValue={visibleAdminTabs[0]?.value}>
                 <TabsList className='mb-2 flex-wrap'>
                   {visibleAdminTabs.map((t) => (

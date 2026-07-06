@@ -3,6 +3,7 @@ import { useRole } from '@/context/role-context'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { CertificatesTab } from './components/certificates-tab'
 import { ConfigTab } from './components/config-tab'
 import { CustodiansTab } from './components/custodians-tab'
@@ -120,6 +121,7 @@ export function Documents() {
             </TabsContent>
             {showAdminTab && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Documents' />
                 <Tabs
                   value={adminTab}
                   onValueChange={setAdminTab}

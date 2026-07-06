@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { GovernanceTab } from './components/governance-tab'
 import { LocalizationTab } from './components/localization-tab'
 import { LocationsTab } from './components/locations-tab'
@@ -93,6 +94,7 @@ export function Locations() {
             )}
             {adminSections.length > 0 && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Locations' />
                 <Tabs defaultValue={adminSections[0].value} className='w-full'>
                   <TabsList className='mb-2'>
                     {adminSections.map((section) => (

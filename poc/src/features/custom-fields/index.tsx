@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { DefinitionsTab } from './components/definitions-tab'
 import { FieldsSummary } from './components/fields-summary'
 import { GovernanceTab } from './components/governance-tab'
@@ -66,6 +67,7 @@ export function CustomFields() {
 
             {isAdmin && (
               <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Custom Fields' />
                 <Tabs defaultValue='fields'>
                   <TabsList className='mb-2'>
                     <TabsTrigger value='fields'>Manage Fields</TabsTrigger>
