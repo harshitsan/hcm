@@ -39,7 +39,7 @@ as Tailwind classes (`bg-space-900`, `text-signal-400`, `border-orbit-500`).
 
 | Scale | Tokens | Role |
 |---|---|---|
-| **Space** (deep indigo) | `space-950 #05081C` · `space-900 #0A102E` · `space-800 #121A44` · `space-700 #1B2659` · `space-600 #273473` | Grounds: sidebar rail, hero cards, dark surfaces |
+| **Space** (deep indigo) | `space-950 #05081C` · `space-900 #0A102E` · `space-800 #121A44` · `space-700 #1B2659` · `space-600 #273473` | Grounds: hero cards & brand moments (the sidebar is a light "daylight rail") |
 | **Orbit** (telemetry blue) | `orbit-500 #2E6FF2` · `orbit-400 #5B8DF6` · `orbit-300 #93B4FA` · `orbit-200 #C7D9FD` · `orbit-100 #EDF3FF` | Active states, information, links, chart primaries |
 | **Signal** (flare orange) | `signal-600 #D9431F` · `signal-500 #F1552F` · `signal-400 #FF7A52` · `signal-300 #FFB49C` · `signal-100 #FFF0EA` | Primary actions ONLY — one warm accent, used sparingly |
 | **Starlight** | `starlight #F2F6FF` | Light tinted bands over white (page headers, summary strips) |
@@ -62,7 +62,9 @@ unchanged and must keep their semantics.
 - Signal appears **once per view region** (the primary action). Never use it
   for decoration at scale.
 - Deep space surfaces get the `space-bg` utility (gradient + star grain),
-  not flat `bg-space-900`.
+  not flat `bg-space-900`. Reserve them for hero moments — chrome (sidebar,
+  headers) stays light: `--sidebar #FAFBFF`, ink text, `orbit-100` washes
+  for hover/active, `blue-1400` for the active item.
 - Text on space: white at 100/70/50% opacity steps only.
 
 ---

@@ -86,7 +86,7 @@ export function NavGroup({ title, items }: NavGroupProps) {
     >
       <SidebarGroup className='py-1'>
         <SidebarGroupLabel asChild>
-          <CollapsibleTrigger className='w-full cursor-pointer text-white/60 uppercase tracking-wider hover:text-white'>
+          <CollapsibleTrigger className='w-full cursor-pointer text-neutral-1000 uppercase tracking-wider hover:text-space-900'>
             {title}
             <ChevronRight className='ms-auto transition-transform duration-200 group-data-[state=open]/nav-group:rotate-90' />
           </CollapsibleTrigger>
@@ -119,12 +119,12 @@ function SidebarMenuRow({ item, href }: { item: NavLink; href: string }) {
           }
         >
           {item.icon && (
-            <item.icon className='text-alpha-white-100 !h-4 !w-4 shrink-0' />
+            <item.icon className='text-neutral-1100 !h-4 !w-4 shrink-0' />
           )}
-          <span className='text-alpha-white-100 truncate text-sm'>
+          <span className='text-neutral-1100 truncate text-sm'>
             {item.title}
           </span>
-          <Lock className='ms-auto !h-3 !w-3 shrink-0 text-white' />
+          <Lock className='ms-auto !h-3 !w-3 shrink-0 text-neutral-1300' />
         </div>
       </SidebarMenuItem>
     )
@@ -135,16 +135,16 @@ function SidebarMenuRow({ item, href }: { item: NavLink; href: string }) {
       <SidebarMenuButton
         asChild
         isActive={isActive}
-        className={`hover:!bg-blue-1300 !rounded-sm text-white hover:text-white ${isActive ? '!bg-blue-1300' : ''}`}
+        className={`hover:!bg-orbit-100 !rounded-sm text-neutral-1300 hover:text-space-900 ${isActive ? '!bg-orbit-100 !text-blue-1400' : ''}`}
       >
         <Link
           to={item.url}
           onClick={() => setOpenMobile(false)}
-          className='text-white hover:text-white'
+          className='text-neutral-1300 hover:text-space-900'
         >
           {item.icon && (
             <item.icon
-              className={`!h-4 !w-4 ${isActive ? 'text-neutral-100' : 'text-alpha-white-100'}`}
+              className={`!h-4 !w-4 ${isActive ? 'text-blue-1400' : 'text-neutral-1100'}`}
             />
           )}
           <span className='truncate'>{item.title}</span>
@@ -179,11 +179,11 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
         >
           <div className='relative flex h-[44px] w-[44px] items-center justify-center rounded-sm opacity-40'>
             {item.icon && (
-              <item.icon className='!h-5 !w-5 text-alpha-white-100' />
+              <item.icon className='!h-5 !w-5 text-neutral-1100' />
             )}
-            <Lock className='absolute right-1 bottom-1 !h-3 !w-3 text-white' />
+            <Lock className='absolute right-1 bottom-1 !h-3 !w-3 text-neutral-1300' />
           </div>
-          <span className='text-caption-sm text-alpha-white-100 text-center leading-none opacity-40'>
+          <span className='text-caption-sm text-neutral-1100 text-center leading-none opacity-40'>
             {item.title}
           </span>
         </div>
@@ -199,17 +199,17 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
           isActive={isActive}
           // tooltip={item.title}
           size='lg'
-          className={`hover:!bg-blue-1300 group !rounded-sm text-white ${isActive ? '!bg-blue-1300' : ''}`}
+          className={`hover:!bg-orbit-100 group !rounded-sm text-neutral-1300 ${isActive ? '!bg-orbit-100 !text-blue-1400' : ''}`}
         >
           <Link
             to={item.url}
             onClick={() => setOpenMobile(false)}
-            className='flex h-[44px] !w-[44px] items-center justify-center text-white hover:text-white'
+            className='flex h-[44px] !w-[44px] items-center justify-center text-neutral-1300 hover:text-space-900'
           >
             {item.icon && (
               <item.icon
                 weight={isActive ? 'fill' : 'regular'}
-                className={`!h-5 !w-5 ${isActive ? 'text-neutral-100' : 'text-alpha-white-100'}`}
+                className={`!h-5 !w-5 ${isActive ? 'text-blue-1400' : 'text-neutral-1100'}`}
               />
             )}
             {item.badge && <NavBadge>{item.badge}</NavBadge>}
@@ -220,7 +220,7 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
           to={item.url}
           // onClick={() => setOpenMobile(false)}
         >
-          <span className='text-caption-sm text-alpha-white-100 text-center leading-none'>
+          <span className='text-caption-sm text-neutral-1100 text-center leading-none'>
             {item.title}
           </span>
         </Link>
@@ -245,16 +245,16 @@ function SidebarMenuCollapsible({
         <CollapsibleTrigger asChild>
           <SidebarMenuButton
             tooltip={item.title}
-            className={`text-white hover:text-white ${isActive ? 'bg-blue-1300' : ''}`}
+            className={`text-neutral-1300 hover:text-space-900 ${isActive ? 'bg-orbit-100 text-blue-1400' : ''}`}
           >
             {item.icon && (
               <item.icon
-                className={`h-7 w-7 ${isActive ? 'text-neutral-100' : 'text-white/70'}`}
+                className={`h-7 w-7 ${isActive ? 'text-blue-1400' : 'text-neutral-1100'}`}
               />
             )}
-            <span className='text-white'>{item.title}</span>
+            <span className='text-neutral-1300'>{item.title}</span>
             {item.badge && <NavBadge>{item.badge}</NavBadge>}
-            <ChevronRight className='ms-auto text-white transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
+            <ChevronRight className='ms-auto text-neutral-1300 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent className='CollapsibleContent'>
@@ -266,19 +266,19 @@ function SidebarMenuCollapsible({
                   <SidebarMenuSubButton
                     asChild
                     isActive={isSubActive}
-                    className={`text-white hover:text-white ${isSubActive ? 'bg-blue-1300' : ''}`}
+                    className={`text-neutral-1300 hover:text-space-900 ${isSubActive ? 'bg-orbit-100 text-blue-1400' : ''}`}
                   >
                     <Link
                       to={subItem.url}
                       // onClick={() => setOpenMobile(false)}
-                      className='text-white hover:text-white'
+                      className='text-neutral-1300 hover:text-space-900'
                     >
                       {subItem.icon && (
                         <subItem.icon
-                          className={`size-7 h-7 w-7 ${isSubActive ? 'text-neutral-100' : 'text-white/70'}`}
+                          className={`size-7 h-7 w-7 ${isSubActive ? 'text-blue-1400' : 'text-neutral-1100'}`}
                         />
                       )}
-                      <span className='text-white'>{subItem.title}</span>
+                      <span className='text-neutral-1300'>{subItem.title}</span>
                       {subItem.badge && <NavBadge>{subItem.badge}</NavBadge>}
                     </Link>
                   </SidebarMenuSubButton>
@@ -308,16 +308,16 @@ function SidebarMenuCollapsedDropdown({
           <SidebarMenuButton
             tooltip={item.title}
             isActive={isActive}
-            className={`text-white hover:text-white ${isActive ? 'bg-blue-1300' : ''}`}
+            className={`text-neutral-1300 hover:text-space-900 ${isActive ? 'bg-orbit-100 text-blue-1400' : ''}`}
           >
             {item.icon && (
               <item.icon
-                className={`size-7 h-7 w-7 ${isActive ? 'text-neutral-100' : 'text-white/70'}`}
+                className={`size-7 h-7 w-7 ${isActive ? 'text-blue-1400' : 'text-neutral-1100'}`}
               />
             )}
-            <span className='text-white'>{item.title}</span>
+            <span className='text-neutral-1300'>{item.title}</span>
             {item.badge && <NavBadge>{item.badge}</NavBadge>}
-            <ChevronRight className='ms-auto text-white transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
+            <ChevronRight className='ms-auto text-neutral-1300 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent side='right' align='start' sideOffset={4}>

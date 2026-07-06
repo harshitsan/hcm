@@ -22,24 +22,24 @@ export function AppSidebar() {
   const { collapsible, variant } = useLayout()
   const { navGroups, bottomGroup, tenants } = sidebarData
   return (
-    // Rail bg comes from the --sidebar token (space-900); stars overlay content.
+    // Daylight rail — bg/ink come from the --sidebar tokens (theme.css).
     <Sidebar collapsible={collapsible} variant={variant}>
       <SidebarHeader>
         <div className='flex items-center gap-2 px-1.5 pt-1.5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0'>
           <SatelliteMark size={26} />
-          <SatelliteWordmark className='text-[15px] text-white group-data-[collapsible=icon]:hidden' />
-          <span className='ms-auto rounded-full border border-white/15 px-1.5 py-px text-[9px] font-semibold tracking-widest text-white/50 uppercase group-data-[collapsible=icon]:hidden'>
+          <SatelliteWordmark className='text-space-900 text-[15px] group-data-[collapsible=icon]:hidden' />
+          <span className='border-neutral-500 text-neutral-1000 ms-auto rounded-full border px-1.5 py-px text-[9px] font-semibold tracking-widest uppercase group-data-[collapsible=icon]:hidden'>
             POC
           </span>
         </div>
         <TenantSwitcher tenants={tenants} />
         <RoleSwitcher />
       </SidebarHeader>
-      <SidebarContent className='space-bg border-t border-white/10'>
+      <SidebarContent className='border-sidebar-border border-t'>
         {navGroups.map((props) => (
           <NavGroup key={props.title} {...props} />
         ))}
-        <div className='mt-auto border-t border-white/10 pt-1'>
+        <div className='border-sidebar-border mt-auto border-t pt-1'>
           <NavGroup {...bottomGroup} />
         </div>
       </SidebarContent>
