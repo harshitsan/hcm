@@ -34,8 +34,10 @@ export function RoleSwitcher() {
                 <ShieldUser className='size-4' />
               </div>
               <div className='grid flex-1 text-left text-sm leading-tight'>
-                <span className='truncate font-semibold'>SatelliteHR POC</span>
-                <span className='truncate text-xs'>{role}</span>
+                <span className='truncate font-semibold'>{role}</span>
+                <span className='truncate text-xs opacity-70'>
+                  Viewing role — tap to switch
+                </span>
               </div>
               <ChevronsUpDown className='ml-auto size-4' />
             </SidebarMenuButton>

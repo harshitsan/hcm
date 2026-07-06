@@ -30,19 +30,81 @@ export type NodeDef = {
 /* Option lists mirror the Business logic catalog (data/business-logic.ts);
    kept local so the designer core stays free of feature-data imports. */
 
-const MODULE_OPTIONS = [
+export const MODULE_OPTIONS = [
   'Leave Management', 'Time & Attendance', 'Recruitment', 'Employees',
   'Employee Lifecycle', 'Notifications', 'HR Letters & Certificates',
   'Asset Management', 'Custom Fields', 'Data Management',
   'Policy Management', 'Companies',
 ]
 
-const MODULE_EVENTS = [
-  'Leave request submitted', 'Overtime request submitted',
-  'Comp-off request submitted', 'Attendance shortfall detected',
-  'Exit initiated', 'Offer approved', 'New employee joined',
-  'Probation ending in 15 days', 'Policy published',
-]
+/** Starting points per source module — a flow can begin from any of these. */
+export const MODULE_EVENT_MAP: Record<string, string[]> = {
+  'Leave Management': [
+    'Leave request submitted', 'Leave request cancelled',
+    'Leave balance below threshold', 'Holiday calendar updated',
+    'Time-off adjustment requested',
+  ],
+  'Time & Attendance': [
+    'Attendance shortfall detected', 'Overtime request submitted',
+    'Comp-off request submitted', 'Missed punch detected',
+    'Work-from-home request submitted', 'Shift change requested',
+  ],
+  Recruitment: [
+    'Offer approved', 'Candidate shortlisted', 'Interview scheduled',
+    'Offer accepted', 'Requisition opened',
+  ],
+  Employees: [
+    'New employee joined', 'Employee profile updated',
+    'Employee document expired',
+  ],
+  'Employee Lifecycle': [
+    'Probation ending in 15 days', 'Exit initiated', 'Confirmation due',
+    'Transfer requested', 'Layoff initiated',
+  ],
+  Notifications: ['Announcement published', 'Alert rule triggered'],
+  'HR Letters & Certificates': ['Letter requested', 'Certificate expiring'],
+  'Asset Management': [
+    'Asset assigned', 'Asset return due', 'Asset reported damaged',
+  ],
+  'Custom Fields': ['Custom field value changed'],
+  'Data Management': [
+    'Import file uploaded', 'Import completed with errors',
+    'Export requested',
+  ],
+  'Policy Management': ['Policy published', 'Policy acknowledgement overdue'],
+  Companies: ['Company created', 'Localization settings changed'],
+}
+
+export function eventsForModule(module: string): string[] {
+  return MODULE_EVENT_MAP[module] ?? []
+}
+
+const GENERIC_SAMPLE =
+  '{\n  "employee": { "name": "Ananya Sharma", "department": "Engineering", "id": "EMP-0142" }\n}'
+
+/** Realistic sample payloads for the most-demoed starting points. */
+const EVENT_SAMPLES: Record<string, string> = {
+  'Leave request submitted':
+    '{\n  "request": { "type": "Casual", "days": 3, "from": "2026-07-10" },\n  "employee": { "name": "Ananya Sharma", "department": "Engineering", "balance": 12 }\n}',
+  'Overtime request submitted':
+    '{\n  "request": { "hours": 6, "date": "2026-07-08", "reason": "Release support" },\n  "employee": { "name": "Rohit Verma", "department": "Operations", "supervisorCap": 10 }\n}',
+  'Attendance shortfall detected':
+    '{\n  "attendance": { "workedHours": 6.5, "date": "2026-07-04", "approvedLeave": false },\n  "employee": { "name": "David Kim", "department": "Operations" }\n}',
+  'Exit initiated':
+    '{\n  "exit": { "type": "Resignation", "lastWorkingDay": "2026-08-15", "noticeDays": 45 },\n  "employee": { "name": "Priya Menon", "department": "Finance", "tenureYears": 4 }\n}',
+  'Offer approved':
+    '{\n  "offer": { "designation": "Senior Engineer", "ctc": 2400000, "inBand": true },\n  "candidate": { "name": "Farhan Ali", "source": "Referral" }\n}',
+  'Probation ending in 15 days':
+    '{\n  "confirmation": { "dueDate": "2026-07-20", "probationMonths": 6 },\n  "employee": { "name": "Elena Garcia", "department": "Sales", "manager": "Sunita Patil" }\n}',
+  'New employee joined':
+    '{\n  "joining": { "date": "2026-07-06", "location": "Hyderabad" },\n  "employee": { "name": "Arjun Mehta", "department": "Engineering", "grade": "L4" }\n}',
+  'Import file uploaded':
+    '{\n  "import": { "function": "Employees", "rows": 240, "fileType": "Excel" },\n  "uploadedBy": "Sunita Patil"\n}',
+}
+
+export function sampleFor(event: string): string {
+  return EVENT_SAMPLES[event] ?? GENERIC_SAMPLE
+}
 
 const APPROVER_ROLES = [
   'Reporting Manager', 'Department Head', 'HR Director',
@@ -67,15 +129,25 @@ const defs: NodeDef[] = [
       module: 'Leave Management', event: 'Leave request submitted',
       samplePayload: '{\n  "request": { "type": "Casual", "days": 3, "from": "2026-07-10" },\n  "employee": { "name": "Ananya Sharma", "department": "Engineering", "balance": 12 }\n}',
     },
+    // Rendered by the custom TriggerEditor in the right panel: the event
+    // list depends on the selected module (options here cover validation).
     configFields: [
       { key: 'module', label: 'Source module', type: 'select', options: MODULE_OPTIONS, required: true },
-      { key: 'event', label: 'Event', type: 'select', options: MODULE_EVENTS, required: true },
+      { key: 'event', label: 'Event (starting point)', type: 'select', options: Object.values(MODULE_EVENT_MAP).flat(), required: true },
       { key: 'samplePayload', label: 'Sample event payload (JSON)', type: 'textarea' },
     ],
     validateConfig: config => {
+      const errors: string[] = []
+      const module = String(config.module ?? '')
+      const event = String(config.event ?? '')
+      if (event && !eventsForModule(module).includes(event)) {
+        errors.push('The selected event is not a starting point of the source module')
+      }
       const raw = config.samplePayload
-      if (typeof raw !== 'string' || raw.trim() === '') return []
-      try { JSON.parse(raw); return [] } catch { return ['Sample payload is not valid JSON'] }
+      if (typeof raw === 'string' && raw.trim() !== '') {
+        try { JSON.parse(raw) } catch { errors.push('Sample payload is not valid JSON') }
+      }
+      return errors
     },
   },
   {

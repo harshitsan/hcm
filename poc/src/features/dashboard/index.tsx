@@ -4,6 +4,7 @@ import { canAccess, rolesForPath } from '@/config/module-access'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
+import { SatelliteMark } from '@/components/brand/logo'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { sidebarData } from '@/components/layout/data/sidebar-data'
@@ -42,29 +43,49 @@ export function Dashboard() {
       <CommonHeader title='SatelliteHR — Proof of Concept' />
       <Main>
         <div className='flex flex-col gap-6 pb-10'>
-          <Card className='flex flex-col gap-2 p-6'>
-            <div className='flex flex-wrap items-center gap-2'>
-              <h2 className='text-h4 text-neutral-1600 font-medium'>
-                Welcome to the SatelliteHR POC
-              </h2>
-              <Badge variant='outline'>{role}</Badge>
+          {/* Mission-control hero: deep space, orbit rings, live satellite */}
+          <div className='space-bg relative overflow-hidden rounded-xl p-6 text-white md:p-8'>
+            <div className='pointer-events-none absolute -top-28 -right-20 size-[360px] rounded-full border border-white/10' />
+            <div className='pointer-events-none absolute -top-14 -right-6 size-[220px] rounded-full border border-white/10' />
+            <div className='pointer-events-none absolute top-10 right-10 hidden md:block'>
+              <SatelliteMark size={84} />
             </div>
-            <p className='text-paragraph-md text-neutral-1200'>
+            <p className='font-mono text-signal-400 text-[10px] tracking-[0.32em] uppercase'>
+              Mission control
+            </p>
+            <h2 className='font-display mt-2 text-3xl font-bold tracking-tight md:text-4xl'>
+              Every HR module, one orbit.
+            </h2>
+            <p className='mt-3 max-w-2xl text-sm leading-relaxed text-white/70'>
               Every SatelliteHR user story (BRD + Company Management functional
               spec, enriched with Kensium HRMS depth) is implemented as a
               frontend capability with mock data. Switch the active role from
               the sidebar header to see role-specific actions change across
               modules.
             </p>
-          </Card>
+            <div className='mt-4 flex flex-wrap items-center gap-2'>
+              <Badge
+                variant='outline'
+                className='border-white/25 bg-white/5 text-white'
+              >
+                {role}
+              </Badge>
+              <span className='text-xs text-white/50'>
+                authored once · governed per scope · consumed everywhere
+              </span>
+            </div>
+          </div>
 
           <div className='grid grid-cols-2 gap-4 lg:grid-cols-4'>
             {stats.map((s) => (
-              <Card key={s.label} className='flex flex-col gap-1 p-4'>
-                <span className='text-paragraph-sm text-neutral-1000'>
+              <Card
+                key={s.label}
+                className='border-t-orbit-500 flex flex-col gap-1 border-t-2 p-4'
+              >
+                <span className='text-paragraph-sm text-neutral-1000 tracking-wide uppercase'>
                   {s.label}
                 </span>
-                <span className='text-h4 text-neutral-1600 font-semibold'>
+                <span className='font-display text-neutral-1600 text-2xl font-semibold'>
                   {s.value}
                 </span>
               </Card>

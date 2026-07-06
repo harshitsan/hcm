@@ -35,9 +35,36 @@
 }
 
 @theme inline {
-  --font-geist: 'Geist', 'sans-serif';
-  --font-inter: 'Inter', 'sans-serif';
-  --font-manrope: 'Manrope', 'sans-serif';
+  /* SatelliteHR type system — display voice + UI grotesk + telemetry mono.
+     --font-geist is kept as an alias so every existing reference upgrades. */
+  --font-display: 'Bricolage Grotesque', 'Schibsted Grotesk', sans-serif;
+  --font-sans: 'Schibsted Grotesk', system-ui, sans-serif;
+  --font-mono: 'Spline Sans Mono', ui-monospace, 'SF Mono', monospace;
+  --font-geist: 'Schibsted Grotesk', system-ui, 'sans-serif';
+  --font-inter: 'Schibsted Grotesk', system-ui, 'sans-serif';
+  --font-manrope: 'Schibsted Grotesk', system-ui, 'sans-serif';
+
+  /* ---- SatelliteHR brand scales (Mission Control) ---- */
+  /* Deep space — grounds, sidebar, hero surfaces */
+  --color-space-950: #05081c;
+  --color-space-900: #0a102e;
+  --color-space-800: #121a44;
+  --color-space-700: #1b2659;
+  --color-space-600: #273473;
+  /* Orbit — telemetry blue, active states & information */
+  --color-orbit-500: #2e6ff2;
+  --color-orbit-400: #5b8df6;
+  --color-orbit-300: #93b4fa;
+  --color-orbit-200: #c7d9fd;
+  --color-orbit-100: #edf3ff;
+  /* Signal — flare orange, primary actions & the "HR" in the wordmark */
+  --color-signal-600: #d9431f;
+  --color-signal-500: #f1552f;
+  --color-signal-400: #ff7a52;
+  --color-signal-300: #ffb49c;
+  --color-signal-100: #fff0ea;
+  /* Starlight — near-white tint for light surfaces over deep space */
+  --color-starlight: #f2f6ff;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -87,7 +114,7 @@
   --color-orange-900: #893400;
   --color-orange-1000: #8f2d00;
   --color-orange-1100: #661f00;
-  --color-orange-1200: #e2512e;
+  --color-orange-1200: #f1552f; /* = signal-500: primary action buttons app-wide */
   --color-orange-1300: #ffe3db;
   --color-orange-1400: #5c1e11;
   --color-orange-1500: #ffc1ae;
@@ -169,8 +196,8 @@
 
   /* Blue (Information) Palette */
 
-  --color-blue-100: #f2f6fd;
-  --color-blue-150: #f3f8ff;
+  --color-blue-100: #f0f5ff;
+  --color-blue-150: #f2f6ff; /* = starlight: page header bands, summary cards */
   --color-blue-200: #dfe9fa;
   --color-blue-300: #b9d0f5;
   --color-blue-400: #91b5ef;
@@ -181,8 +208,8 @@
   --color-blue-900: #1b346e;
   --color-blue-1000: #142754;
   --color-blue-1100: #0d1936;
-  --color-blue-1200: #071431;
-  --color-blue-1300: #1277e2;
+  --color-blue-1200: #0a102e; /* = space-900: sidebar & hero deep space */
+  --color-blue-1300: #2e6ff2; /* = orbit-500: active states on deep space */
   --color-blue-1400: #1f5adb;
   --color-blue-1500: #4d97ff;
   --color-blue-1600: #aecfff;
@@ -292,8 +319,9 @@
   --shadow-600: 0px 2.65625rem 2.65625rem -1.0625rem #1a1a1a47;
 }
 
-/* Typography Utilities */
+/* Typography Utilities — headings speak in the display voice */
 @utility text-h1 {
+  font-family: var(--font-display);
   font-size: var(--font-size-h1);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-h1);
@@ -301,6 +329,7 @@
 }
 
 @utility text-h2 {
+  font-family: var(--font-display);
   font-size: var(--font-size-h2);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-h2);
@@ -308,13 +337,15 @@
 }
 
 @utility text-h3 {
+  font-family: var(--font-display);
   font-size: var(--font-size-h3);
-  font-weight: var(--font-weight-normal);
+  font-weight: var(--font-weight-medium);
   line-height: var(--line-height-h3);
   letter-spacing: var(--letter-spacing-h3);
 }
 
 @utility text-h4 {
+  font-family: var(--font-display);
   font-size: var(--font-size-h4);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-h4);

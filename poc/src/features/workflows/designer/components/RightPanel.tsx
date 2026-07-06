@@ -8,7 +8,10 @@ import {
   insertStep, isInsideLoopBody, updateBranchConfig, updateStepConfig,
 } from '../core/ops'
 import { collectPaths, type PathEntry } from '../core/paths'
-import { allDefs, createStep, getDef, type FieldDef } from '../core/registry'
+import {
+  allDefs, createStep, eventsForModule, getDef, MODULE_OPTIONS, sampleFor,
+  type FieldDef,
+} from '../core/registry'
 import { useStore } from '../state/store'
 
 function Field({ field, value, onChange }: {
@@ -97,6 +100,44 @@ function MockToggle({ label, checked, onChange }: {
 }
 
 const CTX_HINT = 'Available: payload, input, vars, item, index'
+
+/** Module-event trigger: the starting-point list depends on the selected
+    source module. Switching module or event resets the event + sample
+    payload so the flow always starts from a coherent state. */
+function TriggerEditor({ config, patch }: { config: Config; patch: (p: Config) => void }) {
+  const module = String(config.module ?? 'Leave Management')
+  const current = String(config.event ?? '')
+  // Keep a legacy/mismatched event visible (validation flags it on Activate).
+  const events = eventsForModule(module)
+  const eventOptions =
+    current && !events.includes(current) ? [current, ...events] : events
+  return (
+    <>
+      <Field
+        field={{ key: 'module', label: 'Source module', type: 'select', options: MODULE_OPTIONS, required: true }}
+        value={module}
+        onChange={v => {
+          const nextModule = String(v)
+          const firstEvent = eventsForModule(nextModule)[0] ?? ''
+          patch({ module: nextModule, event: firstEvent, samplePayload: sampleFor(firstEvent) })
+        }}
+      />
+      <Field
+        field={{ key: 'event', label: 'Event (starting point)', type: 'select', options: eventOptions, required: true }}
+        value={config.event}
+        onChange={v => patch({ event: v, samplePayload: sampleFor(String(v)) })}
+      />
+      <Field
+        field={{ key: 'samplePayload', label: 'Sample event payload (JSON)', type: 'textarea' }}
+        value={config.samplePayload}
+        onChange={v => patch({ samplePayload: v })}
+      />
+      <div className="ctx-hint">
+        Switching the module or event resets the starting point and its sample payload.
+      </div>
+    </>
+  )
+}
 
 function TransformEditor({ config, patch }: { config: Config; patch: (p: Config) => void }) {
   const mode = (config.mode as string) ?? 'expression'
@@ -357,9 +398,11 @@ function ConfigForm() {
       <h3>{def.label}</h3>
       {node.kind === 'transform'
         ? <TransformEditor config={node.config} patch={patch} />
-        : def.configFields.map(f => (
-          <Field key={f.key} field={f} value={node.config[f.key]} onChange={v => patch({ [f.key]: v })} />
-        ))}
+        : node.kind === 'moduleEvent'
+          ? <TriggerEditor config={node.config} patch={patch} />
+          : def.configFields.map(f => (
+            <Field key={f.key} field={f} value={node.config[f.key]} onChange={v => patch({ [f.key]: v })} />
+          ))}
       {selection.type === 'step' && !('branches' in node) && (
         <MockToggle label="Fail in Test runs"
           checked={node.config.mockFail === true}
