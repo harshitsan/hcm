@@ -4,6 +4,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AuditTab } from './components/audit-tab'
 import { ConfigTab } from './components/config-tab'
 import { DisciplinaryTab } from './components/disciplinary-tab'
@@ -192,7 +193,7 @@ export function Lifecycle() {
         <div className='w-full'>
           {!isEmployee && <LifecycleSummary items={summaryItems} />}
 
-          <Tabs key={role} defaultValue={tabs[0].value} className='w-full'>
+          <Tabs key={role} defaultValue={takeRequestedTab('/lifecycle') ?? tabs[0].value} className='w-full'>
             <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>

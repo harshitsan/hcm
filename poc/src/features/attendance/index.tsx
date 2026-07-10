@@ -4,6 +4,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole, type Role } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { ApprovalsTab } from './components/approvals-tab'
 import { CaptureTab } from './components/capture-tab'
 import { ConfigTab } from './components/config-tab'
@@ -110,7 +111,7 @@ export function TimeAttendance() {
       <CommonHeader title='Time & Attendance' className='bg-blue-150' />
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
-          <Tabs defaultValue={visibleTabs[0]?.value} key={role}>
+          <Tabs defaultValue={takeRequestedTab('/attendance') ?? visibleTabs[0]?.value} key={role}>
             <TabsList className='mb-2 flex-wrap'>
               {visibleTabs.map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>

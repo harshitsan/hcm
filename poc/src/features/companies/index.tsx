@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AuditTab } from './components/audit-tab'
 import { BudgetSetupTab } from './components/budget-setup-tab'
 import { DirectoryTab } from './components/directory-tab'
@@ -53,7 +54,7 @@ export function Companies() {
       />
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
-          <Tabs defaultValue='directory'>
+          <Tabs defaultValue={takeRequestedTab('/companies') ?? 'directory'}>
             <TabsList className='mb-3 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='directory' variant='primary'>
                 Directory

@@ -4,6 +4,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole, type Role } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AuditTab } from './components/audit-tab'
 import { CompanyCalendarTab } from './components/company-calendar-tab'
 import { ConfigTab } from './components/config-tab'
@@ -173,7 +174,7 @@ export function LeaveManagement() {
               </div>
             </div>
           ) : (
-            <Tabs defaultValue={visibleTabs[0]?.value} key={role}>
+            <Tabs defaultValue={takeRequestedTab('/leave') ?? visibleTabs[0]?.value} key={role}>
               <TabsList className='mb-2 flex-wrap'>
                 {visibleTabs.map((t) => (
                   <TabsTrigger key={t.value} value={t.value}>

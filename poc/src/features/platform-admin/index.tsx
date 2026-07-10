@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { ConfigTab } from './components/config-tab'
 import { GovernanceTab } from './components/governance-tab'
 import { IdentityTab } from './components/identity-tab'
@@ -35,8 +36,10 @@ const TAB_LABELS: Record<string, string> = {
  */
 export function PlatformAdmin() {
   const { role, hasRole } = useRole()
-  const [tab, setTab] = useState(() =>
-    hasRole('Employee (User)', 'Employee (Non-User)') ? 'identity' : 'tenants'
+  const [tab, setTab] = useState(
+    () =>
+      takeRequestedTab('/platform-admin') ??
+      (hasRole('Employee (User)', 'Employee (Non-User)') ? 'identity' : 'tenants')
   )
 
   const tenants = useTenants()

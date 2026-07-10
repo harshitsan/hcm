@@ -26,6 +26,7 @@ import { useTax } from './hooks/use-tax'
 import { useTimesheets } from './hooks/use-timesheets'
 import { useTravel } from './hooks/use-travel'
 import { useTravelTeam } from './hooks/use-travel-team'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 
 const ADMIN_ROLES = [
   'Platform Admin',
@@ -148,7 +149,7 @@ export function SelfService() {
   }, [isAdmin, sectionVisible])
 
   /** Employees land on their everyday overview; admins land on the admin surface. */
-  const [tab, setTab] = useState(isAdmin ? 'admin' : 'overview')
+  const [tab, setTab] = useState(() => takeRequestedTab('/self-service') ?? (isAdmin ? 'admin' : 'overview'))
 
   useEffect(() => {
     if (!availableTabs.includes(tab)) setTab('overview')

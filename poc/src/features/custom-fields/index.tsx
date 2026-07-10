@@ -4,6 +4,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { DefinitionsTab } from './components/definitions-tab'
 import { FieldsSummary } from './components/fields-summary'
 import { GovernanceTab } from './components/governance-tab'
@@ -32,7 +33,7 @@ export function CustomFields() {
   const conditionsStore = useWorkflowConditions()
 
   const isAdmin = ADMIN_ROLES.includes(role)
-  const [tab, setTab] = useState(isAdmin ? 'admin' : 'records')
+  const [tab, setTab] = useState(() => takeRequestedTab('/custom-fields') ?? (isAdmin ? 'admin' : 'records'))
 
   // Employees have no admin surface; snap to their tabs.
   useEffect(() => {

@@ -15,6 +15,7 @@ import { useAssetConfig } from './hooks/use-asset-config'
 import { useAssets } from './hooks/use-assets'
 import { useMovements } from './hooks/use-movements'
 import { useRequisitions } from './hooks/use-requisitions'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 
 /**
  * Asset Management module: inventory + lifecycle transactions, requisition
@@ -46,7 +47,7 @@ export function Assets() {
     return tabs
   }, [isCompanyAdmin, isOversight, isEmployeeUser, isPlatformAdmin])
 
-  const [tab, setTab] = useState(isEmployeeUser ? 'my-assets' : 'inventory')
+  const [tab, setTab] = useState(() => takeRequestedTab('/assets') ?? (isEmployeeUser ? 'my-assets' : 'inventory'))
   const [inventoryView, setInventoryView] = useState<'assets' | 'reports'>('assets')
 
   useEffect(() => {

@@ -28,6 +28,7 @@ import { createDesignerStore } from '../designer/state/store'
 import type { DesignerStore } from '../designer/state/store'
 import { DesignerStoreProvider, useStore } from '../designer/state/store-context'
 import { subscribe, getSnapshot, useBusinessLogic } from '../hooks/use-business-logic'
+import { ModuleLink } from './module-link'
 import '../designer/designer.css'
 
 // ─── paletteFor ───────────────────────────────────────────────────────────────
@@ -145,6 +146,20 @@ function SheetInner({
         </span>
         <KindChip type={artifact.type} />
         <span className='text-neutral-700 text-xs shrink-0'>v{artifact.version}</span>
+        <ModuleLink
+          module={artifact.targetModule}
+          className='text-neutral-1000 shrink-0 text-xs'
+          beforeNavigate={() => {
+            if (
+              dirtyRef.current &&
+              !window.confirm('Discard unsaved workflow changes?')
+            ) {
+              return false
+            }
+            onRequestClose()
+            return true
+          }}
+        />
         <div className='flex-1' />
         {canSave && (
           <Button

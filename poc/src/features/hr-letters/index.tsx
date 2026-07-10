@@ -3,6 +3,7 @@ import { useRole } from '@/context/role-context'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { Main } from '@/components/layout/main'
 import { AgreementsTab } from './components/agreements-tab'
 import { ApprovalsTab } from './components/approvals-tab'
@@ -58,7 +59,7 @@ export function HrLetters() {
     return tabs
   }, [isEmployee, isAdmin, isCompanyAdmin, showAdminTab])
 
-  const [tab, setTab] = useState(availableTabs[0])
+  const [tab, setTab] = useState(() => takeRequestedTab('/hr-letters') ?? availableTabs[0])
 
   useEffect(() => {
     if (!availableTabs.includes(tab)) setTab(availableTabs[0])

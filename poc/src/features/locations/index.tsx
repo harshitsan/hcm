@@ -4,6 +4,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { GovernanceTab } from './components/governance-tab'
 import { LocalizationTab } from './components/localization-tab'
 import { LocationsTab } from './components/locations-tab'
@@ -68,7 +69,7 @@ export function Locations() {
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
           {/* Remount when the role changes so the default tab stays valid. */}
-          <Tabs key={role} defaultValue={tabs[0].value} className='w-full'>
+          <Tabs key={role} defaultValue={takeRequestedTab('/locations') ?? tabs[0].value} className='w-full'>
             <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>

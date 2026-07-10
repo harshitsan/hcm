@@ -19,6 +19,7 @@ import { useNotificationSettings } from './hooks/use-notification-settings'
 import { useNotifications } from './hooks/use-notifications'
 import { useTasks } from './hooks/use-tasks'
 import { useTemplates } from './hooks/use-templates'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 
 /**
  * Tasks, Notifications & Messages (Kensium "General Features" —
@@ -70,7 +71,9 @@ export function Notifications() {
 
   // Controlled tabs so the templates screen can Cancel back to the page the
   // admin came from (AET-05/FIN-04/PET-06/RET-05).
-  const [activeTab, setActiveTab] = useState('tasks')
+  const [activeTab, setActiveTab] = useState(
+    () => takeRequestedTab('/notifications') ?? 'tasks'
+  )
   const previousTabRef = useRef('tasks')
   const handleTabChange = (value: string) => {
     if (value !== activeTab) previousTabRef.current = activeTab

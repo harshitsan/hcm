@@ -5,6 +5,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole, type Role } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AccessTab } from './components/access-tab'
 import { AssignmentsTab } from './components/assignments-tab'
 import { AuditTab } from './components/audit-tab'
@@ -205,7 +206,7 @@ export function RolesSecurity() {
             </Badge>
           </div>
 
-          <Tabs defaultValue={defaultTab} key={role}>
+          <Tabs defaultValue={takeRequestedTab('/roles-security') ?? defaultTab} key={role}>
             <TabsList className='mb-2 flex-wrap'>
               {visibleTabs.map((t) => (
                 <TabsTrigger key={t.value} value={t.value}>

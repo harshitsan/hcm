@@ -4,6 +4,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { ApplicabilityTab } from './components/applicability-tab'
 import { CatalogTab } from './components/catalog-tab'
 import { GovernanceTab } from './components/governance-tab'
@@ -30,7 +31,7 @@ export function Policies() {
   const store = usePolicies()
 
   const isAdmin = ADMIN_ROLES.includes(role)
-  const [tab, setTab] = useState(isAdmin ? 'documents' : 'library')
+  const [tab, setTab] = useState(() => takeRequestedTab('/policies') ?? (isAdmin ? 'documents' : 'library'))
 
   // Employee roles only have the self-service library; snap them to it.
   useEffect(() => {

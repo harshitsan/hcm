@@ -3,6 +3,7 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AuditTab } from './components/audit-tab'
 import { AuthSummary } from './components/auth-summary'
 import { ConfigTab } from './components/config-tab'
@@ -42,7 +43,7 @@ export function Authentication() {
             enabledMethodCount={config.enabledMethods.length}
           />
 
-          <Tabs defaultValue={defaultTab} className='w-full'>
+          <Tabs defaultValue={takeRequestedTab('/authentication') ?? defaultTab} className='w-full'>
             <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='sign-in' variant='primary'>
                 Sign in &amp; sessions

@@ -32,6 +32,7 @@ import type { BusinessLogicStore } from '../hooks/use-business-logic'
 import { ArtifactBuilderSheet } from './artifact-builder-sheet'
 import { ArtifactDetailSheet } from './artifact-detail-sheet'
 import { LayerBanner } from './layer-banner'
+import { ModuleLink } from './module-link'
 import { SummaryCards } from './summary-cards'
 import { SectionToolbar, SortableHeader } from './table-helpers'
 import { useWorkflowEditor } from './workflow-editor-context'
@@ -92,9 +93,10 @@ const BASE_COLUMNS: ColumnDef<ArtifactRow>[] = [
       <SortableHeader column={column} label='Target module' />
     ),
     cell: ({ row }) => (
-      <span className='text-neutral-1900 text-sm'>
-        {row.original.targetModule}
-      </span>
+      <ModuleLink
+        module={row.original.targetModule}
+        className='text-neutral-1900 text-sm'
+      />
     ),
   },
   {

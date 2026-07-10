@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { CertificatesTab } from './components/certificates-tab'
 import { ConfigTab } from './components/config-tab'
 import { CustodianDeskTab } from './components/custodian-desk-tab'
@@ -65,7 +66,7 @@ export function Documents() {
     return tabs
   }, [isCompanyAdmin, showCustodians, showConfig])
 
-  const [tab, setTab] = useState(availableTabs[0])
+  const [tab, setTab] = useState(() => takeRequestedTab('/documents') ?? availableTabs[0])
   const [adminTab, setAdminTab] = useState(adminSubTabs[0] ?? 'types')
 
   useEffect(() => {

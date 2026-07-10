@@ -43,6 +43,7 @@ import { type DataJob } from './data/jobs'
 import { useDataConfig } from './hooks/use-data-config'
 import { useDataJobs } from './hooks/use-data-jobs'
 import { useMappings } from './hooks/use-mappings'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 
 export function DataManagement() {
   const { role, hasRole } = useRole()
@@ -120,7 +121,7 @@ export function DataManagement() {
         <div className='w-full'>
           <JobsSummary jobs={visibleJobs} />
 
-          <Tabs defaultValue='jobs'>
+          <Tabs defaultValue={takeRequestedTab('/data-management') ?? 'jobs'}>
             <div className='mb-3 flex items-center justify-between'>
               <TabsList className='bg-transparent p-0'>
                 <TabsTrigger value='jobs' variant='primary'>

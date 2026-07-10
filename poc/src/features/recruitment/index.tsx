@@ -4,6 +4,7 @@ import { Main } from '@/components/layout/main'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useRole } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { ConfigurationTab } from './components/configuration-tab'
 import { GovernanceTab } from './components/governance-tab'
 import { HiringPipelineTab } from './components/hiring-pipeline-tab'
@@ -172,7 +173,7 @@ export function Recruitment() {
             offers={offers.offers}
           />
 
-          <Tabs defaultValue={defaultTab} className='w-full'>
+          <Tabs defaultValue={takeRequestedTab('/recruitment') ?? defaultTab} className='w-full'>
             <TabsList className='mb-2 flex-wrap bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='portal' variant='primary'>
                 Candidate Portal

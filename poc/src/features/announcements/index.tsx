@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { ConfigTab } from './components/config-tab'
 import { CoordinatorsCard } from './components/coordinators-card'
 import { FeedTab } from './components/feed-tab'
@@ -42,7 +43,7 @@ export function Announcements() {
     return tabs
   }, [isAdmin])
 
-  const [tab, setTab] = useState(isAdmin ? 'manage' : 'feed')
+  const [tab, setTab] = useState(() => takeRequestedTab('/announcements') ?? (isAdmin ? 'manage' : 'feed'))
 
   useEffect(() => {
     if (!availableTabs.includes(tab)) setTab(availableTabs[0])

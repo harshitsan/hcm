@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AnonymousComposeTab } from './components/anonymous-compose-tab'
 import { ConfigTab } from './components/config-tab'
 import { GovernanceTab } from './components/governance-tab'
@@ -52,7 +53,7 @@ export function Feedback() {
     return tabs
   }, [isReviewer, hasAdmin, isNonUser])
 
-  const [tab, setTab] = useState(isReviewer ? 'worklist' : 'my')
+  const [tab, setTab] = useState(() => takeRequestedTab('/feedback') ?? (isReviewer ? 'worklist' : 'my'))
 
   useEffect(() => {
     if (!availableTabs.includes(tab)) setTab(availableTabs[0] ?? 'my')

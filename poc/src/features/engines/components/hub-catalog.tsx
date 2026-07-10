@@ -35,6 +35,7 @@ import {
 } from '@/features/workflows/hooks/use-workflow-folders'
 import { useRole } from '@/context/role-context'
 import { cn } from '@/utils/helpers'
+import { ModuleLink } from '@/features/workflows/components/module-link'
 import { WorkflowChip } from '@/features/workflows/components/workflow-chip'
 import { AttachDialog } from './attach-dialog'
 
@@ -745,7 +746,11 @@ export function HubCatalog({ store }: HubCatalogProps) {
                           key={i}
                           className='inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] text-neutral-1200'
                         >
-                          {pillLabel}
+                          <ModuleLink
+                            module={att.module}
+                            submodule={att.submodule}
+                            label={pillLabel}
+                          />
                           <button
                             onClick={() => handleDetach(a, att)}
                             className='text-neutral-800 hover:text-red-600 ml-0.5'
