@@ -15,7 +15,6 @@
 
 import type { LucideIcon } from 'lucide-react'
 import {
-  AudioWaveform,
   BadgeCheck,
   BellRing,
   BookText,
@@ -511,7 +510,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'admin', label: 'Admin' },
     ],
     entities: [],
-    events: ['Announcement published'],
+    events: [],
     forms: [],
   },
   {
@@ -750,5 +749,3 @@ export function eventsForModule(target: string): string[] {
   return MODULE_REGISTRY.find((m) => m.targetModule === target)?.events ?? []
 }
 
-// Re-export AudioWaveform so sidebar-data.ts can keep its existing icon usage
-export { AudioWaveform }
