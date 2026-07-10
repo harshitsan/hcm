@@ -289,21 +289,6 @@ export function ConfigGeneral({ settings, onNextStep }: ConfigGeneralProps) {
             <RadioGroupItem value='no' /> No
           </label>
         </RadioGroup>
-        <div className='flex gap-2'>
-          <Button className='h-7' onClick={save}>
-            Save
-          </Button>
-          <Button
-            variant='outline'
-            className='h-7'
-            onClick={() => {
-              save()
-              onNextStep()
-            }}
-          >
-            Save & Next
-          </Button>
-        </div>
       </div>
 
       {/* LVE-44: employee class rules */}

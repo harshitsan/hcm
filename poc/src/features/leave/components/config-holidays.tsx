@@ -314,6 +314,48 @@ export function ConfigHolidays({ settings }: { settings: LeaveSettingsStore }) {
           markers={calendarMarkers}
           workingDays={[1, 2, 3, 4, 5]}
           months={3}
+          onSelectDate={(iso) => {
+            // Check if date matches a closure entry first.
+            const matchedClosure = settings.closures.find((cl) => cl.from === iso || cl.to === iso)
+            if (matchedClosure) {
+              // Open the "Schedule office closure" dialog pre-filled.
+              setClosureReason(matchedClosure.reason)
+              setClosureFrom(matchedClosure.from)
+              setClosureTo(matchedClosure.to)
+              setClosureLocations(matchedClosure.locations)
+              setClosureDepts(matchedClosure.departments)
+              setClosureDetails(matchedClosure.details)
+              setClosureEmails(matchedClosure.notifyEmails.join(', '))
+              setClosureDuration(matchedClosure.duration)
+              setClosureOpen(true)
+              return
+            }
+            // Check if date matches a holiday in any calendar.
+            for (const cal of settings.calendars) {
+              const matchedHoliday = cal.holidays.find((h) => h.date === iso)
+              if (matchedHoliday) {
+                // Open the edit calendar dialog pre-filled.
+                openEdit(cal)
+                // Pre-fill the holiday form with the matched holiday so it can be reviewed.
+                setHDate(matchedHoliday.date)
+                setHName(matchedHoliday.name)
+                setHKind(matchedHoliday.kind as HolidayKind)
+                setHDescription(matchedHoliday.description)
+                setHSwap(matchedHoliday.swapWith ?? '')
+                return
+              }
+            }
+            // No matching marker — open add-holiday dialog with date pre-filled.
+            setClosureFrom(iso)
+            setClosureTo(iso)
+            setClosureReason('')
+            setClosureLocations([])
+            setClosureDepts([])
+            setClosureDetails('')
+            setClosureEmails('')
+            setClosureDuration('full-day')
+            setClosureOpen(true)
+          }}
         />
       </div>
 

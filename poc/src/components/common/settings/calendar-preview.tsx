@@ -86,14 +86,11 @@ export function CalendarPreview({
     weekend: 'rdp-modifier-weekend',
   }
 
-  const handleDayClick = onSelectDate
-    ? (d: Date) => {
-        const iso = dateToIso(d)
-        if (markerDateMap.has(iso)) {
-          onSelectDate(iso)
-        }
-      }
-    : undefined
+  const handleDayClick = (d: Date) => {
+    if (!onSelectDate) return
+    const iso = dateToIso(d)
+    onSelectDate(iso)
+  }
 
   const prevMonth = () => {
     setCurrentMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))
@@ -128,7 +125,6 @@ export function CalendarPreview({
             '[&_.rdp-modifier-closure_button]:relative [&_.rdp-modifier-closure_button]:after:absolute [&_.rdp-modifier-closure_button]:after:bottom-0.5 [&_.rdp-modifier-closure_button]:after:left-1/2 [&_.rdp-modifier-closure_button]:after:-translate-x-1/2 [&_.rdp-modifier-closure_button]:after:h-1 [&_.rdp-modifier-closure_button]:after:w-1 [&_.rdp-modifier-closure_button]:after:rounded-full [&_.rdp-modifier-closure_button]:after:bg-gray-400',
             '[&_.rdp-modifier-weekend]:opacity-60 [&_.rdp-modifier-weekend]:bg-gray-50'
           )}
-          disabled={false}
         />
       </div>
 

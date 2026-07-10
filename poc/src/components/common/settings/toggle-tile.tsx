@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { ScopeChip } from './scope-chip'
@@ -23,7 +23,7 @@ export function ToggleTile({
   disabled,
   scope,
 }: ToggleTileProps) {
-  const id = `toggle-${label}`
+  const id = useId()
 
   return (
     <Label
