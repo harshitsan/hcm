@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, Search, X } from 'lucide-react'
+import { PayloadEditor } from './PayloadEditor'
 import { RULE_OPS, VALUE_TYPES } from '../core/expr'
 import type { Cond, MappingRow, RuleOp } from '../core/expr'
 import type { Config, StepKind } from '../core/model'
@@ -48,6 +49,7 @@ function Palette() {
   const apply = useStore(s => s.apply)
   const select = useStore(s => s.select)
   const closeInsert = useStore(s => s.closeInsert)
+  const paletteKinds = useStore(s => s.paletteKinds)
   const groups: Array<['Actions' | 'Control Flow', 'action' | 'controlFlow']> =
     [['Actions', 'action'], ['Control Flow', 'controlFlow']]
   const pick = (kind: StepKind) => {
@@ -56,6 +58,14 @@ function Palette() {
     closeInsert()
     select({ type: 'step', id: step.id })
   }
+
+  // Determine which defs are visible:
+  // - When paletteKinds is null: show all non-hidden defs (normal Build tab behaviour)
+  // - When paletteKinds is a list: show ONLY kinds in that list (even if hidden)
+  const visibleDefs = paletteKinds === null
+    ? allDefs().filter(d => !d.hidden)
+    : allDefs().filter(d => paletteKinds.includes(d.kind as StepKind))
+
   return (
     <div className="panel-section">
       <h3>Add a step</h3>
@@ -64,7 +74,7 @@ function Palette() {
         <input placeholder="Search steps" value={q} onChange={e => setQ(e.target.value)} />
       </div>
       {groups.map(([title, cat]) => {
-        const defs = allDefs().filter(d =>
+        const defs = visibleDefs.filter(d =>
           d.category === cat && d.label.toLowerCase().includes(q.toLowerCase()))
         if (defs.length === 0) return null
         return (
@@ -400,9 +410,11 @@ function ConfigForm() {
         ? <TransformEditor config={node.config} patch={patch} />
         : node.kind === 'moduleEvent'
           ? <TriggerEditor config={node.config} patch={patch} />
-          : def.configFields.map(f => (
-            <Field key={f.key} field={f} value={node.config[f.key]} onChange={v => patch({ [f.key]: v })} />
-          ))}
+          : node.kind === 'artifactPayload'
+            ? <PayloadEditor config={node.config} patch={patch} />
+            : def.configFields.map(f => (
+              <Field key={f.key} field={f} value={node.config[f.key]} onChange={v => patch({ [f.key]: v })} />
+            ))}
       {selection.type === 'step' && !('branches' in node) && (
         <MockToggle label="Fail in Test runs"
           checked={node.config.mockFail === true}

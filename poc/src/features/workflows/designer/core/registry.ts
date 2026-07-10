@@ -1,6 +1,7 @@
 import {
   Zap, Repeat, Repeat2, GitBranch, Split, Boxes, ShieldAlert,
   BellRing, DatabaseZap, FileSignature, Timer, UserCheck, Variable,
+  Filter, CircleCheck, FileCog,
   type LucideIcon,
 } from 'lucide-react'
 import { makeId } from './model'
@@ -26,6 +27,8 @@ export type NodeDef = {
   configFields: FieldDef[]
   branchSpec?: BranchSpec
   validateConfig?: (config: Config) => string[]
+  /** When true, the kind is not shown in the default palette (adapter kinds). */
+  hidden?: boolean
 }
 
 /* Option lists mirror the Business logic catalog (data/business-logic.ts);
@@ -75,6 +78,15 @@ const APPROVER_ROLES = [
   'Reporting Manager', 'Department Head', 'HR Director',
   'Finance Controller', 'Operations Head', 'Compliance Officer',
   'Recruitment Lead', 'Hiring Manager', 'Group HR Head', 'CEO',
+]
+
+/* Mirrors RULE_OUTCOMES from data/business-logic.ts — kept local so the
+   designer core stays free of feature-data imports (APPROVER_ROLES precedent). */
+const RULE_OUTCOMES_LOCAL = [
+  'Approve route',
+  'Flag for review',
+  'Block',
+  'Notify',
 ]
 
 const RECIPIENTS = [
@@ -216,6 +228,41 @@ const defs: NodeDef[] = [
     kind: 'group', label: 'Group', icon: Boxes, category: 'controlFlow', accent: 'purple',
     defaultConfig: {}, configFields: [],
     branchSpec: { fixed: [{ key: 'body', label: 'Body' }] },
+  },
+  // ── adapter kinds (hidden: true — not insertable in a plain flow palette) ──
+  {
+    kind: 'ruleCondition', label: 'Rule condition', icon: Filter,
+    category: 'action', accent: 'neutral',
+    defaultConfig: { attribute: '', operator: '=', value: '' },
+    configFields: [
+      { key: 'attribute', label: 'Attribute', type: 'text', required: true },
+      { key: 'operator', label: 'Operator', type: 'select', options: ['=', '!=', '>', '>=', '<', '<=', 'contains'] },
+      { key: 'value', label: 'Value', type: 'text' },
+    ],
+    hidden: true,
+  },
+  {
+    kind: 'ruleOutcome', label: 'Rule outcome', icon: CircleCheck,
+    category: 'action', accent: 'neutral',
+    defaultConfig: { outcome: 'Approve route' },
+    configFields: [
+      { key: 'outcome', label: 'Outcome', type: 'select', options: RULE_OUTCOMES_LOCAL, required: true },
+    ],
+    hidden: true,
+  },
+  {
+    kind: 'artifactPayload', label: 'Configuration', icon: FileCog,
+    category: 'action', accent: 'neutral',
+    defaultConfig: { definition: null },
+    configFields: [], // custom editor — PayloadEditor in RightPanel
+    validateConfig: config => {
+      const def = config.definition
+      if (!def || typeof def !== 'object' || typeof (def as Record<string, unknown>).kind !== 'string') {
+        return ['Payload is missing']
+      }
+      return []
+    },
+    hidden: true,
   },
 ]
 

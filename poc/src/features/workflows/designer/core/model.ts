@@ -9,6 +9,9 @@ export type LeafKind =
   | 'transform'
   | 'delay'
   | 'setVariable'
+  | 'ruleCondition'
+  | 'ruleOutcome'
+  | 'artifactPayload'
 export type ContainerKind = 'tryCatch' | 'ifElse' | 'choiceWhen' | 'for' | 'forEach' | 'group'
 export type StepKind = LeafKind | ContainerKind
 
