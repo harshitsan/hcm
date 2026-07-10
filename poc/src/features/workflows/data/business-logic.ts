@@ -279,6 +279,13 @@ export interface Artifact {
   updatedAt: string
   history: ArtifactHistoryEntry[]
   attachments: ArtifactAttachment[]
+  /**
+   * Folder placement.
+   * undefined = auto-placed in the derived module folder (moduleFolderId(targetModule))
+   * null      = explicitly ungrouped / at catalog root
+   * string    = id of a user folder or a module folder the user dragged it into
+   */
+  folderId?: string | null
 }
 
 /** Seed shape — attachments are optional; normalizeArtifact fills them in. */

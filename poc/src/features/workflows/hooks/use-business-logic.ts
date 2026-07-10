@@ -10,6 +10,7 @@ import {
   type ScopeLevel,
 } from '../data/business-logic'
 import { KENSIUM_ARTIFACTS } from '../data/kensium-artifacts'
+import { getUserFolders } from './use-workflow-folders'
 
 /** Author-editable slice; id, version, scopes and history are engine-managed. */
 export type ArtifactDraft = Pick<
@@ -275,7 +276,56 @@ export function useBusinessLogic({ actor }: { actor: string }) {
     [actor]
   )
 
-  return { artifacts, createArtifact, updateArtifact, toggleScope, attach, detach, deleteArtifact, importArtifacts }
+  /**
+   * Move an artifact into a folder (or to the catalog root when folderId is null).
+   *
+   * folderId semantics:
+   *   string — a user folder id or a module folder id (stored explicitly so the
+   *             artifact stays in that folder even if its targetModule changes)
+   *   null   — explicitly ungrouped / placed at catalog root
+   *
+   * History entry:
+   *   Moving into a folder  → `Moved to folder "X"` (folder name looked up)
+   *   Moving to root        → `Moved to catalog root`
+   */
+  const moveToFolder = useCallback(
+    (id: string, folderId: string | null) => {
+      const target = artifacts.find((a) => a.id === id)
+      if (!target) return
+
+      let historyEvent: string
+      let toastMsg: string
+      if (folderId === null) {
+        historyEvent = 'Moved to catalog root'
+        toastMsg = `"${target.name}" moved to catalog root`
+      } else {
+        // Look up the folder name from user folders, falling back to the id.
+        const userFolder = getUserFolders().find((f) => f.id === folderId)
+        const folderName = userFolder ? userFolder.name : folderId
+        historyEvent = `Moved to folder "${folderName}"`
+        toastMsg = `"${target.name}" moved to folder "${folderName}"`
+      }
+
+      mutate((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? {
+                ...a,
+                folderId,
+                history: [
+                  ...a.history,
+                  { at: now(), actor, event: historyEvent },
+                ],
+              }
+            : a
+        )
+      )
+      toast.success(toastMsg)
+    },
+    [actor, artifacts]
+  )
+
+  return { artifacts, createArtifact, updateArtifact, toggleScope, attach, detach, deleteArtifact, importArtifacts, moveToFolder }
 }
 
 export type BusinessLogicStore = ReturnType<typeof useBusinessLogic>
