@@ -164,15 +164,14 @@ export function createDesignerStore(opts?: {
     return state
   }
 
-  function getState(): State {
-    return state
-  }
-
   function subscribe(listener: () => void): () => void {
     listeners.add(listener)
     return () => { listeners.delete(listener) }
   }
 
+  // Load-bearing invariant: actions must read current state via get(), never
+  // close over state directly, because set() replaces state with a spread copy
+  // while callers may hold action references from an older copy.
   state = {
     doc: persisted.doc,
     library: persisted.library,
@@ -372,7 +371,7 @@ export function createDesignerStore(opts?: {
     listeners.clear()
   }
 
-  return { getState, subscribe, destroy }
+  return { getState: get, subscribe, destroy }
 }
 
 /** Singleton store for the Build tab — persists to localStorage. */

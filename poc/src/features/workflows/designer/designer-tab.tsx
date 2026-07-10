@@ -23,8 +23,7 @@ import { Canvas } from './components/Canvas'
 import { RightPanel } from './components/RightPanel'
 import { RunDrawer } from './components/RunDrawer'
 import { TopBar } from './components/TopBar'
-import { useStore } from './state/store-context'
-import { useDesignerStoreApi } from './state/store-context'
+import { useDesignerStoreApi, useStore } from './state/store-context'
 import './designer.css'
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -72,7 +71,7 @@ export function DesignerTab({
     if ((TARGET_MODULES as readonly string[]).includes(m)) {
       setTargetModule(m as TargetModule)
     }
-  }, [doc.id])
+  }, [doc.id, store])
 
   // Cmd/Ctrl+Z / +Y undo-redo while the designer is mounted.
   useEffect(() => {
