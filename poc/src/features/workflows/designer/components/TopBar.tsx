@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { ChevronDown, Download, FlaskConical, Package, Redo2, Undo2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
-import { useStore } from '../state/store'
+import { useStore, useDesignerStoreApi } from '../state/store-context'
 import { serializeBundle } from '../../data/artifact-io'
 import { normalizeArtifact } from '../../data/business-logic'
 import type { Artifact, TargetModule } from '../../data/business-logic'
@@ -55,10 +55,11 @@ export function TopBar() {
   const canUndo = useStore(s => s.canUndo)
   const canRedo = useStore(s => s.canRedo)
   const runActive = useStore(s => s.run?.active ?? false)
+  const store = useDesignerStoreApi()
   const {
     setName, setExtended, tryActivate, deactivate, undo, redo,
     startTestRun, stopTestRun, exportJson, importJson, select,
-  } = useStore.getState()
+  } = store.getState()
   const fileRef = useRef<HTMLInputElement>(null)
   const [payloadDialog, setPayloadDialog] = useState(false)
 

@@ -1,5 +1,5 @@
 import { Loader2, X } from 'lucide-react'
-import { useStore } from '../state/store'
+import { useStore } from '../state/store-context'
 
 export function RunDrawer() {
   const run = useStore(s => s.run)

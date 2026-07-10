@@ -1,5 +1,5 @@
 import { Zap } from 'lucide-react'
-import { useStore } from '../state/store'
+import { useStore } from '../state/store-context'
 
 export function TriggerNode() {
   const trigger = useStore(s => s.doc.trigger)

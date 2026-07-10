@@ -1,6 +1,6 @@
 import type { LeafStep } from '../core/model'
 import { getDef } from '../core/registry'
-import { useStore } from '../state/store'
+import { useStore } from '../state/store-context'
 import { StepMenu } from './StepMenu'
 
 export function LeafNode({ step, index }: { step: LeafStep; index: number }) {

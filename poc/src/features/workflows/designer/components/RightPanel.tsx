@@ -12,7 +12,7 @@ import {
   allDefs, createStep, eventsForModule, getDef, MODULE_OPTIONS, sampleFor,
   type FieldDef,
 } from '../core/registry'
-import { useStore } from '../state/store'
+import { useStore } from '../state/store-context'
 
 function Field({ field, value, onChange }: {
   field: FieldDef

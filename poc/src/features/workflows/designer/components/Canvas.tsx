@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useStore } from '../state/store'
+import { useStore } from '../state/store-context'
 import { Sequence } from './Sequence'
 
 export function Canvas() {

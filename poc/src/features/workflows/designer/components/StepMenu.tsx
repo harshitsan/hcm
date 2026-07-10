@@ -4,7 +4,7 @@ import type { Step } from '../core/model'
 import { isContainer } from '../core/model'
 import { addBranch, duplicateStep, moveStep, removeStep } from '../core/ops'
 import { getDef } from '../core/registry'
-import { useStore } from '../state/store'
+import { useStore } from '../state/store-context'
 
 export function StepMenu({ step }: { step: Step }) {
   const [open, setOpen] = useState(false)

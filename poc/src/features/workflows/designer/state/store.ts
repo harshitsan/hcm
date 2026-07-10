@@ -1,8 +1,7 @@
-import { useSyncExternalStore } from 'react'
 import { setAllCollapsed, validate } from '../core/ops'
 import type { InsertTarget, ValidationIssue } from '../core/ops'
 import { isContainer, makeId } from '../core/model'
-import type { Step, WorkflowDoc } from '../core/model'
+import type { Step, StepKind, WorkflowDoc } from '../core/model'
 import { isKnownKind } from '../core/registry'
 import { runWorkflow } from '../core/runner'
 import type { RunEvent } from '../core/runner'
@@ -26,7 +25,7 @@ export type DocSource = {
   version: number
 }
 
-type State = {
+export type State = {
   doc: WorkflowDoc
   /** Other workflows saved in this browser (the active one lives in `doc`). */
   library: WorkflowDoc[]
@@ -42,6 +41,8 @@ type State = {
   canRedo: boolean
   run: RunState | null
   issues: ValidationIssue[]
+  /** null = full palette; [] = none; list = only these insertable. Task 2 consumer. */
+  paletteKinds: StepKind[] | null
   apply: (fn: (d: WorkflowDoc) => WorkflowDoc) => void
   undo: () => void
   redo: () => void
@@ -91,10 +92,10 @@ type Persisted = {
   sources: Record<string, DocSource>
 }
 
-function loadPersisted(): Persisted {
+function loadPersisted(key: string): Persisted {
   const fallback = (): Persisted => ({ doc: seedDoc(), library: [], sources: {} })
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(key)
     if (!raw) return fallback()
     const parsed = JSON.parse(raw) as Partial<Persisted> | null
     if (!parsed || !isValidDocShape(parsed.doc)) return fallback()
@@ -113,232 +114,266 @@ function loadPersisted(): Persisted {
   }
 }
 
-const persisted = loadPersisted()
-
-let runController: AbortController | null = null
+/** The external store type exposed to consumers and context. */
+export type DesignerStore = {
+  getState: () => State
+  subscribe: (l: () => void) => () => void
+  destroy: () => void
+}
 
 /**
- * Minimal external store replacing Zustand (the hcm POC adds no new
- * dependencies). Exposes the exact same API surface the designer components
- * were written against: `useStore(selector)`, `useStore.getState()`,
- * `useStore.subscribe(listener)`.
+ * Factory that creates an isolated designer store instance.
+ * - When `persistKey` is provided, state is loaded from and autosaved to
+ *   localStorage under that key (Build tab uses STORAGE_KEY).
+ * - When `persistKey` is absent/null, the store starts from `initialDoc` or
+ *   blankDoc() with no persistence — safe for ephemeral sheet instances.
  */
-const listeners = new Set<() => void>()
-let state: State
+export function createDesignerStore(opts?: {
+  initialDoc?: WorkflowDoc
+  initialSource?: DocSource | null
+  persistKey?: string | null
+  paletteKinds?: StepKind[] | null
+}): DesignerStore {
+  const persistKey = opts?.persistKey ?? null
 
-function set(partial: Partial<State> | State | ((s: State) => Partial<State> | State)): void {
-  const next = typeof partial === 'function' ? partial(state) : partial
-  if (next === state) return
-  state = { ...state, ...next }
-  for (const l of listeners) l()
-}
+  // Initialise persisted state or use provided opts
+  const persisted: Persisted = persistKey
+    ? loadPersisted(persistKey)
+    : {
+        doc: opts?.initialDoc ?? blankDoc(),
+        library: [],
+        sources: {},
+      }
 
-function getState(): State {
-  return state
-}
+  const initialSource = opts?.initialSource ?? persisted.sources[persisted.doc.id] ?? null
 
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => { listeners.delete(listener) }
-}
+  // Per-instance mutable state
+  const listeners = new Set<() => void>()
+  let state: State
+  let runController: AbortController | null = null
+  let saveTimer: ReturnType<typeof setTimeout> | undefined
 
-function get(): State {
-  return state
-}
+  function set(partial: Partial<State> | State | ((s: State) => Partial<State> | State)): void {
+    const next = typeof partial === 'function' ? partial(state) : partial
+    if (next === state) return
+    state = { ...state, ...next }
+    for (const l of listeners) l()
+  }
 
-state = {
-  doc: persisted.doc,
-  library: persisted.library,
-  sources: persisted.sources,
-  activeSource: persisted.sources[persisted.doc.id] ?? null,
-  selection: null,
-  insertTarget: null,
-  extended: true,
-  past: [],
-  future: [],
-  canUndo: false,
-  canRedo: false,
-  run: null,
-  issues: [],
+  function get(): State {
+    return state
+  }
 
-  apply: fn => {
-    const { doc, past } = get()
-    let next = fn(doc)
-    if (next === doc) return
-    if (next.status === 'active') next = { ...next, status: 'draft' }
-    set({
-      doc: next,
-      past: [...past.slice(-49), doc],
-      future: [],
-      canUndo: true,
-      canRedo: false,
-      issues: [],
-    })
-  },
+  function getState(): State {
+    return state
+  }
 
-  undo: () => {
-    const { past, future, doc } = get()
-    if (past.length === 0) return
-    const prev = past[past.length - 1]
-    set({
-      doc: prev,
-      past: past.slice(0, -1),
-      future: [doc, ...future],
-      canUndo: past.length > 1,
-      canRedo: true,
-    })
-  },
+  function subscribe(listener: () => void): () => void {
+    listeners.add(listener)
+    return () => { listeners.delete(listener) }
+  }
 
-  redo: () => {
-    const { past, future, doc } = get()
-    if (future.length === 0) return
-    const [next, ...rest] = future
-    set({
-      doc: next,
-      past: [...past, doc],
-      future: rest,
-      canUndo: true,
-      canRedo: rest.length > 0,
-    })
-  },
+  state = {
+    doc: persisted.doc,
+    library: persisted.library,
+    sources: persisted.sources,
+    activeSource: initialSource,
+    selection: null,
+    insertTarget: null,
+    extended: true,
+    past: [],
+    future: [],
+    canUndo: false,
+    canRedo: false,
+    run: null,
+    issues: [],
+    paletteKinds: opts?.paletteKinds ?? null,
 
-  select: sel => set({ selection: sel, insertTarget: null }),
-  openInsert: target => set({ insertTarget: target, selection: null }),
-  closeInsert: () => set({ insertTarget: null }),
-
-  setExtended: on => {
-    set({ extended: on })
-    get().apply(d => setAllCollapsed(d, !on))
-  },
-
-  setName: name => {
-    const { doc, past } = get()
-    set({ doc: { ...doc, name }, past: [...past.slice(-49), doc], future: [], canUndo: true, canRedo: false })
-  },
-
-  tryActivate: () => {
-    const { doc } = get()
-    const issues = validate(doc)
-    if (issues.length > 0) { set({ issues }); return false }
-    set({ doc: { ...doc, status: 'active' }, issues: [] })
-    return true
-  },
-
-  deactivate: () => set(s => ({ doc: { ...s.doc, status: 'draft' } })),
-
-  newDoc: () => {
-    runController?.abort()
-    const { doc, library } = get()
-    set({
-      doc: blankDoc(),
-      library: [doc, ...library.filter(d => d.id !== doc.id)],
-      activeSource: null,
-      past: [], future: [], canUndo: false, canRedo: false,
-      selection: null, insertTarget: null, run: null, issues: [],
-    })
-  },
-
-  openDoc: (id: string) => {
-    const { doc, library, sources } = get()
-    if (id === doc.id) return
-    const next = library.find(d => d.id === id)
-    if (!next) return
-    runController?.abort()
-    set({
-      doc: structuredClone(next),
-      library: [doc, ...library.filter(d => d.id !== id && d.id !== doc.id)],
-      activeSource: sources[id] ?? null,
-      past: [], future: [], canUndo: false, canRedo: false,
-      selection: null, insertTarget: null, run: null, issues: [],
-    })
-  },
-
-  loadExternal: (extDoc, source) => {
-    runController?.abort()
-    const { doc, library, sources } = get()
-    const clone = structuredClone(extDoc)
-    clone.id = makeId('wf')
-    clone.status = 'draft'
-    set({
-      doc: clone,
-      library: [doc, ...library.filter(d => d.id !== doc.id)],
-      sources: { ...sources, [clone.id]: source },
-      activeSource: source,
-      past: [], future: [], canUndo: false, canRedo: false,
-      selection: null, insertTarget: null, run: null, issues: [],
-    })
-  },
-
-  linkArtifact: source => {
-    const { doc, sources } = get()
-    set({ sources: { ...sources, [doc.id]: source }, activeSource: source })
-  },
-
-  startTestRun: (payloadJson?: string) => {
-    let payloadOverride: unknown
-    if (payloadJson !== undefined) {
-      try { payloadOverride = JSON.parse(payloadJson) } catch { return 'Payload is not valid JSON' }
-    }
-    runController?.abort()
-    runController = new AbortController()
-    set({ run: { active: true, statuses: {}, log: [], outputs: {} } })
-    const emit = (e: RunEvent) => {
-      set(s => {
-        if (!s.run) return s
-        const statuses = { ...s.run.statuses }
-        const log = [...s.run.log]
-        const outputs = { ...s.run.outputs }
-        if (e.type === 'enter') statuses[e.id] = 'running'
-        if (e.type === 'success') { statuses[e.id] = 'success'; outputs[e.id] = e.data }
-        if (e.type === 'error') statuses[e.id] = 'error'
-        if (e.message) log.push(e.message)
-        return { run: { ...s.run, statuses, log, outputs } }
+    apply: fn => {
+      const { doc, past } = get()
+      let next = fn(doc)
+      if (next === doc) return
+      if (next.status === 'active') next = { ...next, status: 'draft' }
+      set({
+        doc: next,
+        past: [...past.slice(-49), doc],
+        future: [],
+        canUndo: true,
+        canRedo: false,
+        issues: [],
       })
-    }
-    runWorkflow(get().doc, emit, runController.signal, 400, payloadOverride)
-      .catch(() => {})
-      .finally(() => set(s => (s.run ? { run: { ...s.run, active: false } } : s)))
-    return null
-  },
+    },
 
-  stopTestRun: () => {
-    runController?.abort()
-    set(s => (s.run ? { run: { ...s.run, active: false } } : s))
-  },
+    undo: () => {
+      const { past, future, doc } = get()
+      if (past.length === 0) return
+      const prev = past[past.length - 1]
+      set({
+        doc: prev,
+        past: past.slice(0, -1),
+        future: [doc, ...future],
+        canUndo: past.length > 1,
+        canRedo: true,
+      })
+    },
 
-  closeRun: () => {
-    runController?.abort()
-    set({ run: null })
-  },
+    redo: () => {
+      const { past, future, doc } = get()
+      if (future.length === 0) return
+      const [next, ...rest] = future
+      set({
+        doc: next,
+        past: [...past, doc],
+        future: rest,
+        canUndo: true,
+        canRedo: rest.length > 0,
+      })
+    },
 
-  exportJson: () => JSON.stringify(get().doc, null, 2),
+    select: sel => set({ selection: sel, insertTarget: null }),
+    openInsert: target => set({ insertTarget: target, selection: null }),
+    closeInsert: () => set({ insertTarget: null }),
 
-  importJson: text => {
-    try {
-      const parsed: unknown = JSON.parse(text)
-      if (!isValidDocShape(parsed)) return 'Invalid workflow file'
-      get().apply(() => parsed)
+    setExtended: on => {
+      set({ extended: on })
+      get().apply(d => setAllCollapsed(d, !on))
+    },
+
+    setName: name => {
+      const { doc, past } = get()
+      set({ doc: { ...doc, name }, past: [...past.slice(-49), doc], future: [], canUndo: true, canRedo: false })
+    },
+
+    tryActivate: () => {
+      const { doc } = get()
+      const issues = validate(doc)
+      if (issues.length > 0) { set({ issues }); return false }
+      set({ doc: { ...doc, status: 'active' }, issues: [] })
+      return true
+    },
+
+    deactivate: () => set(s => ({ doc: { ...s.doc, status: 'draft' } })),
+
+    newDoc: () => {
+      runController?.abort()
+      const { doc, library } = get()
+      set({
+        doc: blankDoc(),
+        library: [doc, ...library.filter(d => d.id !== doc.id)],
+        activeSource: null,
+        past: [], future: [], canUndo: false, canRedo: false,
+        selection: null, insertTarget: null, run: null, issues: [],
+      })
+    },
+
+    openDoc: (id: string) => {
+      const { doc, library, sources } = get()
+      if (id === doc.id) return
+      const next = library.find(d => d.id === id)
+      if (!next) return
+      runController?.abort()
+      set({
+        doc: structuredClone(next),
+        library: [doc, ...library.filter(d => d.id !== id && d.id !== doc.id)],
+        activeSource: sources[id] ?? null,
+        past: [], future: [], canUndo: false, canRedo: false,
+        selection: null, insertTarget: null, run: null, issues: [],
+      })
+    },
+
+    loadExternal: (extDoc, source) => {
+      runController?.abort()
+      const { doc, library, sources } = get()
+      const clone = structuredClone(extDoc)
+      clone.id = makeId('wf')
+      clone.status = 'draft'
+      set({
+        doc: clone,
+        library: [doc, ...library.filter(d => d.id !== doc.id)],
+        sources: { ...sources, [clone.id]: source },
+        activeSource: source,
+        past: [], future: [], canUndo: false, canRedo: false,
+        selection: null, insertTarget: null, run: null, issues: [],
+      })
+    },
+
+    linkArtifact: source => {
+      const { doc, sources } = get()
+      set({ sources: { ...sources, [doc.id]: source }, activeSource: source })
+    },
+
+    startTestRun: (payloadJson?: string) => {
+      let payloadOverride: unknown
+      if (payloadJson !== undefined) {
+        try { payloadOverride = JSON.parse(payloadJson) } catch { return 'Payload is not valid JSON' }
+      }
+      runController?.abort()
+      runController = new AbortController()
+      set({ run: { active: true, statuses: {}, log: [], outputs: {} } })
+      const emit = (e: RunEvent) => {
+        set(s => {
+          if (!s.run) return s
+          const statuses = { ...s.run.statuses }
+          const log = [...s.run.log]
+          const outputs = { ...s.run.outputs }
+          if (e.type === 'enter') statuses[e.id] = 'running'
+          if (e.type === 'success') { statuses[e.id] = 'success'; outputs[e.id] = e.data }
+          if (e.type === 'error') statuses[e.id] = 'error'
+          if (e.message) log.push(e.message)
+          return { run: { ...s.run, statuses, log, outputs } }
+        })
+      }
+      runWorkflow(get().doc, emit, runController.signal, 400, payloadOverride)
+        .catch(() => {})
+        .finally(() => set(s => (s.run ? { run: { ...s.run, active: false } } : s)))
       return null
-    } catch {
-      return 'Invalid JSON'
-    }
-  },
+    },
+
+    stopTestRun: () => {
+      runController?.abort()
+      set(s => (s.run ? { run: { ...s.run, active: false } } : s))
+    },
+
+    closeRun: () => {
+      runController?.abort()
+      set({ run: null })
+    },
+
+    exportJson: () => JSON.stringify(get().doc, null, 2),
+
+    importJson: text => {
+      try {
+        const parsed: unknown = JSON.parse(text)
+        if (!isValidDocShape(parsed)) return 'Invalid workflow file'
+        get().apply(() => parsed)
+        return null
+      } catch {
+        return 'Invalid JSON'
+      }
+    },
+  }
+
+  // Debounced autosave — only when a persist key is configured
+  if (persistKey) {
+    subscribe(() => {
+      clearTimeout(saveTimer)
+      saveTimer = setTimeout(() => {
+        try {
+          const { doc, library, sources } = state
+          localStorage.setItem(persistKey, JSON.stringify({ doc, library, sources }))
+        } catch { /* quota exceeded: skip save */ }
+      }, 500)
+    })
+  }
+
+  function destroy(): void {
+    clearTimeout(saveTimer)
+    runController?.abort()
+    listeners.clear()
+  }
+
+  return { getState, subscribe, destroy }
 }
 
-function useStoreImpl<T>(selector: (s: State) => T): T {
-  return useSyncExternalStore(subscribe, () => selector(state))
-}
-
-export const useStore = Object.assign(useStoreImpl, { getState, subscribe })
-
-// Debounced autosave — active doc + library + catalog links
-let saveTimer: ReturnType<typeof setTimeout> | undefined
-subscribe(() => {
-  clearTimeout(saveTimer)
-  saveTimer = setTimeout(() => {
-    try {
-      const { doc, library, sources } = state
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ doc, library, sources }))
-    } catch { /* quota exceeded: skip save */ }
-  }, 500)
-})
+/** Singleton store for the Build tab — persists to localStorage. */
+export const globalDesignerStore: DesignerStore = createDesignerStore({ persistKey: STORAGE_KEY })

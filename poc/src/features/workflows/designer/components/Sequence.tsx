@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react'
 import type { Step } from '../core/model'
 import { isContainer } from '../core/model'
-import { useStore } from '../state/store'
+import { useStore } from '../state/store-context'
 import { ContainerNode } from './ContainerNode'
 import { LeafNode } from './LeafNode'
 import { TriggerNode } from './TriggerNode'

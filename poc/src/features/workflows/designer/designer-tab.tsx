@@ -23,7 +23,8 @@ import { Canvas } from './components/Canvas'
 import { RightPanel } from './components/RightPanel'
 import { RunDrawer } from './components/RunDrawer'
 import { TopBar } from './components/TopBar'
-import { useStore } from './state/store'
+import { useStore } from './state/store-context'
+import { useDesignerStoreApi } from './state/store-context'
 import './designer.css'
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -55,10 +56,11 @@ export function DesignerTab({
   const doc = useStore((s) => s.doc)
   const library = useStore((s) => s.library)
   const activeSource = useStore((s) => s.activeSource)
-  const { newDoc, openDoc, loadExternal, linkArtifact } = useStore.getState()
+  const store = useDesignerStoreApi()
+  const { newDoc, openDoc, loadExternal, linkArtifact } = store.getState()
 
   const [targetModule, setTargetModule] = useState<TargetModule>(() => {
-    const m = String(useStore.getState().doc.trigger.config.module ?? '')
+    const m = String(store.getState().doc.trigger.config.module ?? '')
     return (TARGET_MODULES as readonly string[]).includes(m)
       ? (m as TargetModule)
       : 'Leave Management'
@@ -66,7 +68,7 @@ export function DesignerTab({
 
   // Follow the active workflow: default the publish target to its trigger module.
   useEffect(() => {
-    const m = String(useStore.getState().doc.trigger.config.module ?? '')
+    const m = String(store.getState().doc.trigger.config.module ?? '')
     if ((TARGET_MODULES as readonly string[]).includes(m)) {
       setTargetModule(m as TargetModule)
     }
@@ -80,13 +82,13 @@ export function DesignerTab({
       if (key !== 'z' && key !== 'y') return
       if (isEditableTarget(e.target)) return // don't hijack text-field undo
       e.preventDefault()
-      const { undo, redo } = useStore.getState()
+      const { undo, redo } = store.getState()
       if (key === 'y' || (key === 'z' && e.shiftKey)) redo()
       else undo()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [store])
 
   /** Authoring roles only, mirroring the Configure tab (WFE-44). */
   const canPublish = role === 'Company Admin' || role === 'Platform Admin'

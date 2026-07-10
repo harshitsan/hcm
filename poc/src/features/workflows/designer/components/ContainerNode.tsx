@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, Network, X } from 'lucide-react'
 import type { Branch, ContainerStep } from '../core/model'
 import { countChildren, removeBranch, toggleCollapse } from '../core/ops'
 import { getDef } from '../core/registry'
-import { useStore } from '../state/store'
+import { useStore } from '../state/store-context'
 import { Sequence } from './Sequence'
 import { StepMenu } from './StepMenu'
 
