@@ -78,6 +78,10 @@ const builderSchema = z
     ),
     items: z.array(z.object({ label: z.string(), mandatory: z.boolean() })),
     body: z.string(),
+    // template metadata (optional; ignored for non-template kinds)
+    templateChannel: z.enum(['', 'Email', 'In-app', 'SMS']).optional().default(''),
+    templateEvent: z.string().optional().default(''),
+    templateKindMeta: z.enum(['', 'letter', 'notification']).optional().default(''),
     trigger: z.string(),
     channels: z.array(z.string()),
     key: z.string(),
@@ -85,7 +89,7 @@ const builderSchema = z
     // category-list
     categoryItems: z.array(z.object({ id: z.string(), label: z.string(), active: z.boolean() })),
     // calendar
-    calendarType: z.enum(CALENDAR_TYPES),
+    calendarType: z.enum(CALENDAR_TYPES).optional().default('holiday'),
     calendarEntries: z.array(
       z.object({
         label: z.string(),
@@ -187,6 +191,9 @@ const emptyValues: BuilderValues = {
   fields: [{ label: '', fieldType: 'text', required: false, options: '' }],
   items: [{ label: '', mandatory: true }],
   body: '',
+  templateChannel: '' as const,
+  templateEvent: '',
+  templateKindMeta: '' as const,
   trigger: '',
   channels: [],
   key: '',
@@ -231,6 +238,9 @@ function toValues(artifact: Artifact): BuilderValues {
       break
     case 'template':
       values.body = def.body
+      values.templateChannel = def.channel ?? ''
+      values.templateEvent = def.event ?? ''
+      values.templateKindMeta = def.templateKind ?? ''
       break
     case 'alert':
       values.trigger = def.trigger
@@ -294,7 +304,13 @@ function toDefinition(values: BuilderValues): ArtifactDefinition {
     case 'checklist':
       return { kind: 'checklist', items: values.items.map((it) => ({ ...it })) }
     case 'template':
-      return { kind: 'template', body: values.body }
+      return {
+        kind: 'template',
+        body: values.body,
+        ...(values.templateChannel ? { channel: values.templateChannel as 'Email' | 'In-app' | 'SMS' } : {}),
+        ...(values.templateEvent ? { event: values.templateEvent } : {}),
+        ...(values.templateKindMeta ? { templateKind: values.templateKindMeta as 'letter' | 'notification' } : {}),
+      }
     case 'alert':
       return { kind: 'alert', trigger: values.trigger, channels: values.channels }
     case 'setting':
@@ -914,27 +930,89 @@ export function ArtifactBuilderSheet({
               )}
 
               {type === 'template' && (
-                <FormField
-                  control={form.control}
-                  name='body'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Template body — merge fields like{' '}
-                        {'{{candidate.name}}'} resolve at generation time
-                      </FormLabel>
-                      <FormControl>
-                        <Textarea
-                          rows={10}
-                          placeholder='Dear {{candidate.name}}, …'
-                          className='font-mono text-sm'
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className='space-y-3'>
+                  <FormField
+                    control={form.control}
+                    name='body'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Template body — merge fields like{' '}
+                          {'{{candidate.name}}'} resolve at generation time
+                        </FormLabel>
+                        <FormControl>
+                          <Textarea
+                            rows={10}
+                            placeholder='Dear {{candidate.name}}, …'
+                            className='font-mono text-sm'
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className='grid grid-cols-3 gap-3'>
+                    <FormField
+                      control={form.control}
+                      name='templateChannel'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Channel</FormLabel>
+                          <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger variant='secondary' className='w-full'>
+                                <SelectValue placeholder='None' />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value=''>None</SelectItem>
+                              <SelectItem value='Email'>Email</SelectItem>
+                              <SelectItem value='In-app'>In-app</SelectItem>
+                              <SelectItem value='SMS'>SMS</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name='templateEvent'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Trigger event</FormLabel>
+                          <FormControl>
+                            <Input placeholder='probation.confirmed' {...field} value={field.value ?? ''} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name='templateKindMeta'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Template kind</FormLabel>
+                          <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                            <FormControl>
+                              <SelectTrigger variant='secondary' className='w-full'>
+                                <SelectValue placeholder='None' />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value=''>None</SelectItem>
+                              <SelectItem value='letter'>Letter</SelectItem>
+                              <SelectItem value='notification'>Notification</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
               )}
 
               {type === 'alert' && (
