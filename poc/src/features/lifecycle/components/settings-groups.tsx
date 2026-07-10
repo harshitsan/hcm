@@ -15,8 +15,10 @@ import {
   type ApproverStep,
 } from '@/components/common/settings/approver-chain-editor'
 import { AdvancedSection } from '@/components/common/settings/advanced-section'
+import { ToggleTile } from '@/components/common/settings/toggle-tile'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { useEngineArtifactCounts } from '@/features/workflows/hooks/use-engine-artifact-counts'
+import { RoleGate } from '@/context/role-context'
 import type { KnowledgeTransferStore } from '../hooks/use-knowledge-transfer'
 import type { LifecycleConfigStore } from '../hooks/use-lifecycle-config'
 import { ConfigApprovals } from './config-approvals'
@@ -165,7 +167,26 @@ export function useLifecycleSettingGroups(
           tone: 'neutral',
         },
       ],
-      render: () => <ConfigProbation config={config} />,
+      render: () => (
+        <div className='space-y-5'>
+          <RoleGate roles={['Platform Admin']}>
+            <ToggleTile
+              icon={<Briefcase size={24} />}
+              label='Confirmation Management Module'
+              description='When disabled, confirmation, peer review and periodic review screens are not accessible to this tenant.'
+              checked={config.settings.confirmationModuleEnabled}
+              onCheckedChange={(v) =>
+                config.updateSettings(
+                  { confirmationModuleEnabled: v },
+                  'Confirmation Management Module'
+                )
+              }
+              scope='platform'
+            />
+          </RoleGate>
+          <ConfigProbation config={config} />
+        </div>
+      ),
     },
     {
       id: 'lc-exit',

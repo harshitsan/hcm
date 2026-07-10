@@ -61,10 +61,11 @@ function SourcingGroupBody({ config }: { config: RecruitmentConfigStore }) {
         {config.postingChannels.map((ch) => (
           <ToggleTile
             key={ch.id}
+            icon={<ShareNetwork size={24} />}
             label={ch.name}
             description={`${ch.type} · ${ch.postingMode}`}
             checked={ch.active}
-            onChange={() => config.togglePostingChannel(ch.id)}
+            onCheckedChange={() => config.togglePostingChannel(ch.id)}
           />
         ))}
       </ToggleTileGrid>
