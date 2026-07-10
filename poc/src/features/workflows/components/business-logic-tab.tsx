@@ -66,7 +66,7 @@ interface ArtifactRow extends Artifact {
 const BASE_COLUMNS: ColumnDef<ArtifactRow>[] = [
   {
     accessorKey: 'name',
-    header: ({ column }) => <SortableHeader column={column} label='Artifact' />,
+    header: ({ column }) => <SortableHeader column={column} label='Workflow' />,
     cell: ({ row }) => (
       <div className='flex min-w-0 flex-col'>
         <div className='flex items-center gap-1.5'>
@@ -231,7 +231,7 @@ export function BusinessLogicTab({
 
   const summary = useMemo(
     () => [
-      { label: 'Artifacts', value: artifacts.length },
+      { label: 'Workflows', value: artifacts.length },
       {
         label: myScope ? 'Active at your scope' : 'Enabled anywhere',
         value: artifacts.filter((a) =>
@@ -245,7 +245,7 @@ export function BusinessLogicTab({
         value: new Set(artifacts.map((a) => a.targetModule)).size,
       },
       {
-        label: 'Artifact types in use',
+        label: 'Workflow kinds in use',
         value: new Set(artifacts.map((a) => a.type)).size,
       },
     ],
@@ -262,14 +262,14 @@ export function BusinessLogicTab({
       <SummaryCards title='One engine — every configuration screen' items={summary} />
 
       <p className='text-neutral-1000 mb-3 text-sm'>
-        {`Authored once in the engine → enabled per scope level by each admin → consumed by the target module. Modules consume these artifacts — a module's Admin view is this catalog filtered to that module.`}
+        {`Authored once in the engine → enabled per scope level by each admin → consumed by the target module. Modules consume these workflows — a module's Admin view is this catalog filtered to that module.`}
       </p>
 
-      <SectionToolbar title={`Artifact catalog (${rows.length})`}>
+      <SectionToolbar title={`Workflow catalog (${rows.length})`}>
         <Input
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder='Search artifacts'
+          placeholder='Search workflows'
           className='h-7 w-[180px]'
         />
         <Select value={moduleFilter} onValueChange={setModuleFilter}>
@@ -308,7 +308,7 @@ export function BusinessLogicTab({
             className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
           >
             <Plus size={10} weight='bold' />
-            New artifact
+            New workflow
           </Button>
         )}
       </SectionToolbar>

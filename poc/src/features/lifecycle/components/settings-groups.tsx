@@ -282,7 +282,7 @@ export function useLifecycleSettingGroups(
       id: 'lc-engine',
       title: 'Engine features',
       description:
-        'Workflow Engine artifacts targeting Employee Lifecycle — toggle per scope level.',
+        'Workflow Engine workflows targeting Employee Lifecycle — toggle per scope level.',
       icon: <Plug size={24} />,
       keywords: ['engine', 'artifact', 'workflow', 'rule', 'toggle', 'scope'],
       render: () => <EngineGroup />,

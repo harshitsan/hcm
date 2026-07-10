@@ -79,7 +79,7 @@ export function EngineArtifactsPanel({ module, submodule, intro }: EngineArtifac
       </div>
       <p className='text-paragraph-sm text-neutral-1000'>
         {intro ??
-          'These Kensium HR capabilities are governed business-logic artifacts — authored once in the Workflow Engine, enabled per scope, consumed here.'}
+          'These Kensium HR capabilities are governed workflows — authored once in the Workflow Engine, enabled per scope, consumed here.'}
       </p>
       {artifacts.length > 6 && (
         <div className='relative'>
@@ -95,7 +95,7 @@ export function EngineArtifactsPanel({ module, submodule, intro }: EngineArtifac
       <div className='flex max-h-[420px] flex-col gap-1 overflow-y-auto pr-1'>
         {artifacts.length === 0 && (
           <p className='text-neutral-1000 py-4 text-center text-sm'>
-            No engine artifacts target this module yet.
+            No workflows are attached to this module yet.
           </p>
         )}
         {artifacts.map((a) => {

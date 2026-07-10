@@ -6,7 +6,7 @@ export type EngineLayer = 'author' | 'govern' | 'consume'
 const LAYERS: { id: EngineLayer; title: string; caption: string }[] = [
   { id: 'author', title: 'Author', caption: 'Build tab — canvas & builder forms' },
   { id: 'govern', title: 'Govern', caption: 'Configure tab — scopes, versions & history' },
-  { id: 'consume', title: 'Consume', caption: 'Modules read their enabled artifacts' },
+  { id: 'consume', title: 'Consume', caption: 'Modules read their enabled workflows' },
 ]
 
 /**

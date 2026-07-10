@@ -492,8 +492,8 @@ export function PayloadEditor({ config, patch }: { config: Config; patch: (p: Co
     return (
       <div className="form-field">
         <div className="ctx-hint" style={{ color: 'var(--color-error, #ef4444)' }}>
-          No payload attached. This node is populated when a catalog artifact is
-          linked — open the artifact inspector to load its definition here.
+          No payload attached. This node is populated when a catalog workflow is
+          linked — open the workflow inspector to load its definition here.
         </div>
       </div>
     )
@@ -610,7 +610,7 @@ export function PayloadEditor({ config, patch }: { config: Config; patch: (p: Co
       return (
         <div className="form-field">
           <div className="ctx-hint">
-            Flow artifacts are edited on the Designer canvas — open the linked
+            Process flows are edited on the Designer canvas — open the linked
             canvas doc to modify this flow.
           </div>
         </div>

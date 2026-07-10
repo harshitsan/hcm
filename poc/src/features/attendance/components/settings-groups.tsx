@@ -433,7 +433,7 @@ export function useAttendanceSettingGroups(
       id: 'att-engine',
       title: 'Engine features',
       description:
-        'Workflow Engine artifacts targeting Time & Attendance — toggle per scope level.',
+        'Workflow Engine workflows targeting Time & Attendance — toggle per scope level.',
       icon: <Plug size={24} />,
       keywords: [
         'engine',

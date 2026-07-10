@@ -20,8 +20,8 @@ export function EnginesHub() {
       <Main className='bg-neutral-200'>
         <div className='mb-4'>
           <p className='text-paragraph-sm text-neutral-1000'>
-            Every business-logic artifact in one place — browse by module or by
-            type, toggle scope activation, and attach artifacts to any HRMS
+            Every business-logic workflow in one place — browse by module or by
+            type, toggle scope activation, and attach workflows to any HRMS
             module in two clicks.
           </p>
         </div>

@@ -389,8 +389,8 @@ export function ArtifactBuilderSheet({
         <SheetHeader className='border-grey-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit
-              ? `Edit artifact — saving creates v${(artifact?.version ?? 1) + 1}`
-              : 'New business-logic artifact'}
+              ? `Edit workflow — saving creates v${(artifact?.version ?? 1) + 1}`
+              : 'New business-logic workflow'}
           </SheetTitle>
         </SheetHeader>
 
@@ -405,7 +405,7 @@ export function ArtifactBuilderSheet({
                 name='name'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Artifact name</FormLabel>
+                    <FormLabel>Workflow name</FormLabel>
                     <FormControl>
                       <Input placeholder='Exit Questionnaire' {...field} />
                     </FormControl>
@@ -422,7 +422,7 @@ export function ArtifactBuilderSheet({
                     <FormLabel>Description</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder='What this artifact does inside its module'
+                        placeholder='What this workflow does inside its module'
                         rows={2}
                         {...field}
                       />
@@ -438,7 +438,7 @@ export function ArtifactBuilderSheet({
                   name='type'
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Artifact type</FormLabel>
+                      <FormLabel>Workflow kind</FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
@@ -1358,7 +1358,7 @@ export function ArtifactBuilderSheet({
                 Cancel
               </Button>
               <Button type='submit'>
-                {isEdit ? `Save as v${(artifact?.version ?? 1) + 1}` : 'Create artifact'}
+                {isEdit ? `Save as v${(artifact?.version ?? 1) + 1}` : 'Create workflow'}
               </Button>
             </div>
           </form>

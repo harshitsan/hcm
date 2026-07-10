@@ -99,10 +99,10 @@ export function TopBar({ mode = 'flow' }: { mode?: 'flow' | 'payload' }) {
     const blob = new Blob([serializeBundle([artifact])], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `artifact-${doc.name.replace(/\s+/g, '-').toLowerCase()}.json`
+    a.download = `workflow-${doc.name.replace(/\s+/g, '-').toLowerCase()}.json`
     a.click()
     URL.revokeObjectURL(a.href)
-    toast.success(`"${doc.name}" exported as artifact bundle — import it at the Engines Hub`)
+    toast.success(`"${doc.name}" exported as workflow bundle — import it at the Engines Hub`)
   }
 
   return (
@@ -131,7 +131,7 @@ export function TopBar({ mode = 'flow' }: { mode?: 'flow' | 'payload' }) {
           <button className="icon-btn" aria-label="Redo" disabled={!canRedo} onClick={redo}><Redo2 size={15} /></button>
           <button className="icon-btn" aria-label="Export" onClick={onExport}><Download size={15} /></button>
           {mode === 'flow' && (
-            <button className="icon-btn" aria-label="Export as artifact bundle" title="Export as artifact bundle" onClick={onExportBundle}><Package size={15} /></button>
+            <button className="icon-btn" aria-label="Export as workflow bundle" title="Export as workflow bundle" onClick={onExportBundle}><Package size={15} /></button>
           )}
           {mode === 'flow' && (
             <>

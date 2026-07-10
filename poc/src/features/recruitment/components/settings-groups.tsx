@@ -285,7 +285,7 @@ export function useRecruitmentSettingGroups(
       id: 'rec-engine',
       title: 'Engine features',
       description:
-        'Workflow Engine artifacts targeting Recruitment — toggle per scope level.',
+        'Workflow Engine workflows targeting Recruitment — toggle per scope level.',
       icon: <Plug size={24} />,
       keywords: ['engine', 'artifact', 'workflow', 'rule', 'toggle', 'scope'],
       render: () => <EngineGroup />,

@@ -206,7 +206,7 @@ export function useLeaveSettingGroups(stores: Stores): SettingGroup[] {
       id: 'engine-features',
       title: 'Engine features',
       description:
-        'Workflow Engine artifacts targeting Leave Management — toggle per scope level.',
+        'Workflow Engine workflows targeting Leave Management — toggle per scope level.',
       icon: <Plug size={24} />,
       keywords: [
         'engine',

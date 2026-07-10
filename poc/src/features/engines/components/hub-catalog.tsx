@@ -162,7 +162,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
   /** Export the current filtered view as a bundle. */
   function handleToolbarExport() {
     if (filteredArtifacts.length === 0) {
-      toast.error('No artifacts to export — adjust the filter first.')
+      toast.error('No workflows to export — adjust the filter first.')
       return
     }
     let label: string
@@ -173,15 +173,15 @@ export function HubCatalog({ store }: HubCatalogProps) {
     } else {
       label = 'folders'
     }
-    downloadBundle(filteredArtifacts, `artifacts-${label}.json`)
-    toast.success(`Exported ${filteredArtifacts.length} artifact${filteredArtifacts.length !== 1 ? 's' : ''}`)
+    downloadBundle(filteredArtifacts, `workflows-${label}.json`)
+    toast.success(`Exported ${filteredArtifacts.length} workflow${filteredArtifacts.length !== 1 ? 's' : ''}`)
   }
 
   /** Export a single row artifact as a bundle. */
   function handleRowExport(artifact: Artifact) {
     downloadBundle(
       [artifact],
-      `artifact-${artifact.name.replace(/\s+/g, '-').toLowerCase()}.json`
+      `workflow-${artifact.name.replace(/\s+/g, '-').toLowerCase()}.json`
     )
     toast.success(`"${artifact.name}" exported`)
   }
@@ -200,7 +200,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
       }
       const { imported, renamed } = store.importArtifacts(result.artifacts)
       const suffix = renamed > 0 ? ` (${renamed} renamed)` : ''
-      toast.success(`Imported ${imported} artifact${imported !== 1 ? 's' : ''}${suffix}`)
+      toast.success(`Imported ${imported} workflow${imported !== 1 ? 's' : ''}${suffix}`)
     }
     reader.readAsText(file)
     // Reset so the same file can be re-imported if needed
@@ -646,7 +646,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
             size='sm'
             className='h-8 gap-1.5 px-3 text-xs'
             onClick={() => importFileRef.current?.click()}
-            title='Import an artifact bundle (.json)'
+            title='Import a workflow bundle (.json)'
           >
             <Upload className='size-3.5' />
             Import
@@ -664,7 +664,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
         <div className='rounded-[8px] border border-gray-200 bg-white'>
           {filteredArtifacts.length === 0 && (
             <p className='text-neutral-1000 py-10 text-center text-sm'>
-              No engine artifacts match this filter.
+              No workflows match this filter.
             </p>
           )}
           {filteredArtifacts.map((a, idx) => {
@@ -798,7 +798,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
                     size='sm'
                     className='h-7 gap-1 px-2 text-[11px]'
                     onClick={() => handleRowExport(a)}
-                    title='Export this artifact as a bundle (.json)'
+                    title='Export this workflow as a bundle (.json)'
                   >
                     <Download className='size-3' />
                     Export

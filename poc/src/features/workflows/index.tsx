@@ -241,7 +241,7 @@ export function Workflows() {
           id: `art-${a.id}`,
           label: a.name,
           hint: `${ARTIFACT_TYPE_LABELS[a.type]} · ${a.targetModule} · v${a.version}`,
-          group: 'Configure — artifact catalog',
+          group: 'Configure — workflow catalog',
           target: { top: 'business-logic', catalogQuery: a.name },
         })
       }

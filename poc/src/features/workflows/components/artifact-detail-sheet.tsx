@@ -288,7 +288,7 @@ export function ArtifactDetailSheet({
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
         <SheetHeader className='border-grey-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
-            {artifact?.name ?? 'Artifact detail'}
+            {artifact?.name ?? 'Workflow detail'}
           </SheetTitle>
         </SheetHeader>
 
@@ -449,7 +449,7 @@ export function ArtifactDetailSheet({
         <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete this artifact?</AlertDialogTitle>
+              <AlertDialogTitle>Delete this workflow?</AlertDialogTitle>
               <AlertDialogDescription>
                 {`"${artifact?.name}" (v${artifact?.version}) will be removed from the catalog and ${artifact?.targetModule} will stop consuming it at every scope level.`}
               </AlertDialogDescription>

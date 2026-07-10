@@ -213,7 +213,7 @@ export function DesignerTab({
         <p className='text-neutral-1000 mb-2 text-xs'>
           Loaded from catalog:{' '}
           <span className='font-medium'>{activeSource.artifactName}</span> v
-          {activeSource.version} — publishing updates the same artifact to v
+          {activeSource.version} — publishing updates the same workflow to v
           {activeSource.version + 1}.
         </p>
       )}

@@ -99,7 +99,7 @@ export function parseBundle(text: string): ParseResult {
   }
 
   if (!parsed || typeof parsed !== 'object') {
-    return { ok: false, error: 'File is not a valid artifact bundle (expected a JSON object).' }
+    return { ok: false, error: 'File is not a valid workflow bundle (expected a JSON object).' }
   }
 
   const obj = parsed as Record<string, unknown>
@@ -107,19 +107,19 @@ export function parseBundle(text: string): ParseResult {
   if (obj.format !== 'satellitehr.artifacts') {
     return {
       ok: false,
-      error: `Unrecognised bundle format "${String(obj.format ?? '')}" — expected "satellitehr.artifacts".`,
+      error: `Unrecognised bundle format "${String(obj.format ?? '')}" — expected a workflow bundle.`,
     }
   }
 
   if (obj.version !== 1) {
     return {
       ok: false,
-      error: `Unsupported bundle version ${String(obj.version ?? '')} — only version 1 is supported.`,
+      error: `Unsupported workflow bundle version ${String(obj.version ?? '')} — only version 1 is supported.`,
     }
   }
 
   if (!Array.isArray(obj.artifacts)) {
-    return { ok: false, error: 'Bundle "artifacts" field must be an array.' }
+    return { ok: false, error: 'Bundle "workflows" field must be an array.' }
   }
 
   const artifacts: Artifact[] = []
@@ -128,7 +128,7 @@ export function parseBundle(text: string): ParseResult {
     if (!isArtifactValid(a)) {
       return {
         ok: false,
-        error: `Artifact at index ${i} failed validation (id="${(a as Record<string,unknown>)?.id ?? '?'}").`,
+        error: `Workflow at index ${i} failed validation (id="${(a as Record<string,unknown>)?.id ?? '?'}").`,
       }
     }
     // Run through normalizeArtifact so pre-attachments bundles import cleanly.

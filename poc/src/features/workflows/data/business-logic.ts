@@ -42,7 +42,7 @@ export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   setting: 'Setting',
   'category-list': 'Category list',
   calendar: 'Calendar',
-  flow: 'Flow',
+  flow: 'Process flow',
 }
 
 /** POC modules an artifact can attach to (WFE-44: any HRMS module). */
@@ -265,6 +265,7 @@ export interface ArtifactAttachment {
   submodule?: string   // submodule tab id from module registry; omitted = whole module
 }
 
+// Presented to users as "workflow" throughout the UI.
 export interface Artifact {
   id: string
   name: string
