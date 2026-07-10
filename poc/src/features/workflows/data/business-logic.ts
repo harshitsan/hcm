@@ -21,6 +21,8 @@ export const FORM_ARTIFACT_TYPES = [
   'template',
   'alert',
   'setting',
+  'category-list',
+  'calendar',
 ] as const
 
 export type FormArtifactType = (typeof FORM_ARTIFACT_TYPES)[number]
@@ -38,6 +40,8 @@ export const ARTIFACT_TYPE_LABELS: Record<ArtifactType, string> = {
   template: 'Template',
   alert: 'Alert',
   setting: 'Setting',
+  'category-list': 'Category list',
+  calendar: 'Calendar',
   flow: 'Flow',
 }
 
@@ -209,15 +213,42 @@ export interface ChecklistItem {
   mandatory: boolean
 }
 
+export interface CategoryItem {
+  id: string
+  label: string
+  active: boolean
+}
+
+export const CALENDAR_TYPES = ['holiday', 'shift', 'business-hours'] as const
+export type CalendarType = (typeof CALENDAR_TYPES)[number]
+
+export const CALENDAR_TYPE_LABELS: Record<CalendarType, string> = {
+  holiday: 'Holiday',
+  shift: 'Shift pattern',
+  'business-hours': 'Business hours',
+}
+
+export const CALENDAR_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+
+export interface CalendarEntry {
+  label: string
+  date?: string         // holiday entries
+  startTime?: string    // shift / business-hours
+  endTime?: string      // shift / business-hours
+  days?: string[]       // e.g. ['Mon','Tue','Wed']
+}
+
 /** Type-specific payload; `kind` always mirrors the artifact's `type`. */
 export type ArtifactDefinition =
   | { kind: 'approver-chain'; steps: ChainStep[] }
   | { kind: 'decision-rule'; conditions: RuleCondition[]; outcome: RuleOutcome }
   | { kind: 'custom-form'; fields: FormFieldDef[] }
   | { kind: 'checklist'; items: ChecklistItem[] }
-  | { kind: 'template'; body: string }
+  | { kind: 'template'; body: string; channel?: 'Email' | 'In-app' | 'SMS'; event?: string; templateKind?: 'letter' | 'notification' }
   | { kind: 'alert'; trigger: string; channels: string[] }
   | { kind: 'setting'; key: string; value: string }
+  | { kind: 'category-list'; items: CategoryItem[] }
+  | { kind: 'calendar'; calendarType: CalendarType; entries: CalendarEntry[] }
   /** Canvas-authored process flow — the Designer's WorkflowDoc is the payload. */
   | { kind: 'flow'; doc: WorkflowDoc }
 
@@ -696,6 +727,242 @@ export const seedArtifacts: SeedArtifact[] = [
     updatedAt: '2026-07-05',
     history: [
       { at: '2026-07-05 10:30', actor: 'Sunita Patil', event: 'Published from Designer — v1' },
+    ],
+  },
+
+  // ── category-list seeds ──────────────────────────────────────────────────
+  {
+    id: 'bl-21',
+    name: 'Leave Types',
+    type: 'category-list',
+    targetModule: 'Leave Management',
+    description:
+      'Canonical leave types configured for the organisation — used as pick-list values across leave requests and balance screens.',
+    version: 2,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: {
+      kind: 'category-list',
+      items: [
+        { id: 'lt-01', label: 'Annual Leave', active: true },
+        { id: 'lt-02', label: 'Sick Leave', active: true },
+        { id: 'lt-03', label: 'Casual Leave', active: true },
+        { id: 'lt-04', label: 'Maternity Leave', active: true },
+        { id: 'lt-05', label: 'Paternity Leave', active: true },
+        { id: 'lt-06', label: 'Bereavement Leave', active: true },
+        { id: 'lt-07', label: 'Unpaid Leave', active: false },
+      ],
+    },
+    updatedBy: 'Sunita Patil',
+    updatedAt: '2026-05-14',
+    history: [
+      { at: '2026-01-10 09:00', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+      { at: '2026-05-14 11:23', actor: 'Sunita Patil', event: 'Edited — v2 (Unpaid Leave deactivated)' },
+    ],
+  },
+  {
+    id: 'bl-22',
+    name: 'Asset Categories',
+    type: 'category-list',
+    targetModule: 'Asset Management',
+    description:
+      'Category taxonomy for company-issued assets; new categories can be added without a schema change.',
+    version: 1,
+    scopes: { platform: false, portfolio: false, group: true, company: true },
+    definition: {
+      kind: 'category-list',
+      items: [
+        { id: 'ac-01', label: 'Laptop', active: true },
+        { id: 'ac-02', label: 'Monitor', active: true },
+        { id: 'ac-03', label: 'Access Card', active: true },
+        { id: 'ac-04', label: 'Mobile Device', active: true },
+        { id: 'ac-05', label: 'Vehicle', active: false },
+        { id: 'ac-06', label: 'Peripheral (Keyboard / Mouse)', active: true },
+      ],
+    },
+    updatedBy: 'Arjun Mehta',
+    updatedAt: '2026-03-01',
+    history: [
+      { at: '2026-03-01 10:45', actor: 'Arjun Mehta', event: 'Created v1 — enabled at Group company, Company' },
+    ],
+  },
+  {
+    id: 'bl-23',
+    name: 'Exit Reasons',
+    type: 'category-list',
+    targetModule: 'Employee Lifecycle',
+    description:
+      'Standardised exit-reason codes HR selects during offboarding; drives attrition analytics.',
+    version: 3,
+    scopes: { platform: true, portfolio: true, group: false, company: true },
+    definition: {
+      kind: 'category-list',
+      items: [
+        { id: 'er-01', label: 'Resignation', active: true },
+        { id: 'er-02', label: 'Contract end', active: true },
+        { id: 'er-03', label: 'Termination', active: true },
+        { id: 'er-04', label: 'Retirement', active: true },
+        { id: 'er-05', label: 'Absconding', active: true },
+        { id: 'er-06', label: 'Death in service', active: true },
+        { id: 'er-07', label: 'Transfer to group company', active: false },
+      ],
+    },
+    updatedBy: 'Priya Menon',
+    updatedAt: '2026-06-03',
+    history: [
+      { at: '2025-09-15 08:00', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+      { at: '2026-02-20 14:12', actor: 'Priya Menon', event: 'Edited — v2 (Absconding added)' },
+      { at: '2026-06-03 09:55', actor: 'Priya Menon', event: 'Edited — v3 (Transfer deactivated)' },
+    ],
+  },
+  {
+    id: 'bl-24',
+    name: 'Document Categories',
+    type: 'category-list',
+    targetModule: 'Documents',
+    description:
+      'Taxonomy used when uploading or classifying employee documents in the document vault.',
+    version: 1,
+    scopes: { platform: true, portfolio: false, group: false, company: true },
+    definition: {
+      kind: 'category-list',
+      items: [
+        { id: 'dc-01', label: 'Identity Proof', active: true },
+        { id: 'dc-02', label: 'Educational Certificate', active: true },
+        { id: 'dc-03', label: 'Offer Letter', active: true },
+        { id: 'dc-04', label: 'Payslip', active: true },
+        { id: 'dc-05', label: 'Appraisal Letter', active: true },
+        { id: 'dc-06', label: 'NDA / Agreement', active: true },
+        { id: 'dc-07', label: 'Medical Certificate', active: false },
+      ],
+    },
+    updatedBy: 'Elena Garcia',
+    updatedAt: '2026-04-17',
+    history: [
+      { at: '2026-04-17 11:30', actor: 'Elena Garcia', event: 'Created v1 — enabled at Platform, Company' },
+    ],
+  },
+
+  // ── calendar seeds ───────────────────────────────────────────────────────
+  {
+    id: 'bl-25',
+    name: 'National Holiday Calendar 2026',
+    type: 'calendar',
+    targetModule: 'Leave Management',
+    description:
+      'Gazetted public holidays for the financial year 2026; drives system-enforced leave credits and attendance marking.',
+    version: 1,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: {
+      kind: 'calendar',
+      calendarType: 'holiday',
+      entries: [
+        { label: "New Year's Day", date: '2026-01-01' },
+        { label: 'Republic Day', date: '2026-01-26' },
+        { label: 'Holi', date: '2026-03-03' },
+        { label: 'Good Friday', date: '2026-04-03' },
+        { label: 'Independence Day', date: '2026-08-15' },
+        { label: 'Gandhi Jayanti', date: '2026-10-02' },
+        { label: 'Diwali', date: '2026-10-19' },
+        { label: 'Christmas Day', date: '2026-12-25' },
+      ],
+    },
+    updatedBy: 'Platform Ops',
+    updatedAt: '2026-01-02',
+    history: [
+      { at: '2026-01-02 09:00', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+    ],
+  },
+  {
+    id: 'bl-26',
+    name: 'Standard Shift Pattern',
+    type: 'calendar',
+    targetModule: 'Time & Attendance',
+    description:
+      'Default 9-to-6 shift for office employees; used by attendance to compute worked-hours and overtime.',
+    version: 2,
+    scopes: { platform: false, portfolio: false, group: true, company: true },
+    definition: {
+      kind: 'calendar',
+      calendarType: 'shift',
+      entries: [
+        { label: 'Day shift', startTime: '09:00', endTime: '18:00', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+        { label: 'Saturday half-day', startTime: '09:00', endTime: '13:00', days: ['Sat'] },
+      ],
+    },
+    updatedBy: 'Arjun Mehta',
+    updatedAt: '2026-04-01',
+    history: [
+      { at: '2026-01-15 10:00', actor: 'Arjun Mehta', event: 'Created v1 — enabled at Group company, Company' },
+      { at: '2026-04-01 09:30', actor: 'Arjun Mehta', event: 'Edited — v2 (Saturday half-day shift added)' },
+    ],
+  },
+  {
+    id: 'bl-27',
+    name: 'Support SLA Business Hours',
+    type: 'calendar',
+    targetModule: 'Feedback & Grievance',
+    description:
+      'Working-hours window used by the SLA engine to compute resolution clock time, excluding weekends.',
+    version: 1,
+    scopes: { platform: true, portfolio: false, group: false, company: true },
+    definition: {
+      kind: 'calendar',
+      calendarType: 'business-hours',
+      entries: [
+        { label: 'Support window', startTime: '08:00', endTime: '20:00', days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+      ],
+    },
+    updatedBy: 'Platform Ops',
+    updatedAt: '2026-02-10',
+    history: [
+      { at: '2026-02-10 08:45', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform, Company' },
+    ],
+  },
+
+  // ── template seeds with optional fields ──────────────────────────────────
+  {
+    id: 'bl-28',
+    name: 'Probation Confirmation Notification',
+    type: 'template',
+    targetModule: 'Notifications',
+    description:
+      'In-app and email notification sent to an employee when their probation confirmation is approved.',
+    version: 1,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: {
+      kind: 'template',
+      body: 'Dear {{employee.name}},\n\nCongratulations! Your probation period has been successfully completed and your confirmation is approved effective {{confirmation.date}}.\n\nWelcome to the permanent team.\n\nHR Team',
+      channel: 'In-app',
+      event: 'probation.confirmed',
+      templateKind: 'notification',
+    },
+    updatedBy: 'Priya Menon',
+    updatedAt: '2026-03-05',
+    history: [
+      { at: '2026-03-05 14:00', actor: 'Priya Menon', event: 'Created v1 — enabled at Platform' },
+    ],
+  },
+  {
+    id: 'bl-29',
+    name: 'Relieving Letter Template',
+    type: 'template',
+    targetModule: 'HR Letters & Certificates',
+    description:
+      'Formal relieving letter generated at the end of the exit workflow after all clearances are complete.',
+    version: 2,
+    scopes: { platform: true, portfolio: true, group: true, company: false },
+    definition: {
+      kind: 'template',
+      body: 'To Whom It May Concern,\n\nThis is to certify that {{employee.name}} (Employee ID: {{employee.id}}) was employed with {{company.name}} as {{employee.designation}} from {{employee.joiningDate}} to {{employee.lastWorkingDay}}.\n\n{{employee.firstName}} has been relieved from their duties and has no dues pending with the organisation.\n\nWe wish {{employee.firstName}} all the best in their future endeavours.\n\nSincerely,\n{{hr.signatory}}\n{{company.name}}',
+      channel: 'Email',
+      event: 'exit.clearance.complete',
+      templateKind: 'letter',
+    },
+    updatedBy: 'Devika Rao',
+    updatedAt: '2026-05-20',
+    history: [
+      { at: '2026-01-08 10:00', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+      { at: '2026-05-20 15:40', actor: 'Devika Rao', event: 'Edited — v2 (no-dues clause updated)' },
     ],
   },
 ]

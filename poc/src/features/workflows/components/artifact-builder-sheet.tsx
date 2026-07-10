@@ -30,6 +30,9 @@ import {
   ALERT_CHANNELS,
   APPROVER_STEP_ROLES,
   ARTIFACT_TYPE_LABELS,
+  CALENDAR_DAYS,
+  CALENDAR_TYPE_LABELS,
+  CALENDAR_TYPES,
   FIELD_TYPE_LABELS,
   FORM_ARTIFACT_TYPES,
   FORM_FIELD_TYPES,
@@ -79,6 +82,19 @@ const builderSchema = z
     channels: z.array(z.string()),
     key: z.string(),
     value: z.string(),
+    // category-list
+    categoryItems: z.array(z.object({ id: z.string(), label: z.string(), active: z.boolean() })),
+    // calendar
+    calendarType: z.enum(CALENDAR_TYPES),
+    calendarEntries: z.array(
+      z.object({
+        label: z.string(),
+        date: z.string(),
+        startTime: z.string(),
+        endTime: z.string(),
+        days: z.array(z.string()),
+      })
+    ),
   })
   .superRefine((v, ctx) => {
     const issue = (path: (string | number)[], message: string) =>
@@ -129,6 +145,32 @@ const builderSchema = z
         if (!v.key.trim()) issue(['key'], 'Setting key is required')
         if (!v.value.trim()) issue(['value'], 'Setting value is required')
         break
+      case 'category-list':
+        if (v.categoryItems.length === 0)
+          issue(['categoryItems'], 'Add at least one category item')
+        v.categoryItems.forEach((it, i) => {
+          if (!it.label.trim())
+            issue(['categoryItems', i, 'label'], 'Label is required')
+        })
+        break
+      case 'calendar':
+        if (v.calendarEntries.length === 0)
+          issue(['calendarEntries'], 'Add at least one calendar entry')
+        v.calendarEntries.forEach((e, i) => {
+          if (!e.label.trim())
+            issue(['calendarEntries', i, 'label'], 'Entry label is required')
+          if (v.calendarType === 'holiday' && !e.date.trim())
+            issue(['calendarEntries', i, 'date'], 'Date is required for holiday entries')
+          if (v.calendarType !== 'holiday') {
+            if (!e.startTime.trim())
+              issue(['calendarEntries', i, 'startTime'], 'Start time is required')
+            if (!e.endTime.trim())
+              issue(['calendarEntries', i, 'endTime'], 'End time is required')
+            if (e.days.length === 0)
+              issue(['calendarEntries', i, 'days'], 'Select at least one day')
+          }
+        })
+        break
     }
   })
 
@@ -149,6 +191,9 @@ const emptyValues: BuilderValues = {
   channels: [],
   key: '',
   value: '',
+  categoryItems: [{ id: '', label: '', active: true }],
+  calendarType: 'holiday',
+  calendarEntries: [{ label: '', date: '', startTime: '', endTime: '', days: [] }],
 }
 
 function toValues(artifact: Artifact): BuilderValues {
@@ -194,6 +239,19 @@ function toValues(artifact: Artifact): BuilderValues {
     case 'setting':
       values.key = def.key
       values.value = def.value
+      break
+    case 'category-list':
+      values.categoryItems = def.items.map((it) => ({ ...it }))
+      break
+    case 'calendar':
+      values.calendarType = def.calendarType
+      values.calendarEntries = def.entries.map((e) => ({
+        label: e.label,
+        date: e.date ?? '',
+        startTime: e.startTime ?? '',
+        endTime: e.endTime ?? '',
+        days: e.days ? [...e.days] : [],
+      }))
       break
   }
   return values
@@ -241,6 +299,27 @@ function toDefinition(values: BuilderValues): ArtifactDefinition {
       return { kind: 'alert', trigger: values.trigger, channels: values.channels }
     case 'setting':
       return { kind: 'setting', key: values.key, value: values.value }
+    case 'category-list':
+      return {
+        kind: 'category-list',
+        items: values.categoryItems.map((it) => ({
+          id: it.id || `cat-${crypto.randomUUID().slice(0, 6)}`,
+          label: it.label,
+          active: it.active,
+        })),
+      }
+    case 'calendar': {
+      const isHoliday = values.calendarType === 'holiday'
+      return {
+        kind: 'calendar',
+        calendarType: values.calendarType,
+        entries: values.calendarEntries.map((e) =>
+          isHoliday
+            ? { label: e.label, date: e.date }
+            : { label: e.label, startTime: e.startTime, endTime: e.endTime, days: e.days }
+        ),
+      }
+    }
   }
 }
 
@@ -266,6 +345,8 @@ export function ArtifactBuilderSheet({
   const conditions = useFieldArray({ control: form.control, name: 'conditions' })
   const fields = useFieldArray({ control: form.control, name: 'fields' })
   const items = useFieldArray({ control: form.control, name: 'items' })
+  const categoryItems = useFieldArray({ control: form.control, name: 'categoryItems' })
+  const calendarEntries = useFieldArray({ control: form.control, name: 'calendarEntries' })
 
   useEffect(() => {
     if (!open) return
@@ -926,6 +1007,266 @@ export function ArtifactBuilderSheet({
                       </FormItem>
                     )}
                   />
+                </div>
+              )}
+
+              {type === 'category-list' && (
+                <div className='space-y-3'>
+                  <div className='flex items-center justify-between'>
+                    <h3 className='text-neutral-1600 text-sm font-semibold'>
+                      Category items
+                    </h3>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className='h-7 gap-1 px-2'
+                      onClick={() =>
+                        categoryItems.append({ id: '', label: '', active: true })
+                      }
+                    >
+                      <Plus size={12} weight='bold' /> Add item
+                    </Button>
+                  </div>
+                  {formErrors.categoryItems?.message && (
+                    <p className='text-destructive text-sm'>
+                      {formErrors.categoryItems.message}
+                    </p>
+                  )}
+                  {categoryItems.fields.map((row, i) => (
+                    <div
+                      key={row.id}
+                      className='flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2'
+                    >
+                      <FormField
+                        control={form.control}
+                        name={`categoryItems.${i}.label`}
+                        render={({ field }) => (
+                          <FormItem className='flex-1'>
+                            <FormControl>
+                              <Input
+                                placeholder='e.g. Annual Leave'
+                                className='h-7 text-sm'
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`categoryItems.${i}.active`}
+                        render={({ field }) => (
+                          <FormItem className='flex shrink-0 items-center gap-1.5'>
+                            <FormLabel className='text-neutral-1000 text-xs font-normal'>
+                              Active
+                            </FormLabel>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type='button'
+                        variant='icon2'
+                        className='text-neutral-1900 h-6 w-6 shrink-0'
+                        onClick={() => categoryItems.remove(i)}
+                        aria-label={`Remove item ${i + 1}`}
+                      >
+                        <Trash size={14} weight='bold' />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {type === 'calendar' && (
+                <div className='space-y-3'>
+                  <FormField
+                    control={form.control}
+                    name='calendarType'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Calendar type</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={isEdit}
+                        >
+                          <FormControl>
+                            <SelectTrigger variant='secondary' className='w-full'>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CALENDAR_TYPES.map((ct) => (
+                              <SelectItem key={ct} value={ct}>
+                                {CALENDAR_TYPE_LABELS[ct]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className='flex items-center justify-between'>
+                    <h3 className='text-neutral-1600 text-sm font-semibold'>
+                      {form.watch('calendarType') === 'holiday'
+                        ? 'Holiday entries'
+                        : 'Time entries'}
+                    </h3>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className='h-7 gap-1 px-2'
+                      onClick={() =>
+                        calendarEntries.append({
+                          label: '',
+                          date: '',
+                          startTime: '',
+                          endTime: '',
+                          days: [],
+                        })
+                      }
+                    >
+                      <Plus size={12} weight='bold' /> Add entry
+                    </Button>
+                  </div>
+                  {formErrors.calendarEntries?.message && (
+                    <p className='text-destructive text-sm'>
+                      {formErrors.calendarEntries.message}
+                    </p>
+                  )}
+                  {calendarEntries.fields.map((row, i) => {
+                    const isHoliday = form.watch('calendarType') === 'holiday'
+                    return (
+                      <div
+                        key={row.id}
+                        className='space-y-2 rounded-md border border-gray-200 bg-white p-3'
+                      >
+                        <div className='flex items-center justify-between'>
+                          <span className='text-neutral-1000 text-xs font-medium'>
+                            Entry {i + 1}
+                          </span>
+                          <Button
+                            type='button'
+                            variant='icon2'
+                            className='text-neutral-1900 h-6 w-6'
+                            onClick={() => calendarEntries.remove(i)}
+                            aria-label={`Remove entry ${i + 1}`}
+                          >
+                            <Trash size={14} weight='bold' />
+                          </Button>
+                        </div>
+                        <div className={`grid gap-3 ${isHoliday ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                          <FormField
+                            control={form.control}
+                            name={`calendarEntries.${i}.label`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Label</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder={isHoliday ? 'Republic Day' : 'Day shift'}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          {isHoliday && (
+                            <FormField
+                              control={form.control}
+                              name={`calendarEntries.${i}.date`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Date</FormLabel>
+                                  <FormControl>
+                                    <Input type='date' {...field} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                        {!isHoliday && (
+                          <>
+                            <div className='grid grid-cols-2 gap-3'>
+                              <FormField
+                                control={form.control}
+                                name={`calendarEntries.${i}.startTime`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Start time</FormLabel>
+                                    <FormControl>
+                                      <Input type='time' {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name={`calendarEntries.${i}.endTime`}
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>End time</FormLabel>
+                                    <FormControl>
+                                      <Input type='time' {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <FormField
+                              control={form.control}
+                              name={`calendarEntries.${i}.days`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Days</FormLabel>
+                                  <FormControl>
+                                    <div className='flex flex-wrap gap-1'>
+                                      {CALENDAR_DAYS.map((day) => {
+                                        const checked = field.value.includes(day)
+                                        return (
+                                          <button
+                                            key={day}
+                                            type='button'
+                                            onClick={() => {
+                                              const next = checked
+                                                ? field.value.filter((d) => d !== day)
+                                                : [...field.value, day]
+                                              field.onChange(next)
+                                            }}
+                                            className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                                              checked
+                                                ? 'bg-blue-600 text-white'
+                                                : 'border border-gray-200 bg-white text-neutral-1200 hover:bg-gray-50'
+                                            }`}
+                                          >
+                                            {day}
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

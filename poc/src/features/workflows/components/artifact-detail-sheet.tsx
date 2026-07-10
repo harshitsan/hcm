@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/tooltip'
 import {
   ARTIFACT_TYPE_LABELS,
+  CALENDAR_TYPE_LABELS,
   blockingLevel,
   FIELD_TYPE_LABELS,
   isEffectivelyActive,
@@ -124,9 +125,28 @@ function DefinitionView({ definition }: { definition: ArtifactDefinition }) {
       )
     case 'template':
       return (
-        <pre className='text-neutral-1900 rounded-md border border-gray-200 bg-white px-3 py-2 font-mono text-xs whitespace-pre-wrap'>
-          {definition.body}
-        </pre>
+        <div className='space-y-2'>
+          {(definition.channel || definition.event || definition.templateKind) && (
+            <div className='flex flex-wrap items-center gap-2 text-sm'>
+              {definition.templateKind && (
+                <Badge variant='badge_inactive'>
+                  {definition.templateKind === 'letter' ? 'Letter' : 'Notification'}
+                </Badge>
+              )}
+              {definition.channel && (
+                <Badge variant='open'>{definition.channel}</Badge>
+              )}
+              {definition.event && (
+                <span className='text-neutral-1000 text-xs'>
+                  Event: <span className='font-mono'>{definition.event}</span>
+                </span>
+              )}
+            </div>
+          )}
+          <pre className='text-neutral-1900 rounded-md border border-gray-200 bg-white px-3 py-2 font-mono text-xs whitespace-pre-wrap'>
+            {definition.body}
+          </pre>
+        </div>
       )
     case 'alert':
       return (
@@ -154,6 +174,52 @@ function DefinitionView({ definition }: { definition: ArtifactDefinition }) {
           <span className='text-neutral-1900 font-medium'>
             {definition.value}
           </span>
+        </div>
+      )
+    case 'category-list':
+      return (
+        <div className='space-y-2'>
+          {definition.items.map((item) => (
+            <div
+              key={item.id}
+              className='flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm'
+            >
+              <span className='text-neutral-1900'>{item.label}</span>
+              <Badge variant={item.active ? 'badge_active' : 'badge_inactive'}>
+                {item.active ? 'Active' : 'Inactive'}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )
+    case 'calendar':
+      return (
+        <div className='space-y-2'>
+          <div className='flex items-center gap-2 text-sm'>
+            <span className='text-neutral-1000'>Type:</span>
+            <Badge variant='open'>{CALENDAR_TYPE_LABELS[definition.calendarType]}</Badge>
+          </div>
+          {definition.entries.map((entry, i) => (
+            <div
+              key={`${entry.label}-${i}`}
+              className='rounded-md border border-gray-200 bg-white px-3 py-2 text-sm'
+            >
+              <div className='flex items-start justify-between gap-2'>
+                <span className='text-neutral-1900 font-medium'>{entry.label}</span>
+                {entry.date && (
+                  <span className='text-neutral-1000 shrink-0 text-xs'>{entry.date}</span>
+                )}
+              </div>
+              {(entry.startTime || entry.endTime) && (
+                <p className='text-neutral-1000 mt-0.5 text-xs'>
+                  {entry.startTime} – {entry.endTime}
+                  {entry.days && entry.days.length > 0 && (
+                    <> · {entry.days.join(', ')}</>
+                  )}
+                </p>
+              )}
+            </div>
+          ))}
         </div>
       )
     case 'flow':
