@@ -184,6 +184,10 @@ export function useBusinessLogic({ actor }: { actor: string }) {
     (id: string, attachment: ArtifactAttachment) => {
       const target = artifacts.find((a) => a.id === id)
       if (!target) return
+      if (target.attachments.length <= 1) {
+        toast.error('Cannot detach the last attachment — an artifact must stay attached to at least one module')
+        return
+      }
       const label = attachment.submodule
         ? `${attachment.module} / ${attachment.submodule}`
         : attachment.module
