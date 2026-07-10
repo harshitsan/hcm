@@ -2,7 +2,12 @@ import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
+import { useRole } from '@/context/role-context'
+import { ApprovalInbox } from '@/features/workflows/components/approval-inbox'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import { ACTORS, companiesForRole } from '@/features/workflows/data/shared'
+import { useAuditTrail } from '@/features/workflows/hooks/use-audit-trail'
+import { useInstances } from '@/features/workflows/hooks/use-instances'
 import { Main } from '@/components/layout/main'
 import { AlertsTab } from './components/alerts-tab'
 import { AssignedByMeTab } from './components/assigned-by-me-tab'
@@ -38,6 +43,17 @@ import { takeRequestedTab } from '@/features/workflows/data/module-nav'
  *   configuration, gated per role.
  */
 export function Notifications() {
+  const { role } = useRole()
+
+  // Workflow approval inbox — shares the module-level engine + audit stores
+  // with the Workflow Engine page, so decisions here reflect there instantly.
+  const workflowAudit = useAuditTrail()
+  const approvals = useInstances({
+    append: workflowAudit.append,
+    actor: ACTORS[role],
+    actorRole: role,
+  })
+
   const {
     notifications,
     teamNotifications,
@@ -123,6 +139,14 @@ export function Notifications() {
             </TabsList>
 
             <TabsContent value='tasks'>
+              <div className='mb-6'>
+                <ApprovalInbox
+                  store={approvals}
+                  role={role}
+                  events={workflowAudit.events}
+                  companies={companiesForRole(role)}
+                />
+              </div>
               <TasksTab
                 myTasks={tasks.myTasks}
                 completeTask={tasks.completeTask}

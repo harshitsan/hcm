@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 import type { WorkflowDefinition } from '../data/definitions'
 import {
@@ -108,6 +108,31 @@ function openStage(
   return stage.approvals.map((a) => makeTask(instance, stage, a.approver))
 }
 
+// Module-level engine state so the approval inbox (Tasks & Notifications)
+// and the Workflow Engine's monitoring surfaces share one live engine —
+// a decision made in either place is reflected in both.
+let engineState: EngineState = {
+  instances: seedInstances,
+  tasks: seedTasks,
+}
+const engineListeners = new Set<() => void>()
+
+function setState(next: EngineState) {
+  engineState = next
+  engineListeners.forEach((l) => l())
+}
+
+function subscribeEngine(listener: () => void) {
+  engineListeners.add(listener)
+  return () => {
+    engineListeners.delete(listener)
+  }
+}
+
+function getEngineSnapshot() {
+  return engineState
+}
+
 /**
  * In-memory workflow engine: instances + approval tasks with sequential /
  * parallel-any / parallel-all semantics (WFE-03..06, WFE-13), escalation
@@ -123,10 +148,7 @@ export function useInstances({
   actor: string
   actorRole: string
 }) {
-  const [state, setState] = useState<EngineState>({
-    instances: seedInstances,
-    tasks: seedTasks,
-  })
+  const state = useSyncExternalStore(subscribeEngine, getEngineSnapshot)
 
   const { instances, tasks } = state
 
