@@ -6,6 +6,7 @@ import {
   type Requisition,
 } from '../data/requisitions'
 import { CURRENT_ADMIN, employeeById, todayIso } from '../data/org'
+import type { FieldValue } from '@/features/custom-fields/data/records'
 
 export interface RequisitionDraft {
   requesterId: string
@@ -13,6 +14,8 @@ export interface RequisitionDraft {
   category: string
   quantity: number
   returnBefore: string
+  /** A6: custom field values captured from CustomFieldsSection on submit. */
+  custom?: Record<string, FieldValue>
 }
 
 /**

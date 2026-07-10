@@ -237,6 +237,7 @@ export function ApplyLeaveOverlay({
     fmlaQualifyingReason: v.fmlaQualifyingReason || null,
     attachments,
     onBehalfOf,
+    custom: customValues,
   })
 
   const handleSubmit = (v: FormValues) => {

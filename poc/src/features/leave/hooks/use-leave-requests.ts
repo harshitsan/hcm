@@ -14,6 +14,7 @@ import {
 } from '../data/config'
 import { daySpan, employeeById, rangesOverlap, shortId, todayISO } from '../data/shared'
 import { type BalancesStore } from './use-balances'
+import type { FieldValue } from '@/features/custom-fields/data/records'
 
 export interface RequestDraft {
   employeeId: string
@@ -37,6 +38,8 @@ export interface RequestDraft {
   onBehalfOf: string | null
   /** Set when a manager/HR assigns the time off on the employee's behalf. */
   assignedBy?: string
+  /** A6: custom field values captured from CustomFieldsSection on submit. */
+  custom?: Record<string, FieldValue>
 }
 
 interface Deps {

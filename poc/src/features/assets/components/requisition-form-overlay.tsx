@@ -111,13 +111,13 @@ export function RequisitionFormOverlay({
 
   function handleSubmit(values: FormValues) {
     // A6: validate custom fields before proceeding.
-    const cfErrors = validateCustomFields('Asset Requisition', customValues, 'hr')
+    const cfErrors = validateCustomFields('Asset Requisition', customValues, 'employee')
     if (Object.keys(cfErrors).length > 0) {
       setCustomErrors(cfErrors)
       toast.error('Please complete the required additional fields')
       return
     }
-    onSubmit(values)
+    onSubmit({ ...values, custom: customValues })
     onOpenChange(false)
   }
 
@@ -243,7 +243,7 @@ export function RequisitionFormOverlay({
                 values={customValues}
                 onChange={handleCustomChange}
                 errors={customErrors}
-                audience='hr'
+                audience='employee'
               />
             </div>
 

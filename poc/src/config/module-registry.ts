@@ -14,6 +14,7 @@
  */
 
 import type { LucideIcon } from 'lucide-react'
+import type { FieldTarget } from '@/features/custom-fields/data/custom-fields'
 import {
   BadgeCheck,
   BellRing,
@@ -68,7 +69,7 @@ export interface ModuleFormDef {
   id: string          // '<moduleKey>.<form>', e.g. 'leave.apply'
   label: string
   extensible: boolean // FIXED = hand-built schema only; EXTENSIBLE = renders CustomFieldsSection
-  fieldTarget?: string    // custom-field target (only when extensible) — typed FieldTarget after A6
+  fieldTarget?: FieldTarget   // custom-field target entity/form (only when extensible)
   submitEvent?: string    // designer trigger event fired on submit (must exist in `events`)
 }
 
