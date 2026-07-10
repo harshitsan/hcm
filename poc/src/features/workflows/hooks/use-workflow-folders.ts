@@ -10,7 +10,7 @@
  * that derived folders re-compute whenever the artifact list changes.
  */
 
-import { useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import type { TargetModule } from '../data/business-logic'
 import { subscribe as subscribeArtifacts, getSnapshot as getArtifactsSnapshot } from './use-business-logic'
 
@@ -109,35 +109,35 @@ export function useWorkflowFolders(): {
   }, [artifacts, userFolders])
 
   /** Create a new user folder. Returns the created folder. */
-  function createFolder(name: string): WorkflowFolder {
+  const createFolder = useCallback((name: string): WorkflowFolder => {
     const folder: WorkflowFolder = {
       id: `fld-${crypto.randomUUID().slice(0, 6)}`,
       name,
     }
     mutateFolders((prev) => [...prev, folder])
     return folder
-  }
+  }, [])
 
   /** Rename a user folder (no-op for derived folder ids). */
-  function renameFolder(id: string, name: string): void {
+  const renameFolder = useCallback((id: string, name: string): void => {
     if (id.startsWith('fld-mod-')) return // guard: derived folders are read-only
     mutateFolders((prev) =>
       prev.map((f) => (f.id === id ? { ...f, name } : f))
     )
-  }
+  }, [])
 
   /** Delete a user folder (no-op for derived folder ids). */
-  function deleteFolder(id: string): void {
+  const deleteFolder = useCallback((id: string): void => {
     if (id.startsWith('fld-mod-')) return // guard: derived folders cannot be deleted
     mutateFolders((prev) => prev.filter((f) => f.id !== id))
-  }
+  }, [])
 
   /**
    * Bulk-import folders.
    * Deduplication: skip any incoming folder whose id is already present,
    * then skip any remaining incoming folder whose name matches an existing one.
    */
-  function importFolders(incoming: WorkflowFolder[]): void {
+  const importFolders = useCallback((incoming: WorkflowFolder[]): void => {
     mutateFolders((prev) => {
       const existingIds = new Set(prev.map((f) => f.id))
       const existingNames = new Set(prev.map((f) => f.name.toLowerCase()))
@@ -152,7 +152,7 @@ export function useWorkflowFolders(): {
       }
       return [...prev, ...toAdd]
     })
-  }
+  }, [])
 
   return { folders, createFolder, renameFolder, deleteFolder, importFolders }
 }

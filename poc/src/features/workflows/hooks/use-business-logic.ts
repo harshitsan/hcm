@@ -10,7 +10,7 @@ import {
   type ScopeLevel,
 } from '../data/business-logic'
 import { KENSIUM_ARTIFACTS } from '../data/kensium-artifacts'
-import { getUserFolders } from './use-workflow-folders'
+import { getUserFolders, moduleFolderId } from './use-workflow-folders'
 
 /** Author-editable slice; id, version, scopes and history are engine-managed. */
 export type ArtifactDraft = Pick<
@@ -299,9 +299,17 @@ export function useBusinessLogic({ actor }: { actor: string }) {
         historyEvent = 'Moved to catalog root'
         toastMsg = `"${target.name}" moved to catalog root`
       } else {
-        // Look up the folder name from user folders, falling back to the id.
+        // Look up the folder name: user folders first, then derived module
+        // folders (fld-mod-* ids map back to a live artifact's targetModule),
+        // falling back to the raw id.
         const userFolder = getUserFolders().find((f) => f.id === folderId)
-        const folderName = userFolder ? userFolder.name : folderId
+        let folderName = userFolder?.name
+        if (!folderName && folderId.startsWith('fld-mod-')) {
+          folderName = artifacts.find(
+            (a) => moduleFolderId(a.targetModule) === folderId
+          )?.targetModule
+        }
+        folderName = folderName ?? folderId
         historyEvent = `Moved to folder "${folderName}"`
         toastMsg = `"${target.name}" moved to folder "${folderName}"`
       }
