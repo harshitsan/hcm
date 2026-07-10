@@ -315,21 +315,6 @@ export function ConfigHolidays({ settings }: { settings: LeaveSettingsStore }) {
           workingDays={[1, 2, 3, 4, 5]}
           months={3}
           onSelectDate={(iso) => {
-            // Check if date matches a closure entry first.
-            const matchedClosure = settings.closures.find((cl) => cl.from === iso || cl.to === iso)
-            if (matchedClosure) {
-              // Open the "Schedule office closure" dialog pre-filled.
-              setClosureReason(matchedClosure.reason)
-              setClosureFrom(matchedClosure.from)
-              setClosureTo(matchedClosure.to)
-              setClosureLocations(matchedClosure.locations)
-              setClosureDepts(matchedClosure.departments)
-              setClosureDetails(matchedClosure.details)
-              setClosureEmails(matchedClosure.notifyEmails.join(', '))
-              setClosureDuration(matchedClosure.duration)
-              setClosureOpen(true)
-              return
-            }
             // Check if date matches a holiday in any calendar.
             for (const cal of settings.calendars) {
               const matchedHoliday = cal.holidays.find((h) => h.date === iso)
@@ -345,7 +330,7 @@ export function ConfigHolidays({ settings }: { settings: LeaveSettingsStore }) {
                 return
               }
             }
-            // No matching marker — open add-holiday dialog with date pre-filled.
+            // No matching holiday marker — open add-closure dialog with date pre-filled.
             setClosureFrom(iso)
             setClosureTo(iso)
             setClosureReason('')
