@@ -106,7 +106,7 @@ function ValuePicker({ attr, value, onValue }: ValuePickerProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Badge variant='outline' className='cursor-pointer'>
-          {options.find((o) => o.id === value)?.label ?? value || 'pick value'}
+          {options.find((o) => o.id === value)?.label ?? (value || 'pick value')}
         </Badge>
       </PopoverTrigger>
       <PopoverContent className='w-[200px] p-0' align='start'>
