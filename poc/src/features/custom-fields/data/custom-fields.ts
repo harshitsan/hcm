@@ -17,6 +17,14 @@ export const SUPPORTED_ENTITIES = [
 
 export type SupportedEntity = (typeof SUPPORTED_ENTITIES)[number]
 
+// Form-level targets alongside the 6 entities
+// (entities stay pure for lookups/Records; forms carry their own target value)
+export const FORM_TARGETS = ['Leave Request', 'Asset Requisition'] as const
+export type FormTarget = (typeof FORM_TARGETS)[number]
+
+export const FIELD_TARGETS = [...SUPPORTED_ENTITIES, ...FORM_TARGETS] as const
+export type FieldTarget = (typeof FIELD_TARGETS)[number]
+
 export const FIELD_TYPES = [
   'single-line-text',
   'multi-line-text',
@@ -83,7 +91,7 @@ export interface FieldPermissions {
 export interface FieldDefinition {
   id: string
   name: string
-  entity: SupportedEntity
+  entity: FieldTarget
   scope: FieldScope
   /** Owning tenant/group; 'All companies' for platform scope. */
   owner: string
@@ -614,6 +622,105 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-06-15',
     updatedBy: 'Company Admin',
     updatedAt: '2026-06-15',
+    permissions: ALL_EDIT,
+  },
+  // ─── Form-level custom fields ────────────────────────────────────────────────
+  {
+    id: 'cf-f01',
+    name: 'Client Billing Code',
+    entity: 'Leave Request',
+    scope: 'Company',
+    owner: 'Acme Manufacturing',
+    type: 'single-line-text',
+    options: [],
+    lookupEntity: null,
+    required: true,
+    isDefault: true,
+    mask: '',
+    regex: '',
+    description: 'Billable project code to charge this leave against',
+    order: 1,
+    version: 1,
+    effectiveDate: '2026-01-01',
+    updatedBy: 'Company Admin',
+    updatedAt: '2026-01-01',
+    permissions: {
+      hrView: true,
+      hrEdit: true,
+      managerView: true,
+      managerEdit: false,
+      employeeView: true,
+      employeeEdit: true,
+    },
+  },
+  {
+    id: 'cf-f02',
+    name: 'Work Handover Confirmed',
+    entity: 'Leave Request',
+    scope: 'Company',
+    owner: 'Acme Manufacturing',
+    type: 'boolean',
+    options: [],
+    lookupEntity: null,
+    required: false,
+    isDefault: true,
+    mask: '',
+    regex: '',
+    description: 'Confirm work handed over before leave starts',
+    order: 2,
+    version: 1,
+    effectiveDate: '2026-03-01',
+    updatedBy: 'Company Admin',
+    updatedAt: '2026-03-01',
+    permissions: ALL_EDIT,
+  },
+  {
+    id: 'cf-f03',
+    name: 'Cost Center Approval Ref',
+    entity: 'Asset Requisition',
+    scope: 'Company',
+    owner: 'Acme Manufacturing',
+    type: 'single-line-text',
+    options: [],
+    lookupEntity: null,
+    required: true,
+    isDefault: true,
+    mask: '',
+    regex: '',
+    description: 'Finance approval reference for the cost center charge',
+    order: 1,
+    version: 1,
+    effectiveDate: '2026-01-01',
+    updatedBy: 'Company Admin',
+    updatedAt: '2026-01-01',
+    permissions: {
+      hrView: true,
+      hrEdit: true,
+      managerView: true,
+      managerEdit: true,
+      employeeView: true,
+      employeeEdit: true,
+    },
+  },
+  {
+    id: 'cf-f04',
+    name: 'Business Justification',
+    entity: 'Asset Requisition',
+    scope: 'Company',
+    owner: 'Acme Manufacturing',
+    type: 'multi-line-text',
+    options: [],
+    lookupEntity: null,
+    required: false,
+    isDefault: true,
+    mask: '',
+    regex: '',
+    description: 'Why is this asset needed for business purposes?',
+    order: 2,
+    version: 1,
+    effectiveDate: '2026-04-01',
+    updatedBy: 'Company Admin',
+    updatedAt: '2026-04-01',
     permissions: ALL_EDIT,
   },
 ]

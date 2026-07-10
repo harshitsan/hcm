@@ -284,7 +284,8 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       {
         id: 'employees.profile',
         label: 'Employee profile',
-        extensible: false,
+        extensible: true,
+        fieldTarget: 'Employees',
       },
     ],
   },
@@ -396,7 +397,8 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       {
         id: 'leave.apply',
         label: 'Leave application',
-        extensible: false,
+        extensible: true,
+        fieldTarget: 'Leave Request',
         submitEvent: 'Leave request submitted',
       },
     ],
@@ -457,7 +459,8 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       {
         id: 'assets.requisition',
         label: 'Asset requisition',
-        extensible: false,
+        extensible: true,
+        fieldTarget: 'Asset Requisition',
         submitEvent: 'Asset requisition submitted',
       },
     ],

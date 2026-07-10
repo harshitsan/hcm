@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 import { summarizeFieldChanges } from '../data/field-engine'
 import {
@@ -27,17 +27,57 @@ export interface FieldDefinitionsStore {
 const today = () => new Date().toISOString().slice(0, 10)
 
 /**
+ * App-wide custom field definition store. State is shared across routes via a
+ * tiny external store (same pattern as use-business-logic.ts lines 32–53) so
+ * that a field created on the Custom Fields route immediately appears on any
+ * other route's form without remounting.
+ */
+let fieldsState: FieldDefinition[] = [...seedFieldDefinitions]
+let versionsState: FieldVersionEntry[] = [...seedFieldVersions]
+const fieldListeners = new Set<() => void>()
+
+function emitFields() {
+  fieldListeners.forEach((l) => l())
+}
+
+function mutateFields(updater: (prev: FieldDefinition[]) => FieldDefinition[]) {
+  fieldsState = updater(fieldsState)
+  emitFields()
+}
+
+function mutateVersions(updater: (prev: FieldVersionEntry[]) => FieldVersionEntry[]) {
+  versionsState = updater(versionsState)
+  emitFields()
+}
+
+export function subscribeFields(listener: () => void) {
+  fieldListeners.add(listener)
+  return () => {
+    fieldListeners.delete(listener)
+  }
+}
+
+export function getFieldsSnapshot() {
+  return fieldsState
+}
+
+export function getVersionsSnapshot() {
+  return versionsState
+}
+
+/**
  * In-memory store for custom field definitions. Every definition change is
  * versioned and effective-dated into the governance log (L2 governed config).
+ * State is module-level so any component tree can read the latest definitions
+ * without prop-drilling or context providers.
  */
 export function useFieldDefinitions(): FieldDefinitionsStore {
-  const [fields, setFields] = useState<FieldDefinition[]>(seedFieldDefinitions)
-  const [versions, setVersions] =
-    useState<FieldVersionEntry[]>(seedFieldVersions)
+  const fields = useSyncExternalStore(subscribeFields, getFieldsSnapshot)
+  const versions = useSyncExternalStore(subscribeFields, getVersionsSnapshot)
 
   const logVersion = useCallback(
     (field: FieldDefinition, change: string, actor: string) => {
-      setVersions((prev) => [
+      mutateVersions((prev) => [
         {
           id: `fv-${crypto.randomUUID().slice(0, 8)}`,
           fieldId: field.id,
@@ -64,7 +104,7 @@ export function useFieldDefinitions(): FieldDefinitionsStore {
         updatedBy: actor,
         updatedAt: today(),
       }
-      setFields((prev) => [field, ...prev])
+      mutateFields((prev) => [field, ...prev])
       logVersion(field, 'Field created', actor)
       toast.success(`Custom field "${field.name}" created on ${field.entity}`)
       return field
@@ -74,7 +114,7 @@ export function useFieldDefinitions(): FieldDefinitionsStore {
 
   const updateField = useCallback(
     (id: string, draft: FieldDraft, actor: string) => {
-      const existing = fields.find((f) => f.id === id)
+      const existing = fieldsState.find((f) => f.id === id)
       if (!existing) return
       const next: FieldDefinition = {
         ...existing,
@@ -83,24 +123,24 @@ export function useFieldDefinitions(): FieldDefinitionsStore {
         updatedBy: actor,
         updatedAt: today(),
       }
-      setFields((prev) => prev.map((f) => (f.id === id ? next : f)))
+      mutateFields((prev) => prev.map((f) => (f.id === id ? next : f)))
       logVersion(next, summarizeFieldChanges(existing, draft), actor)
       toast.success(
         `"${next.name}" updated — v${next.version} recorded, effective ${next.effectiveDate}`
       )
     },
-    [fields, logVersion]
+    [logVersion]
   )
 
   const deleteField = useCallback((id: string) => {
-    setFields((prev) => prev.filter((f) => f.id !== id))
+    mutateFields((prev) => prev.filter((f) => f.id !== id))
   }, [])
 
   const toggleDefault = useCallback(
     (id: string) => {
-      const field = fields.find((f) => f.id === id)
+      const field = fieldsState.find((f) => f.id === id)
       if (!field) return
-      setFields((prev) =>
+      mutateFields((prev) =>
         prev.map((f) =>
           f.id === id
             ? { ...f, isDefault: !f.isDefault, version: f.version + 1 }
@@ -113,11 +153,11 @@ export function useFieldDefinitions(): FieldDefinitionsStore {
           : `"${field.name}" now shows on the standard form by default`
       )
     },
-    [fields]
+    []
   )
 
   const reorderFields = useCallback((orderedIds: string[]) => {
-    setFields((prev) =>
+    mutateFields((prev) =>
       prev.map((f) => {
         const idx = orderedIds.indexOf(f.id)
         return idx === -1 ? f : { ...f, order: idx + 1 }
@@ -127,7 +167,7 @@ export function useFieldDefinitions(): FieldDefinitionsStore {
   }, [])
 
   const refresh = useCallback(() => {
-    setFields((prev) => [...prev])
+    emitFields()
     toast.info('Field definitions reloaded')
   }, [])
 

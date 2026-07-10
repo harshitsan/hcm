@@ -1,9 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Paperclip, X } from 'phosphor-react'
 import { toast } from 'sonner'
+import {
+  CustomFieldsSection,
+  validateCustomFields,
+} from '@/features/custom-fields/components/custom-fields-section'
+import { type FieldValue } from '@/features/custom-fields/data/records'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -146,12 +151,27 @@ export function ApplyLeaveOverlay({
   } | null>(null)
   // PTO #19: policy document linked to the selected leave type.
   const [policyOpen, setPolicyOpen] = useState(false)
+  // Custom fields state (A6): keyed by FieldDefinition.id.
+  const [customValues, setCustomValues] = useState<Record<string, FieldValue>>({})
+  const [customErrors, setCustomErrors] = useState<Record<string, string>>({})
+
+  const handleCustomChange = useCallback((fieldId: string, value: FieldValue) => {
+    setCustomValues((prev) => ({ ...prev, [fieldId]: value }))
+    setCustomErrors((prev) => {
+      if (!prev[fieldId]) return prev
+      const next = { ...prev }
+      delete next[fieldId]
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     if (!open) return
     form.reset(emptyValues)
     setPeers([])
     setAttachments([])
+    setCustomValues({})
+    setCustomErrors({})
   }, [open, form, employeeId])
 
   const employee = employeeById(employeeId)
@@ -232,6 +252,13 @@ export function ApplyLeaveOverlay({
     }
     if (selectedType?.id === 'lt-compoff' && amount > balance) {
       toast.error('Not enough comp-off credits — request is validated against your comp-off balance')
+      return
+    }
+    // A6: validate custom fields before proceeding.
+    const cfErrors = validateCustomFields('Leave Request', customValues, 'employee')
+    if (Object.keys(cfErrors).length > 0) {
+      setCustomErrors(cfErrors)
+      toast.error('Please complete the required additional fields')
       return
     }
     if (excess > 0 && selectedType?.category === 'paid') {
@@ -646,6 +673,15 @@ export function ApplyLeaveOverlay({
                     />
                   </div>
                 )}
+
+                {/* A6: custom fields targeting the Leave Request form. */}
+                <CustomFieldsSection
+                  entity='Leave Request'
+                  values={customValues}
+                  onChange={handleCustomChange}
+                  errors={customErrors}
+                  audience='employee'
+                />
               </div>
 
               <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>

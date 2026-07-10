@@ -20,6 +20,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
   FIELD_SCOPES,
+  FIELD_TARGETS,
   FIELD_TYPE_LABELS,
   FIELD_TYPES,
   SUPPORTED_ENTITIES,
@@ -119,7 +120,7 @@ export function StepBasics({
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {SUPPORTED_ENTITIES.map((e) => (
+                {FIELD_TARGETS.map((e) => (
                   <SelectItem key={e} value={e}>
                     {e}
                   </SelectItem>
@@ -127,7 +128,7 @@ export function StepBasics({
               </SelectContent>
             </Select>
             <p className='text-paragraph-sm text-neutral-1000'>
-              Only the six supported core entities can be extended.
+              Extend one of the six core entities or a form target such as Leave Request or Asset Requisition.
             </p>
             <FormMessage />
           </FormItem>

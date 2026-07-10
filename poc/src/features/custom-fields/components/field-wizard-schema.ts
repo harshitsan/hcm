@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { type Role } from '@/context/role-context'
 import {
   FIELD_SCOPES,
+  FIELD_TARGETS,
   FIELD_TYPES,
   SUPPORTED_ENTITIES,
   type FieldScope,
@@ -22,7 +23,7 @@ export const parseOptions = (text: string) =>
 export const fieldWizardSchema = z
   .object({
     name: z.string().min(2, 'Field name is required'),
-    entity: z.enum(SUPPORTED_ENTITIES),
+    entity: z.enum(FIELD_TARGETS),
     scope: z.enum(FIELD_SCOPES),
     description: z.string(),
     type: z.enum(FIELD_TYPES),

@@ -1,7 +1,8 @@
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import {
@@ -21,6 +22,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  CustomFieldsSection,
+  validateCustomFields,
+} from '@/features/custom-fields/components/custom-fields-section'
+import { type FieldValue } from '@/features/custom-fields/data/records'
 import { type AssetCategoryConfig } from '../data/config'
 import { SELF_EMPLOYEE_ID, employeeName, type Employee } from '../data/org'
 import { type RequisitionDraft } from '../hooks/use-requisitions'
@@ -76,6 +82,20 @@ export function RequisitionFormOverlay({
     },
   })
 
+  // A6: custom fields for Asset Requisition form.
+  const [customValues, setCustomValues] = useState<Record<string, FieldValue>>({})
+  const [customErrors, setCustomErrors] = useState<Record<string, string>>({})
+
+  const handleCustomChange = useCallback((fieldId: string, value: FieldValue) => {
+    setCustomValues((prev) => ({ ...prev, [fieldId]: value }))
+    setCustomErrors((prev) => {
+      if (!prev[fieldId]) return prev
+      const next = { ...prev }
+      delete next[fieldId]
+      return next
+    })
+  }, [])
+
   useEffect(() => {
     if (!open) return
     form.reset({
@@ -85,9 +105,18 @@ export function RequisitionFormOverlay({
       quantity: 1,
       returnBefore: '',
     })
+    setCustomValues({})
+    setCustomErrors({})
   }, [open, adminMode, form])
 
   function handleSubmit(values: FormValues) {
+    // A6: validate custom fields before proceeding.
+    const cfErrors = validateCustomFields('Asset Requisition', customValues, 'hr')
+    if (Object.keys(cfErrors).length > 0) {
+      setCustomErrors(cfErrors)
+      toast.error('Please complete the required additional fields')
+      return
+    }
     onSubmit(values)
     onOpenChange(false)
   }
@@ -207,6 +236,15 @@ export function RequisitionFormOverlay({
                   )}
                 />
               </div>
+
+              {/* A6: custom fields targeting the Asset Requisition form. */}
+              <CustomFieldsSection
+                entity='Asset Requisition'
+                values={customValues}
+                onChange={handleCustomChange}
+                errors={customErrors}
+                audience='hr'
+              />
             </div>
 
             <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>

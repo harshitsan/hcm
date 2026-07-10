@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Plus, Trash } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { CustomFieldsSection } from '@/features/custom-fields/components/custom-fields-section'
+import { type FieldValue } from '@/features/custom-fields/data/records'
 import {
   companyGroup,
   companyName,
@@ -44,6 +46,11 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
   const [eventType, setEventType] = useState('')
   const [eventDate, setEventDate] = useState('')
   const [eventDetails, setEventDetails] = useState('')
+  // A6: employee-level custom field values (employee profile form).
+  const [customValues, setCustomValues] = useState<Record<string, FieldValue>>({})
+  const handleCustomChange = useCallback((fieldId: string, value: FieldValue) => {
+    setCustomValues((prev) => ({ ...prev, [fieldId]: value }))
+  }, [])
 
   if (!me) {
     return (
@@ -320,6 +327,15 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
       <WorkExperienceSection store={extras} />
       <SkillsSection store={extras} />
       <ClientFeedbackSection store={extras} />
+
+      {/* A6: employee entity-level custom fields on the profile. */}
+      <CustomFieldsSection
+        entity='Employees'
+        values={customValues}
+        onChange={handleCustomChange}
+        audience='employee'
+        title='Custom profile fields'
+      />
     </div>
   )
 }
