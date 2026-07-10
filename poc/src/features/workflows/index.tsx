@@ -461,7 +461,7 @@ export function Workflows() {
               <TabsContent value='admin'>
                 <p className='text-neutral-1000 mb-3 text-sm'>
                   Classic configuration screens, kept while they are absorbed
-                  into Configure — each screen here corresponds to artifacts in
+                  into Configure — each screen here corresponds to workflows in
                   the catalog. Use "Find any setting…" above to jump straight
                   to anything.
                 </p>

@@ -123,7 +123,9 @@ export function parseBundle(text: string): ParseResult {
   }
 
   if (!Array.isArray(obj.artifacts)) {
-    return { ok: false, error: 'Bundle "workflows" field must be an array.' }
+    // References the literal JSON key ("artifacts") so debugging a bad bundle
+    // file isn't misdirected by the UI-level workflow rename.
+    return { ok: false, error: 'Bundle "artifacts" field must be an array.' }
   }
 
   const artifacts: Artifact[] = []
