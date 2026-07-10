@@ -50,8 +50,12 @@ export const MODULE_OPTIONS = [
 // eventsForModule is re-exported from the module registry (single source of truth).
 export { eventsForModule }
 
-/** All trigger events across every module — used as a flat option list. */
-const ALL_MODULE_EVENTS: string[] = MODULE_REGISTRY.flatMap((m) => m.events)
+/** All trigger events across every module — used as a flat option list.
+ * Deduped: some events (e.g. "Announcement published") belong to more than
+ * one module. */
+const ALL_MODULE_EVENTS: string[] = [
+  ...new Set(MODULE_REGISTRY.flatMap((m) => m.events)),
+]
 
 const GENERIC_SAMPLE =
   '{\n  "employee": { "name": "Ananya Sharma", "department": "Engineering", "id": "EMP-0142" }\n}'
