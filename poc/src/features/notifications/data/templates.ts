@@ -99,6 +99,99 @@ function v1(
   }
 }
 
+interface SeedSpec {
+  event: string
+  description: string
+  task: string
+}
+
+/**
+ * Builds seeded (uncustomized) company-level templates for a domain/channel
+ * pair — used to seed the full Kensium libraries (17 Performance email
+ * templates for PET-03, 14 Performance in-app templates for PNT-03 and 14
+ * Recruitment & Onboarding in-app templates for NT-03).
+ */
+function buildSeeds(
+  domain: TemplateDomain,
+  channel: TemplateChannel,
+  idPrefix: string,
+  startIndex: number,
+  specs: SeedSpec[]
+): NotificationTemplate[] {
+  return specs.map((spec, i) => ({
+    id: `${idPrefix}-${String(startIndex + i).padStart(3, '0')}`,
+    event: spec.event,
+    domain,
+    channel,
+    description: spec.description,
+    task: spec.task,
+    level: 'Company',
+    customized: false,
+    versions: [
+      channel === 'email'
+        ? v1(
+            `${spec.event} — {{item_name}}`,
+            `Dear {{employee_name}},\n\n${spec.description} — {{item_name}}. Please review and complete any action by {{due_date}}.\n\nOpen it here: {{link}}\n\n— {{company_name}} HR Team`
+          )
+        : v1(
+            spec.event,
+            `${spec.description} — {{item_name}}. Due {{due_date}}. Tap to open.`
+          ),
+    ],
+  }))
+}
+
+const PERFORMANCE_EMAIL_SPECS: SeedSpec[] = [
+  { event: 'Goal Sheet Submission', description: 'Confirms a goal sheet was submitted for review', task: 'Notify manager' },
+  { event: 'Goal Sheet Approval', description: 'Notifies an employee their goal sheet was approved', task: 'Notify employee' },
+  { event: 'Goal Revision Request', description: 'Requests revisions to a submitted goal sheet', task: 'Notify employee' },
+  { event: 'Self Appraisal Reminder', description: 'Reminds an employee to complete their self appraisal', task: 'Remind employee' },
+  { event: 'Manager Review Reminder', description: 'Reminds a manager to complete pending appraisal reviews', task: 'Remind manager' },
+  { event: 'Appraisal Cycle Launch', description: 'Announces the launch of a new appraisal cycle', task: 'Notify participants' },
+  { event: 'Mid-Year Review Scheduled', description: 'Informs participants a mid-year review has been scheduled', task: 'Notify participants' },
+  { event: 'Normalization Completed', description: 'Notifies reviewers that rating normalization is complete', task: 'Notify reviewers' },
+  { event: 'Rating Published', description: 'Notifies an employee their final rating is published', task: 'Notify employee' },
+  { event: 'Appraisal Letter Released', description: 'Delivers the appraisal outcome letter to an employee', task: 'Notify employee' },
+  { event: 'PIP Initiation', description: 'Informs an employee a performance improvement plan has started', task: 'Notify employee' },
+  { event: 'PIP Review Due', description: 'Reminds the reviewer of an upcoming PIP checkpoint', task: 'Remind reviewer' },
+  { event: 'Promotion Recommendation', description: 'Notifies an approver of a promotion recommendation', task: 'Notify approver' },
+  { event: 'One-on-One Scheduled', description: 'Confirms a one-on-one performance discussion is booked', task: 'Notify participants' },
+  { event: '360 Feedback Request', description: 'Requests 360-degree feedback from a nominated peer', task: 'Contact peer' },
+  { event: '360 Review Assigned', description: 'Notifies a reviewer of an assigned 360 review', task: 'Notify reviewer' },
+]
+
+const PERFORMANCE_IN_APP_SPECS: SeedSpec[] = [
+  { event: 'Goal Sheet Submitted', description: 'In-app alert that a goal sheet awaits manager review', task: 'Notify manager' },
+  { event: 'Goal Approval Pending', description: 'In-app reminder of a goal sheet pending approval', task: 'Remind manager' },
+  { event: 'Goal Revision Requested', description: 'In-app alert that goal revisions were requested', task: 'Notify employee' },
+  { event: 'Self Appraisal Due', description: 'In-app reminder that the self appraisal is due', task: 'Remind employee' },
+  { event: 'Manager Review Due', description: 'In-app reminder of pending manager reviews', task: 'Remind manager' },
+  { event: 'Mid-Year Review Reminder', description: 'In-app reminder of a scheduled mid-year review', task: 'Remind participants' },
+  { event: 'Normalization Completed', description: 'In-app alert that rating normalization finished', task: 'Notify reviewers' },
+  { event: 'Rating Published', description: 'In-app alert that the final rating is available', task: 'Notify employee' },
+  { event: 'Appraisal Letter Available', description: 'In-app alert that the appraisal letter can be viewed', task: 'Notify employee' },
+  { event: 'PIP Task Assigned', description: 'In-app alert of a new PIP task assignment', task: 'Notify employee' },
+  { event: 'PIP Review Due', description: 'In-app reminder of an upcoming PIP checkpoint', task: 'Remind reviewer' },
+  { event: 'One-on-One Reminder', description: 'In-app reminder of an upcoming one-on-one discussion', task: 'Remind participants' },
+  { event: '360 Feedback Assigned', description: 'In-app alert of an assigned 360 feedback request', task: 'Notify reviewer' },
+]
+
+const RECRUITMENT_IN_APP_SPECS: SeedSpec[] = [
+  { event: 'New Application Received', description: 'In-app alert that a new candidate application arrived', task: 'Notify recruiter' },
+  { event: 'Interview Scheduled', description: 'In-app alert that an interview has been scheduled', task: 'Notify panel' },
+  { event: 'Interview Feedback Due', description: 'In-app reminder that interview feedback is pending', task: 'Remind interviewer' },
+  { event: 'Offer Approval Pending', description: 'In-app alert that an offer awaits approval', task: 'Notify approver' },
+  { event: 'Offer Accepted', description: 'In-app alert that a candidate accepted the offer', task: 'Notify recruiter' },
+  { event: 'Offer Declined', description: 'In-app alert that a candidate declined the offer', task: 'Notify recruiter' },
+  { event: 'Background Check Update', description: 'In-app update on a candidate background check', task: 'Notify HR custodian' },
+  { event: 'Joining Day Reminder', description: 'In-app reminder of an upcoming joining date', task: 'Remind HR custodian' },
+  { event: 'Onboarding Task Assigned', description: 'In-app alert of a newly assigned onboarding task', task: 'Notify assignee' },
+  { event: 'Onboarding Task Overdue', description: 'In-app escalation for an overdue onboarding task', task: 'Escalate to HR' },
+  { event: 'Buddy Assignment', description: 'In-app alert that a buddy was assigned to a joiner', task: 'Notify buddy' },
+  { event: 'Probation Review Due', description: 'In-app reminder that a probation review is due', task: 'Remind manager' },
+  { event: 'Documents Pending', description: 'In-app alert that joining documents are still pending', task: 'Remind joiner' },
+]
+
 export const seedTemplates: NotificationTemplate[] = [
   {
     id: 'TPL-REC-001',
@@ -463,6 +556,21 @@ export const seedTemplates: NotificationTemplate[] = [
     ],
   },
 ]
+
+// Full Kensium libraries: 17 Performance email templates (PET-03), 14
+// Performance in-app templates (PNT-03) and 14 Recruitment & Onboarding
+// in-app templates (NT-03) — counts include the hand-authored seeds above.
+seedTemplates.push(
+  ...buildSeeds('Performance', 'email', 'TPL-PRF', 3, PERFORMANCE_EMAIL_SPECS),
+  ...buildSeeds('Performance', 'in-app', 'TPL-PRF', 19, PERFORMANCE_IN_APP_SPECS),
+  ...buildSeeds(
+    'Recruitment & Onboarding',
+    'in-app',
+    'TPL-REC',
+    7,
+    RECRUITMENT_IN_APP_SPECS
+  )
+)
 
 /** Renders template text substituting sample values; unresolved placeholders degrade gracefully (NTF-11). */
 export function renderWithSamples(text: string): string {

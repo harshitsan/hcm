@@ -5,13 +5,21 @@ import {
   seedCustomFields,
   seedInterviewQuestions,
   seedNotificationTemplates,
+  seedRatingSets,
   seedScopeRules,
   type ApproverGraph,
   type CustomFieldDef,
   type InterviewQuestion,
   type NotificationTemplate,
+  type RatingSet,
   type ScopeRule,
 } from '../data/governance'
+
+/** Editable question fields (IAQ-03/07); id/order/flagged are store-managed. */
+export type InterviewQuestionDraft = Pick<
+  InterviewQuestion,
+  'question' | 'departmentIds' | 'responseRequired' | 'ratingRequired' | 'ratingSetId'
+>
 
 export const SETUP_STEPS = [
   'Department details',
@@ -33,6 +41,7 @@ export function useDepartmentConfig(logEvent: LogEvent) {
   const [scopeRules, setScopeRules] = useState<ScopeRule[]>(seedScopeRules)
   const [interviewQuestions, setInterviewQuestions] =
     useState<InterviewQuestion[]>(seedInterviewQuestions)
+  const [ratingSets, setRatingSets] = useState<RatingSet[]>(seedRatingSets)
   const [notificationTemplates, setNotificationTemplates] = useState<NotificationTemplate[]>(
     seedNotificationTemplates
   )
@@ -153,6 +162,108 @@ export function useDepartmentConfig(logEvent: LogEvent) {
     []
   )
 
+  const addQuestion = useCallback(
+    (draft: InterviewQuestionDraft) => {
+      setInterviewQuestions((prev) => [
+        ...prev,
+        {
+          ...draft,
+          id: `iq-${crypto.randomUUID().slice(0, 6)}`,
+          order: prev.length > 0 ? Math.max(...prev.map((q) => q.order)) + 1 : 1,
+          flagged: false,
+        },
+      ])
+      logEvent('Interview questions', 'question added', `"${draft.question}" appended to the checklist.`)
+      toast.success('Question added to the end of the checklist')
+    },
+    [logEvent]
+  )
+
+  const updateQuestion = useCallback(
+    (id: string, draft: InterviewQuestionDraft) => {
+      setInterviewQuestions((prev) =>
+        prev.map((q) => (q.id === id ? { ...q, ...draft, flagged: false } : q))
+      )
+      logEvent('Interview questions', 'question updated', `"${draft.question}" refreshed with current flags and rating set.`)
+      toast.success('Question saved — upcoming interviews use the refreshed content')
+    },
+    [logEvent]
+  )
+
+  const removeQuestion = useCallback(
+    (id: string) => {
+      const q = interviewQuestions.find((x) => x.id === id)
+      setInterviewQuestions((prev) =>
+        prev
+          .filter((x) => x.id !== id)
+          .sort((a, b) => a.order - b.order)
+          .map((x, i) => ({ ...x, order: i + 1 }))
+      )
+      logEvent('Interview questions', 'question removed', `"${q?.question}" removed; checklist renumbered.`)
+      toast.success('Question removed and checklist renumbered')
+    },
+    [interviewQuestions, logEvent]
+  )
+
+  /** Move a question one slot up/down in the interview checklist (IAQ-05). */
+  const moveQuestion = useCallback((id: string, direction: 'up' | 'down') => {
+    setInterviewQuestions((prev) => {
+      const sorted = [...prev].sort((a, b) => a.order - b.order)
+      const index = sorted.findIndex((q) => q.id === id)
+      const target = direction === 'up' ? index - 1 : index + 1
+      if (index < 0 || target < 0 || target >= sorted.length) return prev
+      const next = [...sorted]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next.map((q, i) => ({ ...q, order: i + 1 }))
+    })
+    toast.success('Checklist order updated')
+  }, [])
+
+  const refreshQuestions = useCallback(() => {
+    toast.success(
+      `Assessment content refreshed — ${interviewQuestions.length} questions and ${ratingSets.length} rating sets current`
+    )
+  }, [interviewQuestions.length, ratingSets.length])
+
+  /* ---------------- rating sets (IAQ-02) ---------------- */
+
+  const addRatingSet = useCallback(
+    (name: string, values: string[]) => {
+      const set: RatingSet = { id: `rs-${crypto.randomUUID().slice(0, 6)}`, name, values }
+      setRatingSets((prev) => [...prev, set])
+      logEvent('Rating sets', 'rating set added', `"${name}" with values: ${values.join(' / ')}.`)
+      toast.success(`Rating set "${name}" added`)
+    },
+    [logEvent]
+  )
+
+  const updateRatingSet = useCallback(
+    (id: string, name: string, values: string[]) => {
+      setRatingSets((prev) => prev.map((r) => (r.id === id ? { ...r, name, values } : r)))
+      logEvent('Rating sets', 'rating set updated', `"${name}" now scores: ${values.join(' / ')}.`)
+      toast.success(`Rating set "${name}" saved — questions using it score with the new values`)
+    },
+    [logEvent]
+  )
+
+  const removeRatingSet = useCallback(
+    (id: string): boolean => {
+      const usedBy = interviewQuestions.filter((q) => q.ratingSetId === id).length
+      if (usedBy > 0) {
+        toast.error(
+          `Rating set is used by ${usedBy} question${usedBy > 1 ? 's' : ''} — point them at another set first`
+        )
+        return false
+      }
+      const set = ratingSets.find((r) => r.id === id)
+      setRatingSets((prev) => prev.filter((r) => r.id !== id))
+      logEvent('Rating sets', 'rating set removed', `"${set?.name}" retired from the catalog.`)
+      toast.success(`Rating set "${set?.name}" removed`)
+      return true
+    },
+    [interviewQuestions, ratingSets, logEvent]
+  )
+
   /* ---------------- notification templates ---------------- */
 
   const saveTemplateBody = useCallback(
@@ -232,6 +343,7 @@ export function useDepartmentConfig(logEvent: LogEvent) {
     approverGraphs,
     scopeRules,
     interviewQuestions,
+    ratingSets,
     notificationTemplates,
     setupStep,
     addCustomField,
@@ -242,6 +354,14 @@ export function useDepartmentConfig(logEvent: LogEvent) {
     toggleScopeCascade,
     removeScopeRule,
     toggleQuestionDepartment,
+    addQuestion,
+    updateQuestion,
+    removeQuestion,
+    moveQuestion,
+    refreshQuestions,
+    addRatingSet,
+    updateRatingSet,
+    removeRatingSet,
     saveTemplateBody,
     flagDepartmentRefs,
     configRefsFor,

@@ -4,7 +4,14 @@ import { Button } from '@/components/ui/button'
 import { LongText } from '@/components/common/long-text'
 import { fmtDate } from '../data/shared'
 import { pendingStep, type LeaveRequest } from '../data/requests'
-import { FmlaBadge, LopBadge, StatusBadge, TentativeBadge } from './badges'
+import {
+  ClarificationBadge,
+  FmlaBadge,
+  LopBadge,
+  PeriodChangedBadge,
+  StatusBadge,
+  TentativeBadge,
+} from './badges'
 
 function sortableHeader(label: string) {
   return function Header({
@@ -95,16 +102,24 @@ export function requestColumns(showEmployee: boolean): ColumnDef<LeaveRequest>[]
     {
       id: 'flags',
       header: () => <span className='text-sm font-medium'>Flags</span>,
-      cell: ({ row }) => (
-        <div className='flex items-center gap-1'>
-          {row.original.tentative && <TentativeBadge />}
-          {row.original.onBehalfOf && (
-            <span className='text-neutral-1000 text-xs'>
-              via {row.original.onBehalfOf}
-            </span>
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const r = row.original
+        return (
+          <div className='flex flex-wrap items-center gap-1'>
+            {r.tentative && <TentativeBadge />}
+            <ClarificationBadge
+              count={r.clarifications.length}
+              open={r.clarifications.some((c) => c.answer === null)}
+            />
+            {r.periodChangedByApprover && <PeriodChangedBadge />}
+            {r.onBehalfOf && (
+              <span className='text-neutral-1000 text-xs'>
+                via {r.onBehalfOf}
+              </span>
+            )}
+          </div>
+        )
+      },
       enableSorting: false,
     },
     {
@@ -112,6 +127,12 @@ export function requestColumns(showEmployee: boolean): ColumnDef<LeaveRequest>[]
       header: () => <span className='text-sm font-medium'>Pending With</span>,
       cell: ({ row }) => {
         const r = row.original
+        if (r.status === 'needs-clarification')
+          return (
+            <span className='text-vanilla-500 text-sm'>
+              Applicant (clarification)
+            </span>
+          )
         if (r.status !== 'pending')
           return <span className='text-neutral-1000 text-sm'>—</span>
         const step = pendingStep(r.steps)

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { ShareNetwork, UserPlus } from 'phosphor-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,12 +19,19 @@ import type { Requisition } from '../data/requisitions'
 import type { CandidatesStore } from '../hooks/use-candidates'
 import type { OffersStore } from '../hooks/use-offers'
 import { StatusBadge } from './badges'
+import { SubmitReferralDialog } from './submit-referral-dialog'
 
 interface PortalTabProps {
   candidatesStore: CandidatesStore
   offersStore: OffersStore
   requisitions: Requisition[]
   letterTemplates: LetterTemplate[]
+}
+
+/** Minimum years asked for in a requirements string, e.g. "6+ yrs Java". */
+const requiredYears = (r: Requisition) => {
+  const match = r.requirements.match(/(\d+)\s*\+?\s*yrs?/i)
+  return match ? Number(match[1]) : 0
 }
 
 /**
@@ -40,6 +49,11 @@ export function PortalTab({
   const [applyTo, setApplyTo] = useState<Requisition | null>(null)
   const [resume, setResume] = useState('')
   const [viewOfferId, setViewOfferId] = useState<string | null>(null)
+  // Posted-vacancy search + referrals (HR portal — posted vacancies)
+  const [vacancyView, setVacancyView] = useState<'open' | 'closed'>('open')
+  const [vacancySearch, setVacancySearch] = useState('')
+  const [minExp, setMinExp] = useState('')
+  const [referTo, setReferTo] = useState<Requisition | null>(null)
 
   const me = candidatesStore.candidates.find(
     (c) => c.id === PORTAL_CANDIDATE_ID
@@ -54,7 +68,23 @@ export function PortalTab({
   const myOffers = offersStore.offers.filter((o) =>
     myApplications.some((a) => a.id === o.applicationId)
   )
-  const openPositions = requisitions.filter((r) => r.status === 'sourcing')
+  // Posted vacancies with keyword + minimum-experience search across the
+  // open (sourcing/approved) and closed (filled/closed) views.
+  const vacancies = useMemo(() => {
+    const q = vacancySearch.toLowerCase()
+    const exp = minExp === '' ? null : Number(minExp)
+    const statuses =
+      vacancyView === 'open' ? ['sourcing', 'approved'] : ['filled', 'closed']
+    return requisitions.filter((r) => {
+      if (!statuses.includes(r.status)) return false
+      if (exp !== null && requiredYears(r) < exp) return false
+      if (!q) return true
+      return [r.title, r.department, r.location, r.requirements, r.description]
+        .join(' ')
+        .toLowerCase()
+        .includes(q)
+    })
+  }, [requisitions, vacancyView, vacancySearch, minExp])
   const viewOffer = myOffers.find((o) => o.id === viewOfferId) ?? null
   const offerTemplate = letterTemplates.find(
     (t) => t.id === viewOffer?.templateId
@@ -74,48 +104,108 @@ export function PortalTab({
         </p>
       </div>
 
-      {/* Apply to open requisitions */}
+      {/* Posted vacancies — searchable, open/closed views, share & refer */}
       <section>
-        <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
-          Open positions ({openPositions.length})
-        </h3>
+        <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+          <h3 className='text-neutral-1600 text-sm font-medium'>
+            Posted vacancies ({vacancies.length})
+          </h3>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Input
+              placeholder='Search title, skills, location…'
+              value={vacancySearch}
+              onChange={(e) => setVacancySearch(e.target.value)}
+              className='h-7 w-[210px]'
+            />
+            <Input
+              type='number'
+              min={0}
+              placeholder='Min exp (yrs)'
+              value={minExp}
+              onChange={(e) => setMinExp(e.target.value)}
+              className='h-7 w-[110px]'
+            />
+            {(['open', 'closed'] as const).map((v) => (
+              <Button
+                key={v}
+                variant={vacancyView === v ? 'default' : 'outline'}
+                className='h-7 px-2.5 text-xs capitalize'
+                onClick={() => setVacancyView(v)}
+              >
+                {v}
+              </Button>
+            ))}
+          </div>
+        </div>
         <div className='grid gap-2 md:grid-cols-2'>
-          {openPositions.map((r) => {
+          {vacancies.map((r) => {
             const applied = myApplications.some(
               (a) => a.requisitionId === r.id
             )
             return (
               <div
                 key={r.id}
-                className='flex items-center justify-between rounded-[8px] border border-gray-200 bg-white px-3 py-2'
+                className='flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-gray-200 bg-white px-3 py-2'
               >
                 <div className='min-w-0'>
                   <p className='text-neutral-1600 text-sm font-medium'>
                     {r.title}
                   </p>
                   <p className='text-paragraph-sm text-neutral-1000'>
-                    {r.department} · {r.location} · closes {r.closingDate}
+                    {r.department} · {r.location} · {r.requirements} · closes{' '}
+                    {r.closingDate}
                   </p>
                 </div>
-                {applied ? (
-                  <Badge variant='badge_active'>Applied</Badge>
+                {vacancyView === 'open' ? (
+                  <div className='flex items-center gap-1.5'>
+                    <Button
+                      variant='outline'
+                      className='h-7 gap-1 text-xs'
+                      onClick={() => {
+                        navigator.clipboard
+                          ?.writeText(
+                            `https://careers.satellitehr.in/jobs/${r.id.toLowerCase()}`
+                          )
+                          .catch(() => {})
+                        toast.success('Link copied for sharing')
+                      }}
+                    >
+                      <ShareNetwork size={14} /> Share
+                    </Button>
+                    <Button
+                      variant='outline'
+                      className='h-7 gap-1 text-xs'
+                      onClick={() => setReferTo(r)}
+                    >
+                      <UserPlus size={14} /> Refer a candidate
+                    </Button>
+                    {applied ? (
+                      <Badge variant='badge_active'>Applied</Badge>
+                    ) : (
+                      r.status === 'sourcing' && (
+                        <Button
+                          className='h-7 text-xs'
+                          onClick={() => {
+                            setApplyTo(r)
+                            setResume('')
+                          }}
+                        >
+                          Apply
+                        </Button>
+                      )
+                    )}
+                  </div>
                 ) : (
-                  <Button
-                    className='h-7 text-xs'
-                    onClick={() => {
-                      setApplyTo(r)
-                      setResume('')
-                    }}
-                  >
-                    Apply
-                  </Button>
+                  <StatusBadge status={r.status} />
                 )}
               </div>
             )
           })}
-          {openPositions.length === 0 && (
+          {vacancies.length === 0 && (
             <p className='text-neutral-1000 text-sm'>
-              No positions are currently sourcing.
+              {vacancyView === 'open'
+                ? 'No open vacancies match the search.'
+                : 'No closed vacancies match the search.'}
             </p>
           )}
         </div>
@@ -292,6 +382,15 @@ export function PortalTab({
           </p>
         </DialogContent>
       </Dialog>
+
+      {/* Employee referral against a posted vacancy */}
+      <SubmitReferralDialog
+        open={referTo !== null}
+        onOpenChange={(o) => !o && setReferTo(null)}
+        requisition={referTo}
+        candidatesStore={candidatesStore}
+        referrerName={me.name}
+      />
     </div>
   )
 }

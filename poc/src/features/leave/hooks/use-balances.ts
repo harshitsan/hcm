@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  dateOfJoinFor,
   remaining,
   seedAdjustments,
   seedBalances,
@@ -10,6 +11,39 @@ import {
   type LeaveBalance,
 } from '../data/balances'
 import { employeeById, shortId, todayISO } from '../data/shared'
+
+/**
+ * Input for creating an adjustment. The enriched Adjust-Time-Off fields are
+ * optional and defaulted; `autoApprove` (bulk approver checkbox) approves the
+ * record immediately with `approvedBy` as the acting approver.
+ */
+export type AdjustmentInput = Omit<
+  Adjustment,
+  | 'id'
+  | 'status'
+  | 'requestedBy'
+  | 'dateOfJoin'
+  | 'sendMailToEmployee'
+  | 'addedThisYear'
+  | 'totalForYear'
+  | 'documents'
+  | 'comments'
+  | 'approvedBy'
+> &
+  Partial<
+    Pick<
+      Adjustment,
+      | 'dateOfJoin'
+      | 'sendMailToEmployee'
+      | 'addedThisYear'
+      | 'totalForYear'
+      | 'documents'
+      | 'comments'
+    >
+  > & {
+    autoApprove?: boolean
+    approvedBy?: string
+  }
 
 interface Deps {
   append: (input: {
@@ -166,13 +200,77 @@ export function useBalances({ append, notify, actor, actorRole }: Deps) {
     [applyDelta, notify]
   )
 
+  /**
+   * Builds a full Adjustment from a partial input, defaulting the Adjust
+   * Time Off 13-pointer fields (DOJ, added-in-year, totals, docs, comments).
+   */
+  const buildAdjustment = useCallback(
+    (input: AdjustmentInput): Adjustment => {
+      const addedThisYear =
+        input.addedThisYear ??
+        balanceFor(input.employeeId, input.typeId)?.credited ??
+        0
+      const autoApprove = input.autoApprove ?? false
+      const { autoApprove: _auto, ...record } = input
+      void _auto
+      return {
+        ...record,
+        id: shortId('adj'),
+        status: autoApprove ? 'approved' : 'pending',
+        requestedBy: actor,
+        dateOfJoin: input.dateOfJoin ?? dateOfJoinFor(input.employeeId),
+        sendMailToEmployee: input.sendMailToEmployee ?? false,
+        addedThisYear,
+        totalForYear: input.totalForYear ?? addedThisYear + input.delta,
+        documents: input.documents ?? [],
+        comments: input.comments ?? '',
+        approvedBy: autoApprove ? (input.approvedBy ?? actor) : null,
+      }
+    },
+    [actor, balanceFor]
+  )
+
+  /** Applies an approved adjustment's credit + audit/notify side effects. */
+  const applyApprovedAdjustment = useCallback(
+    (adj: Adjustment) => {
+      applyDelta(adj.employeeId, adj.typeId, { credited: adj.delta })
+      append({
+        actor: adj.approvedBy ?? actor,
+        actorRole,
+        action: 'Adjustment approved',
+        target: `${adj.employeeName} · ${adj.typeName}`,
+        before: `Balance ${adj.currentBalance}`,
+        after: `Balance ${adj.currentBalance + adj.delta}`,
+        reason: adj.comments
+          ? `${adj.reason} — Comments: ${adj.comments}`
+          : adj.reason,
+      })
+      notify(
+        'Adjusted',
+        `${adj.employeeName} (applicant)`,
+        `Adjustment approved: ${adj.delta > 0 ? '+' : ''}${adj.delta} ${adj.typeName}.${adj.comments ? ` Comments: ${adj.comments}` : ''}`
+      )
+      if (adj.sendMailToEmployee) {
+        notify(
+          'Adjusted',
+          `${adj.employeeName} (employee mail)`,
+          `Mail sent to ${adj.employeeName}: your ${adj.typeName} balance was adjusted by ${adj.delta > 0 ? '+' : ''}${adj.delta} (approved by ${adj.approvedBy ?? actor}).`
+        )
+      }
+    },
+    [actor, actorRole, append, applyDelta, notify]
+  )
+
   /** LVE-43: raise a balance adjustment routed to the adjustment approver. */
   const requestAdjustment = useCallback(
-    (input: Omit<Adjustment, 'id' | 'status' | 'requestedBy'>) => {
-      setAdjustments((prev) => [
-        { ...input, id: shortId('adj'), status: 'pending', requestedBy: actor },
-        ...prev,
-      ])
+    (input: AdjustmentInput) => {
+      const adj = buildAdjustment(input)
+      setAdjustments((prev) => [adj, ...prev])
+      if (adj.status === 'approved') {
+        applyApprovedAdjustment(adj)
+        toast.success('Adjustment created and auto-approved — balance updated')
+        return
+      }
       notify(
         'Submitted',
         'Adjustment approver (per location mapping)',
@@ -180,38 +278,83 @@ export function useBalances({ append, notify, actor, actorRole }: Deps) {
       )
       toast.success('Adjustment created — routed to the adjustment approver')
     },
-    [actor, notify]
+    [applyApprovedAdjustment, buildAdjustment, notify]
   )
 
-  const decideAdjustment = useCallback(
-    (id: string, approve: boolean) => {
-      const adj = adjustments.find((a) => a.id === id)
-      if (!adj || adj.status !== 'pending') return
-      setAdjustments((prev) =>
-        prev.map((a) =>
-          a.id === id ? { ...a, status: approve ? 'approved' : 'rejected' } : a
+  /**
+   * Bulk Pending Time Off Adjustments: stage many adjustments at once.
+   * Items flagged `autoApprove` are approved immediately (credit applied,
+   * approver taken from the input); the rest await the adjustment approver.
+   * One toast for the whole batch.
+   */
+  const requestAdjustments = useCallback(
+    (inputs: AdjustmentInput[]) => {
+      if (inputs.length === 0) return
+      const built = inputs.map(buildAdjustment)
+      setAdjustments((prev) => [...built, ...prev])
+      const autoApproved = built.filter((a) => a.status === 'approved')
+      for (const adj of autoApproved) applyApprovedAdjustment(adj)
+      const pending = built.length - autoApproved.length
+      if (pending > 0) {
+        notify(
+          'Submitted',
+          'Adjustment approver (per location mapping)',
+          `Bulk time-off adjustment: ${pending} record(s) pending approval per configuration.`
         )
-      )
-      if (approve) applyDelta(adj.employeeId, adj.typeId, { credited: adj.delta })
+      }
+      toast.success(`${built.length} adjustments submitted`)
+    },
+    [applyApprovedAdjustment, buildAdjustment, notify]
+  )
+
+  /**
+   * Approver decision. Per the Approve Adjusted Time Off flow the approver
+   * may alter the number of time offs before approving (`newDelta`).
+   */
+  const decideAdjustment = useCallback(
+    (id: string, approve: boolean, newDelta?: number) => {
+      const found = adjustments.find((a) => a.id === id)
+      if (!found || found.status !== 'pending') return
+      const delta =
+        approve && newDelta !== undefined && !Number.isNaN(newDelta)
+          ? newDelta
+          : found.delta
+      const adj: Adjustment = {
+        ...found,
+        delta,
+        totalForYear: found.addedThisYear + delta,
+        status: approve ? 'approved' : 'rejected',
+        approvedBy: approve ? actor : null,
+      }
+      setAdjustments((prev) => prev.map((a) => (a.id === id ? adj : a)))
+      if (approve) {
+        applyApprovedAdjustment(adj)
+        toast.success(
+          delta !== found.delta
+            ? `Adjustment approved with altered time offs (${delta > 0 ? '+' : ''}${delta}) — balance updated`
+            : 'Adjustment approved — balance updated'
+        )
+        return
+      }
       append({
         actor,
         actorRole,
-        action: approve ? 'Adjustment approved' : 'Adjustment rejected',
+        action: 'Adjustment rejected',
         target: `${adj.employeeName} · ${adj.typeName}`,
         before: `Balance ${adj.currentBalance}`,
-        after: approve
-          ? `Balance ${adj.currentBalance + adj.delta}`
-          : `Balance unchanged (${adj.currentBalance})`,
-        reason: adj.reason,
+        after: `Balance unchanged (${adj.currentBalance})`,
+        reason: adj.comments
+          ? `${adj.reason} — Comments: ${adj.comments}`
+          : adj.reason,
       })
       notify(
         'Adjusted',
         `${adj.employeeName} (applicant)`,
-        `Adjustment ${approve ? 'approved' : 'rejected'}: ${adj.delta > 0 ? '+' : ''}${adj.delta} ${adj.typeName}.`
+        `Adjustment rejected: ${adj.delta > 0 ? '+' : ''}${adj.delta} ${adj.typeName}.`
       )
-      toast.success(approve ? 'Adjustment approved — balance updated' : 'Adjustment rejected')
+      toast.success('Adjustment rejected')
     },
-    [actor, actorRole, adjustments, append, applyDelta, notify]
+    [actor, actorRole, adjustments, append, applyApprovedAdjustment, notify]
   )
 
   return {
@@ -228,6 +371,7 @@ export function useBalances({ append, notify, actor, actorRole }: Deps) {
     runAccrual,
     earnCompOff,
     requestAdjustment,
+    requestAdjustments,
     decideAdjustment,
   }
 }

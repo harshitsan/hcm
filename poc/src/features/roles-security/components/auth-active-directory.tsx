@@ -53,7 +53,16 @@ function CheckGroup<T extends string>({
  * integration, scope it by employee class, location and department, and use
  * shuttle controls to select positions — marking some as mandatory-AD.
  */
-export function AuthActiveDirectory({ store }: { store: SecurityConfigStore }) {
+export function AuthActiveDirectory({
+  store,
+  onNext,
+  nextLabel,
+}: {
+  store: SecurityConfigStore
+  /** AD-07: optional "Save & Next" flow — save, then continue to the next step. */
+  onNext?: () => void
+  nextLabel?: string
+}) {
   const cfg = store.adConfig
   const [enabled, setEnabled] = useState(cfg.enabled ? 'yes' : 'no')
   const [classes, setClasses] = useState<WorkforceType[]>([...cfg.classes])
@@ -237,9 +246,23 @@ export function AuthActiveDirectory({ store }: { store: SecurityConfigStore }) {
         </p>
       )}
 
-      <Button className='h-7' onClick={save}>
-        Save Active Directory configuration
-      </Button>
+      <div className='flex flex-wrap items-center gap-2'>
+        <Button className='h-7' onClick={save}>
+          Save Active Directory configuration
+        </Button>
+        {onNext && (
+          <Button
+            variant='outline'
+            className='h-7'
+            onClick={() => {
+              save()
+              onNext()
+            }}
+          >
+            Save &amp; Next{nextLabel ? ` — ${nextLabel}` : ''}
+          </Button>
+        )}
+      </div>
     </div>
   )
 }

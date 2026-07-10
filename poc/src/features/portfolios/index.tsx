@@ -36,8 +36,6 @@ export function Portfolios() {
   const { role } = useRole()
   const persona = PERSONAS[role]
 
-  // Every portfolio-level operation writes to the shared audit trail
-  // (PORT-25/26), so the audit store is wired into every other store.
   const audit = usePortfolioAudit(persona.email, role)
   const store = usePortfolios(audit.record, persona.email)
   const context = useCompanyContext(audit.record, persona, role)
@@ -107,22 +105,16 @@ export function Portfolios() {
                   <ReportingTab store={store} ops={ops} />
                 </TabsContent>
                 <TabsContent value='admin'>
-                  <Tabs defaultValue='operations' className='w-full'>
-                    <TabsList className='mb-3 bg-transparent p-0'>
-                      <TabsTrigger variant='primary' value='operations'>
-                        Bulk changes
-                      </TabsTrigger>
-                      <TabsTrigger variant='primary' value='audit'>
-                        Activity log
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value='operations'>
+                  <div className='flex flex-col gap-6'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Bulk changes</h3>
                       <OperationsTab store={store} ops={ops} />
-                    </TabsContent>
-                    <TabsContent value='audit'>
+                    </section>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Activity log</h3>
                       <AuditTab audit={audit} />
-                    </TabsContent>
-                  </Tabs>
+                    </section>
+                  </div>
                 </TabsContent>
               </>
             )}

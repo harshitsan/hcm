@@ -6,7 +6,17 @@ import {
   type Delegation,
   type Workflow,
 } from '../data/config'
-import { seedLeaveTypes, type LeaveType } from '../data/leave-types'
+import {
+  LEAVE_TYPE_FIELD_DEFAULTS,
+  seedLeaveTypes,
+  type ApplicableFrom,
+  type CreditFrequency,
+  type CreditTiming,
+  type LeaveGender,
+  type LeaveType,
+  type MaxTimesAvailable,
+  type ServicePeriod,
+} from '../data/leave-types'
 import {
   policySpecificity,
   seedPolicies,
@@ -23,6 +33,44 @@ export interface LeaveTypeDraft {
   fmla: boolean
   applicability: string
   excludedLevels: string[]
+  // Enriched Kensium fields — optional in the draft; defaults are applied
+  // from LEAVE_TYPE_FIELD_DEFAULTS for anything the dialog omits.
+  description?: string
+  instancesPerDay?: number
+  canCarryForward?: boolean
+  maxCarryForward?: number
+  canBePaidOut?: boolean
+  minPayoutEligibility?: number
+  exemptHolidays?: boolean
+  exemptWeeklyOffs?: boolean
+  availDuringNotice?: boolean
+  availDuringPip?: boolean
+  appliedBasedOnCredit?: boolean
+  creditTiming?: CreditTiming
+  creditFrequency?: CreditFrequency
+  proRataAccrual?: boolean
+  servicePeriods?: ServicePeriod[]
+  policyDocument?: string | null
+  gender?: LeaveGender
+  maxTimesAvailable?: MaxTimesAvailable | null
+  applicableLocations?: string[]
+  applicableDepartments?: string[]
+  applicablePositions?: string[]
+  applicableGroups?: string[]
+  clubbableWith?: string[]
+  zeroBalanceOf?: string[]
+  applicableFrom?: ApplicableFrom
+  applicableFromMonths?: number
+  documentsRequired?: boolean
+  documentReminderDays?: number
+  documentResponseDays?: number
+}
+
+/** Strips undefined keys so a partial draft never clobbers stored values. */
+function definedFields<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>
 }
 
 export interface PolicyDraft {
@@ -66,7 +114,15 @@ export function useLeaveConfig({ append, actor, actorRole }: Deps) {
     setLeaveTypes((prev) => [
       ...prev,
       {
-        ...draft,
+        ...LEAVE_TYPE_FIELD_DEFAULTS,
+        ...definedFields(draft),
+        name: draft.name,
+        category: draft.category,
+        unit: draft.unit,
+        allotted: draft.allotted,
+        fmla: draft.fmla,
+        applicability: draft.applicability,
+        excludedLevels: draft.excludedLevels,
         id: shortId('lt'),
         active: true,
         order: prev.length + 1,
@@ -78,7 +134,7 @@ export function useLeaveConfig({ append, actor, actorRole }: Deps) {
 
   const updateLeaveType = (id: string, draft: LeaveTypeDraft) => {
     setLeaveTypes((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...draft } : t))
+      prev.map((t) => (t.id === id ? { ...t, ...definedFields(draft) } : t))
     )
     toast.success('Leave type updated')
   }

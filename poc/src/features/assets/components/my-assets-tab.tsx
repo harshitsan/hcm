@@ -58,7 +58,8 @@ const MY_STATUS_VARIANTS: Record<MyAssetStatus, 'completed' | 'pending' | 'overd
  * narrowed by a From/To period range (AST-02) and by employee-facing status —
  * Acknowledged/Issued, Pending for Receipt Acknowledgement, Pending for
  * Confirm Return, Returned (AST-03) — with a Reset control to clear the
- * selections (AST-04).
+ * selections (AST-04). Each row also surfaces the 'To be returned on' due
+ * date so employees can return assets on time (AST-05).
  */
 export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
   const [ackTarget, setAckTarget] = useState<Acknowledgement | null>(null)
@@ -281,6 +282,7 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
                   <TableHead>Asset</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Issued on</TableHead>
+                  <TableHead>To be returned on</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>State</TableHead>
                   <TableHead>Pending action</TableHead>
@@ -303,6 +305,23 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
                       </TableCell>
                       <TableCell className='text-sm'>{asset.category}</TableCell>
                       <TableCell className='text-sm'>{formatDate(issuedOn)}</TableCell>
+                      <TableCell>
+                        {asset.expectedReturnDate ? (
+                          <span
+                            className={
+                              overdue > 0
+                                ? 'text-orange-1200 text-sm font-medium'
+                                : 'text-sm'
+                            }
+                          >
+                            {formatDate(asset.expectedReturnDate)}
+                          </span>
+                        ) : (
+                          <span className='text-paragraph-sm text-neutral-1000'>
+                            No return due
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={MY_STATUS_VARIANTS[myStatus]}>{myStatus}</Badge>
                       </TableCell>

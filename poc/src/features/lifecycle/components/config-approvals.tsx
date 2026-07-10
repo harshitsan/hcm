@@ -27,12 +27,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { type ApproverGraph } from '../data/config'
+import { type ApproverGraph, type DisciplinaryApproverGroup } from '../data/config'
 import { LOCATIONS, fmtDate } from '../data/shared'
 import { type LifecycleConfigStore } from '../hooks/use-lifecycle-config'
-import { CheckboxGroup, ChipList, SectionCard } from './config-widgets'
+import {
+  CheckboxGroup,
+  ChipList,
+  ConfirmDeleteDialog,
+  ListPagination,
+  SectionCard,
+  pageSlice,
+} from './config-widgets'
 
 const STEP_ROLES = ['Manager', 'Department Head', 'HR', 'Group Admin']
+const DA_PAGE_SIZE = 2
 
 /** Approver graphs per lifecycle workflow + disciplinary location approvers. */
 export function ConfigApprovals({ config }: { config: LifecycleConfigStore }) {
@@ -45,6 +53,20 @@ export function ConfigApprovals({ config }: { config: LifecycleConfigStore }) {
   const [daLocs, setDaLocs] = useState<string[]>([])
   const [daApprovers, setDaApprovers] = useState('')
   const [daEditing, setDaEditing] = useState<string | null>(null)
+  const [daDeleting, setDaDeleting] =
+    useState<DisciplinaryApproverGroup | null>(null)
+  const [daPage, setDaPage] = useState(1)
+
+  const daTotal = config.disciplinaryApprovers.items.length
+  const daPageSafe = Math.min(
+    daPage,
+    Math.max(1, Math.ceil(daTotal / DA_PAGE_SIZE))
+  )
+  const daRows = pageSlice(
+    config.disciplinaryApprovers.items,
+    daPageSafe,
+    DA_PAGE_SIZE
+  )
 
   return (
     <div>
@@ -126,30 +148,64 @@ export function ConfigApprovals({ config }: { config: LifecycleConfigStore }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {config.disciplinaryApprovers.items.map((g) => (
+            {daRows.map((g) => (
               <TableRow key={g.id}>
                 <TableCell className='font-medium'>{g.groupCode}</TableCell>
                 <TableCell><ChipList items={g.locations} /></TableCell>
                 <TableCell><ChipList items={g.approvers} /></TableCell>
                 <TableCell>
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    onClick={() => {
-                      setDaEditing(g.id)
-                      setDaLocs(g.locations)
-                      setDaApprovers(g.approvers.join(', '))
-                      setDaOpen(true)
-                    }}
-                  >
-                    Edit
-                  </Button>
+                  <div className='flex gap-2'>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => {
+                        setDaEditing(g.id)
+                        setDaLocs(g.locations)
+                        setDaApprovers(g.approvers.join(', '))
+                        setDaOpen(true)
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => setDaDeleting(g)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        <ListPagination
+          total={daTotal}
+          page={daPageSafe}
+          pageSize={DA_PAGE_SIZE}
+          onPageChange={setDaPage}
+        />
       </SectionCard>
+
+      {/* Delete disciplinary approver group */}
+      <ConfirmDeleteDialog
+        open={daDeleting !== null}
+        onOpenChange={(o) => !o && setDaDeleting(null)}
+        title='Delete disciplinary approver group?'
+        description={`Group ${daDeleting?.groupCode ?? ''} (${daDeleting?.locations.join(', ') ?? ''}) will stop routing disciplinary actions.`}
+        onConfirm={() => {
+          if (daDeleting) {
+            config.disciplinaryApprovers.remove(daDeleting.id)
+            config.logConfigChange(
+              'Disciplinary approver group deleted',
+              daDeleting.groupCode
+            )
+            toast.success('Approver group deleted')
+          }
+          setDaDeleting(null)
+        }}
+      />
 
       {/* Add graph step */}
       <Dialog open={stepFor !== null} onOpenChange={(o) => !o && setStepFor(null)}>

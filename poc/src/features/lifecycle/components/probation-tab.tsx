@@ -9,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
@@ -49,9 +48,12 @@ interface ProbationTabProps {
   decisionTable: ProbationDecisionTable
 }
 
+type ReviewSection = 'confirmation' | 'peer' | 'periodic'
+
 /** Confirmation review dashboard + peer & periodic review grids. */
 export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
   const { role, hasRole } = useRole()
+  const [section, setSection] = useState<ReviewSection>('confirmation')
   const [status, setStatus] = useState('all')
   const [department, setDepartment] = useState('all')
   const [employeeState, setEmployeeState] = useState('all')
@@ -130,22 +132,33 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
     setTo('')
   }
 
+  const SECTIONS: { value: ReviewSection; label: string }[] = [
+    { value: 'confirmation', label: 'Confirmation Review' },
+    { value: 'peer', label: 'Peer Review' },
+    { value: 'periodic', label: 'Periodic Review' },
+  ]
+
   return (
     <div className='w-full'>
-      <Tabs defaultValue='review' className='w-full'>
-        <TabsList className='mb-2'>
-          <TabsTrigger variant='primary' value='review'>
-            Confirmation Review
-          </TabsTrigger>
-          <TabsTrigger variant='primary' value='peer'>
-            Peer Review
-          </TabsTrigger>
-          <TabsTrigger variant='primary' value='periodic'>
-            Periodic Review
-          </TabsTrigger>
-        </TabsList>
+      {/* Segmented selector — no nested tabs */}
+      <div className='mb-4 flex gap-1 rounded-lg border border-neutral-200 bg-neutral-100 p-1 w-fit'>
+        {SECTIONS.map((s) => (
+          <button
+            key={s.value}
+            onClick={() => setSection(s.value)}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              section === s.value
+                ? 'bg-white text-blue-1200 shadow-sm'
+                : 'text-neutral-1000 hover:text-neutral-1400'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
-        <TabsContent value='review'>
+      {section === 'confirmation' && (
+        <>
           <div className='mb-3 flex flex-wrap items-center gap-2'>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger variant='secondary' className='h-7 w-[190px]'>
@@ -206,9 +219,11 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
             variant='no-status'
             onRowClick={(row: ProbationCase) => setSelectedId(row.id)}
           />
-        </TabsContent>
+        </>
+      )}
 
-        <TabsContent value='peer'>
+      {section === 'peer' && (
+        <>
           <div className='mb-3 flex flex-wrap items-center gap-2'>
             <Select
               value={peerFilters.employeeState}
@@ -327,9 +342,11 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
               }
             }}
           />
-        </TabsContent>
+        </>
+      )}
 
-        <TabsContent value='periodic'>
+      {section === 'periodic' && (
+        <>
           <div className='mb-3 flex flex-wrap items-center gap-2'>
             <Input
               type='date'
@@ -396,8 +413,8 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
               }
             }}
           />
-        </TabsContent>
-      </Tabs>
+        </>
+      )}
 
       <ProbationDetailSheet
         open={selected !== null}

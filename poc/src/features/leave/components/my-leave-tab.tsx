@@ -16,8 +16,10 @@ import { type FmlaReason } from '../data/config'
 import { type LeaveRequest } from '../data/requests'
 import { fmtDate } from '../data/shared'
 import { type BalancesStore } from '../hooks/use-balances'
+import { useLeaveDocuments } from '../hooks/use-leave-documents'
 import { type LeaveRequestsStore } from '../hooks/use-leave-requests'
 import { ApplyLeaveOverlay } from './apply-leave-overlay'
+import { UploadDocumentDialog } from './upload-document-dialog'
 import { LeaveSummaryCards } from './leave-summary-cards'
 import { RequestDetailSheet } from './request-detail-sheet'
 import { StatusBadge } from './badges'
@@ -49,6 +51,12 @@ export function MyLeaveTab({
   const [applyOpen, setApplyOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [year, setYear] = useState('2026')
+  // PTO #29–#31: post-submission document submissions (this tab is the only consumer).
+  const documents = useLeaveDocuments()
+  const [docTarget, setDocTarget] = useState<{
+    requestId: string
+    leaveType: string
+  } | null>(null)
 
   const myRequests = useMemo(
     () =>
@@ -90,6 +98,33 @@ export function MyLeaveTab({
   ]
 
   const columns = useMemo(() => requestColumns(false), [])
+
+  // Requests whose leave type is configured with documentsRequired and that
+  // are still live (withdrawn/rejected/cancelled ones need no proof).
+  const docRequests = myRequests.filter(
+    (r) =>
+      leaveTypes.find((t) => t.id === r.typeId)?.documentsRequired &&
+      !['withdrawn', 'rejected', 'cancelled'].includes(r.status)
+  )
+
+  const docChip = (requestId: string) => {
+    const sub = documents.submissionsFor(requestId)[0]
+    switch (sub?.status) {
+      case 'submitted':
+        return { label: 'Submitted', cls: 'bg-green-50 text-green-700 border-green-200' }
+      case 'physical-copy':
+        return { label: 'Physical copy', cls: 'bg-blue-50 text-blue-700 border-blue-200' }
+      case 'not-needed':
+        return { label: 'Not needed', cls: 'bg-gray-50 text-gray-600 border-gray-200' }
+      case 'submit-later':
+        return {
+          label: `Due${sub.submitLaterDate ? ` ${fmtDate(sub.submitLaterDate)}` : ''}`,
+          cls: 'bg-orange-50 text-orange-700 border-orange-200',
+        }
+      default:
+        return { label: 'Due', cls: 'bg-orange-50 text-orange-700 border-orange-200' }
+    }
+  }
 
   return (
     <div className='w-full'>
@@ -182,6 +217,58 @@ export function MyLeaveTab({
         onRowClick={(row: LeaveRequest) => setSelectedId(row.id)}
       />
 
+      {/* PTO #29–#31: document submissions for types that require proof */}
+      {docRequests.length > 0 && (
+        <div className='mt-4 rounded-[8px] border border-gray-200 bg-white p-4'>
+          <h2 className='text-neutral-1600 text-paragraph-md mb-2 font-medium'>
+            Document Submissions
+          </h2>
+          <div className='space-y-2'>
+            {docRequests.map((r) => {
+              const type = leaveTypes.find((t) => t.id === r.typeId)
+              const sub = documents.submissionsFor(r.id)[0]
+              const chip = docChip(r.id)
+              return (
+                <div
+                  key={r.id}
+                  className='flex items-center justify-between rounded-[6px] border border-gray-200 px-3 py-2 text-sm'
+                >
+                  <div>
+                    <div className='font-medium'>
+                      {r.typeName} · {fmtDate(r.from)} – {fmtDate(r.to)}
+                    </div>
+                    <div className='text-neutral-1000 text-xs'>
+                      {sub?.status === 'submitted' && sub.fileName
+                        ? `${sub.fileName} · submitted ${fmtDate(sub.submittedOn)}`
+                        : sub?.note ||
+                          `Submit within ${type?.documentResponseDays} days of availing — reminder after ${type?.documentReminderDays} days`}
+                    </div>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    <span
+                      className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${chip.cls}`}
+                    >
+                      {chip.label}
+                    </span>
+                    {!readOnly && (
+                      <Button
+                        variant='outline'
+                        className='h-7'
+                        onClick={() =>
+                          setDocTarget({ requestId: r.id, leaveType: r.typeName })
+                        }
+                      >
+                        Submit document
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* LVE-16: comp-off credits */}
       <div className='mt-4 rounded-[8px] border border-gray-200 bg-white p-4'>
         <div className='mb-2 flex items-center justify-between'>
@@ -232,6 +319,17 @@ export function MyLeaveTab({
         onSubmit={requests.submit}
         onBehalfOf={null}
       />
+      {docTarget && (
+        <UploadDocumentDialog
+          open={docTarget !== null}
+          onOpenChange={(o) => {
+            if (!o) setDocTarget(null)
+          }}
+          requestId={docTarget.requestId}
+          leaveType={docTarget.leaveType}
+          store={documents}
+        />
+      )}
       <RequestDetailSheet
         open={selected !== null}
         onOpenChange={(o) => {

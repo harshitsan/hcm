@@ -1,6 +1,7 @@
 export const REQUISITION_STATUSES = [
   'draft',
   'pending-approval',
+  'needs-clarification',
   'approved',
   'sourcing',
   'on-hold',
@@ -8,6 +9,7 @@ export const REQUISITION_STATUSES = [
   'closed',
   'cancelled',
   'rejected',
+  'withdrawn',
 ] as const
 export type RequisitionStatus = (typeof REQUISITION_STATUSES)[number]
 
@@ -38,6 +40,21 @@ export const EMPLOYEE_CLASSES = [
 /** RL-04 — reason for the vacancy: fresh headcount vs backfill. */
 export const HIRING_AS = ['New Join', 'Replacement'] as const
 export type HiringAs = (typeof HIRING_AS)[number]
+
+/** Hiring urgency captured on the RRF (Transactions → Resource Requisition). */
+export const REQUISITION_PRIORITIES = ['High', 'Low'] as const
+export type RequisitionPriority = (typeof REQUISITION_PRIORITIES)[number]
+
+export const POSITION_LEVELS = ['Junior', 'Mid', 'Senior', 'Lead'] as const
+export type PositionLevel = (typeof POSITION_LEVELS)[number]
+
+/** Read-only experience band derived from the selected position level. */
+export const EXPERIENCE_BY_LEVEL: Record<PositionLevel, string> = {
+  Junior: '0–2 years',
+  Mid: '2–4 years',
+  Senior: '4–8 years',
+  Lead: '8+ years',
+}
 
 export const RECRUITERS = [
   'Meera Iyer',
@@ -72,10 +89,21 @@ export interface HistoryEntry {
   validTo: string | null
 }
 
+/** One approver-question ↔ answer exchange on an in-flight RRF. */
+export interface RequisitionClarification {
+  question: string
+  askedBy: string
+  askedOf: string
+  askedAt: string
+  answer?: string
+  answeredAt?: string
+}
+
 export interface Requisition {
   id: string
   title: string
   department: (typeof DEPARTMENTS)[number]
+  /** Work location for the opening. */
   location: (typeof LOCATIONS)[number]
   employeeClass: (typeof EMPLOYEE_CLASSES)[number]
   /** RL-04: why the position is open — New Join (fresh) or Replacement. */
@@ -86,6 +114,18 @@ export interface Requisition {
   description: string
   requirements: string
   nonBudgeted: boolean
+  /** Confidential hiring — title is masked outside the approval chain. */
+  confidential: boolean
+  priority: RequisitionPriority
+  positionLevel: PositionLevel
+  /** Read-only text derived from positionLevel, e.g. '4–8 years'. */
+  experience: string
+  personalTraits: string
+  additionalSkills: string
+  reasonForHiring: string
+  /** Organisational/functional unit the position reports into. */
+  functionalLocation: string
+  comments: string
   status: RequisitionStatus
   recruiter: string | null
   hiringManager: string | null
@@ -95,6 +135,14 @@ export interface Requisition {
   closingDate: string
   approvals: ApprovalStep[]
   history: HistoryEntry[]
+  /** Approver ↔ requester question/answer thread. */
+  clarifications: RequisitionClarification[]
+  /** Set when the RRF is closed early before all positions were hired. */
+  preClosure: {
+    originalHeadcount: number
+    closedEarlyAt: string
+    note: string
+  } | null
 }
 
 function chain(
@@ -123,6 +171,15 @@ export const seedRequisitions: Requisition[] = [
     description: 'Own core platform services and mentor mid-level engineers.',
     requirements: '6+ yrs Java/Go, distributed systems, PostgreSQL',
     nonBudgeted: false,
+    confidential: false,
+    priority: 'High',
+    positionLevel: 'Senior',
+    experience: EXPERIENCE_BY_LEVEL.Senior,
+    personalTraits: 'Ownership mindset, mentors juniors, calm under incident load',
+    additionalSkills: 'Kafka, gRPC, capacity planning',
+    reasonForHiring: 'Platform pod scaling with the FY27 roadmap',
+    functionalLocation: 'Platform Engineering — Tech Park Block B',
+    comments: 'Prefer candidates able to join within 30 days.',
     status: 'sourcing',
     recruiter: 'Meera Iyer',
     hiringManager: 'Ananya Sharma',
@@ -156,6 +213,8 @@ export const seedRequisitions: Requisition[] = [
         validTo: null,
       },
     ],
+    clarifications: [],
+    preClosure: null,
   },
   {
     id: 'RRF-1002',
@@ -169,6 +228,15 @@ export const seedRequisitions: Requisition[] = [
     description: 'Design end-to-end flows for the HR self-service portal.',
     requirements: '4+ yrs product design, Figma, design systems',
     nonBudgeted: false,
+    confidential: false,
+    priority: 'High',
+    positionLevel: 'Mid',
+    experience: EXPERIENCE_BY_LEVEL.Mid,
+    personalTraits: 'User-obsessed, strong storytelling, works well with PMs',
+    additionalSkills: 'Design tokens, usability testing',
+    reasonForHiring: 'Backfill — incumbent resigned, notice ends July',
+    functionalLocation: 'Product Design Studio — Pune Hub',
+    comments: '',
     status: 'pending-approval',
     recruiter: null,
     hiringManager: 'Divya Menon',
@@ -188,6 +256,8 @@ export const seedRequisitions: Requisition[] = [
         validTo: null,
       },
     ],
+    clarifications: [],
+    preClosure: null,
   },
   {
     id: 'RRF-1003',
@@ -201,7 +271,16 @@ export const seedRequisitions: Requisition[] = [
     description: 'Run monthly payroll and statutory filings.',
     requirements: '3+ yrs payroll, Indian statutory compliance',
     nonBudgeted: true,
-    status: 'pending-approval',
+    confidential: false,
+    priority: 'Low',
+    positionLevel: 'Mid',
+    experience: EXPERIENCE_BY_LEVEL.Mid,
+    personalTraits: 'Detail-oriented, deadline-driven',
+    additionalSkills: 'GreytHR, PF/ESI portals',
+    reasonForHiring: 'Payroll volume outgrew the shared-services pod',
+    functionalLocation: 'Finance Shared Services — Mumbai HQ',
+    comments: 'Non-budgeted — needs cost-centre confirmation.',
+    status: 'needs-clarification',
     recruiter: null,
     hiringManager: 'Farhan Ali',
     custom: {},
@@ -218,9 +297,25 @@ export const seedRequisitions: Requisition[] = [
         actor: 'Farhan Ali',
         change: 'Created (non-budgeted) and submitted',
         validFrom: '2026-06-18',
+        validTo: '2026-06-24',
+      },
+      {
+        id: 'h-5b',
+        actor: 'Rohit Bansal',
+        change: 'Clarification requested from requester',
+        validFrom: '2026-06-24',
         validTo: null,
       },
     ],
+    clarifications: [
+      {
+        question: 'Which cost centre funds this non-budgeted role for FY27?',
+        askedBy: 'Rohit Bansal',
+        askedOf: 'Farhan Ali',
+        askedAt: '2026-06-24T09:30:00Z',
+      },
+    ],
+    preClosure: null,
   },
   {
     id: 'RRF-1004',
@@ -234,6 +329,15 @@ export const seedRequisitions: Requisition[] = [
     description: 'Lead the L1 support pod and own CSAT.',
     requirements: '5+ yrs support ops, team leadership',
     nonBudgeted: false,
+    confidential: true,
+    priority: 'High',
+    positionLevel: 'Lead',
+    experience: EXPERIENCE_BY_LEVEL.Lead,
+    personalTraits: 'Coaches the pod, escalation-calm, metric-driven',
+    additionalSkills: 'Zendesk admin, QA scorecards',
+    reasonForHiring: 'Confidential replacement of the current pod lead',
+    functionalLocation: 'Support Operations — Hyderabad Campus',
+    comments: 'Keep off the public careers page until offer stage.',
     status: 'approved',
     recruiter: null,
     hiringManager: 'Karthik Rao',
@@ -253,6 +357,8 @@ export const seedRequisitions: Requisition[] = [
         validTo: null,
       },
     ],
+    clarifications: [],
+    preClosure: null,
   },
   {
     id: 'RRF-1005',
@@ -266,6 +372,15 @@ export const seedRequisitions: Requisition[] = [
     description: 'Outbound prospecting for the mid-market segment.',
     requirements: '1+ yr SaaS outbound, CRM hygiene',
     nonBudgeted: false,
+    confidential: false,
+    priority: 'Low',
+    positionLevel: 'Junior',
+    experience: EXPERIENCE_BY_LEVEL.Junior,
+    personalTraits: 'Resilient, coachable, high call energy',
+    additionalSkills: 'HubSpot sequences, LinkedIn Sales Navigator',
+    reasonForHiring: 'Mid-market pipeline expansion for H2',
+    functionalLocation: 'Sales — Mid-Market Pod (Remote)',
+    comments: '',
     status: 'sourcing',
     recruiter: 'Sana Qureshi',
     hiringManager: 'Karthik Rao',
@@ -277,6 +392,8 @@ export const seedRequisitions: Requisition[] = [
       ['Rohit Bansal', 'Finance Controller', 'approved'],
     ]),
     history: [],
+    clarifications: [],
+    preClosure: null,
   },
   {
     id: 'RRF-1006',
@@ -290,6 +407,15 @@ export const seedRequisitions: Requisition[] = [
     description: 'Generalist support across onboarding and engagement.',
     requirements: '2+ yrs HR operations',
     nonBudgeted: false,
+    confidential: false,
+    priority: 'Low',
+    positionLevel: 'Junior',
+    experience: EXPERIENCE_BY_LEVEL.Junior,
+    personalTraits: 'Empathetic, organised, discreet with employee data',
+    additionalSkills: 'HRIS data entry, engagement surveys',
+    reasonForHiring: 'Backfill for internal transfer to the L&D team',
+    functionalLocation: 'People Operations — Bengaluru HQ',
+    comments: '',
     status: 'draft',
     recruiter: null,
     hiringManager: null,
@@ -298,6 +424,8 @@ export const seedRequisitions: Requisition[] = [
     closingDate: '2026-09-01',
     approvals: [],
     history: [],
+    clarifications: [],
+    preClosure: null,
   },
   {
     id: 'RRF-1007',
@@ -311,6 +439,15 @@ export const seedRequisitions: Requisition[] = [
     description: 'Build the analytics lakehouse and pipelines.',
     requirements: 'Spark, dbt, warehouse modelling',
     nonBudgeted: false,
+    confidential: false,
+    priority: 'Low',
+    positionLevel: 'Senior',
+    experience: EXPERIENCE_BY_LEVEL.Senior,
+    personalTraits: 'Pragmatic modeller, documents pipelines well',
+    additionalSkills: 'Airflow, Iceberg, cost tuning',
+    reasonForHiring: 'Analytics lakehouse build-out (paused pending budget)',
+    functionalLocation: 'Data Platform — Hyderabad Campus',
+    comments: 'On hold until Q3 budget review.',
     status: 'on-hold',
     recruiter: 'Vikram Joshi',
     hiringManager: 'Ananya Sharma',
@@ -322,6 +459,8 @@ export const seedRequisitions: Requisition[] = [
       ['Rohit Bansal', 'Finance Controller', 'approved'],
     ]),
     history: [],
+    clarifications: [],
+    preClosure: null,
   },
   {
     id: 'RRF-1008',
@@ -335,6 +474,15 @@ export const seedRequisitions: Requisition[] = [
     description: 'Own the Playwright regression suite.',
     requirements: 'Playwright/Cypress, CI pipelines',
     nonBudgeted: false,
+    confidential: false,
+    priority: 'Low',
+    positionLevel: 'Mid',
+    experience: EXPERIENCE_BY_LEVEL.Mid,
+    personalTraits: 'Automation-first, breaks things constructively',
+    additionalSkills: 'GitHub Actions, contract testing',
+    reasonForHiring: 'Regression coverage for the new release cadence',
+    functionalLocation: 'Quality Engineering — Pune Hub',
+    comments: '',
     status: 'filled',
     recruiter: 'Meera Iyer',
     hiringManager: 'Ananya Sharma',
@@ -346,6 +494,8 @@ export const seedRequisitions: Requisition[] = [
       ['Rohit Bansal', 'Finance Controller', 'approved'],
     ]),
     history: [],
+    clarifications: [],
+    preClosure: null,
   },
   {
     id: 'RRF-1009',
@@ -359,6 +509,15 @@ export const seedRequisitions: Requisition[] = [
     description: 'Support AP/AR reconciliation.',
     requirements: 'B.Com final year',
     nonBudgeted: true,
+    confidential: false,
+    priority: 'Low',
+    positionLevel: 'Junior',
+    experience: EXPERIENCE_BY_LEVEL.Junior,
+    personalTraits: 'Eager to learn, careful with numbers',
+    additionalSkills: 'Excel, Tally basics',
+    reasonForHiring: 'Seasonal reconciliation workload',
+    functionalLocation: 'Finance Shared Services — Mumbai HQ',
+    comments: 'Rejected — to be resubmitted with cost-centre mapping.',
     status: 'rejected',
     recruiter: null,
     hiringManager: 'Farhan Ali',
@@ -370,6 +529,8 @@ export const seedRequisitions: Requisition[] = [
       ['Priya Deshmukh', 'Non-Budgeted Position Approver', 'rejected'],
     ]),
     history: [],
+    clarifications: [],
+    preClosure: null,
   },
   {
     id: 'RRF-1010',
@@ -383,7 +544,16 @@ export const seedRequisitions: Requisition[] = [
     description: 'Kubernetes platform and release tooling.',
     requirements: 'K8s, Terraform, observability stack',
     nonBudgeted: false,
-    status: 'cancelled',
+    confidential: false,
+    priority: 'High',
+    positionLevel: 'Senior',
+    experience: EXPERIENCE_BY_LEVEL.Senior,
+    personalTraits: 'Automates toil, strong incident hygiene',
+    additionalSkills: 'ArgoCD, Prometheus, FinOps basics',
+    reasonForHiring: 'Backfill — withdrawn after the incumbent rescinded resignation',
+    functionalLocation: 'Platform Engineering — Remote Pod',
+    comments: '',
+    status: 'withdrawn',
     recruiter: 'Rahul Verma',
     hiringManager: 'Ananya Sharma',
     custom: {},
@@ -393,6 +563,16 @@ export const seedRequisitions: Requisition[] = [
       ['Sunita Patil', 'HR Head', 'approved'],
       ['Rohit Bansal', 'Finance Controller', 'approved'],
     ]),
-    history: [],
+    history: [
+      {
+        id: 'h-7',
+        actor: 'Ananya Sharma',
+        change: 'Withdrawn by requester — incumbent stayed on',
+        validFrom: '2026-06-12',
+        validTo: null,
+      },
+    ],
+    clarifications: [],
+    preClosure: null,
   },
 ]

@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
-import { BellOff, CheckCheck, Mail, Zap } from 'lucide-react'
+import { BellOff, CheckCheck, Mail, Users, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -17,22 +19,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { RoleGate } from '@/context/role-context'
+import { RoleGate, useRole } from '@/context/role-context'
 import {
   EVENT_TYPES,
   type AppNotification,
   type DeliveryRecord,
   type EventTypeId,
+  type TeamNotification,
 } from '../data/notifications'
 import { CategoryBadge } from './notification-badges'
 
 interface InboxTabProps {
   notifications: AppNotification[]
+  teamNotifications: TeamNotification[]
   unreadCount: number
   deliveries: DeliveryRecord[]
   inAppEnabled: boolean
   markRead: (id: string) => void
   markAllRead: () => void
+  markReadMany: (ids: string[]) => void
   simulateEvent: (category: EventTypeId, title: string) => void
 }
 
@@ -58,25 +63,69 @@ const timeFmt = new Intl.DateTimeFormat('en-GB', {
  */
 export function InboxTab({
   notifications,
+  teamNotifications,
   unreadCount,
   deliveries,
   inAppEnabled,
   markRead,
   markAllRead,
+  markReadMany,
   simulateEvent,
 }: InboxTabProps) {
+  const { hasRole } = useRole()
   const [categoryFilter, setCategoryFilter] = useState<'all' | EventTypeId>('all')
   const [unreadOnly, setUnreadOnly] = useState(false)
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<string[]>([])
+  /** Reporting-manager view: read the notifications of direct reports. */
+  const [teamView, setTeamView] = useState(false)
 
-  const filtered = useMemo(
-    () =>
-      notifications.filter(
-        (n) =>
-          (categoryFilter === 'all' || n.category === categoryFilter) &&
-          (!unreadOnly || !n.read)
-      ),
-    [notifications, categoryFilter, unreadOnly]
+  const isManagerPersona = hasRole(
+    'Platform Admin',
+    'Portfolio Admin',
+    'Group Company Admin',
+    'Company Admin'
   )
+  const showTeam = teamView && isManagerPersona
+
+  const filtered = useMemo(() => {
+    const source: AppNotification[] = showTeam
+      ? teamNotifications
+      : notifications
+    const q = search.trim().toLowerCase()
+    return source.filter(
+      (n) =>
+        (categoryFilter === 'all' || n.category === categoryFilter) &&
+        (!unreadOnly || !n.read) &&
+        (q === '' ||
+          n.title.toLowerCase().includes(q) ||
+          n.body.toLowerCase().includes(q) ||
+          n.linkedItem.toLowerCase().includes(q) ||
+          (showTeam &&
+            (n as TeamNotification).employee.toLowerCase().includes(q)))
+    )
+  }, [
+    notifications,
+    teamNotifications,
+    showTeam,
+    categoryFilter,
+    unreadOnly,
+    search,
+  ])
+
+  const toggleSelected = (id: string, checked: boolean) =>
+    setSelected((prev) =>
+      checked ? [...prev, id] : prev.filter((s) => s !== id)
+    )
+
+  const submitBulkRead = () => {
+    if (selected.length === 0) {
+      toast.error('Check at least one notification to mark as read.')
+      return
+    }
+    markReadMany(selected)
+    setSelected([])
+  }
 
   const openItem = (n: AppNotification) => {
     markRead(n.id)
@@ -146,7 +195,13 @@ export function InboxTab({
       )}
 
       <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder='Search notifications…'
+            className='h-7 w-[200px] rounded-[6px]'
+          />
           <Select
             value={categoryFilter}
             onValueChange={(v) => setCategoryFilter(v as 'all' | EventTypeId)}
@@ -170,8 +225,30 @@ export function InboxTab({
           >
             Unread ({unreadCount})
           </Button>
+          {isManagerPersona && (
+            <Button
+              variant={showTeam ? 'default' : 'outline'}
+              className='h-7 gap-1 rounded-[6px] px-2'
+              onClick={() => {
+                setTeamView((v) => !v)
+                setSelected([])
+              }}
+            >
+              <Users className='size-3.5' />
+              My team
+            </Button>
+          )}
         </div>
         <div className='flex items-center gap-2'>
+          {!showTeam && (
+            <Button
+              variant='outline'
+              className='h-7 rounded-[6px] px-2'
+              onClick={submitBulkRead}
+            >
+              Submit ({selected.length})
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='outline' className='h-7 gap-1 rounded-[6px] px-2'>
@@ -201,6 +278,19 @@ export function InboxTab({
         </div>
       </div>
 
+      {showTeam && (
+        <Card className='mb-3 gap-2 rounded-[8px] border border-gray-200 bg-white py-3'>
+          <CardContent className='flex items-center gap-2 px-4'>
+            <Users className='text-blue-1400 size-4' />
+            <p className='text-paragraph-sm text-neutral-1000'>
+              Reporting-manager view: you are reading the notifications of your
+              direct reports. Switch “My team” off to return to your own
+              notifications.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className='space-y-2'>
         {filtered.length === 0 && (
           <Card className='border-none bg-white py-6'>
@@ -216,16 +306,32 @@ export function InboxTab({
           >
             <CardContent className='flex items-start justify-between gap-3 px-4'>
               <div className='flex items-start gap-3'>
-                <span
-                  className={`mt-1.5 size-2 shrink-0 rounded-full ${n.read ? 'bg-grey-200' : 'bg-blue-1400'}`}
-                  aria-label={n.read ? 'Read' : 'Unread'}
-                />
+                {!showTeam ? (
+                  <Checkbox
+                    variant='blue'
+                    className='mt-1'
+                    checked={selected.includes(n.id)}
+                    onCheckedChange={(c) => toggleSelected(n.id, c === true)}
+                    disabled={n.read}
+                    aria-label={`Select ${n.title}`}
+                  />
+                ) : (
+                  <span
+                    className={`mt-1.5 size-2 shrink-0 rounded-full ${n.read ? 'bg-grey-200' : 'bg-blue-1400'}`}
+                    aria-label={n.read ? 'Read' : 'Unread'}
+                  />
+                )}
                 <div>
                   <div className='flex flex-wrap items-center gap-2'>
                     <p className='text-neutral-1600 text-sm font-medium'>
                       {n.title}
                     </p>
                     <CategoryBadge category={n.category} />
+                    {showTeam && (
+                      <Badge variant='badge_active'>
+                        {(n as TeamNotification).employee}
+                      </Badge>
+                    )}
                     {n.escalationLevel !== undefined && (
                       <Badge variant='dropped'>Level {n.escalationLevel}</Badge>
                     )}
@@ -236,26 +342,33 @@ export function InboxTab({
                   <p className='text-paragraph-sm text-neutral-1000 mt-0.5'>
                     {timeFmt.format(new Date(n.createdAt))}
                     {n.requester ? ` · Requested by ${n.requester}` : ''}
+                    {' · '}
+                    <span className='inline-flex items-center gap-1'>
+                      Delivered via Dashboard + Email
+                      <Mail className='size-3' aria-hidden />
+                    </span>
                   </p>
                 </div>
               </div>
-              <div className='flex shrink-0 items-center gap-2'>
-                {!n.read && (
+              {!showTeam && (
+                <div className='flex shrink-0 items-center gap-2'>
+                  {!n.read && (
+                    <Button
+                      variant='outline'
+                      className='h-7 rounded-[6px] px-2'
+                      onClick={() => markRead(n.id)}
+                    >
+                      Mark read
+                    </Button>
+                  )}
                   <Button
-                    variant='outline'
                     className='h-7 rounded-[6px] px-2'
-                    onClick={() => markRead(n.id)}
+                    onClick={() => openItem(n)}
                   >
-                    Mark read
+                    Open item
                   </Button>
-                )}
-                <Button
-                  className='h-7 rounded-[6px] px-2'
-                  onClick={() => openItem(n)}
-                >
-                  Open item
-                </Button>
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

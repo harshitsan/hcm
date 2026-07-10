@@ -56,6 +56,9 @@ export function ProfileCard({ store, canManage }: ProfileCardProps) {
                 <div className='flex items-center justify-between gap-2'>
                   <span className='text-paragraph-sm text-neutral-1000 truncate'>
                     {field.label}
+                    {field.required && (
+                      <span className='text-destructive'>*</span>
+                    )}
                   </span>
                   <div className='flex shrink-0 items-center gap-1'>
                     {field.isUdf && <Badge variant='open'>UDF</Badge>}

@@ -1,4 +1,5 @@
 import { type UseFormReturn } from 'react-hook-form'
+import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   FormControl,
@@ -24,10 +25,65 @@ import {
   SUPPORTED_ENTITIES,
   type FieldScope,
 } from '../data/custom-fields'
-import { isSelectType, type FieldWizardValues } from './field-wizard-schema'
+import {
+  hasConfigurableOptions,
+  type FieldWizardValues,
+} from './field-wizard-schema'
 
 interface StepProps {
   form: UseFormReturn<FieldWizardValues>
+}
+
+/**
+ * Row-based option editor for dropdown / radio / multi-select fields.
+ * Rows are stored newline-joined in `optionsText` so the schema stays flat.
+ */
+function OptionRowsEditor({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (value: string) => void
+}) {
+  const rows = value === '' ? [''] : value.split('\n')
+  const commit = (next: string[]) => onChange(next.join('\n'))
+  return (
+    <div className='space-y-2'>
+      {rows.map((row, i) => (
+        <div key={i} className='flex items-center gap-2'>
+          <Input
+            value={row}
+            placeholder={`Option ${i + 1}`}
+            aria-label={`Option ${i + 1}`}
+            onChange={(e) => {
+              const next = [...rows]
+              next[i] = e.target.value.replace(/\n/g, '')
+              commit(next)
+            }}
+          />
+          <Button
+            type='button'
+            variant='outline'
+            size='icon'
+            aria-label={`Remove option ${i + 1}`}
+            disabled={rows.length === 1}
+            onClick={() => commit(rows.filter((_, idx) => idx !== i))}
+          >
+            <X className='size-3.5' />
+          </Button>
+        </div>
+      ))}
+      <Button
+        type='button'
+        variant='outline'
+        size='sm'
+        onClick={() => commit([...rows, ''])}
+      >
+        <Plus className='size-3.5' />
+        Add option
+      </Button>
+    </div>
+  )
 }
 
 /** Step 1 — name, supported entity, scope level, description. */
@@ -158,20 +214,19 @@ export function StepType({ form }: StepProps) {
           </FormItem>
         )}
       />
-      {isSelectType(type) && (
+      {hasConfigurableOptions(type) && (
         <FormField
           control={form.control}
           name='optionsText'
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                Options ({type === 'single-select' ? 'pick one' : 'pick many'})
+                Options ({type === 'multi-select' ? 'pick many' : 'pick one'})
               </FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder={'One option per line\ne.g.\nBlue\nGreen'}
-                  rows={5}
-                  {...field}
+                <OptionRowsEditor
+                  value={field.value}
+                  onChange={field.onChange}
                 />
               </FormControl>
               <p className='text-paragraph-sm text-neutral-1000'>

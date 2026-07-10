@@ -6,12 +6,14 @@ import {
   seedApplications,
   seedCandidates,
   type Application,
+  type ApplicationStatus,
   type Candidate,
   type Interview,
   type PipelineStage,
   type ReferenceCheck,
   type Scorecard,
 } from '../data/candidates'
+import type { ReferenceAnswer } from '../data/reference-questions'
 
 export type CandidateDraft = Omit<
   Candidate,
@@ -23,6 +25,46 @@ export interface BulkFileResult {
   ok: boolean
   reason?: string
 }
+
+/** Kensium candidate-shortlisting form — the 15-pointer resume-bank field set. */
+export interface ShortlistForm {
+  name: string
+  email: string
+  phone: string
+  gender: Candidate['gender']
+  referredBy: string
+  /** Profile-image file name (demo — stored nowhere beyond the form). */
+  image: string
+  address: string
+  experienceYears: number
+  currentCtc: number
+  expectedCtc: number
+  qualification: string
+  appliedForVacancy: boolean
+  vacancyId: string | null
+  /** Requisition backing the picked vacancy (when appliedForVacancy). */
+  requisitionId: string | null
+  requisitionTitle: string
+  /** Position tag when parked in the pool instead of applied to a vacancy. */
+  positionTitle: string
+  noticePeriodDays: number
+  resume: string
+  channelSource: string
+}
+
+/** Extra reference-check capture from the questionnaire dialog. */
+export interface ReferenceCheckExtras {
+  contactEmail?: string
+  contactPhone?: string
+  answers?: ReferenceAnswer[]
+  uploadedDocument?: string
+}
+
+/** Statuses that still count as "in an active hiring process". */
+const ACTIVE_APP_STATUSES: ApplicationStatus[] = [
+  ...PIPELINE_STAGES.filter((s) => s !== 'hired'),
+  'on-hold',
+]
 
 interface UseCandidatesArgs {
   actor: string
@@ -48,7 +90,11 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
 
   // ---- Talent pool -------------------------------------------------------
 
-  /** Add with tenant-level uniqueness enforcement on email/phone (TA-05, TA-24). */
+  /**
+   * Add with tenant-level uniqueness enforcement on email/phone (TA-05,
+   * TA-24). Re-uploading a resume for an existing profile overwrites the
+   * stored file instead of creating a duplicate (Kensium Resume Bank).
+   */
   const addCandidate = useCallback(
     (draft: CandidateDraft): Candidate | null => {
       const duplicate = candidates.find(
@@ -57,6 +103,17 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
           c.phone.replace(/\s/g, '') === draft.phone.replace(/\s/g, '')
       )
       if (duplicate) {
+        if (draft.resume && draft.resume !== duplicate.resume) {
+          setCandidates((prev) =>
+            prev.map((c) =>
+              c.id === duplicate.id ? { ...c, resume: draft.resume } : c
+            )
+          )
+          toast.info(
+            `${duplicate.name} already exists — resume overwritten with ${draft.resume}`
+          )
+          return null
+        }
         toast.error(
           `Potential duplicate — ${duplicate.name} already exists with matching email/phone`
         )
@@ -97,7 +154,10 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
     []
   )
 
-  /** Bulk resume ingestion against a requisition (TA-33). */
+  /**
+   * Bulk resume ingestion against a requisition (TA-33). A file matching an
+   * existing profile's resume overwrites it instead of creating a duplicate.
+   */
   const bulkImport = useCallback(
     (
       files: Array<{ name: string; size: number }>,
@@ -110,9 +170,15 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
           return { file: f.name, ok: false, reason: 'Unsupported file type' }
         if (f.size > 5 * 1024 * 1024)
           return { file: f.name, ok: false, reason: 'File exceeds 5 MB limit' }
+        if (candidates.some((c) => c.resume === f.name))
+          return {
+            file: f.name,
+            ok: true,
+            reason: 'Existing profile — resume overwritten',
+          }
         return { file: f.name, ok: true }
       })
-      const imported = results.filter((r) => r.ok)
+      const imported = results.filter((r) => r.ok && !r.reason)
       imported.forEach((r, i) => {
         const base = r.file.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ')
         const name = base
@@ -132,6 +198,17 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
           resume: r.file,
           linkedRequisitionId: requisitionId,
           addedAt: today(),
+          gender: '',
+          referredBy: '',
+          address: '',
+          experienceYears: 0,
+          currentCtc: 0,
+          expectedCtc: 0,
+          qualification: '',
+          noticePeriodDays: 30,
+          channelSource: 'Bulk Upload',
+          appliedForVacancy: true,
+          vacancyId: null,
         }
         setCandidates((prev) => [candidate, ...prev])
         setApplications((prev) => [
@@ -162,7 +239,7 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
       )
       return results
     },
-    [actor, logEngine]
+    [actor, candidates, logEngine]
   )
 
   /** Simulated mailbox poll importing an emailed application (TA-40). */
@@ -180,12 +257,157 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
       resume: 'tanvi-deshpande-resume.pdf',
       linkedRequisitionId: null,
       addedAt: today(),
+      gender: '',
+      referredBy: '',
+      address: '',
+      experienceYears: 0,
+      currentCtc: 0,
+      expectedCtc: 0,
+      qualification: '',
+      noticePeriodDays: 30,
+      channelSource: 'applications@ mailbox',
+      appliedForVacancy: false,
+      vacancyId: null,
     }
     setCandidates((prev) => [candidate, ...prev])
     toast.success(
       'Mailbox polled — 1 application imported with resume attached; message deleted per settings'
     )
   }, [])
+
+  /**
+   * Kensium candidate shortlisting — updates the resume-bank profile with the
+   * full form and either opens a shortlisted application against the picked
+   * vacancy or parks the profile in the pool tagged to a position. A candidate
+   * already in an active hiring process cannot be shortlisted again.
+   */
+  const shortlistCandidate = useCallback(
+    (candidateId: string, form: ShortlistForm): boolean => {
+      const candidate = candidates.find((c) => c.id === candidateId)
+      if (!candidate) return false
+      if (form.appliedForVacancy) {
+        const active = applications.find(
+          (a) =>
+            a.candidateId === candidateId &&
+            ACTIVE_APP_STATUSES.includes(a.status)
+        )
+        if (active) {
+          toast.error(
+            `${candidate.name} is already in process for ${active.requisitionTitle} — cannot be shortlisted for another vacancy`
+          )
+          return false
+        }
+        if (!form.requisitionId) {
+          toast.error('Pick a vacancy / requisition to shortlist against')
+          return false
+        }
+      }
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.id === candidateId
+            ? {
+                ...c,
+                name: form.name,
+                email: form.email,
+                phone: form.phone,
+                gender: form.gender,
+                referredBy: form.referredBy,
+                address: form.address,
+                experienceYears: form.experienceYears,
+                currentCtc: form.currentCtc,
+                expectedCtc: form.expectedCtc,
+                qualification: form.qualification,
+                noticePeriodDays: form.noticePeriodDays,
+                // Re-uploaded resume overwrites the stored file.
+                resume: form.resume,
+                channelSource: form.channelSource,
+                appliedForVacancy: form.appliedForVacancy,
+                vacancyId: form.appliedForVacancy ? form.vacancyId : null,
+                linkedRequisitionId: form.appliedForVacancy
+                  ? form.requisitionId
+                  : c.linkedRequisitionId,
+                reviewStatus: 'reviewed',
+                folders:
+                  !form.appliedForVacancy && form.positionTitle
+                    ? [...new Set([...c.folders, form.positionTitle])]
+                    : c.folders,
+              }
+            : c
+        )
+      )
+      if (form.appliedForVacancy && form.requisitionId) {
+        setApplications((prev) => [
+          {
+            id: newId('app'),
+            candidateId,
+            candidateName: form.name,
+            candidateEmail: form.email,
+            requisitionId: form.requisitionId as string,
+            requisitionTitle: form.requisitionTitle,
+            status: 'shortlisted',
+            resume: form.resume,
+            appliedAt: today(),
+            preScreenScore: null,
+            interviews: [],
+            scorecards: [],
+            referenceChecks: [],
+            stageHistory: [
+              { at: today(), actor, from: '—', to: 'applied' },
+              {
+                at: today(),
+                actor,
+                from: 'applied',
+                to: 'shortlisted',
+                note: 'Shortlisted from resume bank',
+              },
+            ],
+            checklist: {},
+          },
+          ...prev,
+        ])
+        notify('You have been shortlisted', form.email)
+        toast.success(
+          `${form.name} shortlisted for ${form.requisitionTitle}`
+        )
+      } else {
+        toast.success(
+          `${form.name} kept in the talent pool${form.positionTitle ? ` tagged to ${form.positionTitle}` : ''}`
+        )
+      }
+      return true
+    },
+    [actor, applications, candidates, notify]
+  )
+
+  /**
+   * Mass delete from the resume bank — candidates in an active hiring
+   * process are skipped and reported (Kensium Mass Delete).
+   */
+  const massDeleteCandidates = useCallback(
+    (ids: string[]) => {
+      const inProcess = candidates.filter(
+        (c) =>
+          ids.includes(c.id) &&
+          applications.some(
+            (a) =>
+              a.candidateId === c.id && ACTIVE_APP_STATUSES.includes(a.status)
+          )
+      )
+      const deletable = ids.filter(
+        (id) => !inProcess.some((c) => c.id === id)
+      )
+      setCandidates((prev) => prev.filter((c) => !deletable.includes(c.id)))
+      if (inProcess.length > 0)
+        toast.warning(
+          `Deleted ${deletable.length} — skipped ${inProcess.map((c) => c.name).join(', ')} (in an active hiring process)`
+        )
+      else
+        toast.success(
+          `${deletable.length} candidate${deletable.length === 1 ? '' : 's'} deleted from the resume bank`
+        )
+    },
+    [applications, candidates]
+  )
 
   // ---- Applications ------------------------------------------------------
 
@@ -365,7 +587,9 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
 
   /**
    * Schedule interviews for one or many candidates with calendar-conflict
-   * detection across the pipeline (TA-08, TA-42).
+   * detection across the pipeline (TA-08, TA-42). Guards: a round skipped for
+   * a candidate cannot be scheduled again, and a round with submitted
+   * feedback (scorecard) cannot be rescheduled.
    */
   const scheduleInterviews = useCallback(
     (
@@ -377,8 +601,40 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
         date: string
         time: string
         mode: Interview['mode']
+        comments?: string
+        emailCandidate?: boolean
+        emailSubject?: string
+        emailBody?: string
       }
     ) => {
+      // Round-level guards, evaluated per candidate.
+      const skippedFor = applications.filter(
+        (a) =>
+          ids.includes(a.id) &&
+          a.interviews.some((iv) => iv.round === details.round && iv.skipped)
+      )
+      const lockedFor = applications.filter(
+        (a) =>
+          ids.includes(a.id) &&
+          a.scorecards.some((s) => s.round === details.round)
+      )
+      skippedFor.forEach((a) =>
+        toast.error(
+          `Round ${details.round} was skipped for ${a.candidateName} — it cannot be scheduled again`
+        )
+      )
+      lockedFor.forEach((a) =>
+        toast.error(
+          `Feedback already submitted for round ${details.round} of ${a.candidateName} — it cannot be rescheduled`
+        )
+      )
+      const eligible = ids.filter(
+        (id) =>
+          !skippedFor.some((a) => a.id === id) &&
+          !lockedFor.some((a) => a.id === id)
+      )
+      if (eligible.length === 0) return
+
       const busy = applications
         .flatMap((a) => a.interviews)
         .filter(
@@ -389,11 +645,15 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
         )
         .flatMap((iv) => iv.panel)
       const conflicted = details.panel.filter((m) => busy.includes(m))
-      ids.forEach((id) => {
+      eligible.forEach((id) => {
         patchApp(id, (a) => ({
           ...a,
+          // Rescheduling a round replaces the previous booking for it.
           interviews: [
-            ...a.interviews,
+            ...a.interviews.filter(
+              (iv) =>
+                !(iv.round === details.round && iv.status === 'scheduled')
+            ),
             {
               id: newId('iv'),
               round: details.round,
@@ -403,6 +663,12 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
               time: details.time,
               mode: details.mode,
               status: 'scheduled',
+              comments: details.comments || undefined,
+              emailCandidate: details.emailCandidate,
+              emailSubject: details.emailCandidate
+                ? details.emailSubject
+                : undefined,
+              emailBody: details.emailCandidate ? details.emailBody : undefined,
               conflict:
                 conflicted.length > 0
                   ? `Calendar conflict: ${conflicted.join(', ')} already booked at ${details.time}`
@@ -413,22 +679,87 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
       })
       logEngine(
         'workflow',
-        ids.length > 1 ? 'Mass interviews scheduled' : 'Interview scheduled',
-        `${ids.length} candidate(s), round "${details.roundName}" on ${details.date} ${details.time}; calendar invites sent to ${details.panel.join(', ')}`
+        eligible.length > 1 ? 'Mass interviews scheduled' : 'Interview scheduled',
+        `${eligible.length} candidate(s), round "${details.roundName}" on ${details.date} ${details.time}; calendar invites sent to ${details.panel.join(', ')}`
       )
       details.panel.forEach((m) => notify('Interview scheduled', m))
+      if (details.emailCandidate)
+        applications
+          .filter((a) => eligible.includes(a.id))
+          .forEach((a) =>
+            notify(details.emailSubject ?? 'Interview scheduled', a.candidateEmail)
+          )
       if (conflicted.length > 0)
         toast.warning(
           `Scheduled with conflicts — ${conflicted.join(', ')} already booked at ${details.time}`
         )
       else
         toast.success(
-          ids.length > 1
-            ? `Interviews scheduled for ${ids.length} candidates`
+          eligible.length > 1
+            ? `Interviews scheduled for ${eligible.length} candidates`
             : 'Interview scheduled — calendar entries created'
         )
     },
     [applications, patchApp, logEngine, notify]
+  )
+
+  /**
+   * Skip an interview round for a candidate (Kensium Scheduling Interview).
+   * A skipped round is recorded and can never be scheduled afterwards; a
+   * round with submitted feedback cannot be skipped.
+   */
+  const skipRound = useCallback(
+    (applicationId: string, round: number, roundName?: string) => {
+      const app = applications.find((a) => a.id === applicationId)
+      if (!app) return
+      if (app.scorecards.some((s) => s.round === round)) {
+        toast.error(
+          `Feedback already submitted for round ${round} — it cannot be skipped`
+        )
+        return
+      }
+      if (app.interviews.some((iv) => iv.round === round && iv.skipped)) {
+        toast.error(`Round ${round} is already skipped for ${app.candidateName}`)
+        return
+      }
+      patchApp(applicationId, (a) => {
+        const existing = a.interviews.find(
+          (iv) => iv.round === round && iv.status === 'scheduled'
+        )
+        return {
+          ...a,
+          interviews: existing
+            ? a.interviews.map((iv) =>
+                iv.id === existing.id
+                  ? { ...iv, status: 'cancelled', skipped: true }
+                  : iv
+              )
+            : [
+                ...a.interviews,
+                {
+                  id: newId('iv'),
+                  round,
+                  roundName: roundName ?? `Round ${round}`,
+                  panel: [],
+                  date: today(),
+                  time: '—',
+                  mode: 'Video',
+                  status: 'cancelled',
+                  skipped: true,
+                },
+              ],
+        }
+      })
+      logEngine(
+        'workflow',
+        'Interview round skipped',
+        `${applicationId}: round ${round}${roundName ? ` (${roundName})` : ''} skipped for ${app.candidateName}; further scheduling blocked`
+      )
+      toast.success(
+        `Round ${round} skipped for ${app.candidateName} — it cannot be scheduled again`
+      )
+    },
+    [applications, patchApp, logEngine]
   )
 
   /** Structured scorecard submission, attributed + timestamped (TA-09, TA-44). */
@@ -472,12 +803,16 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
       id: string,
       refId: string,
       outcome: NonNullable<ReferenceCheck['outcome']>,
-      notes: string
+      notes: string,
+      /** Contact details + questionnaire answers from the reference-check form. */
+      extras?: ReferenceCheckExtras
     ) => {
       patchApp(id, (a) => ({
         ...a,
         referenceChecks: a.referenceChecks.map((r) =>
-          r.id === refId ? { ...r, status: 'completed', outcome, notes } : r
+          r.id === refId
+            ? { ...r, status: 'completed', outcome, notes, ...extras }
+            : r
         ),
       }))
       toast.success('Reference feedback documented')
@@ -502,6 +837,8 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
     setReviewStatus,
     bulkImport,
     runMailboxImport,
+    shortlistCandidate,
+    massDeleteCandidates,
     applyToRequisition,
     advanceStage,
     rejectApplication,
@@ -509,6 +846,7 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
     resumeApplication,
     cancelApplication,
     scheduleInterviews,
+    skipRound,
     submitScorecard,
     addReferenceCheck,
     completeReferenceCheck,

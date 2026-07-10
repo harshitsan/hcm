@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { CaretLeft, CaretRight, CheckCircle } from 'phosphor-react'
+import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -34,12 +36,20 @@ interface ConfigTabProps {
   assets: Asset[]
 }
 
+/** Ordered configuration steps for the Save & Next setup wizard (AST-03). */
+const SETUP_STEPS = [
+  { step: 1, label: 'Asset tracking setup' },
+  { step: 2, label: 'Acknowledgement & overdue policy' },
+  { step: 3, label: 'Approval routing' },
+] as const
+
 /**
  * Governed configuration surface: module enablement (ASM-40),
  * acknowledgement & overdue policy (ASM-21), approval routing (ASM-43),
  * category taxonomy (ASM-19/37), condition questionnaire (ASM-20), the
  * lifecycle decision table (ASM-23) and the Platform Admin tenant-isolation
- * panel (ASM-18).
+ * panel (ASM-18). Setup & Policy is a Save & Next wizard — each configuration
+ * step saves and advances to the next until Save & finish (AST-03).
  */
 export function ConfigTab({ config, assets }: ConfigTabProps) {
   const { role } = useRole()
@@ -47,6 +57,8 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
   const isCompanyAdmin = role === 'Company Admin'
 
   const [tab, setTab] = useState(isCompanyAdmin ? 'general' : 'governance')
+  // Save & Next wizard position within Setup & Policy (AST-03).
+  const [setupStep, setSetupStep] = useState(1)
   const [moduleDraft, setModuleDraft] = useState(config.moduleEnabled)
   const [rulesDraft, setRulesDraft] = useState({
     receiptAckRequired: config.ackRules.receiptAckRequired,
@@ -87,6 +99,46 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
 
         {isCompanyAdmin && (
           <TabsContent value='general' className='space-y-4'>
+            <div className='border-grey-200 flex flex-wrap items-center gap-2 rounded-[6px] border bg-white px-3 py-2.5'>
+              {SETUP_STEPS.map((s, i) => (
+                <div key={s.step} className='flex items-center gap-2'>
+                  {i > 0 && <span className='text-neutral-1000 text-paragraph-sm'>—</span>}
+                  <button
+                    type='button'
+                    onClick={() => setSetupStep(s.step)}
+                    className='flex items-center gap-1.5'
+                  >
+                    {s.step < setupStep ? (
+                      <CheckCircle size={16} weight='fill' className='text-orange-1200' />
+                    ) : (
+                      <span
+                        className={`flex size-4 items-center justify-center rounded-full text-[10px] font-medium ${
+                          s.step === setupStep
+                            ? 'bg-orange-1200 text-white'
+                            : 'bg-neutral-200 text-neutral-1000'
+                        }`}
+                      >
+                        {s.step}
+                      </span>
+                    )}
+                    <span
+                      className={`text-paragraph-sm ${
+                        s.step === setupStep
+                          ? 'text-neutral-1600 font-medium'
+                          : 'text-neutral-1000'
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                  </button>
+                </div>
+              ))}
+              <span className='text-paragraph-sm text-neutral-1000 ms-auto'>
+                Step {setupStep} of {SETUP_STEPS.length}
+              </span>
+            </div>
+
+            {setupStep === 1 && (
             <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
               <h3 className='text-neutral-1600 mb-1 text-sm font-medium'>
                 Asset tracking setup
@@ -110,10 +162,14 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
                   </SelectContent>
                 </Select>
                 <Button
-                  className='h-7 rounded-[6px] px-2.5'
-                  onClick={() => config.setModuleEnabled(moduleDraft)}
+                  className='h-7 gap-1 rounded-[6px] px-2.5'
+                  onClick={() => {
+                    config.setModuleEnabled(moduleDraft)
+                    setSetupStep(2)
+                  }}
                 >
                   Save & next
+                  <CaretRight size={12} weight='bold' />
                 </Button>
                 <Button
                   variant='outline'
@@ -124,7 +180,9 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
                 </Button>
               </div>
             </div>
+            )}
 
+            {setupStep === 2 && (
             <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
               <div className='mb-2 flex items-center gap-2'>
                 <h3 className='text-neutral-1600 text-sm font-medium'>
@@ -196,14 +254,28 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
                   />
                 </div>
                 <Button
-                  className='h-7 rounded-[6px] px-2.5'
-                  onClick={() => config.saveAckRules(rulesDraft)}
+                  variant='outline'
+                  className='h-7 gap-1 rounded-[6px] px-2.5'
+                  onClick={() => setSetupStep(1)}
                 >
-                  Save policy
+                  <CaretLeft size={12} weight='bold' />
+                  Back
+                </Button>
+                <Button
+                  className='h-7 gap-1 rounded-[6px] px-2.5'
+                  onClick={() => {
+                    config.saveAckRules(rulesDraft)
+                    setSetupStep(3)
+                  }}
+                >
+                  Save & next
+                  <CaretRight size={12} weight='bold' />
                 </Button>
               </div>
             </div>
+            )}
 
+            {setupStep === 3 && (
             <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
               <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
                 Approval routing (requisitions · arrivals · outbound)
@@ -245,7 +317,31 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
                 Subsequent requests route to the configured approver as “Pending with me”
                 items and advance only on their decision.
               </p>
+              <div className='mt-3 flex items-center gap-3'>
+                <Button
+                  variant='outline'
+                  className='h-7 gap-1 rounded-[6px] px-2.5'
+                  onClick={() => setSetupStep(2)}
+                >
+                  <CaretLeft size={12} weight='bold' />
+                  Back
+                </Button>
+                <Button
+                  className='h-7 gap-1 rounded-[6px] px-2.5'
+                  onClick={() => {
+                    setSetupStep(1)
+                    setTab('categories')
+                    toast.success(
+                      'Setup complete — module, policy and routing saved. Continue with the category taxonomy.'
+                    )
+                  }}
+                >
+                  Save & finish
+                  <CheckCircle size={12} weight='bold' />
+                </Button>
+              </div>
             </div>
+            )}
           </TabsContent>
         )}
 

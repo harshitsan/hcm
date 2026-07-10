@@ -1,5 +1,13 @@
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 /** White card wrapper for a configuration section. */
 export function SectionCard({
@@ -58,6 +66,96 @@ export function CheckboxGroup({
         </label>
       ))}
     </div>
+  )
+}
+
+/** Item count + Previous/Next pager for configuration list tables. */
+export function ListPagination({
+  total,
+  page,
+  pageSize,
+  onPageChange,
+}: {
+  total: number
+  page: number
+  pageSize: number
+  onPageChange: (page: number) => void
+}) {
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+  const start = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const end = Math.min(total, page * pageSize)
+  return (
+    <div className='mt-3 flex flex-wrap items-center justify-between gap-2'>
+      <p className='text-neutral-1000 text-xs'>
+        Showing {start}–{end} of {total} record(s)
+      </p>
+      <div className='flex items-center gap-2'>
+        <Button
+          size='sm'
+          variant='outline'
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+        >
+          Previous
+        </Button>
+        <span className='text-neutral-1000 text-xs'>
+          Page {page} of {pages}
+        </span>
+        <Button
+          size='sm'
+          variant='outline'
+          disabled={page >= pages}
+          onClick={() => onPageChange(page + 1)}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Slice helper so paged tables never render an out-of-range page. */
+export function pageSlice<T>(items: T[], page: number, pageSize: number): T[] {
+  return items.slice((page - 1) * pageSize, page * pageSize)
+}
+
+/** Confirm-before-delete dialog shared by the config record tables. */
+export function ConfirmDeleteDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  onConfirm,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  description: string
+  onConfirm: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <p className='text-neutral-1000 text-sm'>{description}</p>
+        <DialogFooter>
+          <Button variant='outline' onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant='destructive'
+            onClick={() => {
+              onConfirm()
+              onOpenChange(false)
+            }}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

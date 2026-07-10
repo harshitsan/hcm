@@ -11,6 +11,24 @@ export type RequestStatus =
   | 'withdrawn'
   | 'cancellation-requested'
   | 'cancelled'
+  | 'needs-clarification'
+
+/** One question/answer round between an approver and the applicant (ETOR-NC). */
+export interface Clarification {
+  askedBy: string
+  askedOn: string
+  question: string
+  answeredOn: string | null
+  answer: string | null
+}
+
+/** Set when an approver edits the applicant's requested period (ETOA-06). */
+export interface PeriodChange {
+  originalFrom: string
+  originalTo: string
+  changedBy: string
+  note: string
+}
 
 export type StepMode = 'sequential' | 'parallel'
 
@@ -66,6 +84,18 @@ export interface LeaveRequest {
   fmlaQualifyingReason: string | null
   fmlaRejectionReason: string | null
   status: RequestStatus
+  /** Supporting documents attached at apply time, e.g. medical certificates (ATO-05). */
+  attachments?: string[]
+  /** Clarification Q&A rounds between approvers and the applicant. */
+  clarifications: Clarification[]
+  /** Set once an approver changes the applied period; original dates kept. */
+  periodChangedByApprover: PeriodChange | null
+  /** Applicant's pending tasks shown on the approval screen (ETOA-04). */
+  pendingTasks: string[]
+  /** Applicant's pending knowledge-transfer tasks (ETOA-05). */
+  pendingKtTasks: string[]
+  /** Documents uploaded by approvers/admins during review (ETOA-06). */
+  approverAttachments: string[]
   steps: ApprovalStep[]
   submittedOn: string
   /** Admin who recorded this on behalf of a non-user employee (LVE-17). */
@@ -100,7 +130,26 @@ function step(
   }
 }
 
-export const seedRequests: LeaveRequest[] = [
+/** Fields every request carries but most seeds leave at their defaults. */
+type SeedDefaultKeys =
+  | 'clarifications'
+  | 'periodChangedByApprover'
+  | 'pendingTasks'
+  | 'pendingKtTasks'
+  | 'approverAttachments'
+
+type SeedRequest = Omit<LeaveRequest, SeedDefaultKeys> &
+  Partial<Pick<LeaveRequest, SeedDefaultKeys>>
+
+const REQUEST_DEFAULTS: Pick<LeaveRequest, SeedDefaultKeys> = {
+  clarifications: [],
+  periodChangedByApprover: null,
+  pendingTasks: [],
+  pendingKtTasks: [],
+  approverAttachments: [],
+}
+
+const baseSeeds: SeedRequest[] = [
   {
     id: 'lr-2001',
     employeeId: 'emp-1001',
@@ -126,6 +175,20 @@ export const seedRequests: LeaveRequest[] = [
     fmlaQualifyingReason: null,
     fmlaRejectionReason: null,
     status: 'pending',
+    // Clarification already answered — request is back in the pending queue.
+    clarifications: [
+      {
+        askedBy: 'Rahul Menon',
+        askedOn: '2026-07-01',
+        question:
+          'Release 4.2 ships on 22 Jul — who covers the deployment window while you are away?',
+        answeredOn: '2026-07-02',
+        answer:
+          'Priya Iyer owns the deployment; runbook handover completed on 30 Jun.',
+      },
+    ],
+    pendingTasks: ['Close sprint 42 tickets', 'Sign off Q3 capacity plan'],
+    pendingKtTasks: ['KT: payment-gateway runbook to Priya'],
     steps: [
       step(1, 'Reporting Manager', 'Rahul Menon'),
       step(2, 'HR Partner', 'Sunita Patil', { mode: 'parallel', rule: 'any' }),
@@ -138,6 +201,20 @@ export const seedRequests: LeaveRequest[] = [
         actor: 'Ananya Sharma',
         action: 'Submitted',
         detail: 'Routed to Reporting Manager (sequential level 1).',
+      },
+      {
+        at: '2026-07-01T10:05:00Z',
+        actor: 'Rahul Menon',
+        action: 'Clarification requested',
+        detail:
+          'Asked: “Release 4.2 ships on 22 Jul — who covers the deployment window while you are away?”',
+      },
+      {
+        at: '2026-07-02T08:30:00Z',
+        actor: 'Ananya Sharma',
+        action: 'Clarification provided',
+        detail:
+          'Answered — request returned to the pending approval queue.',
       },
     ],
   },
@@ -203,6 +280,8 @@ export const seedRequests: LeaveRequest[] = [
     fmlaQualifyingReason: null,
     fmlaRejectionReason: null,
     status: 'pending',
+    pendingTasks: ['Finish invoice reconciliation for June', 'Update on-call roster'],
+    pendingKtTasks: ['KT: nightly ETL job monitoring to Meera'],
     steps: [
       step(1, 'Reporting Manager', 'Ananya Sharma'),
       step(2, 'Loss-of-Pay Approver', 'Sunita Patil'),
@@ -281,6 +360,8 @@ export const seedRequests: LeaveRequest[] = [
     fmlaQualifyingReason: 'Care for spouse with a serious health condition',
     fmlaRejectionReason: null,
     status: 'pending',
+    pendingTasks: ['Hand over Northwind renewal negotiation', 'Close Q2 pipeline review'],
+    pendingKtTasks: ['KT: enterprise pricing calculator to Casey'],
     steps: [step(1, 'FMLA Approver (Austin)', 'Dana Willis', { slaHours: 72 })],
     submittedOn: '2026-06-29',
     onBehalfOf: null,
@@ -594,4 +675,67 @@ export const seedRequests: LeaveRequest[] = [
       },
     ],
   },
+  // Sent back by the approver with an open question — the applicant (or the
+  // approver on their behalf) must answer before it re-enters the queue.
+  {
+    id: 'lr-2012',
+    employeeId: 'emp-1003',
+    employeeName: 'Priya Iyer',
+    employeeCode: 'STI-0233',
+    department: 'Engineering',
+    location: 'Hyderabad',
+    typeId: 'lt-casual',
+    typeName: 'Casual Leave',
+    unit: 'days',
+    from: '2026-07-16',
+    to: '2026-07-17',
+    fromTime: null,
+    toTime: null,
+    amount: 2,
+    lopAmount: 0,
+    reason: 'House shifting — movers booked for these two days.',
+    tentative: false,
+    tentativeReason: null,
+    notifyPeers: ['Vikram Rao'],
+    notifyEmails: [],
+    fmla: false,
+    fmlaQualifyingReason: null,
+    fmlaRejectionReason: null,
+    status: 'needs-clarification',
+    clarifications: [
+      {
+        askedBy: 'Ananya Sharma',
+        askedOn: '2026-07-06',
+        question:
+          'These dates clash with the UAT sign-off on 16 Jul — can the second day move to 20 Jul, or is the movers’ booking fixed?',
+        answeredOn: null,
+        answer: null,
+      },
+    ],
+    pendingTasks: ['UAT sign-off checklist for release 4.2'],
+    pendingKtTasks: ['KT: regression suite ownership to Vikram'],
+    steps: [step(1, 'Reporting Manager', 'Ananya Sharma')],
+    submittedOn: '2026-07-04',
+    onBehalfOf: null,
+    history: [
+      {
+        at: '2026-07-04T09:00:00Z',
+        actor: 'Priya Iyer',
+        action: 'Submitted',
+        detail: 'Routed to Reporting Manager.',
+      },
+      {
+        at: '2026-07-06T11:20:00Z',
+        actor: 'Ananya Sharma',
+        action: 'Clarification requested',
+        detail:
+          'Asked: “These dates clash with the UAT sign-off on 16 Jul — can the second day move to 20 Jul, or is the movers’ booking fixed?” Applicant notified.',
+      },
+    ],
+  },
 ]
+
+export const seedRequests: LeaveRequest[] = baseSeeds.map((r) => ({
+  ...REQUEST_DEFAULTS,
+  ...r,
+}))

@@ -16,6 +16,7 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeVariant }> = {
   rejected: { label: 'Rejected', variant: 'dropped' },
   withdrawn: { label: 'Withdrawn', variant: 'badge_inactive' },
   'cancellation-requested': { label: 'Cancellation Requested', variant: 'overdue' },
+  'needs-clarification': { label: 'Needs Clarification', variant: 'overdue' },
   cancelled: { label: 'Cancelled', variant: 'badge_inactive' },
   skipped: { label: 'Skipped', variant: 'badge_inactive' },
   // comp-off credits
@@ -56,4 +57,26 @@ export function LopBadge({ amount, unit }: { amount: number; unit: string }) {
 
 export function FmlaBadge() {
   return <Badge variant='open'>FMLA</Badge>
+}
+
+/** Clarification round-trip marker: count of Q&A rounds, amber while open. */
+export function ClarificationBadge({
+  count,
+  open,
+}: {
+  count: number
+  open: boolean
+}) {
+  if (count === 0) return null
+  return (
+    <Badge variant={open ? 'overdue' : 'open'}>
+      {count} clarification{count > 1 ? 's' : ''}
+      {open ? ' · awaiting answer' : ''}
+    </Badge>
+  )
+}
+
+/** Shown when an approver edited the applicant's requested period (ETOA-06). */
+export function PeriodChangedBadge() {
+  return <Badge variant='open'>Period changed</Badge>
 }

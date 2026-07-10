@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -8,10 +9,12 @@ import { GovernanceTab } from './components/governance-tab'
 import { HiringPipelineTab } from './components/hiring-pipeline-tab'
 import { OffersTab } from './components/offers-tab'
 import { PortalTab } from './components/portal-tab'
+import { RecruitmentReportsTab } from './components/reports-tab'
 import { RequisitionsTab } from './components/requisitions-tab'
 import { RecruitmentSummary } from './components/summary-cards'
 import { TalentPoolTab } from './components/talent-pool-tab'
 import { VacanciesTab } from './components/vacancies-tab'
+import { useCandidateDocuments } from './hooks/use-candidate-documents'
 import { useCandidates } from './hooks/use-candidates'
 import { useOffers } from './hooks/use-offers'
 import { useRecruitmentConfig } from './hooks/use-recruitment-config'
@@ -20,31 +23,39 @@ import { useVacancies } from './hooks/use-vacancies'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-/**
- * Recruitment / Talent Acquisition module (TA-01…TA-56) — requisition desk,
- * vacancies & postings, talent pool, end-to-end hiring pipeline, offer
- * lifecycle, candidate self-service portal, configuration metadata and
- * platform/group/portfolio governance. All state is in-memory (POC).
- */
+function SegmentedSelector<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[]
+  value: T
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className='mb-4 flex gap-1 rounded-lg border border-neutral-200 bg-neutral-100 p-1 w-fit'>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          onClick={() => onChange(o.value)}
+          className={[
+            'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+            value === o.value
+              ? 'bg-white text-blue-1200 shadow-sm'
+              : 'text-neutral-1000 hover:text-neutral-1400',
+          ].join(' ')}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function Recruitment() {
   const { role, hasRole } = useRole()
 
-  // Config first — it owns the shared engine log + notification dispatcher
-  // that the domain stores write into (TA-27…TA-30).
   const config = useRecruitmentConfig()
-
-  const requisitions = useRequisitions({
-    actor: role,
-    nonBudgetedApprover: config.nonBudgetedApprover,
-    logEngine: config.logEngine,
-    notify: config.notify,
-  })
-
-  const candidates = useCandidates({
-    actor: role,
-    logEngine: config.logEngine,
-    notify: config.notify,
-  })
 
   const vacancies = useVacancies({
     assignmentMethod: config.assignmentMethod,
@@ -53,13 +64,38 @@ export function Recruitment() {
     notify: config.notify,
   })
 
+  const requisitions = useRequisitions({
+    actor: role,
+    nonBudgetedApprover: config.nonBudgetedApprover,
+    logEngine: config.logEngine,
+    notify: config.notify,
+    // Kensium: the final RRF approval spawns a vacancy for recruiter assignment.
+    onFinalApproval: (req) => {
+      vacancies.addVacancy({
+        rrfId: req.id,
+        position: req.title,
+        workLocation: req.location,
+        employeeClass: req.employeeClass,
+        vacancies: req.headcount,
+        closingDate: req.closingDate,
+      })
+    },
+  })
+
+  const candidates = useCandidates({
+    actor: role,
+    logEngine: config.logEngine,
+    notify: config.notify,
+  })
+
+  const candidateDocuments = useCandidateDocuments()
+
   const offers = useOffers({
     actor: role,
     offerApproverRules: config.offerApproverRules,
     outOfBandApprover: config.outOfBandApprover,
     logEngine: config.logEngine,
     notify: config.notify,
-    // TA-14: conversion marks the application hired + requisition filled.
     onConverted: (applicationId, requisitionId) => {
       candidates.patchApp(applicationId, (a) => ({
         ...a,
@@ -75,7 +111,6 @@ export function Recruitment() {
         'Requisition filled via candidate conversion'
       )
     },
-    // TA-47: company-side withdrawal closes the candidature as cancelled.
     onOfferCancelled: (applicationId) => {
       candidates.patchApp(applicationId, (a) => ({
         ...a,
@@ -93,7 +128,6 @@ export function Recruitment() {
         ],
       }))
     },
-    // TA-47: refusal is recorded while the candidate is retained in history.
     onOfferRefused: (applicationId) => {
       candidates.patchApp(applicationId, (a) => ({
         ...a,
@@ -112,11 +146,7 @@ export function Recruitment() {
   })
 
   const isCompanyAdmin = hasRole('Company Admin', 'Group Company Admin')
-  const showConfig = hasRole(
-    'Company Admin',
-    'Group Company Admin',
-    'Platform Admin'
-  )
+  const showConfig = hasRole('Company Admin', 'Group Company Admin', 'Platform Admin')
   const showGovernance = hasRole(
     'Platform Admin',
     'Portfolio Admin',
@@ -125,10 +155,11 @@ export function Recruitment() {
   )
   const showAdmin = showConfig || showGovernance
 
-  // Employees land on the self-service portal; admin/recruiting roles land
-  // on the operational job-openings list.
   const isEmployee = hasRole('Employee (User)', 'Employee (Non-User)')
   const defaultTab = isEmployee ? 'portal' : 'openings'
+
+  const [openingsView, setOpeningsView] = useState<'requisitions' | 'vacancies'>('requisitions')
+  const [candidatesView, setCandidatesView] = useState<'pipeline' | 'talent-pool'>('pipeline')
 
   return (
     <>
@@ -142,7 +173,7 @@ export function Recruitment() {
           />
 
           <Tabs defaultValue={defaultTab} className='w-full'>
-            <TabsList className='mb-2 flex-wrap'>
+            <TabsList className='mb-2 flex-wrap bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='portal' variant='primary'>
                 Candidate Portal
               </TabsTrigger>
@@ -155,6 +186,11 @@ export function Recruitment() {
               <TabsTrigger value='offers' variant='primary'>
                 Offers
               </TabsTrigger>
+              {showGovernance && (
+                <TabsTrigger value='reports' variant='primary'>
+                  Reports
+                </TabsTrigger>
+              )}
               {showAdmin && (
                 <TabsTrigger value='admin' variant='primary'>
                   Admin
@@ -172,64 +208,62 @@ export function Recruitment() {
             </TabsContent>
 
             <TabsContent value='openings'>
-              <Tabs defaultValue='requisitions' className='w-full'>
-                <TabsList className='mb-2'>
-                  <TabsTrigger value='requisitions' variant='ghost'>
-                    Job Requests
-                  </TabsTrigger>
-                  <TabsTrigger value='vacancies' variant='ghost'>
-                    Postings
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value='requisitions'>
-                  <RequisitionsTab
-                    store={requisitions}
-                    customFields={config.customFields}
-                    applications={candidates.applications}
-                  />
-                </TabsContent>
-                <TabsContent value='vacancies'>
-                  <VacanciesTab
-                    store={vacancies}
-                    postingChannels={config.postingChannels}
-                    assignmentMethod={config.assignmentMethod}
-                  />
-                </TabsContent>
-              </Tabs>
+              <SegmentedSelector
+                options={[
+                  { value: 'requisitions', label: 'Job Requests' },
+                  { value: 'vacancies', label: 'Postings' },
+                ]}
+                value={openingsView}
+                onChange={setOpeningsView}
+              />
+              {openingsView === 'requisitions' && (
+                <RequisitionsTab
+                  store={requisitions}
+                  customFields={config.customFields}
+                  applications={candidates.applications}
+                />
+              )}
+              {openingsView === 'vacancies' && (
+                <VacanciesTab
+                  store={vacancies}
+                  postingChannels={config.postingChannels}
+                  assignmentMethod={config.assignmentMethod}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value='candidates'>
-              <Tabs defaultValue='pipeline' className='w-full'>
-                <TabsList className='mb-2'>
-                  <TabsTrigger value='pipeline' variant='ghost'>
-                    Hiring Pipeline
-                  </TabsTrigger>
-                  <TabsTrigger value='talent-pool' variant='ghost'>
-                    Talent Pool
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value='pipeline'>
-                  <HiringPipelineTab
-                    store={candidates}
-                    offersStore={offers}
-                    panels={config.panels}
-                    roundsConfigs={config.roundsConfigs}
-                    checklistQuestions={config.checklistQuestions}
-                    criteria={config.criteria}
-                    criteriaVersion={config.criteriaVersion}
-                    letterTemplates={config.letterTemplates}
-                    offerApproverRules={config.offerApproverRules}
-                    outOfBandApprover={config.outOfBandApprover}
-                  />
-                </TabsContent>
-                <TabsContent value='talent-pool'>
-                  <TalentPoolTab
-                    store={candidates}
-                    requisitions={requisitions.requisitions}
-                    mailboxEnabled={config.mailbox.enabled && isCompanyAdmin}
-                  />
-                </TabsContent>
-              </Tabs>
+              <SegmentedSelector
+                options={[
+                  { value: 'pipeline', label: 'Hiring Pipeline' },
+                  { value: 'talent-pool', label: 'Talent Pool' },
+                ]}
+                value={candidatesView}
+                onChange={setCandidatesView}
+              />
+              {candidatesView === 'pipeline' && (
+                <HiringPipelineTab
+                  store={candidates}
+                  offersStore={offers}
+                  panels={config.panels}
+                  roundsConfigs={config.roundsConfigs}
+                  checklistQuestions={config.checklistQuestions}
+                  criteria={config.criteria}
+                  criteriaVersion={config.criteriaVersion}
+                  letterTemplates={config.letterTemplates}
+                  offerApproverRules={config.offerApproverRules}
+                  outOfBandApprover={config.outOfBandApprover}
+                  referenceQuestions={config.refQuestions}
+                />
+              )}
+              {candidatesView === 'talent-pool' && (
+                <TalentPoolTab
+                  store={candidates}
+                  requisitions={requisitions.requisitions}
+                  mailboxEnabled={config.mailbox.enabled && isCompanyAdmin}
+                  vacancies={vacancies.vacancies}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value='offers'>
@@ -237,39 +271,49 @@ export function Recruitment() {
                 store={offers}
                 applications={candidates.applications}
                 checklistQuestions={config.checklistQuestions}
+                documentsStore={candidateDocuments}
+                requiredDocuments={config.requiredDocuments}
               />
             </TabsContent>
 
+            {showGovernance && (
+              <TabsContent value='reports'>
+                <RecruitmentReportsTab
+                  applications={candidates.applications}
+                  candidates={candidates.candidates}
+                  offers={offers.offers}
+                  requisitions={requisitions.requisitions}
+                  documents={candidateDocuments.submissions}
+                />
+              </TabsContent>
+            )}
+
             {showAdmin && (
               <TabsContent value='admin'>
-                <EngineArtifactsPanel module='Recruitment' />
-                <Tabs
-                  defaultValue={showConfig ? 'settings' : 'policies'}
-                  className='w-full'
-                >
-                  <TabsList className='mb-2'>
-                    {showConfig && (
-                      <TabsTrigger value='settings' variant='ghost'>
-                        Settings
-                      </TabsTrigger>
-                    )}
-                    {showGovernance && (
-                      <TabsTrigger value='policies' variant='ghost'>
-                        Company &amp; Platform Policies
-                      </TabsTrigger>
-                    )}
-                  </TabsList>
+                <div className='flex flex-col gap-8'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                      Engine Features
+                    </h3>
+                    <EngineArtifactsPanel module='Recruitment' />
+                  </section>
                   {showConfig && (
-                    <TabsContent value='settings'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Settings
+                      </h3>
                       <ConfigurationTab config={config} />
-                    </TabsContent>
+                    </section>
                   )}
                   {showGovernance && (
-                    <TabsContent value='policies'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Company &amp; Platform Policies
+                      </h3>
                       <GovernanceTab config={config} />
-                    </TabsContent>
+                    </section>
                   )}
-                </Tabs>
+                </div>
               </TabsContent>
             )}
           </Tabs>

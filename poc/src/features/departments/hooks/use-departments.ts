@@ -7,10 +7,13 @@ import {
 } from '../data/departments'
 import { seedEmployees, type Employee } from '../data/employees'
 import { seedHistory, type HistoryEvent } from '../data/governance'
+import { seedShifts, type Shift } from '../data/org-config'
 
 export type DepartmentDraft = Omit<Department, 'id' | 'companyId'>
+export type ShiftDraft = Omit<Shift, 'id'>
 
 let deptSeq = 15
+let shiftSeq = 31
 
 /**
  * In-memory departments store. Stands in for the real API while the backend
@@ -21,6 +24,7 @@ export function useDepartments() {
   const [departments, setDepartments] = useState<Department[]>(seedDepartments)
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees)
   const [history, setHistory] = useState<HistoryEvent[]>(seedHistory)
+  const [shifts, setShifts] = useState<Shift[]>(seedShifts)
 
   const logEvent = useCallback(
     (entity: string, action: string, detail: string, effectiveFrom?: string) => {
@@ -282,10 +286,81 @@ export function useDepartments() {
     toast.success('Department list refreshed — showing latest data')
   }, [])
 
+  /* ---------------- shift catalog (SHFT-06/07) ---------------- */
+
+  const addShift = useCallback(
+    (draft: ShiftDraft) => {
+      shiftSeq += 1
+      const shift: Shift = { ...draft, id: `sh-${shiftSeq}` }
+      setShifts((prev) => [...prev, shift])
+      logEvent(
+        `${shift.id} ${shift.name}`,
+        'shift created',
+        `${draft.startTime}–${draft.endTime} (${draft.durationHours}h), weekly offs: ${draft.weeklyOffs.join(', ') || 'none'}.`
+      )
+      toast.success(`Shift "${draft.name}" created (${shift.id})`)
+    },
+    [logEvent]
+  )
+
+  const updateShift = useCallback(
+    (id: string, draft: ShiftDraft) => {
+      setShifts((prev) => prev.map((s) => (s.id === id ? { ...s, ...draft } : s)))
+      logEvent(
+        `${id} ${draft.name}`,
+        'shift updated',
+        `Definition saved: ${draft.startTime}–${draft.endTime} (${draft.durationHours}h), weekly offs: ${draft.weeklyOffs.join(', ') || 'none'}.`
+      )
+      toast.success(
+        `Shift "${draft.name}" saved — departments using it see the new times immediately`
+      )
+    },
+    [logEvent]
+  )
+
+  /** Reasons a shift cannot be deleted yet (still referenced). */
+  const shiftDeleteBlockersFor = useCallback(
+    (id: string): string[] => {
+      const blockers: string[] = []
+      const usedBy = departments.filter(
+        (d) => d.shiftIds.includes(id) || d.defaultShiftId === id
+      )
+      if (usedBy.length > 0) {
+        blockers.push(
+          `Assigned to ${usedBy.length} department${usedBy.length > 1 ? 's' : ''} (${usedBy.map((d) => d.name).join(', ')}) — unassign it first.`
+        )
+      }
+      const holders = employees.filter((e) => e.shiftId === id)
+      if (holders.length > 0) {
+        blockers.push(
+          `${holders.length} employee${holders.length > 1 ? 's are' : ' is'} specifically assigned to this shift — move them to another shift first.`
+        )
+      }
+      return blockers
+    },
+    [departments, employees]
+  )
+
+  const deleteShift = useCallback(
+    (id: string) => {
+      const shift = shifts.find((s) => s.id === id)
+      if (!shift) return
+      setShifts((prev) => prev.filter((s) => s.id !== id))
+      logEvent(`${id} ${shift.name}`, 'shift deleted', 'Removed from the shift catalog.')
+      toast.success(`Shift "${shift.name}" deleted`)
+    },
+    [shifts, logEvent]
+  )
+
+  const refreshShifts = useCallback(() => {
+    toast.success(`Shift list refreshed — ${shifts.length} shifts showing current data`)
+  }, [shifts.length])
+
   return {
     departments,
     employees,
     history,
+    shifts,
     deptById,
     employeeById,
     childrenOf,
@@ -303,6 +378,11 @@ export function useDepartments() {
     removeMembership,
     addEmployee,
     refresh,
+    addShift,
+    updateShift,
+    shiftDeleteBlockersFor,
+    deleteShift,
+    refreshShifts,
     logEvent,
   }
 }

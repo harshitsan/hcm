@@ -31,8 +31,12 @@ export const MODULE_ACCESS: Record<string, readonly Role[]> = {
   '/org-groups': [C],
   '/directory': [P, PF, G, C, EU],
   // Workforce
-  '/employees': [P, PF, G, C],
-  '/lifecycle': [PF, G, C],
+  // Employee (User) opens Employees for the My Profile self-service tab;
+  // admin-only tabs inside the module stay RoleGate-protected.
+  '/employees': [P, PF, G, C, EU],
+  // Employee (User) opens Lifecycle for My Lifecycle + Knowledge Transfer
+  // (provider/receiver views); Platform Admin for settings/data/audit tabs.
+  '/lifecycle': [P, PF, G, C, EU],
   '/self-service': [EU],
   '/recruitment': [C],
   '/leave': [PF, G, C, EU],

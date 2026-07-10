@@ -53,6 +53,35 @@ export function useVacancies({
     []
   )
 
+  /** Spawn a vacancy from a fully-approved requisition (Kensium: final RRF
+   * approval creates the vacancy for recruiter assignment). */
+  const addVacancy = useCallback(
+    (
+      draft: Omit<
+        Vacancy,
+        'id' | 'code' | 'createdDate' | 'recruiters' | 'status'
+      >
+    ) => {
+      const vacancy: Vacancy = {
+        ...draft,
+        id: `v-${crypto.randomUUID().slice(0, 6)}`,
+        code: `VAC-${2200 + vacancies.length + 1}`,
+        createdDate: new Date().toISOString().slice(0, 10),
+        recruiters: [],
+        status: 'new',
+      }
+      setVacancies((prev) => [vacancy, ...prev])
+      logEngine(
+        'workflow',
+        `Vacancy ${vacancy.code} created`,
+        `Spawned from approved requisition ${draft.rrfId} — awaiting recruiter assignment (${assignmentMethod} method)`
+      )
+      notify('Vacancy created from approved requisition', 'Recruitment team')
+      toast.success(`Vacancy ${vacancy.code} created from ${draft.rrfId}`)
+    },
+    [vacancies.length, assignmentMethod, logEngine, notify]
+  )
+
   /** Assign recruiters per the configured method (TA-35). */
   const assignRecruiter = useCallback(
     (id: string, recruiter: string) => {
@@ -136,6 +165,7 @@ export function useVacancies({
   return {
     vacancies,
     postings,
+    addVacancy,
     setVacancyStatus,
     assignRecruiter,
     addPosting,

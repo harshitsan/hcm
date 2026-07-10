@@ -2,8 +2,17 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import { Input } from '@/components/ui/input'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -12,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Textarea } from '@/components/ui/textarea'
 import { useRole } from '@/context/role-context'
 import {
   PIPELINE_STAGES,
@@ -20,6 +30,10 @@ import {
   type ReferenceCheck,
 } from '../data/candidates'
 import type { ChecklistQuestion } from '../data/config'
+import {
+  seedReferenceQuestions,
+  type ReferenceQuestion,
+} from '../data/reference-questions'
 import type { CandidatesStore } from '../hooks/use-candidates'
 import { StatusBadge } from './badges'
 
@@ -28,20 +42,24 @@ interface ApplicationDetailSheetProps {
   onOpenChange: (open: boolean) => void
   store: CandidatesStore
   checklistQuestions: ChecklistQuestion[]
+  /** Configured reference-check questionnaire; falls back to the seed set. */
+  referenceQuestions?: ReferenceQuestion[]
   /** Opens the offer-generation dialog (Company Admin) or records the HM recommendation. */
   onGenerateOffer: (app: Application) => void
 }
 
 /**
  * Per-candidate drill-down — stage actions with rules-engine gating,
- * side-by-side scorecards, reference tracking, hold/resume and the
- * pre-onboarding checklist (TA-06, TA-10, TA-13, TA-17, TA-28, TA-45, TA-51).
+ * side-by-side scorecards, questionnaire-driven reference checks, hiring
+ * history, hold/resume and the pre-onboarding checklist (TA-06, TA-10,
+ * TA-13, TA-17, TA-28, TA-45, TA-51).
  */
 export function ApplicationDetailSheet({
   application: app,
   onOpenChange,
   store,
   checklistQuestions,
+  referenceQuestions = seedReferenceQuestions,
   onGenerateOffer,
 }: ApplicationDetailSheetProps) {
   const { hasRole } = useRole()
@@ -52,6 +70,15 @@ export function ApplicationDetailSheet({
   const [refOutcome, setRefOutcome] = useState<NonNullable<ReferenceCheck['outcome']>>('positive')
   const [refNotes, setRefNotes] = useState('')
   const [checklist, setChecklist] = useState<Record<string, string>>({})
+  // Complete-reference-check dialog (Kensium Reference Check questionnaire)
+  const [refDialog, setRefDialog] = useState<ReferenceCheck | null>(null)
+  const [refEmail, setRefEmail] = useState('')
+  const [refPhone, setRefPhone] = useState('')
+  const [refDoc, setRefDoc] = useState('')
+  /** Subjective / radio answers keyed by question id. */
+  const [refAnswers, setRefAnswers] = useState<Record<string, string>>({})
+  /** Checkbox multi-answers keyed by question id. */
+  const [refChoices, setRefChoices] = useState<Record<string, string[]>>({})
 
   if (!app) return null
 
@@ -69,6 +96,49 @@ export function ApplicationDetailSheet({
   const criteriaNames = [
     ...new Set(app.scorecards.flatMap((s) => s.ratings.map((r) => r.criterion))),
   ]
+  // Configured questionnaire — active questions applicable to this position.
+  const activeQuestions = referenceQuestions
+    .filter(
+      (q) =>
+        q.active &&
+        (q.applicablePositions === 'all' ||
+          q.applicablePositions.includes(app.requisitionTitle))
+    )
+    .sort((a, b) => a.displayOrder - b.displayOrder)
+  // Hiring history — other applications by the same candidate across requisitions.
+  const otherApplications = store.applications.filter(
+    (a) => a.candidateId === app.candidateId && a.id !== app.id
+  )
+
+  const openRefDialog = (r: ReferenceCheck) => {
+    setRefDialog(r)
+    setRefEmail(r.contactEmail ?? '')
+    setRefPhone(r.contactPhone ?? '')
+    setRefDoc(r.uploadedDocument ?? '')
+    setRefAnswers({})
+    setRefChoices({})
+    setRefNotes(r.notes ?? '')
+    setRefOutcome(r.outcome ?? 'positive')
+  }
+
+  const saveReference = () => {
+    if (!refDialog) return
+    store.completeReferenceCheck(app.id, refDialog.id, refOutcome, refNotes, {
+      contactEmail: refEmail || undefined,
+      contactPhone: refPhone || undefined,
+      uploadedDocument: refDoc || undefined,
+      answers: activeQuestions.map((q) => ({
+        questionId: q.id,
+        question: q.question,
+        answer:
+          q.fieldType === 'Checkbox'
+            ? (refChoices[q.id] ?? []).join(', ')
+            : (refAnswers[q.id] ?? ''),
+      })),
+    })
+    setRefDialog(null)
+    setRefNotes('')
+  }
 
   const saveChecklist = () => {
     const missing = checklistQuestions.filter(
@@ -212,13 +282,25 @@ export function ApplicationDetailSheet({
                     <span className='font-medium'>
                       Round {iv.round} — {iv.roundName}
                     </span>
-                    <StatusBadge
-                      status={iv.status === 'scheduled' ? 'pending' : iv.status}
-                    />
+                    {iv.skipped ? (
+                      <Badge variant='overdue'>skipped</Badge>
+                    ) : (
+                      <StatusBadge
+                        status={iv.status === 'scheduled' ? 'pending' : iv.status}
+                      />
+                    )}
                   </div>
-                  <p className='text-neutral-1000 text-paragraph-sm'>
-                    {iv.date} {iv.time} · {iv.mode} · Panel: {iv.panel.join(', ')}
-                  </p>
+                  {!iv.skipped && (
+                    <p className='text-neutral-1000 text-paragraph-sm'>
+                      {iv.date} {iv.time} · {iv.mode} · Panel: {iv.panel.join(', ')}
+                      {iv.emailCandidate ? ' · candidate emailed' : ''}
+                    </p>
+                  )}
+                  {iv.comments && (
+                    <p className='text-neutral-1000 text-paragraph-sm'>
+                      Comments: {iv.comments}
+                    </p>
+                  )}
                   {iv.conflict && (
                     <p className='text-paragraph-sm text-red-1400'>{iv.conflict}</p>
                   )}
@@ -293,45 +375,42 @@ export function ApplicationDetailSheet({
                   </div>
                   <p className='text-neutral-1000 text-paragraph-sm'>
                     {r.relationship}
+                    {r.contactEmail ? ` · ${r.contactEmail}` : ''}
+                    {r.contactPhone ? ` · ${r.contactPhone}` : ''}
                     {r.outcome ? ` · outcome: ${r.outcome}` : ''}
                     {r.notes ? ` · ${r.notes}` : ''}
                   </p>
-                  {isAdmin && r.status === 'pending' && (
-                    <div className='mt-1.5 flex items-center gap-1.5'>
-                      <Select
-                        value={refOutcome}
-                        onValueChange={(v) =>
-                          setRefOutcome(v as NonNullable<ReferenceCheck['outcome']>)
-                        }
-                      >
-                        <SelectTrigger className='h-7 w-[110px] text-xs'>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(['positive', 'mixed', 'negative'] as const).map((o) => (
-                            <SelectItem key={o} value={o}>
-                              {o}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        placeholder='Responses / notes'
-                        value={refNotes}
-                        onChange={(e) => setRefNotes(e.target.value)}
-                        className='h-7 flex-1 text-xs'
-                      />
-                      <Button
-                        variant='outline'
-                        className='h-7 text-xs'
-                        onClick={() => {
-                          store.completeReferenceCheck(app.id, r.id, refOutcome, refNotes)
-                          setRefNotes('')
-                        }}
-                      >
-                        Record
-                      </Button>
+                  {/* Questionnaire responses captured on completion */}
+                  {(r.answers ?? []).filter((a) => a.answer).length > 0 && (
+                    <div className='mt-1 space-y-0.5'>
+                      {(r.answers ?? [])
+                        .filter((a) => a.answer)
+                        .map((a) => (
+                          <p
+                            key={a.questionId}
+                            className='text-neutral-1000 text-paragraph-sm'
+                          >
+                            {a.question}{' '}
+                            <b className='text-neutral-1600 font-medium'>
+                              {a.answer}
+                            </b>
+                          </p>
+                        ))}
                     </div>
+                  )}
+                  {r.uploadedDocument && (
+                    <p className='text-paragraph-sm text-blue-1400 mt-0.5'>
+                      {r.uploadedDocument}
+                    </p>
+                  )}
+                  {isAdmin && r.status === 'pending' && (
+                    <Button
+                      variant='outline'
+                      className='mt-1.5 h-7 text-xs'
+                      onClick={() => openRefDialog(r)}
+                    >
+                      Complete reference check
+                    </Button>
                   )}
                 </div>
               ))}
@@ -425,10 +504,10 @@ export function ApplicationDetailSheet({
             </section>
           )}
 
-          {/* Stage history (TA-06, TA-22) */}
+          {/* Hiring history — stage trail + previous applications (TA-06, TA-22) */}
           <section>
             <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
-              Stage history
+              Hiring history
             </h3>
             <div className='space-y-1'>
               {app.stageHistory.map((h, i) => (
@@ -439,8 +518,168 @@ export function ApplicationDetailSheet({
                 </p>
               ))}
             </div>
+            {otherApplications.length > 0 && (
+              <div className='mt-3'>
+                <p className='text-neutral-1600 mb-1.5 text-sm'>
+                  Other applications by this candidate
+                </p>
+                <div className='space-y-1.5'>
+                  {otherApplications.map((o) => (
+                    <div
+                      key={o.id}
+                      className='flex items-center justify-between rounded border border-gray-200 px-3 py-2 text-sm'
+                    >
+                      <div className='flex flex-col'>
+                        <span className='font-medium'>
+                          {o.requisitionId} · {o.requisitionTitle}
+                        </span>
+                        <span className='text-paragraph-sm text-neutral-1000'>
+                          applied {o.appliedAt} · {o.interviews.length} interview(s)
+                          {o.rejectionReason ? ` · ${o.rejectionReason}` : ''}
+                        </span>
+                      </div>
+                      <StatusBadge status={o.status} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         </div>
+
+        {/* Complete reference check — configured questionnaire (Kensium Reference Check) */}
+        <Dialog open={Boolean(refDialog)} onOpenChange={(o) => !o && setRefDialog(null)}>
+          <DialogContent className='max-h-[85vh] overflow-y-auto sm:max-w-[480px]'>
+            <DialogHeader>
+              <DialogTitle>Complete reference check — {refDialog?.referee}</DialogTitle>
+            </DialogHeader>
+            <div className='space-y-3'>
+              <p className='text-neutral-1000 text-paragraph-sm'>
+                Contact person: {refDialog?.referee} · {refDialog?.relationship}
+              </p>
+              <div className='grid grid-cols-2 gap-3'>
+                <div>
+                  <p className='mb-1 text-sm font-medium'>Contact email</p>
+                  <Input
+                    type='email'
+                    placeholder='referee@company.com'
+                    value={refEmail}
+                    onChange={(e) => setRefEmail(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <p className='mb-1 text-sm font-medium'>Contact phone</p>
+                  <Input
+                    placeholder='+91 98xxx xxxxx'
+                    value={refPhone}
+                    onChange={(e) => setRefPhone(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Questionnaire — subjective → free text, Radio / Checkbox → options */}
+              {activeQuestions.map((q) => (
+                <div key={q.id}>
+                  <p className='mb-1 text-sm font-medium'>{q.question}</p>
+                  {q.questionType === 'Subjective' ? (
+                    <Textarea
+                      placeholder='Referee response…'
+                      value={refAnswers[q.id] ?? ''}
+                      onChange={(e) =>
+                        setRefAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                      }
+                      className='min-h-[56px]'
+                    />
+                  ) : q.fieldType === 'Radio' ? (
+                    <RadioGroup
+                      value={refAnswers[q.id] ?? ''}
+                      onValueChange={(v) =>
+                        setRefAnswers((prev) => ({ ...prev, [q.id]: v }))
+                      }
+                      className='gap-1.5'
+                    >
+                      {q.options.map((opt) => (
+                        <label key={opt} className='flex items-center gap-2 text-sm'>
+                          <RadioGroupItem value={opt} />
+                          {opt}
+                        </label>
+                      ))}
+                    </RadioGroup>
+                  ) : (
+                    <div className='space-y-1.5'>
+                      {q.options.map((opt) => {
+                        const picked = refChoices[q.id] ?? []
+                        return (
+                          <label key={opt} className='flex items-center gap-2 text-sm'>
+                            <Checkbox
+                              variant='blue'
+                              checked={picked.includes(opt)}
+                              onCheckedChange={(v) =>
+                                setRefChoices((prev) => ({
+                                  ...prev,
+                                  [q.id]:
+                                    v === true
+                                      ? [...picked, opt]
+                                      : picked.filter((x) => x !== opt),
+                                }))
+                              }
+                            />
+                            {opt}
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              <div className='grid grid-cols-2 gap-3'>
+                <div>
+                  <p className='mb-1 text-sm font-medium'>Overall outcome</p>
+                  <Select
+                    value={refOutcome}
+                    onValueChange={(v) =>
+                      setRefOutcome(v as NonNullable<ReferenceCheck['outcome']>)
+                    }
+                  >
+                    <SelectTrigger className='w-full'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(['positive', 'mixed', 'negative'] as const).map((o) => (
+                        <SelectItem key={o} value={o}>
+                          {o}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className='mb-1 text-sm font-medium'>Upload document</p>
+                  <Input
+                    placeholder='signed-reference.pdf'
+                    value={refDoc}
+                    onChange={(e) => setRefDoc(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <p className='mb-1 text-sm font-medium'>Notes</p>
+                <Input
+                  placeholder='Summary of the conversation'
+                  value={refNotes}
+                  onChange={(e) => setRefNotes(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant='outline' onClick={() => setRefDialog(null)}>
+                Cancel
+              </Button>
+              <Button onClick={saveReference}>Save reference check</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </FloatingSheetContent>
     </Sheet>
   )

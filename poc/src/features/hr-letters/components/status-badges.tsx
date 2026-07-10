@@ -1,5 +1,10 @@
 import { Badge } from '@/components/ui/badge'
-import { type DeliveryOutcome, type DocStatus } from '../data/hr-letters'
+import {
+  CHANNEL_LABELS,
+  type Channel,
+  type DeliveryOutcome,
+  type DocStatus,
+} from '../data/hr-letters'
 
 const docStatusMap: Record<
   DocStatus,
@@ -30,6 +35,19 @@ const deliveryMap: Record<
 export function DeliveryBadge({ outcome }: { outcome: DeliveryOutcome }) {
   const badge = deliveryMap[outcome]
   return <Badge variant={badge.variant}>{badge.label}</Badge>
+}
+
+const channelVariantMap: Record<Channel, 'pending' | 'overdue'> = {
+  email: 'pending',
+  'in-app': 'pending',
+  print: 'pending',
+  // Distinct badge — physical handover is tracked differently from digital dispatch.
+  handover: 'overdue',
+}
+
+/** Distribution channel badge; handover renders with a distinct style. */
+export function ChannelBadge({ channel }: { channel: Channel }) {
+  return <Badge variant={channelVariantMap[channel]}>{CHANNEL_LABELS[channel]}</Badge>
 }
 
 /** Acknowledgment state on agreement letters (HLC-28/29). */

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -89,17 +90,31 @@ export function ConfigSetupStep({ store, onNext }: ConfigSetupStepProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-3 px-4'>
-          <div className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
+          <div className='border-grey-200 flex items-center justify-between gap-4 rounded-[6px] border px-3 py-2'>
             <div>
               <Label className='text-sm font-medium'>
-                Feedback & Grievance module enabled
+                Do you support feedback/grievance?
               </Label>
               <p className='text-paragraph-sm text-neutral-1000'>
-                When off, submission and tracking are unavailable to employees
-                of this company. Changes are effective-dated below.
+                "Yes" enables the Feedback/Grievance module for this company;
+                "No" hides submission and tracking from employees. Changes are
+                effective-dated below.
               </p>
             </div>
-            <Switch checked={moduleEnabled} onCheckedChange={setModuleEnabled} />
+            <RadioGroup
+              value={moduleEnabled ? 'yes' : 'no'}
+              onValueChange={(v) => setModuleEnabled(v === 'yes')}
+              className='flex shrink-0 items-center gap-4'
+            >
+              <label className='flex items-center gap-2 text-sm'>
+                <RadioGroupItem value='yes' />
+                Yes
+              </label>
+              <label className='flex items-center gap-2 text-sm'>
+                <RadioGroupItem value='no' />
+                No
+              </label>
+            </RadioGroup>
           </div>
           <Table>
             <TableHeader>

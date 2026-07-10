@@ -334,9 +334,12 @@ export function Employees() {
           if (!open) setDetailEmployee(null)
         }}
         managerChanges={store.managerChanges}
+        employees={scoped}
         onRecordLifecycleEvent={store.recordLifecycleEvent}
         onRunEngines={store.runEngines}
         onLinkUserAccount={store.linkUserAccount}
+        onReassignRoles={store.reassignRoles}
+        onInitiateSuspension={store.suspendEmployee}
       />
 
       <MassUpdateDialog

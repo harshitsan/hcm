@@ -9,8 +9,9 @@ import {
   type SupportedEntity,
 } from '../data/custom-fields'
 
-export const isSelectType = (type: FieldType) =>
-  type === 'single-select' || type === 'multi-select'
+/** Types whose values come from an admin-configured option list. */
+export const hasConfigurableOptions = (type: FieldType) =>
+  type === 'single-select' || type === 'multi-select' || type === 'radio'
 
 export const parseOptions = (text: string) =>
   text
@@ -43,11 +44,14 @@ export const fieldWizardSchema = z
     }),
   })
   .superRefine((v, ctx) => {
-    if (isSelectType(v.type) && parseOptions(v.optionsText).length < 2) {
+    if (
+      hasConfigurableOptions(v.type) &&
+      parseOptions(v.optionsText).length < 2
+    ) {
       ctx.addIssue({
         code: 'custom',
         path: ['optionsText'],
-        message: 'Define at least two options (one per line)',
+        message: 'Define at least two options',
       })
     }
     if (

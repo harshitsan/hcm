@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -28,6 +36,8 @@ interface EmployeeDetailSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   managerChanges: ManagerChange[]
+  /** Directory scope — targets for the admin role-reassignment action. */
+  employees: Employee[]
   onRecordLifecycleEvent: (
     id: string,
     type: LifecycleStage,
@@ -36,6 +46,13 @@ interface EmployeeDetailSheetProps {
   ) => void
   onRunEngines: (id: string) => void
   onLinkUserAccount: (id: string, link: boolean) => void
+  onReassignRoles: (sourceId: string, targetId: string) => void
+  onInitiateSuspension: (
+    id: string,
+    reason: string,
+    from: string,
+    to: string
+  ) => void
 }
 
 /**
@@ -49,17 +66,29 @@ export function EmployeeDetailSheet({
   open,
   onOpenChange,
   managerChanges,
+  employees,
   onRecordLifecycleEvent,
   onRunEngines,
   onLinkUserAccount,
+  onReassignRoles,
+  onInitiateSuspension,
 }: EmployeeDetailSheetProps) {
   const [eventType, setEventType] = useState<LifecycleStage>('Probation')
   const [eventDate, setEventDate] = useState('')
   const [eventNote, setEventNote] = useState('')
+  const [reassignOpen, setReassignOpen] = useState(false)
+  const [reassignTarget, setReassignTarget] = useState('')
+  const [suspendOpen, setSuspendOpen] = useState(false)
+  const [suspendReason, setSuspendReason] = useState('')
+  const [suspendFrom, setSuspendFrom] = useState('')
+  const [suspendTo, setSuspendTo] = useState('')
 
   if (!employee) return null
   const audit = managerChanges.filter(
     (c) => c.employeeName === employee.name
+  )
+  const reassignTargets = employees.filter(
+    (e) => e.id !== employee.id && e.lifecycleStage !== 'Exited'
   )
 
   const recordEvent = () => {
@@ -67,6 +96,22 @@ export function EmployeeDetailSheet({
     onRecordLifecycleEvent(employee.id, eventType, eventNote, eventDate)
     setEventNote('')
     setEventDate('')
+  }
+
+  const confirmReassign = () => {
+    if (!reassignTarget) return
+    onReassignRoles(employee.id, reassignTarget)
+    setReassignOpen(false)
+    setReassignTarget('')
+  }
+
+  const confirmSuspend = () => {
+    if (!suspendReason || !suspendFrom || !suspendTo) return
+    onInitiateSuspension(employee.id, suspendReason, suspendFrom, suspendTo)
+    setSuspendOpen(false)
+    setSuspendReason('')
+    setSuspendFrom('')
+    setSuspendTo('')
   }
 
   return (
@@ -118,7 +163,74 @@ export function EmployeeDetailSheet({
                 />
                 <InfoField label='Employee class' value={employee.employeeClass} />
                 <InfoField label='Date of joining' value={employee.joinDate} />
+                <InfoField label='Gender' value={employee.gender} />
+                <InfoField
+                  label='Functional location'
+                  value={employee.functionalLocation}
+                />
+                <InfoField label='Position level' value={employee.positionLevel} />
+                <InfoField
+                  label='Roles'
+                  value={
+                    employee.roles.length
+                      ? employee.roles.join(', ')
+                      : 'No roles assigned'
+                  }
+                />
+                <InfoField
+                  label='LinkedIn'
+                  value={employee.socialMediaLinkedIn}
+                />
+                <InfoField
+                  label='Twitter / X'
+                  value={employee.socialMediaTwitter}
+                />
+                <InfoField
+                  label='Attendance tracking'
+                  value={employee.attendanceTracked ? 'Tracked' : 'Not tracked'}
+                />
+                <InfoField
+                  label='Absconding alerts'
+                  value={
+                    employee.abscondingAlertsEnabled ? 'Enabled' : 'Disabled'
+                  }
+                />
+                <InfoField
+                  label='Supervisor approval'
+                  value={
+                    employee.supervisorApprovalRequired
+                      ? 'Required'
+                      : 'Not required'
+                  }
+                />
               </div>
+              {employee.roleTransferNote && (
+                <p className='text-paragraph-sm text-neutral-1000 rounded-md border border-gray-200 px-3 py-2'>
+                  {employee.roleTransferNote}
+                </p>
+              )}
+              {employee.suspension && (
+                <p className='text-paragraph-sm rounded-md border border-red-200 bg-red-50 px-3 py-2 text-red-700'>
+                  Suspended {employee.suspension.from} →{' '}
+                  {employee.suspension.to} — {employee.suspension.reason}
+                </p>
+              )}
+              <RoleGate roles={['Company Admin']}>
+                <div className='flex items-center justify-between rounded-md border border-gray-200 px-3 py-2'>
+                  <p className='text-paragraph-sm text-neutral-1000'>
+                    Transfer this employee's role assignments to another
+                    employee (audit note recorded on both records).
+                  </p>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => setReassignOpen(true)}
+                    disabled={employee.roles.length === 0}
+                  >
+                    Reassign roles
+                  </Button>
+                </div>
+              </RoleGate>
               <RoleGate roles={['Company Admin']}>
                 <div className='flex items-center justify-between rounded-md border border-gray-200 px-3 py-2'>
                   <p className='text-paragraph-sm text-neutral-1000'>
@@ -326,10 +438,118 @@ export function EmployeeDetailSheet({
                   Exit keeps history retained; the Notification engine informs
                   the employee and affected managers per configured templates.
                 </p>
+                <SectionTitle>Initiate suspension</SectionTitle>
+                <div className='flex items-center justify-between rounded-md border border-gray-200 px-3 py-2'>
+                  <p className='text-paragraph-sm text-neutral-1000'>
+                    {employee.suspension
+                      ? `Suspension on record: ${employee.suspension.from} → ${employee.suspension.to}`
+                      : 'Sets the Suspended status with a reason and a from/to window.'}
+                  </p>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => setSuspendOpen(true)}
+                    disabled={employee.lifecycleStage === 'Suspended'}
+                  >
+                    Initiate Suspension
+                  </Button>
+                </div>
               </RoleGate>
             </TabsContent>
           </div>
         </Tabs>
+
+        <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
+          <DialogContent className='sm:max-w-[400px]'>
+            <DialogHeader>
+              <DialogTitle>Reassign roles — {employee.name}</DialogTitle>
+            </DialogHeader>
+            <div className='space-y-3'>
+              <p className='text-paragraph-sm text-neutral-1000'>
+                Transfers{' '}
+                <span className='text-neutral-1600 font-medium'>
+                  {employee.roles.join(', ') || '—'}
+                </span>{' '}
+                to the selected employee. This employee keeps no role
+                assignments afterwards.
+              </p>
+              <div className='space-y-1'>
+                <Label>Transfer role assignments to</Label>
+                <Select value={reassignTarget} onValueChange={setReassignTarget}>
+                  <SelectTrigger variant='secondary' className='w-full'>
+                    <SelectValue placeholder='Select employee' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {reassignTargets.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.name} ({e.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant='outline' onClick={() => setReassignOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={confirmReassign} disabled={!reassignTarget}>
+                Transfer roles
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={suspendOpen} onOpenChange={setSuspendOpen}>
+          <DialogContent className='sm:max-w-[420px]'>
+            <DialogHeader>
+              <DialogTitle>Initiate suspension — {employee.name}</DialogTitle>
+            </DialogHeader>
+            <div className='space-y-3'>
+              <div className='space-y-1'>
+                <Label>Reason</Label>
+                <Input
+                  value={suspendReason}
+                  onChange={(e) => setSuspendReason(e.target.value)}
+                  placeholder='e.g. Pending disciplinary inquiry'
+                />
+              </div>
+              <div className='grid grid-cols-2 gap-3'>
+                <div className='space-y-1'>
+                  <Label>Suspension from</Label>
+                  <Input
+                    type='date'
+                    value={suspendFrom}
+                    onChange={(e) => setSuspendFrom(e.target.value)}
+                  />
+                </div>
+                <div className='space-y-1'>
+                  <Label>Suspension to</Label>
+                  <Input
+                    type='date'
+                    value={suspendTo}
+                    onChange={(e) => setSuspendTo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className='text-paragraph-sm text-neutral-1000'>
+                The employee's status changes to Suspended and the window is
+                recorded on the lifecycle timeline.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant='outline' onClick={() => setSuspendOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmSuspend}
+                disabled={!suspendReason || !suspendFrom || !suspendTo}
+              >
+                Confirm suspension
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </FloatingSheetContent>
     </Sheet>
   )

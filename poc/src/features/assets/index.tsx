@@ -47,6 +47,7 @@ export function Assets() {
   }, [isCompanyAdmin, isOversight, isEmployeeUser, isPlatformAdmin])
 
   const [tab, setTab] = useState(isEmployeeUser ? 'my-assets' : 'inventory')
+  const [inventoryView, setInventoryView] = useState<'assets' | 'reports'>('assets')
 
   useEffect(() => {
     if (availableTabs.length > 0 && !availableTabs.includes(tab)) setTab(availableTabs[0])
@@ -133,50 +134,45 @@ export function Assets() {
                   )}
                   {(isCompanyAdmin || isOversight) && (
                     <TabsContent value='inventory'>
-                      <Tabs defaultValue='assets' className='w-full'>
-                        <TabsList className='mb-3 bg-transparent p-0'>
-                          <TabsTrigger variant='ghost' value='assets'>
-                            All assets
-                          </TabsTrigger>
-                          <TabsTrigger variant='ghost' value='reports'>
-                            Reports
-                          </TabsTrigger>
-                        </TabsList>
-                        <TabsContent value='assets'>
-                          <InventoryTab store={store} config={config} />
-                        </TabsContent>
-                        <TabsContent value='reports'>
-                          <ReportsTab
-                            assetsStore={store}
-                            reqStore={reqStore}
-                            config={config}
-                          />
-                        </TabsContent>
-                      </Tabs>
+                      <div className='mb-4 flex gap-1 rounded-lg border border-neutral-200 bg-neutral-100 p-1 w-fit'>
+                        {([{ v: 'assets', l: 'All assets' }, { v: 'reports', l: 'Reports' }] as const).map(s => (
+                          <button
+                            key={s.v}
+                            onClick={() => setInventoryView(s.v)}
+                            className={'rounded-md px-4 py-1.5 text-sm font-medium transition-colors ' + (inventoryView === s.v ? 'bg-white text-blue-1200 shadow-sm' : 'text-neutral-1000 hover:text-neutral-1400')}
+                          >
+                            {s.l}
+                          </button>
+                        ))}
+                      </div>
+                      {inventoryView === 'assets' && (
+                        <InventoryTab store={store} config={config} />
+                      )}
+                      {inventoryView === 'reports' && (
+                        <ReportsTab
+                          assetsStore={store}
+                          reqStore={reqStore}
+                          config={config}
+                        />
+                      )}
                     </TabsContent>
                   )}
                   {isCompanyAdmin && (
                     <TabsContent value='activity'>
-                      <Tabs defaultValue='movements' className='w-full'>
-                        <TabsList className='mb-3 bg-transparent p-0'>
-                          <TabsTrigger variant='ghost' value='movements'>
-                            Arrivals & outbound
-                          </TabsTrigger>
-                          <TabsTrigger variant='ghost' value='tasks'>
-                            Onboarding & exit tasks
-                          </TabsTrigger>
-                        </TabsList>
-                        <TabsContent value='movements'>
+                      <div className='flex flex-col gap-6'>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Arrivals & outbound</h3>
                           <MovementsTab
                             movements={movements}
                             assetsStore={store}
                             config={config}
                           />
-                        </TabsContent>
-                        <TabsContent value='tasks'>
+                        </section>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Onboarding & exit tasks</h3>
                           <WorkflowsTab store={store} />
-                        </TabsContent>
-                      </Tabs>
+                        </section>
+                      </div>
                     </TabsContent>
                   )}
                   {(isCompanyAdmin || isPlatformAdmin) && (

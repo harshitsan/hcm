@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown, UserRound } from 'lucide-react'
+import { ClockCounterClockwise } from 'phosphor-react'
 import { type Role } from '@/context/role-context'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -42,6 +43,8 @@ interface BuildColumnsOptions {
   customFields: CustomFieldDef[]
   /** Show the company identifier column on cross-company scopes (DIR-09). */
   showCompany: boolean
+  /** Row action opening the employee's timeline feed. */
+  onViewTimeline?: (employee: Employee) => void
 }
 
 /**
@@ -54,6 +57,7 @@ export function buildDirectoryColumns({
   config,
   customFields,
   showCompany,
+  onViewTimeline,
 }: BuildColumnsOptions): ColumnDef<Employee>[] {
   const canSee = (key: Parameters<typeof evaluateField>[0], e?: Employee) =>
     evaluateField(key, role, config, e?.companyId).visible
@@ -214,6 +218,28 @@ export function buildDirectoryColumns({
       </div>
     ),
   })
+
+  if (onViewTimeline) {
+    columns.push({
+      id: 'actions',
+      header: () => <span className='text-sm font-medium'>Actions</span>,
+      enableSorting: false,
+      size: 110,
+      cell: ({ row }) => (
+        <Button
+          variant='ghost'
+          className='text-blue-1400 h-7 gap-1 px-2 text-xs'
+          onClick={(e) => {
+            e.stopPropagation()
+            onViewTimeline(row.original)
+          }}
+        >
+          <ClockCounterClockwise size={13} weight='bold' />
+          View timeline
+        </Button>
+      ),
+    })
+  }
 
   return columns
 }

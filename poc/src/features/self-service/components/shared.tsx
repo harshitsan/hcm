@@ -1,3 +1,15 @@
+import { CaretLeft, CaretRight, PencilSimple, Trash } from 'phosphor-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -106,6 +118,99 @@ export function FilterBar({
         onClick={() => onChange(EMPTY_FILTER)}
       >
         Reset
+      </Button>
+    </div>
+  )
+}
+
+/** Compact pencil icon button used in admin config tables. */
+export function EditIconButton({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <Button
+      variant='outline'
+      className='h-7 w-7 rounded-[6px] p-0'
+      aria-label={label}
+      onClick={onClick}
+    >
+      <PencilSimple size={13} weight='bold' />
+    </Button>
+  )
+}
+
+/** Trash icon button that asks for confirmation before deleting a record. */
+export function DeleteConfirmButton({
+  title,
+  description,
+  onConfirm,
+}: {
+  title: string
+  description: string
+  onConfirm: () => void
+}) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant='outline'
+          className='h-7 w-7 rounded-[6px] p-0'
+          aria-label={`Delete ${title}`}
+        >
+          <Trash size={13} weight='bold' />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete {title}?</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm}>Delete</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+/** Prev/Next pager used by the longer admin config lists. */
+export function Pager({
+  page,
+  pageCount,
+  onChange,
+}: {
+  page: number
+  pageCount: number
+  onChange: (page: number) => void
+}) {
+  if (pageCount <= 1) return null
+  return (
+    <div className='mt-3 flex items-center justify-end gap-2'>
+      <Button
+        variant='outline'
+        className='h-7 gap-1 rounded-[6px] px-2'
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+      >
+        <CaretLeft size={13} weight='bold' />
+        Prev
+      </Button>
+      <span className='text-paragraph-sm text-neutral-1000'>
+        Page {page} of {pageCount}
+      </span>
+      <Button
+        variant='outline'
+        className='h-7 gap-1 rounded-[6px] px-2'
+        disabled={page >= pageCount}
+        onClick={() => onChange(page + 1)}
+      >
+        Next
+        <CaretRight size={13} weight='bold' />
       </Button>
     </div>
   )

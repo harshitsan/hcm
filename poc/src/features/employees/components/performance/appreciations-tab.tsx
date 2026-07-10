@@ -29,6 +29,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { RoleGate } from '@/context/role-context'
 import { DEPARTMENTS } from '../../data/employees'
+import { type AppreciationCategory } from '../../data/performance'
 import { type PerformanceStore } from '../../hooks/use-performance'
 import { FilterSelect, SectionTitle } from '../shared'
 
@@ -65,9 +66,21 @@ export function AppreciationsTab({ store }: { store: PerformanceStore }) {
     store.appreciationSettings.scoreCalculationStart
   )
 
+  const [editingCat, setEditingCat] = useState<AppreciationCategory | null>(
+    null
+  )
   const [catName, setCatName] = useState('')
   const [catDescription, setCatDescription] = useState('')
   const [catPoints, setCatPoints] = useState('')
+
+  /** APC-04 — open the category dialog for add or edit. */
+  const openCategoryFor = (category: AppreciationCategory | null) => {
+    setEditingCat(category)
+    setCatName(category?.name ?? '')
+    setCatDescription(category?.description ?? '')
+    setCatPoints(category ? String(category.points) : '')
+    setCategoryOpen(true)
+  }
 
   const filtered = useMemo(
     () =>
@@ -114,11 +127,15 @@ export function AppreciationsTab({ store }: { store: PerformanceStore }) {
 
   const saveCategory = () => {
     if (!catName || !catPoints) return
-    store.saveCategory({
-      name: catName,
-      description: catDescription,
-      points: Number(catPoints),
-    })
+    store.saveCategory(
+      {
+        name: catName,
+        description: catDescription,
+        points: Number(catPoints),
+      },
+      editingCat?.id
+    )
+    setEditingCat(null)
     setCatName('')
     setCatDescription('')
     setCatPoints('')
@@ -147,7 +164,7 @@ export function AppreciationsTab({ store }: { store: PerformanceStore }) {
             <Button
               variant='outline'
               size='sm'
-              onClick={() => setCategoryOpen(true)}
+              onClick={() => openCategoryFor(null)}
             >
               <Plus size={12} weight='bold' />
               Category
@@ -233,13 +250,25 @@ export function AppreciationsTab({ store }: { store: PerformanceStore }) {
               {store.categories.map((c) => (
                 <li
                   key={c.id}
-                  className='flex items-center justify-between text-sm'
+                  className='flex items-center justify-between gap-2 text-sm'
                 >
                   <span>
                     <span className='font-medium'>{c.name}</span>{' '}
                     <span className='text-neutral-1000'>— {c.description}</span>
                   </span>
-                  <Badge variant='qualified'>{c.points} pts</Badge>
+                  <span className='flex shrink-0 items-center gap-1.5'>
+                    <Badge variant='qualified'>{c.points} pts</Badge>
+                    <RoleGate roles={['Company Admin']}>
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='h-6 px-2'
+                        onClick={() => openCategoryFor(c)}
+                      >
+                        Edit
+                      </Button>
+                    </RoleGate>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -353,7 +382,11 @@ export function AppreciationsTab({ store }: { store: PerformanceStore }) {
       <Dialog open={categoryOpen} onOpenChange={setCategoryOpen}>
         <DialogContent className='sm:max-w-[380px]'>
           <DialogHeader>
-            <DialogTitle>New appreciation category</DialogTitle>
+            <DialogTitle>
+              {editingCat
+                ? 'Edit appreciation category'
+                : 'New appreciation category'}
+            </DialogTitle>
           </DialogHeader>
           <div className='space-y-3'>
             <div className='space-y-1'>
@@ -387,7 +420,7 @@ export function AppreciationsTab({ store }: { store: PerformanceStore }) {
               Cancel
             </Button>
             <Button onClick={saveCategory} disabled={!catName || !catPoints}>
-              Add category
+              {editingCat ? 'Save category' : 'Add category'}
             </Button>
           </DialogFooter>
         </DialogContent>

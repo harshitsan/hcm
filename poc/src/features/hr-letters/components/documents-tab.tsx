@@ -211,6 +211,7 @@ export function DocumentsTab({ store, templates, config }: DocumentsTabProps) {
         open={generateOpen}
         onOpenChange={setGenerateOpen}
         templates={templates}
+        documents={store.documents}
         onGenerate={handleGenerate}
       />
 

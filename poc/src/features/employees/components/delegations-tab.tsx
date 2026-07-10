@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Plus } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,16 +20,61 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  SimpleTable,
+  sortableColumnHeader,
+} from '@/components/common/data-table/simple-table'
 import { RoleGate } from '@/context/role-context'
+import { type Delegation, type ManagerChange } from '../data/employees'
 import { type EmployeesStore } from '../hooks/use-employees'
 import { SectionTitle, StatusBadge } from './shared'
+
+/** Manager-change audit trail columns (EMP-09) — canonical table pattern. */
+const managerChangeColumns: ColumnDef<ManagerChange>[] = [
+  {
+    accessorKey: 'employeeName',
+    header: sortableColumnHeader<ManagerChange>('Employee / team'),
+    cell: ({ row }) => (
+      <span className='font-medium'>{row.original.employeeName}</span>
+    ),
+  },
+  {
+    accessorKey: 'changeType',
+    header: sortableColumnHeader<ManagerChange>('Type'),
+    cell: ({ row }) => <Badge variant='open'>{row.original.changeType}</Badge>,
+  },
+  {
+    id: 'fromTo',
+    accessorFn: (c) => `${c.from} → ${c.to}`,
+    header: sortableColumnHeader<ManagerChange>('From → To'),
+    cell: ({ row }) => (
+      <>
+        {row.original.from} → {row.original.to}
+      </>
+    ),
+  },
+  {
+    accessorKey: 'effectiveDate',
+    header: sortableColumnHeader<ManagerChange>('Effective'),
+    cell: ({ row }) => (
+      <span className='text-neutral-1000'>
+        {row.original.effectiveDate}
+        {row.original.endDate ? ` → ${row.original.endDate}` : ''}
+      </span>
+    ),
+  },
+  {
+    accessorKey: 'changedBy',
+    header: sortableColumnHeader<ManagerChange>('Changed by'),
+    cell: ({ row }) => row.original.changedBy,
+  },
+  {
+    accessorKey: 'changedOn',
+    header: sortableColumnHeader<ManagerChange>('Changed on'),
+    cell: ({ row }) => (
+      <span className='text-neutral-1000'>{row.original.changedOn}</span>
+    ),
+  },
+]
 
 /**
  * Acting-manager delegations (EMP-08/18/24) + the effective-dated manager
@@ -50,6 +96,69 @@ export function DelegationsTab({ store }: { store: EmployeesStore }) {
 
   const valid =
     manager && acting && manager !== acting && team && startDate && endDate
+
+  /** Delegation columns (EMP-08/18/24) — canonical table pattern. */
+  const delegationColumns = useMemo<ColumnDef<Delegation>[]>(
+    () => [
+      {
+        accessorKey: 'manager',
+        header: sortableColumnHeader<Delegation>('Primary manager'),
+        cell: ({ row }) => (
+          <span className='font-medium'>{row.original.manager}</span>
+        ),
+      },
+      {
+        accessorKey: 'actingManager',
+        header: sortableColumnHeader<Delegation>('Acting manager'),
+        cell: ({ row }) => row.original.actingManager,
+      },
+      {
+        accessorKey: 'team',
+        header: sortableColumnHeader<Delegation>('Team'),
+        cell: ({ row }) => row.original.team,
+      },
+      {
+        id: 'period',
+        accessorFn: (d) => d.startDate,
+        header: sortableColumnHeader<Delegation>('Period'),
+        cell: ({ row }) => (
+          <span className='text-neutral-1000'>
+            {row.original.startDate} → {row.original.endDate}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'reroutedApprovals',
+        header: sortableColumnHeader<Delegation>('Rerouted approvals'),
+        cell: ({ row }) => (
+          <Badge variant='pending'>{row.original.reroutedApprovals} items</Badge>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: sortableColumnHeader<Delegation>('Status'),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) =>
+          row.original.status !== 'Ended' && (
+            <RoleGate roles={['Company Admin', 'Employee (User)']}>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => endDelegation(row.original.id)}
+              >
+                End & revert
+              </Button>
+            </RoleGate>
+          ),
+      },
+    ],
+    [endDelegation]
+  )
 
   const submit = () => {
     if (!valid) return
@@ -76,52 +185,11 @@ export function DelegationsTab({ store }: { store: EmployeesStore }) {
         </RoleGate>
       </div>
 
-      <div className='rounded-md border border-gray-200 bg-white'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Primary manager</TableHead>
-              <TableHead>Acting manager</TableHead>
-              <TableHead>Team</TableHead>
-              <TableHead>Period</TableHead>
-              <TableHead>Rerouted approvals</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {delegations.map((d) => (
-              <TableRow key={d.id}>
-                <TableCell className='font-medium'>{d.manager}</TableCell>
-                <TableCell>{d.actingManager}</TableCell>
-                <TableCell>{d.team}</TableCell>
-                <TableCell className='text-neutral-1000'>
-                  {d.startDate} → {d.endDate}
-                </TableCell>
-                <TableCell>
-                  <Badge variant='pending'>{d.reroutedApprovals} items</Badge>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={d.status} />
-                </TableCell>
-                <TableCell>
-                  {d.status !== 'Ended' && (
-                    <RoleGate roles={['Company Admin', 'Employee (User)']}>
-                      <Button
-                        variant='outline'
-                        size='sm'
-                        onClick={() => endDelegation(d.id)}
-                      >
-                        End & revert
-                      </Button>
-                    </RoleGate>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleTable
+        columns={delegationColumns}
+        data={delegations}
+        getRowId={(d) => d.id}
+      />
       <p className='text-paragraph-sm text-neutral-1000'>
         Delegation never overwrites the recorded primary-manager relationship.
         When the period lapses, routing reverts to the primary manager
@@ -131,39 +199,11 @@ export function DelegationsTab({ store }: { store: EmployeesStore }) {
       <SectionTitle>
         Manager assignment audit trail (all changes, effective-dated)
       </SectionTitle>
-      <div className='rounded-md border border-gray-200 bg-white'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee / team</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>From → To</TableHead>
-              <TableHead>Effective</TableHead>
-              <TableHead>Changed by</TableHead>
-              <TableHead>Changed on</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {managerChanges.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell className='font-medium'>{c.employeeName}</TableCell>
-                <TableCell>
-                  <Badge variant='open'>{c.changeType}</Badge>
-                </TableCell>
-                <TableCell>
-                  {c.from} → {c.to}
-                </TableCell>
-                <TableCell className='text-neutral-1000'>
-                  {c.effectiveDate}
-                  {c.endDate ? ` → ${c.endDate}` : ''}
-                </TableCell>
-                <TableCell>{c.changedBy}</TableCell>
-                <TableCell className='text-neutral-1000'>{c.changedOn}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleTable
+        columns={managerChangeColumns}
+        data={managerChanges}
+        getRowId={(c) => c.id}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className='sm:max-w-[440px]'>

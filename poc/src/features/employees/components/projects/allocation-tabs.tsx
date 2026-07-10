@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowsClockwise, MagnifyingGlass, X } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -12,13 +13,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  SimpleTable,
+  sortableColumnHeader,
+} from '@/components/common/data-table/simple-table'
 import {
   ALLOCATED_EMPLOYEE_NAMES,
   ALLOCATED_PROJECT_NAMES,
@@ -26,6 +23,64 @@ import {
 } from '../../data/projects'
 import { type ProjectsStore } from '../../hooks/use-projects'
 import { SectionTitle } from '../shared'
+
+const EMPTY_PERIOD_MESSAGE = 'No allocations in the selected period.'
+
+const dateColumn: ColumnDef<DayAllocation> = {
+  accessorKey: 'date',
+  header: sortableColumnHeader<DayAllocation>('Date'),
+  cell: ({ row }) => <span className='font-medium'>{row.original.date}</span>,
+}
+
+const hoursColumn: ColumnDef<DayAllocation> = {
+  accessorKey: 'hours',
+  header: sortableColumnHeader<DayAllocation>('Allocated hours'),
+  cell: ({ row }) => row.original.hours,
+}
+
+/** Day-wise summary for a single project (date / hours / task). */
+const dayWiseColumns: ColumnDef<DayAllocation>[] = [
+  dateColumn,
+  hoursColumn,
+  {
+    accessorKey: 'task',
+    header: sortableColumnHeader<DayAllocation>('Task'),
+    cell: ({ row }) => row.original.task,
+  },
+]
+
+/** Day-wise summary across projects (date / project / hours). */
+const dayWiseProjectColumns: ColumnDef<DayAllocation>[] = [
+  dateColumn,
+  {
+    accessorKey: 'project',
+    header: sortableColumnHeader<DayAllocation>('Project'),
+    cell: ({ row }) => row.original.project,
+  },
+  hoursColumn,
+]
+
+type ProjectWiseRow = { sno: number; project: string; hours: number }
+
+const projectWiseColumns: ColumnDef<ProjectWiseRow>[] = [
+  {
+    accessorKey: 'sno',
+    header: sortableColumnHeader<ProjectWiseRow>('S.no'),
+    cell: ({ row }) => row.original.sno,
+  },
+  {
+    accessorKey: 'project',
+    header: sortableColumnHeader<ProjectWiseRow>('Project'),
+    cell: ({ row }) => (
+      <span className='font-medium'>{row.original.project}</span>
+    ),
+  },
+  {
+    accessorKey: 'hours',
+    header: sortableColumnHeader<ProjectWiseRow>('Allocated hours'),
+    cell: ({ row }) => row.original.hours,
+  },
+]
 
 interface Filters {
   employee: string
@@ -204,34 +259,12 @@ export function DayWiseAllocationTab({ store }: { store: ProjectsStore }) {
               Refresh
             </Button>
           </div>
-          <div className='rounded-md border border-gray-200 bg-white'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Allocated hours</TableHead>
-                  <TableHead>Task</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {results.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className='text-neutral-1000'>
-                      No allocations in the selected period.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  results.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className='font-medium'>{r.date}</TableCell>
-                      <TableCell>{r.hours}</TableCell>
-                      <TableCell>{r.task}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <SimpleTable
+            columns={dayWiseColumns}
+            data={results}
+            emptyMessage={EMPTY_PERIOD_MESSAGE}
+            getRowId={(r) => r.id}
+          />
           <p className='text-paragraph-sm text-neutral-1000'>
             {results.length} day entr{results.length === 1 ? 'y' : 'ies'} ·{' '}
             {total} allocated hours in total
@@ -271,10 +304,14 @@ export function EmployeeAllocationTab({ store }: { store: ProjectsStore }) {
     toast.info('Filters reset — run a new allocation query')
   }
 
-  const byProject = (results ?? []).reduce<Map<string, number>>((map, r) => {
-    map.set(r.project, (map.get(r.project) ?? 0) + r.hours)
-    return map
-  }, new Map())
+  const byProject = [
+    ...(results ?? [])
+      .reduce<Map<string, number>>((map, r) => {
+        map.set(r.project, (map.get(r.project) ?? 0) + r.hours)
+        return map
+      }, new Map())
+      .entries(),
+  ].map(([project, hours], i) => ({ sno: i + 1, project, hours }))
 
   return (
     <div className='space-y-4'>
@@ -326,72 +363,24 @@ export function EmployeeAllocationTab({ store }: { store: ProjectsStore }) {
               <h4 className='text-neutral-1600 text-sm font-semibold'>
                 Day-wise summary
               </h4>
-              <div className='rounded-md border border-gray-200 bg-white'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Project</TableHead>
-                      <TableHead>Allocated hours</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {results.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className='text-neutral-1000'>
-                          No allocations in the selected period.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      results.map((r) => (
-                        <TableRow key={r.id}>
-                          <TableCell className='font-medium'>
-                            {r.date}
-                          </TableCell>
-                          <TableCell>{r.project}</TableCell>
-                          <TableCell>{r.hours}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <SimpleTable
+                columns={dayWiseProjectColumns}
+                data={results}
+                emptyMessage={EMPTY_PERIOD_MESSAGE}
+                getRowId={(r) => r.id}
+              />
             </div>
 
             <div className='space-y-2'>
               <h4 className='text-neutral-1600 text-sm font-semibold'>
                 Project-wise summary
               </h4>
-              <div className='rounded-md border border-gray-200 bg-white'>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>S.no</TableHead>
-                      <TableHead>Project</TableHead>
-                      <TableHead>Allocated hours</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {byProject.size === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className='text-neutral-1000'>
-                          No allocations in the selected period.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      [...byProject.entries()].map(([project, hours], i) => (
-                        <TableRow key={project}>
-                          <TableCell>{i + 1}</TableCell>
-                          <TableCell className='font-medium'>
-                            {project}
-                          </TableCell>
-                          <TableCell>{hours}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <SimpleTable
+                columns={projectWiseColumns}
+                data={byProject}
+                emptyMessage={EMPTY_PERIOD_MESSAGE}
+                getRowId={(r) => r.project}
+              />
             </div>
           </div>
         </>

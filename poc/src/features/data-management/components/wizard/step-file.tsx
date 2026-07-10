@@ -1,4 +1,7 @@
 import { type UseFormReturn } from 'react-hook-form'
+import { DownloadSimple } from 'phosphor-react'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import {
   FormControl,
   FormField,
@@ -27,6 +30,57 @@ import { type WizardValues } from './schema'
 
 interface StepFileProps {
   form: UseFormReturn<WizardValues>
+}
+
+// Kensium reference sample offered for download when Xml is selected.
+const SAMPLE_XML = `<rootelement>
+  <Dept>
+    <Name>CSV Dept</Name>
+    <Description>Test Upload Description</Description>
+    <Prefix>Test Upload prefix</Prefix>
+    <ParentDepartment>HITS-Dotnet</ParentDepartment>
+    <Location>Begumpet</Location>
+  </Dept>
+</rootelement>`
+
+function downloadSampleXml() {
+  const blob = new Blob([SAMPLE_XML], { type: 'application/xml' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'sample-import.xml'
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.success('Sample XML downloaded — use it as the structure reference')
+}
+
+function HeaderFormatField({ form }: StepFileProps) {
+  return (
+    <FormField
+      control={form.control}
+      name='headerFormat'
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Header format</FormLabel>
+          <Select value={field.value} onValueChange={field.onChange}>
+            <FormControl>
+              <SelectTrigger variant='secondary' className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {HEADER_FORMATS.map((h) => (
+                <SelectItem key={h} value={h}>
+                  {h}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  )
 }
 
 /**
@@ -145,30 +199,39 @@ export function StepFile({ form }: StepFileProps) {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name='headerFormat'
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Header format</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger variant='secondary' className='w-full'>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {HEADER_FORMATS.map((h) => (
-                      <SelectItem key={h} value={h}>
-                        {h}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <HeaderFormatField form={form} />
+        </div>
+      )}
+
+      {fileType === 'Excel' && (
+        <div className='grid grid-cols-2 gap-3'>
+          <HeaderFormatField form={form} />
+        </div>
+      )}
+
+      {fileType === 'Xml' && (
+        <div className='rounded-[6px] border border-gray-200 bg-neutral-200/60 p-3'>
+          <div className='mb-1.5 flex items-center justify-between'>
+            <span className='text-neutral-1600 text-sm font-medium'>
+              Sample data
+            </span>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={downloadSampleXml}
+              className='h-7 gap-1 rounded-[6px] px-2'
+            >
+              <DownloadSimple size={12} weight='bold' />
+              Download
+            </Button>
+          </div>
+          <pre className='text-neutral-1900 overflow-x-auto font-mono text-xs leading-5 whitespace-pre'>
+            {SAMPLE_XML}
+          </pre>
+          <p className='text-paragraph-sm text-neutral-1000 mt-1.5'>
+            The uploaded XML must follow this element structure — download the
+            sample for reference.
+          </p>
         </div>
       )}
 

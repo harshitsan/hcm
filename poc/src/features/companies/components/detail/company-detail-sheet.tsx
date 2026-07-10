@@ -62,7 +62,7 @@ export function CompanyDetailSheet({
 
         <div className='min-h-0 flex-1 overflow-y-auto px-5 py-4'>
           <Tabs defaultValue='profile'>
-            <TabsList className='mb-3'>
+            <TabsList className='mb-3 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='profile' variant='primary'>
                 Profile
               </TabsTrigger>

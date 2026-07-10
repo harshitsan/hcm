@@ -12,10 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Switch } from '@/components/ui/switch'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { RECEIVER_ROLE_CATALOG } from '../data/config'
 import { type FeedbackConfigStore } from '../hooks/use-feedback-config'
 import { DualListPicker } from './dual-list-picker'
+import { ReceiverDefinitionsCard } from './receiver-definitions-card'
 
 interface ConfigReceiversStepProps {
   store: FeedbackConfigStore
@@ -70,18 +71,31 @@ export function ConfigReceiversStep({ store, onNext }: ConfigReceiversStepProps)
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-4 px-4'>
-          <div className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
+          <div className='border-grey-200 flex items-center justify-between gap-4 rounded-[6px] border px-3 py-2'>
             <div>
               <Label className='text-sm font-medium'>
-                Do you support Anonymous Feedback / Grievance?
+                Do you support anonymous feedback/grievances?
               </Label>
               <p className='text-paragraph-sm text-neutral-1000'>
-                When Yes, employees can submit anonymously and anonymous
-                receiver settings apply. When No, entries always carry the
-                submitter's identity.
+                "Yes" allows employees to submit feedback/grievances without
+                logging into the application (anonymous feedback). "No" means
+                entries always carry the submitter's identity.
               </p>
             </div>
-            <Switch checked={anonymousEnabled} onCheckedChange={setAnonymousEnabled} />
+            <RadioGroup
+              value={anonymousEnabled ? 'yes' : 'no'}
+              onValueChange={(v) => setAnonymousEnabled(v === 'yes')}
+              className='flex shrink-0 items-center gap-4'
+            >
+              <label className='flex items-center gap-2 text-sm'>
+                <RadioGroupItem value='yes' />
+                Yes
+              </label>
+              <label className='flex items-center gap-2 text-sm'>
+                <RadioGroupItem value='no' />
+                No
+              </label>
+            </RadioGroup>
           </div>
 
           <DualListPicker
@@ -101,6 +115,10 @@ export function ConfigReceiversStep({ store, onNext }: ConfigReceiversStepProps)
           )}
         </CardContent>
       </Card>
+
+      {/* Configured receivers with the cascading Applicable locations →
+          departments → positions → employees scope + applicable roles. */}
+      <ReceiverDefinitionsCard store={store} />
 
       <Card className='gap-3 border-none bg-white py-4'>
         <CardHeader className='px-4'>

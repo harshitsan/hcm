@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, ShieldWarning } from 'phosphor-react'
+import { Plus, ShieldWarning, UserPlus } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -16,6 +16,7 @@ import { DEPARTMENTS, EMPLOYEES, employeeById } from '../data/shared'
 import { type BalancesStore } from '../hooks/use-balances'
 import { type LeaveRequestsStore } from '../hooks/use-leave-requests'
 import { ApplyLeaveOverlay } from './apply-leave-overlay'
+import { AssignLeaveDialog } from './assign-leave-dialog'
 import { LeaveSummaryCards } from './leave-summary-cards'
 import { OverrideDialog } from './override-dialog'
 import { RequestDetailSheet } from './request-detail-sheet'
@@ -29,10 +30,22 @@ interface RequestsTabProps {
   actor: string
 }
 
+const MONTH_FMT = new Intl.DateTimeFormat('en-GB', {
+  month: 'short',
+  year: 'numeric',
+})
+
+function monthLabel(m: string) {
+  return MONTH_FMT.format(new Date(`${m}-01`))
+}
+
 /**
- * Company Admin request desk: the full request register, record-on-behalf
- * for Employee (Non-User) staff (LVE-17/29) and administrative overrides
- * (LVE-07).
+ * Manager / HR Admin request desk per the PDF's Employee Time Off Requests
+ * screen: active/inactive toggle, period + status (default Pending) +
+ * department filters, Assign Time Off, record-on-behalf for Employee
+ * (Non-User) staff (LVE-17/29) and administrative overrides (LVE-07).
+ * Approve / Reject / Need clarification / Cancel / View run from the
+ * row's detail sheet.
  */
 export function RequestsTab({
   requests,
@@ -42,13 +55,26 @@ export function RequestsTab({
   actor,
 }: RequestsTabProps) {
   const [deptFilter, setDeptFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  // Per the PDF the grid defaults to "Pending Approval".
+  const [statusFilter, setStatusFilter] = useState('pending')
+  const [periodFilter, setPeriodFilter] = useState('all')
   // ETOR-05: toggle which employees' requests appear — active, inactive or all.
   const [empStatus, setEmpStatus] = useState('active')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [recordFor, setRecordFor] = useState('')
   const [recordOpen, setRecordOpen] = useState(false)
   const [overrideOpen, setOverrideOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+
+  // Months covered by any request, for the period filter.
+  const months = useMemo(() => {
+    const set = new Set<string>()
+    for (const r of requests.requests) {
+      set.add(r.from.slice(0, 7))
+      set.add(r.to.slice(0, 7))
+    }
+    return [...set].sort()
+  }, [requests.requests])
 
   const data = useMemo(
     () =>
@@ -56,11 +82,14 @@ export function RequestsTab({
         (r) =>
           (deptFilter === 'all' || r.department === deptFilter) &&
           (statusFilter === 'all' || r.status === statusFilter) &&
+          (periodFilter === 'all' ||
+            (r.from.slice(0, 7) <= periodFilter &&
+              periodFilter <= r.to.slice(0, 7))) &&
           (empStatus === 'all' ||
             (employeeById(r.employeeId)?.active ?? true) ===
               (empStatus === 'active'))
       ),
-    [deptFilter, empStatus, requests.requests, statusFilter]
+    [deptFilter, empStatus, periodFilter, requests.requests, statusFilter]
   )
 
   const cards = [
@@ -68,6 +97,12 @@ export function RequestsTab({
     {
       label: 'Pending approval',
       value: requests.requests.filter((r) => r.status === 'pending').length,
+    },
+    {
+      label: 'Needs clarification',
+      value: requests.requests.filter(
+        (r) => r.status === 'needs-clarification'
+      ).length,
     },
     {
       label: 'Escalated (SLA breach)',
@@ -89,13 +124,13 @@ export function RequestsTab({
     <div className='w-full'>
       <LeaveSummaryCards title='Leave Requests Summary' items={cards} />
 
-      <div className='mb-3 flex items-center justify-between'>
+      <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
         <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
           All Requests ({data.length})
         </h2>
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
           <Select value={empStatus} onValueChange={setEmpStatus}>
-            <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
+            <SelectTrigger variant='secondary' className='h-7 w-[160px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -104,22 +139,36 @@ export function RequestsTab({
               <SelectItem value='all'>All employees</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={periodFilter} onValueChange={setPeriodFilter}>
+            <SelectTrigger variant='secondary' className='h-7 w-[130px]'>
+              <SelectValue placeholder='Period' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All periods</SelectItem>
+              {months.map((m) => (
+                <SelectItem key={m} value={m}>
+                  {monthLabel(m)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
+            <SelectTrigger variant='secondary' className='h-7 w-[180px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value='all'>All statuses</SelectItem>
-              <SelectItem value='pending'>Pending</SelectItem>
+              <SelectItem value='pending'>Pending approval</SelectItem>
+              <SelectItem value='needs-clarification'>Needs clarification</SelectItem>
               <SelectItem value='approved'>Approved</SelectItem>
               <SelectItem value='rejected'>Rejected</SelectItem>
               <SelectItem value='cancellation-requested'>Cancellation requested</SelectItem>
               <SelectItem value='cancelled'>Cancelled</SelectItem>
               <SelectItem value='withdrawn'>Withdrawn</SelectItem>
+              <SelectItem value='all'>All statuses</SelectItem>
             </SelectContent>
           </Select>
           <Select value={deptFilter} onValueChange={setDeptFilter}>
-            <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
+            <SelectTrigger variant='secondary' className='h-7 w-[160px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -131,6 +180,14 @@ export function RequestsTab({
               ))}
             </SelectContent>
           </Select>
+          <Button
+            variant='outline'
+            className='h-7 gap-1'
+            onClick={() => setAssignOpen(true)}
+          >
+            <UserPlus size={14} weight='bold' />
+            Assign Time Off
+          </Button>
           <Button
             variant='outline'
             className='h-7 gap-1'
@@ -183,6 +240,14 @@ export function RequestsTab({
           onBehalfOf={`${actor} (HR)`}
         />
       )}
+      <AssignLeaveDialog
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        requestsStore={requests}
+        balancesStore={balances}
+        leaveTypes={leaveTypes}
+        assignedBy={actor}
+      />
       <OverrideDialog
         open={overrideOpen}
         onOpenChange={setOverrideOpen}

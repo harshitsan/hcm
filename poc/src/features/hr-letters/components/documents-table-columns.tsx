@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { HighlightedCell } from '@/components/common/data-table/highlighted-cell'
 import { SearchableHeader } from '@/components/common/data-table/searchable-header'
 import { LongText } from '@/components/common/long-text'
-import { type HrDocument } from '../data/hr-letters'
+import { CHANNEL_LABELS, type HrDocument } from '../data/hr-letters'
 import { DeliveryBadge, DocStatusBadge } from './status-badges'
 
 const dateFmt = new Intl.DateTimeFormat('en-GB', {
@@ -148,7 +148,9 @@ export const documentsTableColumns: ColumnDef<HrDocument>[] = [
         <div className='flex flex-wrap gap-1 p-1.5'>
           {dists.map((d) => (
             <span key={d.id} className='flex items-center gap-1'>
-              <span className='text-neutral-1000 text-xs'>{d.channel}</span>
+              <span className='text-neutral-1000 text-xs'>
+                {CHANNEL_LABELS[d.channel]}
+              </span>
               <DeliveryBadge outcome={d.outcome} />
             </span>
           ))}

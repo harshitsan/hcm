@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -89,7 +90,14 @@ const complexityFields = [
  * threshold, auto-reactivation cooldown, history depth, length bounds and
  * complexity categories — company-scoped, applied going forward.
  */
-export function AuthPasswordPolicy({ store }: { store: SecurityConfigStore }) {
+export function AuthPasswordPolicy({
+  store,
+  onNext,
+}: {
+  store: SecurityConfigStore
+  /** PWD-07 / AD-07: optional "Save & Next" flow — advance to the next step. */
+  onNext?: () => void
+}) {
   const security = store.securityFor(HOME_COMPANY_ID)
   const [testValue, setTestValue] = useState('')
 
@@ -99,6 +107,24 @@ export function AuthPasswordPolicy({ store }: { store: SecurityConfigStore }) {
   })
 
   if (!security) return null
+
+  /** PWD-07: discard unsaved edits — revert the form to the saved policy. */
+  const cancelEdits = () => {
+    form.reset(security.passwordPolicy)
+    toast('Password policy edits discarded — reverted to the saved policy')
+  }
+
+  /** PWD-07: validate + save, and re-baseline the form so Cancel disables. */
+  const saveValues = (values: PolicyValues) => {
+    store.savePasswordPolicy(HOME_COMPANY_ID, values)
+    form.reset(values)
+  }
+
+  /** PWD-07: validate + save, then continue to the next step. */
+  const saveAndNext = form.handleSubmit((values) => {
+    saveValues(values)
+    onNext?.()
+  })
   const failures = testValue
     ? testPassword(security.passwordPolicy, testValue)
     : null
@@ -167,9 +193,30 @@ export function AuthPasswordPolicy({ store }: { store: SecurityConfigStore }) {
               With all toggles off, only length and history rules apply.
             </p>
           </div>
-          <Button type='submit' className='h-7'>
-            Save policy
-          </Button>
+          <div className='flex flex-wrap items-center gap-2'>
+            <Button type='submit' className='h-7'>
+              Save policy
+            </Button>
+            {onNext && (
+              <Button
+                type='button'
+                variant='outline'
+                className='h-7'
+                onClick={() => void saveAndNext()}
+              >
+                Save &amp; Next — Active Directory
+              </Button>
+            )}
+            <Button
+              type='button'
+              variant='ghost'
+              className='h-7'
+              onClick={cancelEdits}
+              disabled={!form.formState.isDirty}
+            >
+              Cancel
+            </Button>
+          </div>
         </form>
       </Form>
 

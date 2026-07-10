@@ -7,6 +7,7 @@ import { EngineArtifactsPanel } from '@/features/workflows/components/engine-art
 import { AuditTab } from './components/audit-tab'
 import { CompanyCalendarTab } from './components/company-calendar-tab'
 import { ConfigTab } from './components/config-tab'
+import { EmployeeSummaryTab } from './components/employee-summary-tab'
 import { EnginesTab } from './components/engines-tab'
 import { HolidaysTab } from './components/holidays-tab'
 import { MyLeaveTab } from './components/my-leave-tab'
@@ -17,6 +18,7 @@ import { RequestsTab } from './components/requests-tab'
 import { TeamTab } from './components/team-tab'
 import { CURRENT_EMPLOYEE_ID } from './data/shared'
 import { useBalances } from './hooks/use-balances'
+import { useGlobalSettings } from './hooks/use-global-settings'
 import { useLeaveAudit } from './hooks/use-leave-audit'
 import { useLeaveConfig } from './hooks/use-leave-config'
 import { useLeaveRequests } from './hooks/use-leave-requests'
@@ -70,6 +72,11 @@ const TABS: TabDef[] = [
   { value: 'records', label: 'My Records', roles: ['Employee (Non-User)'] },
   { value: 'requests', label: 'Requests', roles: ['Company Admin'] },
   {
+    value: 'summary',
+    label: 'Employee Summary',
+    roles: ['Company Admin'],
+  },
+  {
     value: 'calendar',
     label: 'Company Calendar',
     roles: ['Company Admin', 'Group Company Admin'],
@@ -121,6 +128,7 @@ export function LeaveManagement() {
     actorRole: role,
   })
   const settings = useLeaveSettings({ notify: audit.notify })
+  const globalSettings = useGlobalSettings()
   const requests = useLeaveRequests({
     balances,
     leaveTypes: config.leaveTypes,
@@ -217,6 +225,14 @@ export function LeaveManagement() {
                 />
               </TabsContent>
 
+              <TabsContent value='summary'>
+                <EmployeeSummaryTab
+                  requestsStore={requests}
+                  balancesStore={balances}
+                  leaveTypes={config.orderedTypes}
+                />
+              </TabsContent>
+
               <TabsContent value='calendar'>
                 <CompanyCalendarTab requests={requests} settings={settings} />
               </TabsContent>
@@ -231,31 +247,36 @@ export function LeaveManagement() {
 
               <TabsContent value='admin'>
                 <EngineArtifactsPanel module='Leave Management' />
-                <Tabs defaultValue={visibleAdminTabs[0]?.value} key={role}>
-                  <TabsList className='mb-2 flex-wrap'>
-                    {visibleAdminTabs.map((t) => (
-                      <TabsTrigger key={t.value} value={t.value}>
-                        {t.label}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-
-                  <TabsContent value='config'>
-                    <ConfigTab config={config} settings={settings} />
-                  </TabsContent>
-
-                  <TabsContent value='audit'>
-                    <AuditTab audit={audit} />
-                  </TabsContent>
-
-                  <TabsContent value='platform'>
-                    <PlatformTab settings={settings} />
-                  </TabsContent>
-
-                  <TabsContent value='engines'>
-                    <EnginesTab config={config} balances={balances} />
-                  </TabsContent>
-                </Tabs>
+                <div className='flex flex-col gap-6'>
+                  {visibleAdminTabs.some((t) => t.value === 'config') && (
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Settings</h3>
+                      <ConfigTab
+                        config={config}
+                        settings={settings}
+                        globalSettings={globalSettings}
+                      />
+                    </section>
+                  )}
+                  {visibleAdminTabs.some((t) => t.value === 'audit') && (
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Activity log</h3>
+                      <AuditTab audit={audit} />
+                    </section>
+                  )}
+                  {visibleAdminTabs.some((t) => t.value === 'platform') && (
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Platform</h3>
+                      <PlatformTab settings={settings} />
+                    </section>
+                  )}
+                  {visibleAdminTabs.some((t) => t.value === 'engines') && (
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Shared services</h3>
+                      <EnginesTab config={config} balances={balances} />
+                    </section>
+                  )}
+                </div>
               </TabsContent>
             </Tabs>
           )}

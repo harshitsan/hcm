@@ -8,6 +8,8 @@ import { SatelliteMark } from '@/components/brand/logo'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { sidebarData } from '@/components/layout/data/sidebar-data'
+import { HomeAnnouncements } from './components/home-announcements'
+import { PlatformAdminDashboard } from './components/platform-admin-dashboard'
 
 const TOTAL_MODULES = 31
 
@@ -16,9 +18,16 @@ const TOTAL_MODULES = 31
  * All modules are listed; the ones the active role cannot open render in a
  * disabled state. The active mock role also drives what each module page
  * lets you do once opened.
+ *
+ * The Platform Admin (platform owner, above every tenant) instead lands on a
+ * dedicated platform dashboard: billing charts, tenant hierarchy, adoption.
  */
 export function Dashboard() {
   const { role } = useRole()
+
+  if (role === 'Platform Admin') {
+    return <PlatformAdminDashboard />
+  }
   // Show every module; disable the ones this role cannot open (module-access.ts).
   // The bottom (Administration) sidebar group still counts as modules here.
   const groups = [
@@ -43,20 +52,20 @@ export function Dashboard() {
       <CommonHeader title='SatelliteHR — Proof of Concept' />
       <Main>
         <div className='flex flex-col gap-6 pb-10'>
-          {/* Mission-control hero: deep space, orbit rings, live satellite */}
-          <div className='space-bg relative overflow-hidden rounded-xl p-6 text-white md:p-8'>
-            <div className='pointer-events-none absolute -top-28 -right-20 size-[360px] rounded-full border border-white/10' />
-            <div className='pointer-events-none absolute -top-14 -right-6 size-[220px] rounded-full border border-white/10' />
-            <div className='pointer-events-none absolute top-10 right-10 hidden md:block'>
+          {/* Landing hero — clean light card with a faint brand tint */}
+          <div className='from-orbit-100 border-border relative overflow-hidden rounded-xl border bg-gradient-to-br to-white p-6 md:p-8'>
+            <div className='border-orbit-200/50 pointer-events-none absolute -top-28 -right-20 size-[360px] rounded-full border' />
+            <div className='border-orbit-200/50 pointer-events-none absolute -top-14 -right-6 size-[220px] rounded-full border' />
+            <div className='pointer-events-none absolute top-10 right-10 hidden opacity-90 md:block'>
               <SatelliteMark size={84} />
             </div>
-            <p className='font-mono text-signal-400 text-[10px] tracking-[0.32em] uppercase'>
+            <p className='font-mono text-signal-500 text-[10px] tracking-[0.32em] uppercase'>
               Mission control
             </p>
-            <h2 className='font-display mt-2 text-3xl font-bold tracking-tight md:text-4xl'>
+            <h2 className='font-display text-neutral-1600 mt-2 text-3xl font-bold tracking-tight md:text-4xl'>
               Every HR module, one orbit.
             </h2>
-            <p className='mt-3 max-w-2xl text-sm leading-relaxed text-white/70'>
+            <p className='text-neutral-1100 mt-3 max-w-2xl text-sm leading-relaxed'>
               Every SatelliteHR user story (BRD + Company Management functional
               spec, enriched with Kensium HRMS depth) is implemented as a
               frontend capability with mock data. Switch the active role from
@@ -64,13 +73,8 @@ export function Dashboard() {
               modules.
             </p>
             <div className='mt-4 flex flex-wrap items-center gap-2'>
-              <Badge
-                variant='outline'
-                className='border-white/25 bg-white/5 text-white'
-              >
-                {role}
-              </Badge>
-              <span className='text-xs text-white/50'>
+              <Badge variant='outline'>{role}</Badge>
+              <span className='text-neutral-1000 text-xs'>
                 authored once · governed per scope · consumed everywhere
               </span>
             </div>
@@ -91,6 +95,9 @@ export function Dashboard() {
               </Card>
             ))}
           </div>
+
+          {/* Company announcements on the landing page (HOME-01). */}
+          <HomeAnnouncements />
 
           {moduleCount === 0 && (
             <Card className='border-red-300 bg-red-50 flex flex-row items-center gap-3 p-4'>

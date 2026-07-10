@@ -3,7 +3,15 @@ export const CURRENT_TENANT = 'Kensium Solutions Pvt Ltd'
 
 export type FieldMode = 'editable' | 'view-only' | 'hidden'
 export type FieldSection = 'Personal' | 'Employment'
-export type FieldInputType = 'text' | 'email' | 'tel' | 'date'
+export type FieldInputType =
+  | 'text'
+  | 'email'
+  | 'tel'
+  | 'date'
+  | 'textarea'
+  | 'dropdown'
+  | 'checkbox'
+  | 'radio'
 
 /**
  * Metadata-driven field schema (ESS-14/16). The forms engine renders profile
@@ -18,6 +26,10 @@ export interface ProfileField {
   approvalRequired: boolean
   isUdf: boolean
   inputType: FieldInputType
+  /** Configured choices for dropdown / radio fields (UDF option lists). */
+  options?: string[]
+  /** Mandatory flag from the field definition — saves require a value. */
+  required?: boolean
   minLength?: number
   pattern?: string
   patternMessage?: string
@@ -42,6 +54,8 @@ export const seedProfileFields: ProfileField[] = [
   { id: 'compensationBand', label: 'Compensation band', section: 'Employment', mode: 'hidden', approvalRequired: true, isUdf: false, inputType: 'text', effectiveFrom: '2026-01-01' },
   { id: 'udfTshirtSize', label: 'T-shirt size (UDF)', section: 'Personal', mode: 'editable', approvalRequired: false, isUdf: true, inputType: 'text', minLength: 1, effectiveFrom: '2026-04-01' },
   { id: 'udfCommuteMode', label: 'Commute mode (UDF)', section: 'Employment', mode: 'editable', approvalRequired: false, isUdf: true, inputType: 'text', minLength: 3, effectiveFrom: '2026-05-01' },
+  { id: 'udfBusFacility', label: 'Bus facility required (UDF)', section: 'Employment', mode: 'editable', approvalRequired: false, isUdf: true, inputType: 'dropdown', options: ['Yes', 'No'], required: true, effectiveFrom: '2026-06-01' },
+  { id: 'udfWorkMode', label: 'Preferred work mode (UDF)', section: 'Employment', mode: 'editable', approvalRequired: false, isUdf: true, inputType: 'radio', options: ['Office', 'Hybrid', 'Remote'], required: true, effectiveFrom: '2026-06-15' },
 ]
 
 export const seedProfileValues: Record<string, string> = {
@@ -62,6 +76,8 @@ export const seedProfileValues: Record<string, string> = {
   compensationBand: 'Band L4',
   udfTshirtSize: 'M',
   udfCommuteMode: 'Company shuttle',
+  udfBusFacility: 'Yes',
+  udfWorkMode: 'Hybrid',
 }
 
 export type ChangeRequestStatus = 'Pending approval' | 'Approved' | 'Rejected'

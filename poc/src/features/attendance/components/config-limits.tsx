@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'phosphor-react'
+import { PencilSimple, Plus } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { type OutTimeSettings } from '../data/config'
 import { EMPLOYEE_CLASSES, type EmployeeClass } from '../data/shared'
 import { type AttendanceConfigStore } from '../hooks/use-attendance-config'
 
@@ -76,8 +77,15 @@ function ClassPicker({
  * templates with monthly instance limits (TNA-37) — requests beyond these
  * limits are blocked or flagged as exceeding policy.
  */
-export function ConfigLimits({ config }: { config: AttendanceConfigStore }) {
+export function ConfigLimits({
+  config,
+  onNext,
+}: {
+  config: AttendanceConfigStore
+  onNext?: () => void
+}) {
   const [otsOpen, setOtsOpen] = useState(false)
+  const [editingOtsId, setEditingOtsId] = useState<string | null>(null)
   const [oName, setOName] = useState('')
   const [oClassSpecific, setOClassSpecific] = useState(false)
   const [oClass, setOClass] = useState<string>('Regular')
@@ -91,6 +99,28 @@ export function ConfigLimits({ config }: { config: AttendanceConfigStore }) {
   const [wClass, setWClass] = useState<string>('Regular')
   const [wMaxPerMonth, setWMaxPerMonth] = useState('4')
 
+  const openNewOutTime = () => {
+    setEditingOtsId(null)
+    setOName('')
+    setOClassSpecific(false)
+    setOClass('Regular')
+    setOMaxRequests('4')
+    setOMaxHoursReq('3')
+    setOMaxHoursMonth('8')
+    setOtsOpen(true)
+  }
+
+  const openEditOutTime = (s: OutTimeSettings) => {
+    setEditingOtsId(s.id)
+    setOName(s.name)
+    setOClassSpecific(s.classSpecific)
+    setOClass(s.employeeClass === 'All' ? 'Regular' : s.employeeClass)
+    setOMaxRequests(String(s.maxRequestsPerMonth))
+    setOMaxHoursReq(String(s.maxHoursPerRequest))
+    setOMaxHoursMonth(String(s.maxHoursPerMonth))
+    setOtsOpen(true)
+  }
+
   const saveOutTime = () => {
     const req = Number(oMaxRequests)
     const perReq = Number(oMaxHoursReq)
@@ -99,14 +129,19 @@ export function ConfigLimits({ config }: { config: AttendanceConfigStore }) {
       toast.error('Name and positive limits are required (monthly hours ≥ per-request hours)')
       return
     }
-    config.addOutTimeSetting({
+    const payload = {
       name: oName,
       classSpecific: oClassSpecific,
-      employeeClass: oClassSpecific ? (oClass as EmployeeClass) : 'All',
+      employeeClass: oClassSpecific ? (oClass as EmployeeClass) : ('All' as const),
       maxRequestsPerMonth: req,
       maxHoursPerRequest: perReq,
       maxHoursPerMonth: perMonth,
-    })
+    }
+    if (editingOtsId) {
+      config.updateOutTimeSetting(editingOtsId, payload)
+    } else {
+      config.addOutTimeSetting(payload)
+    }
     setOtsOpen(false)
     setOName('')
   }
@@ -138,7 +173,7 @@ export function ConfigLimits({ config }: { config: AttendanceConfigStore }) {
               requests exceeding a limit are blocked or flagged as over-policy
             </span>
           </h3>
-          <Button variant='outline' className='h-7 gap-1' onClick={() => setOtsOpen(true)}>
+          <Button variant='outline' className='h-7 gap-1' onClick={openNewOutTime}>
             <Plus size={12} weight='bold' />
             Add Settings
           </Button>
@@ -153,6 +188,7 @@ export function ConfigLimits({ config }: { config: AttendanceConfigStore }) {
                 <th className='px-2 font-medium'>Max requests / month</th>
                 <th className='px-2 font-medium'>Max hours / request</th>
                 <th className='px-2 font-medium'>Max hours / month</th>
+                <th className='px-2 text-right font-medium'>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -164,6 +200,16 @@ export function ConfigLimits({ config }: { config: AttendanceConfigStore }) {
                   <td className='px-2'>{s.maxRequestsPerMonth}</td>
                   <td className='px-2'>{s.maxHoursPerRequest}h</td>
                   <td className='px-2'>{s.maxHoursPerMonth}h</td>
+                  <td className='px-2 text-right'>
+                    <Button
+                      variant='outline'
+                      className='h-6 gap-1 px-2 text-xs'
+                      onClick={() => openEditOutTime(s)}
+                    >
+                      <PencilSimple size={12} />
+                      Edit
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -226,10 +272,26 @@ export function ConfigLimits({ config }: { config: AttendanceConfigStore }) {
         </div>
       </div>
 
+      {onNext && (
+        <div className='flex justify-end'>
+          <Button
+            className='h-7'
+            onClick={() => {
+              toast.success('Out-time and WFH limits saved')
+              onNext()
+            }}
+          >
+            Save & Next
+          </Button>
+        </div>
+      )}
+
       <Dialog open={otsOpen} onOpenChange={setOtsOpen}>
         <DialogContent className='sm:max-w-[420px]'>
           <DialogHeader>
-            <DialogTitle>Add out-time settings</DialogTitle>
+            <DialogTitle>
+              {editingOtsId ? 'Edit out-time settings' : 'Add out-time settings'}
+            </DialogTitle>
           </DialogHeader>
           <div className='space-y-3'>
             <Field label='Settings name'>
@@ -257,7 +319,9 @@ export function ConfigLimits({ config }: { config: AttendanceConfigStore }) {
             <Button variant='outline' onClick={() => setOtsOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={saveOutTime}>Save Settings</Button>
+            <Button onClick={saveOutTime}>
+              {editingOtsId ? 'Save Changes' : 'Save Settings'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

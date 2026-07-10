@@ -8,17 +8,17 @@ import { AuditTab } from './components/audit-tab'
 import { ConfigTab } from './components/config-tab'
 import { DisciplinaryTab } from './components/disciplinary-tab'
 import { ExitsTab } from './components/exits-tab'
-import { KtConfig } from './components/kt-config'
-import { KtTasksTab } from './components/kt-tasks-tab'
-import { MyKnowledgeTransferTab } from './components/kt-my-tab'
+import { ConfigKt } from './components/config-kt'
+import { KnowledgeTransferTab } from './components/kt-tasks-tab'
 import { LifecycleSummary } from './components/lifecycle-summary'
 import { MyLifecycleTab } from './components/my-lifecycle-tab'
 import { OnboardingTab } from './components/onboarding-tab'
+import { OrientationTab } from './components/orientation-tab'
 import { PerformanceReviewSetup } from './components/performance-review-setup'
 import { PerformanceReviewTab } from './components/performance-review-tab'
-import { OrientationTab } from './components/orientation-tab'
 import { PlatformTab } from './components/platform-tab'
 import { ProbationTab } from './components/probation-tab'
+import { ReassignmentTab } from './components/reassignment-tab'
 import { TransfersTab } from './components/transfers-tab'
 import { PERSONAS } from './data/shared'
 import { useDisciplinary } from './hooks/use-disciplinary'
@@ -37,16 +37,10 @@ interface TabDef {
   label: string
 }
 
-/**
- * Employee Lifecycle module — onboarding, probation confirmation, transfers,
- * exits and disciplinary actions, driven by governed configuration with an
- * immutable audit trail. Visible tabs vary with the active role.
- */
 export function Lifecycle() {
   const { role } = useRole()
   const lifecycleLog = useLifecycleLog()
 
-  // Stamp every audit event with the acting persona + role.
   const log = useCallback(
     (input: Omit<LogInput, 'actor' | 'actorRole'>) =>
       lifecycleLog.logEvent({
@@ -77,7 +71,6 @@ export function Lifecycle() {
   const probation = useProbation({
     log,
     notify,
-    // “Initiate Separation” follow-through opens the exit workflow.
     onSeparation: (c) =>
       exits.addExit({
         employeeName: c.employeeName,
@@ -94,6 +87,19 @@ export function Lifecycle() {
     log,
     notify,
     approverGroups: config.disciplinaryApprovers.items,
+    // Exit Coordinator handoff: approved Suspension/Termination cases (and
+    // counselling closed with a Termination outcome) open an exit case.
+    onExitReferral: (c, process) =>
+      exits.addExit({
+        employeeName: c.employeeName,
+        employeeCode: c.employeeCode,
+        department: c.department,
+        location: c.location,
+        positionLevel: 'L2 - Senior',
+        exitType: process,
+        reason: `Disciplinary referral (${c.id}): ${c.reason}`,
+        raisedBy: 'Admin (proxy)',
+      }),
   })
   const orientation = useOrientation({ log, notify })
   const knowledgeTransfer = useKnowledgeTransfer({ log })
@@ -124,21 +130,19 @@ export function Lifecycle() {
       ]
     if (isCompanyAdmin) {
       const list: TabDef[] = [
-        {
-          value: 'onboarding',
-          label: config.settings.confirmationModuleEnabled
-            ? 'Onboarding & Probation'
-            : 'Onboarding',
-        },
+        { value: 'onboarding', label: 'Onboarding' },
+      ]
+      if (config.settings.confirmationModuleEnabled)
+        list.push({ value: 'probation', label: 'Probation' })
+      list.push(
         { value: 'transfers', label: 'Transfers' },
         { value: 'exits', label: 'Exits' },
-        { value: 'orientation', label: 'Orientation' },
+        { value: 'reassignment', label: 'Reassignment' },
         { value: 'disciplinary', label: 'Disciplinary' },
         { value: 'admin', label: 'Admin' },
-      ]
+      )
       return list
     }
-    // Portfolio Admin: reporting oversight only.
     return [{ value: 'audit', label: 'Audit & Reports' }]
   }, [
     config.settings.confirmationModuleEnabled,
@@ -189,9 +193,8 @@ export function Lifecycle() {
         <div className='w-full'>
           {!isEmployee && <LifecycleSummary items={summaryItems} />}
 
-          {/* Remount when the role changes so the default tab stays valid. */}
           <Tabs key={role} defaultValue={tabs[0].value} className='w-full'>
-            <TabsList className='mb-2'>
+            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>
                   {tab.label}
@@ -199,127 +202,145 @@ export function Lifecycle() {
               ))}
             </TabsList>
 
+            {/* ── Company Admin flat tabs ─────────────────────────────── */}
             {isCompanyAdmin && (
               <>
                 <TabsContent value='onboarding'>
-                  <Tabs defaultValue='onboarding' className='w-full'>
-                    <TabsList className='mb-2'>
-                      <TabsTrigger variant='ghost' value='onboarding'>
-                        Onboarding
-                      </TabsTrigger>
-                      {config.settings.confirmationModuleEnabled && (
-                        <TabsTrigger variant='ghost' value='probation'>
-                          Probation & Confirmation
-                        </TabsTrigger>
-                      )}
-                      <TabsTrigger variant='ghost' value='performance'>
-                        Performance Review
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value='onboarding'>
-                      <OnboardingTab
-                        store={onboarding}
-                        templateVersion={config.publishedTemplate.version}
-                      />
-                    </TabsContent>
-                    {config.settings.confirmationModuleEnabled && (
-                      <TabsContent value='probation'>
-                        <ProbationTab
-                          store={probation}
-                          decisionTable={config.decisionTable}
-                        />
-                      </TabsContent>
-                    )}
-                    <TabsContent value='performance'>
-                      <PerformanceReviewTab store={performance} />
-                    </TabsContent>
-                  </Tabs>
+                  <OnboardingTab
+                    store={onboarding}
+                    templateVersion={config.publishedTemplate.version}
+                  />
                 </TabsContent>
+
+                {config.settings.confirmationModuleEnabled && (
+                  <TabsContent value='probation'>
+                    <ProbationTab
+                      store={probation}
+                      decisionTable={config.decisionTable}
+                    />
+                  </TabsContent>
+                )}
+
                 <TabsContent value='exits'>
-                  <Tabs defaultValue='cases' className='w-full'>
-                    <TabsList className='mb-2'>
-                      <TabsTrigger variant='ghost' value='cases'>
-                        Exit Cases
-                      </TabsTrigger>
-                      <TabsTrigger variant='ghost' value='kt-tasks'>
-                        KT Tasks
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value='cases'>
-                      <ExitsTab
-                        store={exits}
-                        exitTypes={config.exitTypes.items}
-                        exitManagementEnabled={
-                          config.settings.exitManagementEnabled
-                        }
-                      />
-                    </TabsContent>
-                    <TabsContent value='kt-tasks'>
-                      <KtTasksTab store={knowledgeTransfer} />
-                    </TabsContent>
-                  </Tabs>
+                  <div className='flex flex-col gap-6'>
+                    <ExitsTab
+                      store={exits}
+                      exitTypes={config.exitTypes.items}
+                      exitManagementEnabled={config.settings.exitManagementEnabled}
+                    />
+                    <div>
+                      <p className='text-paragraph-sm text-neutral-1000 mb-3 font-medium'>
+                        Knowledge Transfer Tasks
+                      </p>
+                      <KnowledgeTransferTab store={knowledgeTransfer} />
+                    </div>
+                  </div>
                 </TabsContent>
-                <TabsContent value='orientation'>
-                  <OrientationTab store={orientation} />
+
+                <TabsContent value='reassignment'>
+                  <ReassignmentTab />
                 </TabsContent>
+
                 <TabsContent value='disciplinary'>
                   <DisciplinaryTab store={disciplinary} />
+                </TabsContent>
+
+                {/* Admin tab: all config/setup surfaces as vertical sections */}
+                <TabsContent value='admin'>
+                  <div className='flex flex-col gap-8'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Orientation
+                      </h3>
+                      <OrientationTab store={orientation} />
+                    </section>
+
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Performance Reviews
+                      </h3>
+                      <PerformanceReviewTab store={performance} />
+                    </section>
+
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Performance Review Setup
+                      </h3>
+                      <PerformanceReviewSetup store={performance} />
+                    </section>
+
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Knowledge Transfer Configuration
+                      </h3>
+                      <ConfigKt
+                        store={knowledgeTransfer}
+                        exitTypes={config.exitTypes.items.map((t) => t.name)}
+                      />
+                    </section>
+
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Lifecycle Settings
+                      </h3>
+                      <ConfigTab config={config} />
+                    </section>
+
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Engine Features
+                      </h3>
+                      <EngineArtifactsPanel module='Employee Lifecycle' />
+                    </section>
+
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Audit & Reports
+                      </h3>
+                      <AuditTab log={lifecycleLog} />
+                    </section>
+                  </div>
                 </TabsContent>
               </>
             )}
 
+            {/* ── Shared Transfers tab ───────────────────────────────── */}
             {(isCompanyAdmin || isGroupAdmin) && (
               <TabsContent value='transfers'>
                 <TransfersTab store={transfers} />
               </TabsContent>
             )}
 
-            {isPlatformAdmin && (
-              <TabsContent value='platform'>
-                <PlatformTab transfers={transfers} />
-              </TabsContent>
-            )}
-
-            {isPlatformAdmin && (
-              <TabsContent value='config'>
-                <ConfigTab config={config} />
-              </TabsContent>
-            )}
-
-            {/* Company / Group admins reach settings and the audit log
-                through a single Admin tab; other roles keep audit top-level. */}
-            {(isCompanyAdmin || isGroupAdmin) && (
+            {/* ── Group Admin: oversight admin tab ──────────────────── */}
+            {isGroupAdmin && (
               <TabsContent value='admin'>
-                <EngineArtifactsPanel module='Employee Lifecycle' />
-                <Tabs defaultValue='settings' className='w-full'>
-                  <TabsList className='mb-2'>
-                    <TabsTrigger variant='ghost' value='settings'>
-                      Settings
-                    </TabsTrigger>
-                    <TabsTrigger variant='ghost' value='kt-setup'>
-                      Knowledge Transfer
-                    </TabsTrigger>
-                    <TabsTrigger variant='ghost' value='performance-setup'>
-                      Performance Review
-                    </TabsTrigger>
-                    <TabsTrigger variant='ghost' value='audit'>
+                <div className='flex flex-col gap-8'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                      Engine Features
+                    </h3>
+                    <EngineArtifactsPanel module='Employee Lifecycle' />
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
                       Audit & Reports
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value='settings'>
-                    <ConfigTab config={config} />
-                  </TabsContent>
-                  <TabsContent value='kt-setup'>
-                    <KtConfig store={knowledgeTransfer} />
-                  </TabsContent>
-                  <TabsContent value='performance-setup'>
-                    <PerformanceReviewSetup store={performance} />
-                  </TabsContent>
-                  <TabsContent value='audit'>
+                    </h3>
                     <AuditTab log={lifecycleLog} />
-                  </TabsContent>
-                </Tabs>
+                  </section>
+                </div>
               </TabsContent>
+            )}
+
+            {/* ── Platform Admin tabs ────────────────────────────────── */}
+            {isPlatformAdmin && (
+              <>
+                <TabsContent value='platform'>
+                  <PlatformTab transfers={transfers} />
+                </TabsContent>
+                <TabsContent value='config'>
+                  <ConfigTab config={config} />
+                </TabsContent>
+              </>
             )}
 
             {!isEmployee && !isCompanyAdmin && !isGroupAdmin && (
@@ -328,6 +349,7 @@ export function Lifecycle() {
               </TabsContent>
             )}
 
+            {/* ── Employee tabs ──────────────────────────────────────── */}
             {isEmployee && (
               <>
                 <TabsContent value='my'>
@@ -340,7 +362,7 @@ export function Lifecycle() {
                   />
                 </TabsContent>
                 <TabsContent value='kt'>
-                  <MyKnowledgeTransferTab store={knowledgeTransfer} />
+                  <KnowledgeTransferTab store={knowledgeTransfer} />
                 </TabsContent>
               </>
             )}

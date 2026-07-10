@@ -1,5 +1,5 @@
 import type { Column, ColumnDef } from '@tanstack/react-table'
-import { ArrowUpDown } from 'lucide-react'
+import { ArrowUpDown, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { HighlightedCell } from '@/components/common/data-table/highlighted-cell'
@@ -79,9 +79,21 @@ export const requisitionColumns: ColumnDef<Requisition>[] = [
     cell: ({ row, column }) => (
       <HighlightedCell value={row.original.title} columnId={column.id}>
         <div className='flex min-w-0 flex-col'>
-          <LongText className='text-neutral-1600 text-sm font-medium'>
-            {row.original.title}
-          </LongText>
+          <div className='flex min-w-0 items-center gap-1'>
+            <LongText className='text-neutral-1600 text-sm font-medium'>
+              {row.original.title}
+            </LongText>
+            {/* Confidential hiring marker */}
+            {row.original.confidential && (
+              <span
+                title='Confidential hiring'
+                className='inline-flex shrink-0 items-center gap-0.5 rounded-full border border-gray-200 bg-gray-100 px-1.5 py-px text-[10px] font-medium text-gray-600'
+              >
+                <Lock className='size-2.5' />
+                Confidential
+              </span>
+            )}
+          </div>
           <span className='text-paragraph-sm text-neutral-1000 truncate'>
             {row.original.department} · {row.original.employeeClass}
           </span>
@@ -121,6 +133,25 @@ export const requisitionColumns: ColumnDef<Requisition>[] = [
       )
     },
     size: 150,
+  },
+  {
+    // Hiring urgency from the RRF — High is flagged in red/amber.
+    accessorKey: 'priority',
+    header: sortableHeader('Priority'),
+    meta: { requiresWholeWordMatch: true },
+    cell: ({ row }) => (
+      <span
+        className={[
+          'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
+          row.original.priority === 'High'
+            ? 'border-red-200 bg-amber-50 text-red-600'
+            : 'border-gray-200 bg-gray-100 text-gray-600',
+        ].join(' ')}
+      >
+        {row.original.priority}
+      </span>
+    ),
+    size: 90,
   },
   {
     accessorKey: 'headcount',

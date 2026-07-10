@@ -1,21 +1,30 @@
 import { useMemo, useState } from 'react'
-import { Bell, Link2, Lock, Paperclip, Search } from 'lucide-react'
+import {
+  Bell,
+  Briefcase,
+  CalendarCheck,
+  Link2,
+  Lock,
+  Minus,
+  Paperclip,
+  Plus,
+  Search,
+  Send,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { type Announcement, type AnnouncementImage } from '../data/announcements'
 import { FEED_EMPLOYEE, NON_USER_EMPLOYEE } from '../data/org'
 import { type AnnouncementsStore } from '../hooks/use-announcements'
-import { isVisibleToEmployee, targetingSummary } from '../utils/audience'
+import {
+  isVisibleToEmployee,
+  renderTemplate,
+  targetingSummary,
+  todayIso,
+} from '../utils/audience'
 import { TypeBadge } from './status-badges'
 
 const dateFmt = new Intl.DateTimeFormat('en-GB', {
@@ -30,15 +39,18 @@ interface FeedTabProps {
 }
 
 /**
- * Self-service feed (ANN-07/23): only currently-visible announcements that
- * the rules engine resolves for the signed-in employee, newest first, with
- * search, unread markers, and a clear empty state (ANN-40). Employees without
- * system access are excluded entirely (ANN-08/13).
+ * View announcements (PDF Transaction > View Announcements): the published
+ * announcements widget on the employee portal. Each entry expands with the
+ * "+" control, event-based announcements render their template with the
+ * event image, expired announcements are hidden (vs today = 2026-07-09),
+ * employees can comment on timelines directly from the announcement window,
+ * and Vacancy/Event announcements offer Apply/Enroll (PDF #11/#12).
  */
 export function FeedTab({ store, images }: FeedTabProps) {
   const { role } = useRole()
   const [query, setQuery] = useState('')
-  const [openItem, setOpenItem] = useState<Announcement | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
 
   const isNonUser = role === 'Employee (Non-User)'
   const employee = isNonUser ? NON_USER_EMPLOYEE : FEED_EMPLOYEE
@@ -79,6 +91,22 @@ export function FeedTab({ store, images }: FeedTabProps) {
       ? null
       : (images.find((img) => img.eventType === a.eventBasis) ?? null)
 
+  const toggleExpand = (a: Announcement) => {
+    const next = expandedId === a.id ? null : a.id
+    setExpandedId(next)
+    if (next) store.markRead(a.id)
+  }
+
+  const postComment = (a: Announcement) => {
+    const text = (commentDrafts[a.id] ?? '').trim()
+    if (!text) {
+      toast.warning('Write a comment before posting')
+      return
+    }
+    store.addComment(a.id, employee.name, text)
+    setCommentDrafts((prev) => ({ ...prev, [a.id]: '' }))
+  }
+
   return (
     <div className='w-full'>
       <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
@@ -87,8 +115,10 @@ export function FeedTab({ store, images }: FeedTabProps) {
             My announcements ({visible.length})
           </h2>
           <p className='text-paragraph-sm text-neutral-1000'>
-            Viewing as {employee.name} — {employee.department},{' '}
-            {employee.location}, {employee.company} ({employee.workforceType})
+            Viewing as {employee.name} — {employee.position},{' '}
+            {employee.department}, {employee.location}, {employee.company} (
+            {employee.workforceType}). Expired announcements are hidden as of{' '}
+            {dateFmt.format(new Date(todayIso()))}.
           </p>
         </div>
         <div className='relative'>
@@ -116,107 +146,205 @@ export function FeedTab({ store, images }: FeedTabProps) {
         </div>
       ) : (
         <div className='space-y-2'>
-          {visible.map((a) => (
-            <button
-              key={a.id}
-              type='button'
-              onClick={() => {
-                setOpenItem(a)
-                store.markRead(a.id)
-              }}
-              className='border-grey-200 hover:border-blue-1400 w-full rounded-[6px] border bg-white px-4 py-3 text-left transition-colors'
-            >
-              <div className='flex items-center justify-between gap-2'>
-                <div className='flex min-w-0 items-center gap-2'>
-                  {!a.read && (
-                    <span className='bg-blue-1400 size-2 shrink-0 rounded-full' />
+          {visible.map((a) => {
+            const expanded = expandedId === a.id
+            const image = milestoneImage(a)
+            const enrolled = a.enrollments.includes(employee.name)
+            return (
+              <div
+                key={a.id}
+                className='rounded-[8px] border border-gray-200 bg-white'
+              >
+                <button
+                  type='button'
+                  onClick={() => toggleExpand(a)}
+                  className='w-full px-4 py-3 text-left'
+                  aria-expanded={expanded}
+                >
+                  <div className='flex items-center justify-between gap-2'>
+                    <div className='flex min-w-0 items-center gap-2'>
+                      {expanded ? (
+                        <Minus className='text-blue-1400 size-4 shrink-0' />
+                      ) : (
+                        <Plus className='text-blue-1400 size-4 shrink-0' />
+                      )}
+                      {!a.read && (
+                        <span className='bg-blue-1400 size-2 shrink-0 rounded-full' />
+                      )}
+                      <span className='text-neutral-1600 truncate font-medium'>
+                        {a.title}
+                      </span>
+                      {!a.read && <Badge variant='open'>New</Badge>}
+                      <TypeBadge type={a.type} />
+                      {a.kind === 'Vacancy' && (
+                        <Badge variant='overdue'>Vacancy</Badge>
+                      )}
+                      {a.kind === 'Event' && <Badge variant='booked'>Event</Badge>}
+                      {a.eventBasis !== 'None' && (
+                        <Badge variant='completed'>{a.eventBasis}</Badge>
+                      )}
+                    </div>
+                    <span className='text-paragraph-sm text-neutral-1000 shrink-0'>
+                      {dateFmt.format(new Date(a.startDate))}
+                      {a.startTime ? ` · ${a.startTime}` : ''}
+                    </span>
+                  </div>
+                  {!expanded && (
+                    <p className='text-paragraph-sm text-neutral-1000 mt-1 line-clamp-2 pl-6'>
+                      {a.body}
+                    </p>
                   )}
-                  <span className='text-neutral-1600 truncate font-medium'>
-                    {a.title}
-                  </span>
-                  {!a.read && <Badge variant='open'>New</Badge>}
-                  <TypeBadge type={a.type} />
-                </div>
-                <span className='text-paragraph-sm text-neutral-1000 shrink-0'>
-                  {dateFmt.format(new Date(a.startDate))}
-                </span>
-              </div>
-              <p className='text-paragraph-sm text-neutral-1000 mt-1 line-clamp-2'>
-                {a.body}
-              </p>
-              <div className='text-paragraph-sm text-neutral-1000 mt-1 flex items-center gap-3'>
-                {a.link && (
-                  <span className='text-blue-1400 flex items-center gap-1'>
-                    <Link2 className='size-3.5' /> Link
-                  </span>
+                </button>
+
+                {expanded && (
+                  <div className='border-grey-200 space-y-3 border-t px-4 py-3'>
+                    <p className='text-paragraph-sm text-neutral-1000'>
+                      Published {dateFmt.format(new Date(a.startDate))} by{' '}
+                      {a.creator} · Audience:{' '}
+                      {a.visibleToAll
+                        ? a.targeting.groups.length > 0
+                          ? `All employees — groups: ${a.targeting.groups.join(', ')}`
+                          : 'All employees'
+                        : targetingSummary(a.targeting)}
+                    </p>
+                    <p className='text-neutral-1600 text-sm whitespace-pre-line'>
+                      {a.body}
+                    </p>
+
+                    {a.template && (
+                      <div className='bg-blue-150 rounded-[6px] px-3 py-2'>
+                        <p className='text-blue-1400 mb-1 text-sm font-medium'>
+                          {a.eventBasis !== 'None'
+                            ? `${a.eventBasis} greeting`
+                            : 'Announcement template'}
+                        </p>
+                        <p className='text-neutral-1600 text-sm whitespace-pre-line'>
+                          {renderTemplate(a.template, {
+                            employee: employee.name,
+                            event: a.eventBasis === 'None' ? a.title : a.eventBasis,
+                            date: dateFmt.format(new Date(todayIso())),
+                            company: employee.company,
+                          })}
+                        </p>
+                      </div>
+                    )}
+
+                    {image && (
+                      <div className='bg-blue-150 text-blue-1400 rounded-[6px] px-3 py-2 text-sm'>
+                        Event visual: {image.name} ({image.eventType}
+                        {image.years > 0 ? `, ${image.years} years` : ''})
+                      </div>
+                    )}
+
+                    <div className='flex flex-wrap items-center gap-2'>
+                      {a.link && (
+                        <Button
+                          variant='outline'
+                          className='h-7 gap-1 rounded-[6px] px-2'
+                          onClick={() =>
+                            toast.info(`Opening ${a.link} isn’t available in this demo`)
+                          }
+                        >
+                          <Link2 className='size-3.5' />
+                          Open link
+                        </Button>
+                      )}
+                      {a.attachment && (
+                        <Button
+                          variant='outline'
+                          className='h-7 gap-1 rounded-[6px] px-2'
+                          onClick={() =>
+                            toast.info('Downloads aren’t available in this demo')
+                          }
+                        >
+                          <Paperclip className='size-3.5' />
+                          {a.attachment}
+                        </Button>
+                      )}
+                      {a.kind === 'Vacancy' && (
+                        <Button
+                          className='h-7 gap-1 rounded-[6px] px-2'
+                          disabled={enrolled}
+                          onClick={() => store.enroll(a.id, employee.name)}
+                        >
+                          <Briefcase className='size-3.5' />
+                          {enrolled ? 'Application submitted' : 'Apply for this vacancy'}
+                        </Button>
+                      )}
+                      {a.kind === 'Event' && (
+                        <Button
+                          className='h-7 gap-1 rounded-[6px] px-2'
+                          disabled={enrolled}
+                          onClick={() => store.enroll(a.id, employee.name)}
+                        >
+                          <CalendarCheck className='size-3.5' />
+                          {enrolled ? 'Enrolled' : 'Enroll'}
+                        </Button>
+                      )}
+                      {a.kind !== 'General' && a.enrollments.length > 0 && (
+                        <span className='text-paragraph-sm text-neutral-1000'>
+                          {a.enrollments.length}{' '}
+                          {a.kind === 'Vacancy'
+                            ? `application${a.enrollments.length === 1 ? '' : 's'}`
+                            : `enrolled: ${a.enrollments.join(', ')}`}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Comment on employee timelines from the announcement window (PDF #5) */}
+                    <div className='border-grey-200 rounded-[6px] border px-3 py-2'>
+                      <p className='text-neutral-1600 mb-1.5 text-sm font-medium'>
+                        Timeline comments ({a.comments.length})
+                      </p>
+                      {a.comments.length > 0 && (
+                        <ul className='mb-2 space-y-1'>
+                          {a.comments.map((c) => (
+                            <li key={c.id} className='text-paragraph-sm'>
+                              <span className='text-neutral-1600 font-medium'>
+                                {c.author}
+                              </span>{' '}
+                              <span className='text-neutral-1000'>
+                                ({dateFmt.format(new Date(c.at))})
+                              </span>{' '}
+                              <span className='text-neutral-1600'>{c.text}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className='flex items-center gap-2'>
+                        <Input
+                          value={commentDrafts[a.id] ?? ''}
+                          onChange={(e) =>
+                            setCommentDrafts((prev) => ({
+                              ...prev,
+                              [a.id]: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              postComment(a)
+                            }
+                          }}
+                          placeholder='Comment on the employee timeline…'
+                          className='h-7 flex-1'
+                        />
+                        <Button
+                          className='h-7 gap-1 rounded-[6px] px-2'
+                          onClick={() => postComment(a)}
+                        >
+                          <Send className='size-3.5' />
+                          Post
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 )}
-                {a.attachment && (
-                  <span className='flex items-center gap-1'>
-                    <Paperclip className='size-3.5' /> {a.attachment}
-                  </span>
-                )}
               </div>
-            </button>
-          ))}
+            )
+          })}
         </div>
       )}
-
-      <Dialog
-        open={Boolean(openItem)}
-        onOpenChange={(open) => !open && setOpenItem(null)}
-      >
-        <DialogContent className='sm:max-w-[520px]'>
-          {openItem && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{openItem.title}</DialogTitle>
-                <DialogDescription>
-                  Published {dateFmt.format(new Date(openItem.startDate))} by{' '}
-                  {openItem.creator} · Audience:{' '}
-                  {targetingSummary(openItem.targeting)}
-                </DialogDescription>
-              </DialogHeader>
-              <p className='text-neutral-1600 text-sm whitespace-pre-line'>
-                {openItem.body}
-              </p>
-              {milestoneImage(openItem) && (
-                <div className='bg-blue-150 text-blue-1400 rounded-[6px] px-3 py-2 text-sm'>
-                  Milestone visual: {milestoneImage(openItem)?.name} (
-                  {milestoneImage(openItem)?.eventType},{' '}
-                  {milestoneImage(openItem)?.years} year
-                  {milestoneImage(openItem)?.years === 1 ? '' : 's'})
-                </div>
-              )}
-              <div className='flex items-center gap-2'>
-                {openItem.link && (
-                  <Button
-                    variant='outline'
-                    className='h-7 gap-1 rounded-[6px] px-2'
-                    onClick={() =>
-                      toast.info(`Opening ${openItem.link} isn’t available in this demo`)
-                    }
-                  >
-                    <Link2 className='size-3.5' />
-                    Open link
-                  </Button>
-                )}
-                {openItem.attachment && (
-                  <Button
-                    variant='outline'
-                    className='h-7 gap-1 rounded-[6px] px-2'
-                    onClick={() =>
-                      toast.info('Downloads aren’t available in this demo')
-                    }
-                  >
-                    <Paperclip className='size-3.5' />
-                    {openItem.attachment}
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

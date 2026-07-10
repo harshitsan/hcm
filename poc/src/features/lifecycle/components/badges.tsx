@@ -37,6 +37,9 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeVariant }> = {
   verified: { label: 'Verified', variant: 'completed' },
   // disciplinary
   'letter-issued': { label: 'Letter Issued', variant: 'completed' },
+  'counselling-in-progress': { label: 'Counselling In Progress', variant: 'open' },
+  'counselling-completed': { label: 'Counselling Completed', variant: 'completed' },
+  closed: { label: 'Closed', variant: 'badge_inactive' },
   // orientation programs
   cancelled: { label: 'Cancelled', variant: 'dropped' },
   // reviews

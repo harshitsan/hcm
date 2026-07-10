@@ -1,5 +1,15 @@
 import { useMemo, useState } from 'react'
-import { EnvelopeSimple, Plus, UploadSimple } from 'phosphor-react'
+import { EnvelopeSimple, Plus, Trash, UploadSimple } from 'phosphor-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -22,6 +32,7 @@ import {
 import { RoleGate } from '@/context/role-context'
 import { TALENT_FOLDERS, type Candidate } from '../data/candidates'
 import type { Requisition } from '../data/requisitions'
+import { seedVacancies, type Vacancy } from '../data/vacancies'
 import type { CandidatesStore } from '../hooks/use-candidates'
 import { StatusBadge } from './badges'
 import { BulkUploadDialog } from './bulk-upload-dialog'
@@ -31,19 +42,23 @@ interface TalentPoolTabProps {
   store: CandidatesStore
   requisitions: Requisition[]
   mailboxEnabled: boolean
+  /** Live vacancies for the shortlist / applied-for-vacancy pick; falls back to seeds. */
+  vacancies?: Vacancy[]
 }
 
 type ReviewFilter = 'all' | 'not-reviewed' | 'reviewed'
 
 /**
  * Talent pool — sourcing with duplicate detection, skill/source search,
- * folder organisation, review-status tabs, bulk resume upload and mailbox
- * import (TA-05, TA-24, TA-33, TA-39, TA-40).
+ * folder organisation, review-status tabs, bulk resume upload, mailbox
+ * import, mass delete and candidate shortlisting (TA-05, TA-24, TA-33,
+ * TA-39, TA-40; Kensium Resume Bank).
  */
 export function TalentPoolTab({
   store,
   requisitions,
   mailboxEnabled,
+  vacancies = seedVacancies,
 }: TalentPoolTabProps) {
   const [review, setReview] = useState<ReviewFilter>('all')
   const [search, setSearch] = useState('')
@@ -52,6 +67,8 @@ export function TalentPoolTab({
   const [targetFolder, setTargetFolder] = useState<string>(TALENT_FOLDERS[0])
   const [addOpen, setAddOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
+  const [shortlistFor, setShortlistFor] = useState<Candidate | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const counts = useMemo(
     () => ({
@@ -187,6 +204,16 @@ export function TalentPoolTab({
           >
             Assign
           </Button>
+          {/* Kensium Mass Delete — profiles in an active process are skipped */}
+          <RoleGate roles={['Company Admin', 'Group Company Admin']}>
+            <Button
+              variant='outline'
+              className='text-red-1400 h-7 gap-1 text-xs'
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash size={14} /> Delete selected
+            </Button>
+          </RoleGate>
         </div>
       )}
 
@@ -257,6 +284,15 @@ export function TalentPoolTab({
                         </Button>
                       )}
                     </RoleGate>
+                    <RoleGate roles={['Company Admin', 'Group Company Admin']}>
+                      <Button
+                        variant='outline'
+                        className='h-6 px-2 text-xs'
+                        onClick={() => setShortlistFor(c)}
+                      >
+                        Shortlist
+                      </Button>
+                    </RoleGate>
                   </div>
                 </TableCell>
               </TableRow>
@@ -272,11 +308,25 @@ export function TalentPoolTab({
         </Table>
       </div>
 
+      {/* Add New Resume — full Kensium field set incl. Applied for Vacancy */}
       <CandidateOverlay
         open={addOpen}
         onOpenChange={setAddOpen}
         requisitions={requisitions}
+        vacancies={vacancies}
         onSubmit={(draft) => store.addCandidate(draft)}
+      />
+
+      {/* Candidate shortlisting — 15-pointer form prefilled from the profile */}
+      <CandidateOverlay
+        open={Boolean(shortlistFor)}
+        onOpenChange={(o) => !o && setShortlistFor(null)}
+        requisitions={requisitions}
+        vacancies={vacancies}
+        mode='shortlist'
+        candidate={shortlistFor}
+        onSubmit={() => {}}
+        onShortlist={(id, form) => store.shortlistCandidate(id, form)}
       />
 
       <BulkUploadDialog
@@ -285,6 +335,32 @@ export function TalentPoolTab({
         requisitions={requisitions}
         onProcess={store.bulkImport}
       />
+
+      {/* Mass-delete confirmation (Kensium Mass Delete) */}
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {selected.length} candidate{selected.length === 1 ? '' : 's'}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Selected profiles are removed from the resume bank. Candidates in
+              an active hiring process are skipped and reported.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                store.massDeleteCandidates(selected)
+                setSelected([])
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

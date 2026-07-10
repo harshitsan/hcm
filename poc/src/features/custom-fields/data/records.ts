@@ -42,6 +42,8 @@ export const seedRecords: EntityRecord[] = [
       'cf-012': 'rohan.m@gmail.com',
       'cf-013': '12.5',
       'cf-014': 'Completed plant induction week 1.',
+      'cf-019': 'Yes',
+      'cf-020': true,
     },
   },
   {

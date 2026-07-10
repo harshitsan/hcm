@@ -1,20 +1,65 @@
 import { useMemo, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowsClockwise } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  SimpleTable,
+  sortableColumnHeader,
+} from '@/components/common/data-table/simple-table'
+import { type DayAllocation } from '../../data/projects'
 import { type ProjectsStore } from '../../hooks/use-projects'
 import { SectionTitle } from '../shared'
 
 /** Self-service persona (Employee (User) = Rohit Menon in the POC). */
 const SELF_NAME = 'Rohit Menon'
+
+const dayWiseColumns: ColumnDef<DayAllocation>[] = [
+  {
+    accessorKey: 'date',
+    header: sortableColumnHeader<DayAllocation>('Date'),
+    cell: ({ row }) => (
+      <span className='font-medium'>{row.original.date}</span>
+    ),
+  },
+  {
+    accessorKey: 'project',
+    header: sortableColumnHeader<DayAllocation>('Project'),
+    cell: ({ row }) => row.original.project,
+  },
+  {
+    accessorKey: 'hours',
+    header: sortableColumnHeader<DayAllocation>('Allocated hours'),
+    cell: ({ row }) => row.original.hours,
+  },
+  {
+    accessorKey: 'task',
+    header: sortableColumnHeader<DayAllocation>('Task'),
+    cell: ({ row }) => row.original.task,
+  },
+]
+
+type ProjectWiseRow = { sno: number; project: string; hours: number }
+
+const projectWiseColumns: ColumnDef<ProjectWiseRow>[] = [
+  {
+    accessorKey: 'sno',
+    header: sortableColumnHeader<ProjectWiseRow>('S.no'),
+    cell: ({ row }) => row.original.sno,
+  },
+  {
+    accessorKey: 'project',
+    header: sortableColumnHeader<ProjectWiseRow>('Project'),
+    cell: ({ row }) => (
+      <span className='font-medium'>{row.original.project}</span>
+    ),
+  },
+  {
+    accessorKey: 'hours',
+    header: sortableColumnHeader<ProjectWiseRow>('Allocated hours'),
+    cell: ({ row }) => row.original.hours,
+  },
+]
 
 /**
  * My Project Allocation — the employee's own day-wise and project-wise
@@ -50,7 +95,7 @@ export function MyAllocationTab({ store }: { store: ProjectsStore }) {
             return map
           }, new Map())
           .entries(),
-      ],
+      ].map(([project, hours], i) => ({ sno: i + 1, project, hours })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mine, projectWiseKey]
   )
@@ -76,28 +121,11 @@ export function MyAllocationTab({ store }: { store: ProjectsStore }) {
           Refresh
         </Button>
       </div>
-      <div className='rounded-md border border-gray-200 bg-white'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Allocated hours</TableHead>
-              <TableHead>Task</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {dayWise.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className='font-medium'>{r.date}</TableCell>
-                <TableCell>{r.project}</TableCell>
-                <TableCell>{r.hours}</TableCell>
-                <TableCell>{r.task}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleTable
+        columns={dayWiseColumns}
+        data={dayWise}
+        getRowId={(r) => r.id}
+      />
       <p className='text-paragraph-sm text-neutral-1000'>
         Showing the next {dayWise.length} allocated days.
       </p>
@@ -116,26 +144,11 @@ export function MyAllocationTab({ store }: { store: ProjectsStore }) {
           Refresh
         </Button>
       </div>
-      <div className='rounded-md border border-gray-200 bg-white'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>S.no</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Allocated hours</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {projectWise.map(([project, hours], i) => (
-              <TableRow key={project}>
-                <TableCell>{i + 1}</TableCell>
-                <TableCell className='font-medium'>{project}</TableCell>
-                <TableCell>{hours}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleTable
+        columns={projectWiseColumns}
+        data={projectWise}
+        getRowId={(r) => r.project}
+      />
     </div>
   )
 }

@@ -57,6 +57,10 @@ export function validateFieldValue(
   def: FieldDefinition,
   value: FieldValue
 ): string | null {
+  // A mandatory check box must actually be ticked (e.g. consents).
+  if (def.type === 'checkbox' && def.required && value !== true) {
+    return `${def.name} must be checked`
+  }
   if (isEmpty(value)) {
     return def.required ? `${def.name} is required` : null
   }
@@ -99,9 +103,10 @@ export function validateFieldValue(
         return `Enter a valid date for ${def.name}`
       break
     case 'single-select':
+    case 'radio':
     case 'lookup':
-      // Lookups are constrained by the picker itself; selects re-check here.
-      if (def.type === 'single-select' && !def.options.includes(s))
+      // Lookups are constrained by the picker itself; the rest re-check here.
+      if (def.type !== 'lookup' && !def.options.includes(s))
         return `"${s}" is not a configured option for ${def.name}`
       break
     default:
@@ -172,6 +177,7 @@ export function operatorsForType(
     case 'percentage':
       return ['equals', 'greater-than', 'less-than']
     case 'boolean':
+    case 'checkbox':
       return ['is-true', 'is-false']
     case 'date':
     case 'date-time':
@@ -179,6 +185,7 @@ export function operatorsForType(
     case 'multi-select':
       return ['includes']
     case 'single-select':
+    case 'radio':
     case 'lookup':
       return ['equals']
     default:

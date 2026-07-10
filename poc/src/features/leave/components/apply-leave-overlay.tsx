@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Paperclip, X } from 'phosphor-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -15,6 +16,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import {
   Form,
@@ -25,6 +33,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -61,6 +70,7 @@ const formSchema = z
     tentativeReason: z.string(),
     notifyPeersEnabled: z.boolean(),
     notifyEmails: emailList,
+    peerMessage: z.string(),
     fmlaQualifyingReason: z.string(),
     dynamicExtra: z.string(),
   })
@@ -87,6 +97,7 @@ const emptyValues: FormValues = {
   tentativeReason: '',
   notifyPeersEnabled: false,
   notifyEmails: '',
+  peerMessage: '',
   fmlaQualifyingReason: '',
   dynamicExtra: '',
 }
@@ -126,16 +137,21 @@ export function ApplyLeaveOverlay({
     defaultValues: emptyValues,
   })
   const [peers, setPeers] = useState<string[]>([])
+  // ATO-05: uploaded supporting documents (file names kept in mock state).
+  const [attachments, setAttachments] = useState<string[]>([])
   const [lopConfirm, setLopConfirm] = useState<{
     draft: RequestDraft
     excess: number
     unit: string
   } | null>(null)
+  // PTO #19: policy document linked to the selected leave type.
+  const [policyOpen, setPolicyOpen] = useState(false)
 
   useEffect(() => {
     if (!open) return
     form.reset(emptyValues)
     setPeers([])
+    setAttachments([])
   }, [open, form, employeeId])
 
   const employee = employeeById(employeeId)
@@ -194,7 +210,12 @@ export function ApplyLeaveOverlay({
       v.notifyPeersEnabled && v.notifyEmails.trim()
         ? v.notifyEmails.split(',').map((e) => e.trim())
         : [],
+    peerMessage:
+      v.notifyPeersEnabled && v.peerMessage.trim()
+        ? v.peerMessage.trim()
+        : undefined,
     fmlaQualifyingReason: v.fmlaQualifyingReason || null,
+    attachments,
     onBehalfOf,
   })
 
@@ -267,10 +288,42 @@ export function ApplyLeaveOverlay({
                         </SelectContent>
                       </Select>
                       {selectedType && (
-                        <p className='text-neutral-1000 text-xs'>
-                          Available balance: {balance} {selectedType.unit}
-                          {selectedType.fmla && ' · FMLA-protected'}
-                        </p>
+                        <div className='space-y-0.5'>
+                          {/* PTO #14: credit-based types apply against balance;
+                              others are capped by the yearly allotment. */}
+                          <p className='text-neutral-1000 text-xs'>
+                            {selectedType.appliedBasedOnCredit ? (
+                              <>Available balance: {balance} {selectedType.unit}</>
+                            ) : (
+                              <>
+                                Max per year: {selectedType.allotted}{' '}
+                                {selectedType.unit} · taken so far:{' '}
+                                {Math.max(0, selectedType.allotted - balance)}{' '}
+                                {selectedType.unit}
+                              </>
+                            )}
+                            {selectedType.fmla && ' · FMLA-protected'}
+                            {selectedType.policyDocument && (
+                              <>
+                                {' · '}
+                                <button
+                                  type='button'
+                                  className='text-blue-700 underline underline-offset-2'
+                                  onClick={() => setPolicyOpen(true)}
+                                >
+                                  View policy
+                                </button>
+                              </>
+                            )}
+                          </p>
+                          {!selectedType.appliedBasedOnCredit &&
+                            selectedType.category === 'paid' && (
+                              <p className='text-xs text-orange-600'>
+                                Days beyond the yearly cap are recorded as Loss
+                                of Pay.
+                              </p>
+                            )}
+                        </div>
                       )}
                       <FormMessage />
                     </FormItem>
@@ -432,6 +485,69 @@ export function ApplyLeaveOverlay({
                   )}
                 />
 
+                {/* PTO #29–#31: document requirement configured on the type. */}
+                {selectedType?.documentsRequired && (
+                  <div className='rounded-[6px] border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-700'>
+                    {selectedType.name} requires supporting documents — submit
+                    them within {selectedType.documentResponseDays} days of
+                    availing this time off (a reminder is sent after{' '}
+                    {selectedType.documentReminderDays} days). You can upload
+                    after submission from My Leave → Submit document.
+                  </div>
+                )}
+
+                {/* ATO-05: supporting documents, e.g. medical certificates. */}
+                <div className='space-y-2'>
+                  <Label>Supporting documents (optional)</Label>
+                  <Input
+                    type='file'
+                    multiple
+                    onChange={(e) => {
+                      const names = Array.from(e.target.files ?? []).map(
+                        (f) => f.name
+                      )
+                      if (names.length === 0) return
+                      setAttachments((prev) => [
+                        ...prev,
+                        ...names.filter((n) => !prev.includes(n)),
+                      ])
+                      e.target.value = ''
+                      toast.success(
+                        `${names.length} document${names.length === 1 ? '' : 's'} attached to this request`
+                      )
+                    }}
+                  />
+                  <p className='text-neutral-1000 text-xs'>
+                    Attach proof such as a medical certificate — reviewers see
+                    the documents on the request detail.
+                  </p>
+                  {attachments.length > 0 && (
+                    <div className='flex flex-wrap gap-1.5'>
+                      {attachments.map((name) => (
+                        <span
+                          key={name}
+                          className='inline-flex items-center gap-1 rounded-[6px] border border-gray-200 px-2 py-1 text-xs'
+                        >
+                          <Paperclip size={12} weight='bold' />
+                          {name}
+                          <button
+                            type='button'
+                            aria-label={`Remove ${name}`}
+                            className='text-neutral-1000 hover:text-destructive'
+                            onClick={() =>
+                              setAttachments((prev) =>
+                                prev.filter((n) => n !== name)
+                              )
+                            }
+                          >
+                            <X size={12} weight='bold' />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <FormField
                   control={form.control}
                   name='tentative'
@@ -502,10 +618,25 @@ export function ApplyLeaveOverlay({
                     </div>
                     <FormField
                       control={form.control}
+                      name='peerMessage'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Message to peers (optional)</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder='e.g. Reach out to Priya for anything urgent while I am away'
+                              {...field}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
                       name='notifyEmails'
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Additional email ids (comma separated)</FormLabel>
+                          <FormLabel>Notify (emails, comma separated)</FormLabel>
                           <FormControl>
                             <Input placeholder='a@ext.com, b@ext.com' {...field} />
                           </FormControl>
@@ -527,6 +658,34 @@ export function ApplyLeaveOverlay({
           </Form>
         </FloatingSheetContent>
       </Sheet>
+
+      {/* PTO #19: linked policy document for the selected leave type. */}
+      <Dialog open={policyOpen} onOpenChange={setPolicyOpen}>
+        <DialogContent className='sm:max-w-[420px]'>
+          <DialogHeader>
+            <DialogTitle>{selectedType?.policyDocument}</DialogTitle>
+            <DialogDescription>
+              Policy document linked to {selectedType?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className='text-neutral-1600 space-y-2 text-sm'>
+            <p>{selectedType?.description}</p>
+            <p className='text-neutral-1000 text-xs'>
+              {selectedType?.exemptHolidays
+                ? 'Holidays within the period are exempt from the count.'
+                : 'Holidays within the period count towards the leave.'}{' '}
+              {selectedType?.exemptWeeklyOffs
+                ? 'Weekly offs are exempt.'
+                : 'Weekly offs count towards the leave.'}{' '}
+              {selectedType?.availDuringNotice
+                ? 'Can be availed during the notice period.'
+                : 'Cannot be availed during the notice period.'}
+              {selectedType?.maxTimesAvailable &&
+                ` Can be availed at most ${selectedType.maxTimesAvailable.count} time${selectedType.maxTimesAvailable.count === 1 ? '' : 's'} per ${selectedType.maxTimesAvailable.per === 'service' ? 'service period' : 'year'}.`}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* LVE-32: loss-of-pay confirmation when the balance is exceeded. */}
       <AlertDialog

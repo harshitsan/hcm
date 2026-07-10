@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, Lock, ShieldAlert } from 'lucide-react'
+import { ArrowUpRight, Lock, MailCheck, Reply, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,12 +14,16 @@ import {
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
 import { type FormFieldDef } from '../data/config'
 import {
   ENTRY_STATUSES,
+  RESPONSE_STATUSES,
   type EntryStatus,
   type FeedbackEntry,
 } from '../data/entries'
+import { type ResponseDraft } from '../hooks/use-feedback-entries'
+import { EmployeeRolePicker } from './employee-role-picker'
 import { EntryStatusBadge, EntryTypeBadge } from './status-badges'
 
 interface EntryDetailSheetProps {
@@ -33,6 +38,8 @@ interface EntryDetailSheetProps {
   coordinator: string | null
   onUpdateStatus: (status: EntryStatus, note: string) => void
   onEscalate: () => void
+  /** Receiver respond flow (Kensium respond form); omitted for submitters. */
+  onRespond?: (draft: ResponseDraft) => void
 }
 
 function Meta({ label, value }: { label: string; value: string }) {
@@ -59,14 +66,25 @@ export function EntryDetailSheet({
   coordinator,
   onUpdateStatus,
   onEscalate,
+  onRespond,
 }: EntryDetailSheetProps) {
   const [nextStatus, setNextStatus] = useState<EntryStatus>('Under Review')
   const [note, setNote] = useState('')
+  const [respSendTo, setRespSendTo] = useState<string[]>([])
+  const [respCopyTo, setRespCopyTo] = useState<string[]>([])
+  const [respComments, setRespComments] = useState('')
+  const [showToSubmitter, setShowToSubmitter] = useState(true)
+  const [respStatus, setRespStatus] = useState<EntryStatus>('Feedback received')
 
   useEffect(() => {
     if (open && entry) {
       setNextStatus(entry.status)
       setNote('')
+      setRespSendTo([])
+      setRespCopyTo([])
+      setRespComments('')
+      setShowToSubmitter(true)
+      setRespStatus('Feedback received')
     }
   }, [open, entry])
 
@@ -86,6 +104,14 @@ export function EntryDetailSheet({
     : entry.audit.filter(
         (a) => a.action.startsWith('Status changed') || a.action.startsWith('Submitted')
       )
+
+  /**
+   * Submitters (and copy-to recipients) see only responses the receiver
+   * marked "Show to submitter"; reviewers see every response.
+   */
+  const visibleResponses = canReview
+    ? entry.responses
+    : entry.responses.filter((r) => r.showToSubmitter)
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -122,7 +148,22 @@ export function EntryDetailSheet({
             <Meta label='Assigned to' value={entry.assignedTo} />
             <Meta label='Submitted on' value={entry.submittedOn} />
             <Meta label='Captured under schema' value={`v${entry.schemaVersion}`} />
+            <Meta
+              label='Send to'
+              value={entry.sendTo.length > 0 ? entry.sendTo.join(', ') : '—'}
+            />
+            <Meta
+              label='Copy to (view responses only — cannot respond)'
+              value={entry.copyTo.length > 0 ? entry.copyTo.join(', ') : '—'}
+            />
           </div>
+
+          {entry.anonymous && entry.responseEmails.length > 0 && (
+            <p className='text-paragraph-sm text-neutral-1000 flex items-center gap-1'>
+              <MailCheck className='size-3.5' />
+              Responses are sent to: {entry.responseEmails.join(', ')} (submitter-provided, not linked to any identity).
+            </p>
+          )}
 
           <Separator />
 
@@ -186,12 +227,153 @@ export function EntryDetailSheet({
             </>
           )}
 
+          {canReview && onRespond && (
+            <>
+              <Separator />
+              <div className='space-y-3'>
+                <p className='text-neutral-1600 flex items-center gap-1 text-sm font-semibold'>
+                  <Reply className='size-4' />
+                  Respond to this {entry.type.toLowerCase()}
+                </p>
+                <div>
+                  <Label className='text-xs'>Type (read-only)</Label>
+                  <div className='mt-1'>
+                    <EntryTypeBadge type={entry.type} />
+                  </div>
+                </div>
+                <EmployeeRolePicker
+                  label='Send to'
+                  value={respSendTo}
+                  onChange={setRespSendTo}
+                  hint='Recipients of this response.'
+                />
+                <EmployeeRolePicker
+                  label='Copy to'
+                  value={respCopyTo}
+                  onChange={setRespCopyTo}
+                  hint='Tip: "Copy to" recipients can only see the response but cannot submit a response.'
+                />
+                <div>
+                  <Label className='text-xs'>Comments (optional)</Label>
+                  <Textarea
+                    value={respComments}
+                    onChange={(e) => setRespComments(e.target.value)}
+                    rows={2}
+                    placeholder='Enter comments'
+                    className='mt-1'
+                  />
+                </div>
+                <label className='flex items-center gap-2 text-sm'>
+                  <Checkbox
+                    variant='blue'
+                    checked={showToSubmitter}
+                    onCheckedChange={(c) => setShowToSubmitter(!!c)}
+                  />
+                  Show to submitter
+                  <span className='text-neutral-1000 text-xs'>
+                    — the submitter sees this response and its comments
+                  </span>
+                </label>
+                <div className='flex items-end gap-2'>
+                  <div className='flex-1'>
+                    <Label className='text-xs'>Status</Label>
+                    <Select
+                      value={respStatus}
+                      onValueChange={(v) => setRespStatus(v as EntryStatus)}
+                    >
+                      <SelectTrigger variant='secondary' className='w-full'>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RESPONSE_STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={() =>
+                      onRespond({
+                        sendTo: respSendTo,
+                        copyTo: respCopyTo,
+                        comments: respComments.trim(),
+                        showToSubmitter,
+                        status: respStatus,
+                      })
+                    }
+                  >
+                    Submit response
+                  </Button>
+                </div>
+                <p className='text-paragraph-sm text-neutral-1000'>
+                  On submission the submitter is notified
+                  {entry.anonymous
+                    ? entry.responseEmails.length > 0
+                      ? ` via the provided email(s): ${entry.responseEmails.join(', ')}.`
+                      : ' via their anonymous tracking reference.'
+                    : ' that the feedback/grievance has been addressed.'}
+                </p>
+              </div>
+            </>
+          )}
+
+          {(visibleResponses.length > 0 || !canReview) && (
+            <>
+              <Separator />
+              <div className='space-y-2'>
+                <p className='text-neutral-1600 text-sm font-semibold'>
+                  Responses
+                </p>
+                {visibleResponses.length === 0 && (
+                  <p className='text-paragraph-sm text-neutral-1000'>
+                    No responses shared with you yet — you are notified once a
+                    receiver addresses this entry.
+                  </p>
+                )}
+                {visibleResponses.map((r) => (
+                  <div
+                    key={r.id}
+                    className='border-grey-200 rounded-[6px] border px-3 py-2'
+                  >
+                    <div className='flex items-center justify-between'>
+                      <p className='text-neutral-1600 text-sm font-medium'>
+                        {r.by}
+                      </p>
+                      <span className='text-neutral-1000 text-xs'>{r.at}</span>
+                    </div>
+                    {r.comments && (
+                      <p className='text-neutral-1900 text-sm'>{r.comments}</p>
+                    )}
+                    <p className='text-paragraph-sm text-neutral-1000'>
+                      Status set: {r.status}
+                      {r.sendTo.length > 0 ? ` · Sent to: ${r.sendTo.join(', ')}` : ''}
+                      {r.copyTo.length > 0 ? ` · Copy to: ${r.copyTo.join(', ')}` : ''}
+                      {canReview
+                        ? ` · ${r.showToSubmitter ? 'Visible to submitter' : 'Internal only'}`
+                        : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           <Separator />
 
           <div className='space-y-2 pb-2'>
             <p className='text-neutral-1600 text-sm font-semibold'>
-              {canViewAudit ? 'Audit trail' : 'Status timeline'}
+              {canViewAudit
+                ? 'Feedback/grievance history details'
+                : 'Status timeline'}
             </p>
+            {canViewAudit && (
+              <p className='text-paragraph-sm text-neutral-1000'>
+                History of all actions taken for this particular
+                feedback/grievance.
+              </p>
+            )}
             {!canViewAudit && (
               <p className='text-paragraph-sm text-neutral-1000 flex items-center gap-1'>
                 <Lock className='size-3.5' />

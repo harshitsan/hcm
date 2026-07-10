@@ -23,13 +23,20 @@ import {
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
+import { ROLES } from '@/context/role-context'
+import {
+  formatEmployeeCode,
+  getEmployeeCodeSeries,
+} from '../data/configuration'
 import {
   COMPANIES,
   DEPARTMENTS,
   EMPLOYEE_CLASSES,
   EMPLOYEE_GROUPS,
+  GENDERS,
   JURISDICTIONS,
   LOCATIONS,
+  POSITION_LEVELS,
   POSITIONS,
   type Employee,
 } from '../data/employees'
@@ -39,7 +46,11 @@ import { MultiToggle, SectionTitle } from './shared'
 const employeeFormSchema = z
   .object({
     name: z.string().min(2, 'Employee name is required'),
+    code: z.string(),
     email: z.string(),
+    gender: z.enum(GENDERS, 'Gender is required'),
+    socialMediaLinkedIn: z.string(),
+    socialMediaTwitter: z.string(),
     hasUserAccount: z.boolean(),
     companyId: z.string().min(1, 'Exactly one company is mandatory'),
     jurisdiction: z.enum(JURISDICTIONS, 'Jurisdiction is mandatory'),
@@ -47,9 +58,15 @@ const employeeFormSchema = z
       .array(z.string())
       .min(1, 'At least one department is mandatory'),
     position: z.string().min(1, 'Exactly one position is mandatory'),
+    positionLevel: z.string().min(1, 'Position level is required'),
+    functionalLocation: z.string().min(1, 'Functional location is required'),
+    roles: z.array(z.string()),
     groups: z.array(z.string()),
     locations: z.array(z.string()),
     employeeClass: z.enum(EMPLOYEE_CLASSES),
+    attendanceTracked: z.boolean(),
+    abscondingAlertsEnabled: z.boolean(),
+    supervisorApprovalRequired: z.boolean(),
     primaryManager: z
       .string()
       .min(1, 'A single primary manager is required'),
@@ -75,15 +92,25 @@ type EmployeeFormValues = z.infer<typeof employeeFormSchema>
 
 const emptyDraft: EmployeeFormValues = {
   name: '',
+  code: '',
   email: '',
+  gender: 'Male',
+  socialMediaLinkedIn: '',
+  socialMediaTwitter: '',
   hasUserAccount: false,
   companyId: '',
   jurisdiction: 'India — Karnataka',
   departments: [],
   position: '',
+  positionLevel: '',
+  functionalLocation: '',
+  roles: ['Employee (User)'],
   groups: [],
   locations: [],
   employeeClass: 'Probationer',
+  attendanceTracked: true,
+  abscondingAlertsEnabled: true,
+  supervisorApprovalRequired: false,
   primaryManager: '',
   dottedLineManagers: [],
   managerEffectiveDate: '',
@@ -119,6 +146,9 @@ export function EmployeeOverlay({
   onSubmit,
 }: EmployeeOverlayProps) {
   const isEdit = Boolean(employee)
+  // Employee code series (governed config) — determines whether the code is
+  // auto-generated on create or manually entered here.
+  const codeSeries = getEmployeeCodeSeries()
   const form = useForm<EmployeeFormValues>({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: emptyDraft,
@@ -130,6 +160,13 @@ export function EmployeeOverlay({
   }, [open, employee, form])
 
   function handleSubmit(values: EmployeeFormValues) {
+    if (!isEdit && !codeSeries.autoGenerate && !values.code.trim()) {
+      form.setError('code', {
+        message:
+          'Employee code is required — auto-generation is off in configuration',
+      })
+      return
+    }
     // Duplicate-detection decision table (EMP-10 / EMP-25): same-company hit
     // blocks the save on the specific conflicting field; a hit in another
     // company is a valid, independent record.
@@ -201,6 +238,86 @@ export function EmployeeOverlay({
                         <Input type='date' {...field} />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='gender'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger variant='secondary' className='w-full'>
+                            <SelectValue placeholder='Select gender' />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {GENDERS.map((g) => (
+                            <SelectItem key={g} value={g}>
+                              {g}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {!isEdit && !codeSeries.autoGenerate && (
+                  <FormField
+                    control={form.control}
+                    name='code'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Employee code (manual)</FormLabel>
+                        <FormControl>
+                          <Input placeholder='e.g. AUR-0350' {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+              </div>
+              {!isEdit && codeSeries.autoGenerate && (
+                <p className='text-paragraph-sm text-neutral-1000 rounded-md border border-gray-200 px-3 py-2'>
+                  Employee code will be auto-generated from the configured
+                  series:{' '}
+                  <span className='text-neutral-1600 font-medium'>
+                    {formatEmployeeCode(codeSeries)}
+                  </span>
+                </p>
+              )}
+              <div className='grid grid-cols-2 gap-4'>
+                <FormField
+                  control={form.control}
+                  name='socialMediaLinkedIn'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>LinkedIn (optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='https://linkedin.com/in/…'
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='socialMediaTwitter'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Twitter / X (optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder='https://x.com/…' {...field} />
+                      </FormControl>
                     </FormItem>
                   )}
                 />
@@ -353,7 +470,77 @@ export function EmployeeOverlay({
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name='positionLevel'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Position level</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger variant='secondary' className='w-full'>
+                            <SelectValue placeholder='Select level' />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {POSITION_LEVELS.map((l) => (
+                            <SelectItem key={l} value={l}>
+                              {l}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='functionalLocation'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Functional location</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger variant='secondary' className='w-full'>
+                            <SelectValue placeholder='Select location' />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {LOCATIONS.map((l) => (
+                            <SelectItem key={l} value={l}>
+                              {l}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
+              <FormField
+                control={form.control}
+                name='roles'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Roles (multi-assign from canonical list)</FormLabel>
+                    <FormControl>
+                      <MultiToggle
+                        options={ROLES}
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name='departments'
@@ -465,6 +652,49 @@ export function EmployeeOverlay({
                   </FormItem>
                 )}
               />
+
+              <SectionTitle>Tracking & approvals</SectionTitle>
+              {(
+                [
+                  [
+                    'attendanceTracked',
+                    'Attendance tracked',
+                    'Include this employee in attendance capture and reports.',
+                  ],
+                  [
+                    'abscondingAlertsEnabled',
+                    'Absconding alerts',
+                    'Alert HR when the employee is absent without intimation.',
+                  ],
+                  [
+                    'supervisorApprovalRequired',
+                    'Supervisor approval required',
+                    'Self-service changes route to the supervisor for approval.',
+                  ],
+                ] as const
+              ).map(([name, label, hint]) => (
+                <FormField
+                  key={name}
+                  control={form.control}
+                  name={name}
+                  render={({ field }) => (
+                    <FormItem className='flex items-center justify-between rounded-md border border-gray-200 px-3 py-2'>
+                      <div>
+                        <FormLabel>{label}</FormLabel>
+                        <p className='text-paragraph-sm text-neutral-1000'>
+                          {hint}
+                        </p>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              ))}
 
               <SectionTitle>Government IDs & statutory data</SectionTitle>
               <div className='grid grid-cols-2 gap-4'>

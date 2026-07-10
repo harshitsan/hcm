@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
@@ -81,6 +82,7 @@ const TABS: TabDef[] = [
 export function TimeAttendance() {
   const { role } = useRole()
   const actor = ACTORS[role]
+  const [attendanceView, setAttendanceView] = useState<'review' | 'capture'>('review')
 
   const config = useAttendanceConfig()
   const attendance = useAttendance(actor)
@@ -139,18 +141,21 @@ export function TimeAttendance() {
 
             <TabsContent value='attendance'>
               {role === 'Company Admin' ? (
-                <Tabs defaultValue='review'>
-                  <TabsList className='mb-2 flex-wrap'>
-                    <TabsTrigger value='review'>Review</TabsTrigger>
-                    <TabsTrigger value='capture'>Capture</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value='review'>
-                    <ReviewTab attendance={attendance} />
-                  </TabsContent>
-                  <TabsContent value='capture'>
-                    <CaptureTab attendance={attendance} config={config} />
-                  </TabsContent>
-                </Tabs>
+                <div>
+                  <div className='mb-4 flex gap-1 rounded-lg border border-neutral-200 bg-neutral-100 p-1 w-fit'>
+                    {([{ v: 'review', l: 'Review' }, { v: 'capture', l: 'Capture' }] as const).map((s) => (
+                      <button
+                        key={s.v}
+                        onClick={() => setAttendanceView(s.v)}
+                        className={'rounded-md px-4 py-1.5 text-sm font-medium transition-colors ' + (attendanceView === s.v ? 'bg-white text-blue-1200 shadow-sm' : 'text-neutral-1000 hover:text-neutral-1400')}
+                      >
+                        {s.l}
+                      </button>
+                    ))}
+                  </div>
+                  {attendanceView === 'review' && <ReviewTab attendance={attendance} />}
+                  {attendanceView === 'capture' && <CaptureTab attendance={attendance} config={config} />}
+                </div>
               ) : (
                 <ReviewTab attendance={attendance} />
               )}

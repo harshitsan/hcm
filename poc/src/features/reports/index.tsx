@@ -203,36 +203,35 @@ export function ReportsAnalytics() {
             </TabsContent>
 
             <TabsContent value='admin'>
-              <Tabs defaultValue={visibleAdminTabs[0]?.value} key={role}>
-                <TabsList className='mb-2 flex-wrap'>
-                  {visibleAdminTabs.map((t) => (
-                    <TabsTrigger key={t.value} value={t.value}>
-                      {t.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-
-                <TabsContent value='schedules'>
-                  <SchedulesTab
-                    store={schedules}
-                    reports={config.reports}
-                    actor={actor}
-                    scope={scopeLabel}
-                  />
-                </TabsContent>
-
-                <TabsContent value='compliance'>
-                  <ComplianceTab
-                    store={compliance}
-                    templates={config.templates}
-                    companies={companies}
-                  />
-                </TabsContent>
-
-                <TabsContent value='governance'>
-                  <GovernanceTab config={config} />
-                </TabsContent>
-              </Tabs>
+              <div className='flex flex-col gap-8'>
+                {visibleAdminTabs.some((t) => t.value === 'schedules') && (
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Scheduled Emails</h3>
+                    <SchedulesTab
+                      store={schedules}
+                      reports={config.reports}
+                      actor={actor}
+                      scope={scopeLabel}
+                    />
+                  </section>
+                )}
+                {visibleAdminTabs.some((t) => t.value === 'compliance') && (
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Compliance</h3>
+                    <ComplianceTab
+                      store={compliance}
+                      templates={config.templates}
+                      companies={companies}
+                    />
+                  </section>
+                )}
+                {visibleAdminTabs.some((t) => t.value === 'governance') && (
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Access &amp; Settings</h3>
+                    <GovernanceTab config={config} />
+                  </section>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value='my-data'>

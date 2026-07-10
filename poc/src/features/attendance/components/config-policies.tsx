@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'phosphor-react'
+import { PencilSimple, Plus } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,9 +20,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { type FlexiBasis } from '../data/config'
+import { type BreakRule, type CompOffTemplate, type FlexiBasis } from '../data/config'
 import { DEPARTMENTS, EMPLOYEE_CLASSES, LOCATIONS, POSITIONS } from '../data/shared'
 import { type AttendanceConfigStore } from '../hooks/use-attendance-config'
+import { DualListTransfer } from './dual-list-transfer'
 
 const BREAK_APPLICABILITY = [
   'Company-wide',
@@ -42,16 +43,25 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /**
  * Break allowances (TNA-29), comp-off settings templates with the
  * minimum-hours threshold (TNA-32) and flexi-schedule scoping by location /
- * department / position (TNA-34).
+ * department / position (TNA-34) — with edit/view of existing breaks and
+ * templates, dual-list flexi assignment and Save & Next step navigation.
  */
-export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
+export function ConfigPolicies({
+  config,
+  onNext,
+}: {
+  config: AttendanceConfigStore
+  onNext?: () => void
+}) {
   const [breakOpen, setBreakOpen] = useState(false)
+  const [editingBreakId, setEditingBreakId] = useState<string | null>(null)
   const [bName, setBName] = useState('')
   const [bMinutes, setBMinutes] = useState('30')
   const [bApplies, setBApplies] = useState('Company-wide')
   const [bPaid, setBPaid] = useState(true)
 
   const [cotOpen, setCotOpen] = useState(false)
+  const [editingCotId, setEditingCotId] = useState<string | null>(null)
   const [cName, setCName] = useState('')
   const [cClassSpecific, setCClassSpecific] = useState(false)
   const [cClass, setCClass] = useState<string>('Regular')
@@ -64,31 +74,78 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
         ? DEPARTMENTS
         : POSITIONS
 
+  const openNewBreak = () => {
+    setEditingBreakId(null)
+    setBName('')
+    setBMinutes('30')
+    setBApplies('Company-wide')
+    setBPaid(true)
+    setBreakOpen(true)
+  }
+
+  const openEditBreak = (b: BreakRule) => {
+    setEditingBreakId(b.id)
+    setBName(b.name)
+    setBMinutes(String(b.allowableMinutes))
+    setBApplies(b.applicability)
+    setBPaid(b.paid)
+    setBreakOpen(true)
+  }
+
   const saveBreak = () => {
     const mins = Number(bMinutes)
     if (!bName.trim() || !mins || mins <= 0) {
       toast.error('Break name and a positive allowable duration are required')
       return
     }
-    config.addBreak({ name: bName, allowableMinutes: mins, applicability: bApplies, paid: bPaid })
+    const payload = { name: bName, allowableMinutes: mins, applicability: bApplies, paid: bPaid }
+    if (editingBreakId) {
+      config.updateBreak(editingBreakId, payload)
+    } else {
+      config.addBreak(payload)
+    }
     setBreakOpen(false)
     setBName('')
   }
 
-  const saveCompOff = () => {
+  const openNewCompOff = () => {
+    setEditingCotId(null)
+    setCName('')
+    setCClassSpecific(false)
+    setCClass('Regular')
+    setCMinHours('4')
+    setCotOpen(true)
+  }
+
+  const openEditCompOff = (t: CompOffTemplate) => {
+    setEditingCotId(t.id)
+    setCName(t.name)
+    setCClassSpecific(t.classSpecific)
+    setCClass(t.employeeClass === 'All' ? 'Regular' : t.employeeClass)
+    setCMinHours(String(t.minHoursBeyond))
+    setCotOpen(true)
+  }
+
+  const saveCompOff = (continueNext = false) => {
     const hours = Number(cMinHours)
     if (!cName.trim() || !hours || hours <= 0) {
       toast.error('Template name and a positive minimum-hours threshold are required')
       return
     }
-    config.addCompOffTemplate({
+    const payload = {
       name: cName,
       classSpecific: cClassSpecific,
       employeeClass: cClassSpecific ? cClass : 'All',
       minHoursBeyond: hours,
-    })
+    }
+    if (editingCotId) {
+      config.updateCompOffTemplate(editingCotId, payload)
+    } else {
+      config.addCompOffTemplate(payload)
+    }
     setCotOpen(false)
     setCName('')
+    if (continueNext) onNext?.()
   }
 
   return (
@@ -103,7 +160,7 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
               effective worked hours
             </span>
           </h3>
-          <Button variant='outline' className='h-7 gap-1' onClick={() => setBreakOpen(true)}>
+          <Button variant='outline' className='h-7 gap-1' onClick={openNewBreak}>
             <Plus size={12} weight='bold' />
             Add Break
           </Button>
@@ -116,6 +173,7 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
                 <th className='px-2 font-medium'>Allowable duration</th>
                 <th className='px-2 font-medium'>Applicability</th>
                 <th className='px-2 font-medium'>Paid</th>
+                <th className='px-2 text-right font-medium'>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -125,6 +183,16 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
                   <td className='px-2'>{b.allowableMinutes} min</td>
                   <td className='px-2'>{b.applicability}</td>
                   <td className='px-2'>{b.paid ? 'Paid' : 'Unpaid'}</td>
+                  <td className='px-2 text-right'>
+                    <Button
+                      variant='outline'
+                      className='h-6 gap-1 px-2 text-xs'
+                      onClick={() => openEditBreak(b)}
+                    >
+                      <PencilSimple size={12} />
+                      Edit
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -156,7 +224,7 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
               variant='outline'
               className='h-7 gap-1'
               disabled={!config.compOffEnabled}
-              onClick={() => setCotOpen(true)}
+              onClick={openNewCompOff}
             >
               <Plus size={12} weight='bold' />
               Add Template
@@ -171,6 +239,7 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
                 <th className='px-2 font-medium'>Class specific</th>
                 <th className='px-2 font-medium'>Employee class</th>
                 <th className='px-2 font-medium'>Min hours beyond business hours</th>
+                <th className='px-2 text-right font-medium'>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -180,6 +249,17 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
                   <td className='px-2'>{t.classSpecific ? 'Yes' : 'No'}</td>
                   <td className='px-2'>{t.employeeClass}</td>
                   <td className='px-2'>{t.minHoursBeyond}h</td>
+                  <td className='px-2 text-right'>
+                    <Button
+                      variant='outline'
+                      className='h-6 gap-1 px-2 text-xs'
+                      disabled={!config.compOffEnabled}
+                      onClick={() => openEditCompOff(t)}
+                    >
+                      <PencilSimple size={12} />
+                      Edit
+                    </Button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -226,36 +306,39 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
             </Field>
             <div className='flex flex-col gap-1'>
               <Label className='text-xs'>
-                Assigned {config.flexi.basis}s (only these groups follow flexi rules)
+                Assigned {config.flexi.basis}s (move groups right to make them
+                follow flexi rules)
               </Label>
-              <div className='flex flex-wrap gap-3 pt-1'>
-                {flexiOptions.map((opt) => (
-                  <label key={opt} className='flex items-center gap-1.5 text-sm'>
-                    <Checkbox
-                      variant='blue'
-                      checked={config.flexi.assigned.includes(opt)}
-                      onCheckedChange={(v) =>
-                        config.saveFlexi({
-                          ...config.flexi,
-                          assigned: v
-                            ? [...config.flexi.assigned, opt]
-                            : config.flexi.assigned.filter((a) => a !== opt),
-                        })
-                      }
-                    />
-                    {opt}
-                  </label>
-                ))}
-              </div>
+              <DualListTransfer
+                options={flexiOptions}
+                assigned={config.flexi.assigned}
+                onChange={(assigned) => config.saveFlexi({ ...config.flexi, assigned })}
+                availableTitle={`Available ${config.flexi.basis}s`}
+                assignedTitle={`Flexi ${config.flexi.basis}s`}
+              />
             </div>
           </div>
         )}
       </div>
 
+      {onNext && (
+        <div className='flex justify-end'>
+          <Button
+            className='h-7'
+            onClick={() => {
+              toast.success('Break, comp off and flexi policies saved')
+              onNext()
+            }}
+          >
+            Save & Next
+          </Button>
+        </div>
+      )}
+
       <Dialog open={breakOpen} onOpenChange={setBreakOpen}>
         <DialogContent className='sm:max-w-[400px]'>
           <DialogHeader>
-            <DialogTitle>Add break</DialogTitle>
+            <DialogTitle>{editingBreakId ? 'Edit break' : 'Add break'}</DialogTitle>
           </DialogHeader>
           <div className='space-y-3'>
             <Field label='Break name'>
@@ -289,7 +372,9 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
             <Button variant='outline' onClick={() => setBreakOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={saveBreak}>Save Break</Button>
+            <Button onClick={saveBreak}>
+              {editingBreakId ? 'Save Changes' : 'Save Break'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -297,7 +382,9 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
       <Dialog open={cotOpen} onOpenChange={setCotOpen}>
         <DialogContent className='sm:max-w-[400px]'>
           <DialogHeader>
-            <DialogTitle>Add comp off template</DialogTitle>
+            <DialogTitle>
+              {editingCotId ? 'Edit comp off template' : 'Add comp off template'}
+            </DialogTitle>
           </DialogHeader>
           <div className='space-y-3'>
             <Field label='Template name'>
@@ -335,7 +422,14 @@ export function ConfigPolicies({ config }: { config: AttendanceConfigStore }) {
             <Button variant='outline' onClick={() => setCotOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={saveCompOff}>Save Template</Button>
+            <Button onClick={() => saveCompOff()}>
+              {editingCotId ? 'Save Changes' : 'Save Template'}
+            </Button>
+            {onNext && (
+              <Button variant='outline' onClick={() => saveCompOff(true)}>
+                Save & Next
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -339,7 +339,7 @@ function SidebarHeader({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot='sidebar-header'
       data-sidebar='header'
-      className={cn('bg-blue-1200 flex flex-col gap-2 p-2 pb-0.5', className)}
+      className={cn('bg-sidebar border-sidebar-border flex flex-col gap-2 border-b p-2 pb-0.5', className)}
       {...props}
     />
   )
@@ -350,7 +350,7 @@ function SidebarFooter({ className, ...props }: React.ComponentProps<'div'>) {
     <div
       data-slot='sidebar-footer'
       data-sidebar='footer'
-      className={cn('bg-blue-1200 flex flex-col gap-2 p-2', className)}
+      className={cn('bg-sidebar border-sidebar-border flex flex-col gap-2 border-t p-2', className)}
       {...props}
     />
   )

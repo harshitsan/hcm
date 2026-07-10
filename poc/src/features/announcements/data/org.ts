@@ -10,6 +10,7 @@ export const DIMENSIONS = [
   'jurisdictions',
   'locations',
   'departments',
+  'positions',
   'groups',
   'workforceTypes',
 ] as const
@@ -21,6 +22,7 @@ export const DIMENSION_LABELS: Record<Dimension, string> = {
   jurisdictions: 'Jurisdiction',
   locations: 'Location',
   departments: 'Department',
+  positions: 'Position',
   groups: 'Group',
   workforceTypes: 'Workforce type',
 }
@@ -64,6 +66,14 @@ export const seedOrgConfig: OrgConfig = {
     { value: 'Finance', deprecated: false },
     { value: 'Sales', deprecated: false },
     { value: 'Operations', deprecated: false },
+  ],
+  positions: [
+    { value: 'Software Engineer', deprecated: false },
+    { value: 'Senior Software Engineer', deprecated: false },
+    { value: 'HR Executive', deprecated: false },
+    { value: 'Sales Associate', deprecated: false },
+    { value: 'Finance Analyst', deprecated: false },
+    { value: 'Operations Lead', deprecated: false },
   ],
   groups: [
     { value: 'All Hands', deprecated: false },
@@ -113,6 +123,7 @@ export interface Employee {
   jurisdiction: string
   location: string
   department: string
+  position: string
   groups: string[]
   workforceType: string
   /** In-system announcements are only reachable with system access (ANN-08/13). */
@@ -120,18 +131,68 @@ export interface Employee {
 }
 
 export const seedEmployees: Employee[] = [
-  { id: 'e-01', name: 'Anita Rao', company: 'Aster Digital', jurisdiction: 'India', location: 'Hyderabad', department: 'Engineering', groups: ['All Hands'], workforceType: 'Full-time', hasSystemAccess: true },
-  { id: 'e-02', name: 'Ravi Kumar', company: 'Aster Digital', jurisdiction: 'India', location: 'Hyderabad', department: 'Operations', groups: ['All Hands', 'Safety Wardens'], workforceType: 'Full-time', hasSystemAccess: false },
-  { id: 'e-03', name: 'Meera Iyer', company: 'Aster Digital', jurisdiction: 'India', location: 'Bengaluru', department: 'Human Resources', groups: ['All Hands', 'Wellness Committee'], workforceType: 'Full-time', hasSystemAccess: true },
-  { id: 'e-04', name: 'Josh Patel', company: 'Aster Digital', jurisdiction: 'United States', location: 'Austin', department: 'Sales', groups: ['All Hands'], workforceType: 'Full-time', hasSystemAccess: true },
-  { id: 'e-05', name: 'Lena Fischer', company: 'Aster Manufacturing', jurisdiction: 'India', location: 'Chennai', department: 'Operations', groups: ['Safety Wardens'], workforceType: 'Contractor', hasSystemAccess: true },
-  { id: 'e-06', name: 'Tom Whelan', company: 'Aster Retail', jurisdiction: 'United Kingdom', location: 'London', department: 'Finance', groups: ['All Hands'], workforceType: 'Part-time', hasSystemAccess: true },
-  { id: 'e-07', name: 'Sana Sheikh', company: 'Borealis Labs', jurisdiction: 'India', location: 'Bengaluru', department: 'Engineering', groups: ['Leadership'], workforceType: 'Full-time', hasSystemAccess: true },
-  { id: 'e-08', name: 'Diego Morales', company: 'Cyan Logistics', jurisdiction: 'United States', location: 'Austin', department: 'Operations', groups: [], workforceType: 'Contractor', hasSystemAccess: true },
-  { id: 'e-09', name: 'Grace Lin', company: 'Delta Foods', jurisdiction: 'Singapore', location: 'Chennai', department: 'Finance', groups: ['Wellness Committee'], workforceType: 'Full-time', hasSystemAccess: true },
-  { id: 'e-10', name: 'Arjun Nair', company: 'Aster Digital', jurisdiction: 'India', location: 'Hyderabad', department: 'Engineering', groups: [], workforceType: 'Intern', hasSystemAccess: false },
-  { id: 'e-11', name: 'Priya Sharma', company: 'Aster Digital', jurisdiction: 'India', location: 'Hyderabad', department: 'Human Resources', groups: ['All Hands', 'Leadership'], workforceType: 'Full-time', hasSystemAccess: true },
-  { id: 'e-12', name: 'Nikhil Bose', company: 'Aster Digital', jurisdiction: 'India', location: 'Bengaluru', department: 'Engineering', groups: ['All Hands'], workforceType: 'Contractor', hasSystemAccess: true },
+  { id: 'e-01', name: 'Anita Rao', company: 'Aster Digital', jurisdiction: 'India', location: 'Hyderabad', department: 'Engineering', position: 'Software Engineer', groups: ['All Hands'], workforceType: 'Full-time', hasSystemAccess: true },
+  { id: 'e-02', name: 'Ravi Kumar', company: 'Aster Digital', jurisdiction: 'India', location: 'Hyderabad', department: 'Operations', position: 'Operations Lead', groups: ['All Hands', 'Safety Wardens'], workforceType: 'Full-time', hasSystemAccess: false },
+  { id: 'e-03', name: 'Meera Iyer', company: 'Aster Digital', jurisdiction: 'India', location: 'Bengaluru', department: 'Human Resources', position: 'HR Executive', groups: ['All Hands', 'Wellness Committee'], workforceType: 'Full-time', hasSystemAccess: true },
+  { id: 'e-04', name: 'Josh Patel', company: 'Aster Digital', jurisdiction: 'United States', location: 'Austin', department: 'Sales', position: 'Sales Associate', groups: ['All Hands'], workforceType: 'Full-time', hasSystemAccess: true },
+  { id: 'e-05', name: 'Lena Fischer', company: 'Aster Manufacturing', jurisdiction: 'India', location: 'Chennai', department: 'Operations', position: 'Operations Lead', groups: ['Safety Wardens'], workforceType: 'Contractor', hasSystemAccess: true },
+  { id: 'e-06', name: 'Tom Whelan', company: 'Aster Retail', jurisdiction: 'United Kingdom', location: 'London', department: 'Finance', position: 'Finance Analyst', groups: ['All Hands'], workforceType: 'Part-time', hasSystemAccess: true },
+  { id: 'e-07', name: 'Sana Sheikh', company: 'Borealis Labs', jurisdiction: 'India', location: 'Bengaluru', department: 'Engineering', position: 'Senior Software Engineer', groups: ['Leadership'], workforceType: 'Full-time', hasSystemAccess: true },
+  { id: 'e-08', name: 'Diego Morales', company: 'Cyan Logistics', jurisdiction: 'United States', location: 'Austin', department: 'Operations', position: 'Operations Lead', groups: [], workforceType: 'Contractor', hasSystemAccess: true },
+  { id: 'e-09', name: 'Grace Lin', company: 'Delta Foods', jurisdiction: 'Singapore', location: 'Chennai', department: 'Finance', position: 'Finance Analyst', groups: ['Wellness Committee'], workforceType: 'Full-time', hasSystemAccess: true },
+  { id: 'e-10', name: 'Arjun Nair', company: 'Aster Digital', jurisdiction: 'India', location: 'Hyderabad', department: 'Engineering', position: 'Software Engineer', groups: [], workforceType: 'Intern', hasSystemAccess: false },
+  { id: 'e-11', name: 'Priya Sharma', company: 'Aster Digital', jurisdiction: 'India', location: 'Hyderabad', department: 'Human Resources', position: 'HR Executive', groups: ['All Hands', 'Leadership'], workforceType: 'Full-time', hasSystemAccess: true },
+  { id: 'e-12', name: 'Nikhil Bose', company: 'Aster Digital', jurisdiction: 'India', location: 'Bengaluru', department: 'Engineering', position: 'Software Engineer', groups: ['All Hands'], workforceType: 'Contractor', hasSystemAccess: true },
+]
+
+/* ------------------------------------------------------------------ */
+/* Announcement Coordinator role (PDF: Announcement Coordinator Role)  */
+/* ------------------------------------------------------------------ */
+
+export const COORDINATOR_ROLE_TYPES = [
+  'Announcement Coordinator',
+  'Announcement Reviewer',
+] as const
+
+export type CoordinatorRoleType = (typeof COORDINATOR_ROLE_TYPES)[number]
+
+/**
+ * Coordinator assignment per the Kensium Role screen: role name + type,
+ * description, and the applicable location(s)/department(s)/position(s)
+ * the coordinator is responsible for, assigned to a specific employee.
+ */
+export interface AnnouncementCoordinator {
+  id: string
+  roleName: string
+  roleType: CoordinatorRoleType
+  description: string
+  locations: string[]
+  departments: string[]
+  positions: string[]
+  employee: string
+}
+
+export const seedCoordinators: AnnouncementCoordinator[] = [
+  {
+    id: 'coord-01',
+    roleName: 'India Announcement Coordinator',
+    roleType: 'Announcement Coordinator',
+    description: 'Creates, publishes and reviews announcements and maintains the announcement image repository for the India offices.',
+    locations: ['Hyderabad', 'Bengaluru', 'Chennai'],
+    departments: ['Human Resources'],
+    positions: ['HR Executive'],
+    employee: 'Priya Sharma',
+  },
+  {
+    id: 'coord-02',
+    roleName: 'Announcement Reviewer — HR',
+    roleType: 'Announcement Reviewer',
+    description: 'Reviews and edits saved announcements before publishing.',
+    locations: ['Bengaluru'],
+    departments: ['Human Resources'],
+    positions: ['HR Executive'],
+    employee: 'Meera Iyer',
+  },
 ]
 
 /** The signed-in admin persona used for "Pending with me" and creator attribution. */

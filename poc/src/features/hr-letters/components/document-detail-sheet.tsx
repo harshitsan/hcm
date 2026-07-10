@@ -8,14 +8,12 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   EMPLOYEES,
   renderBody,
-  type Channel,
   type HrDocument,
   type LetterTemplate,
 } from '../data/hr-letters'
 import { type HrDocumentsStore } from '../hooks/use-hr-documents'
-import { AckBadge, DeliveryBadge, DocStatusBadge } from './status-badges'
-
-const CHANNELS: Channel[] = ['email', 'in-app', 'print']
+import { DistributeDialog } from './distribute-dialog'
+import { AckBadge, ChannelBadge, DeliveryBadge, DocStatusBadge } from './status-badges'
 
 interface DocumentDetailSheetProps {
   doc: HrDocument | null
@@ -41,6 +39,7 @@ export function DocumentDetailSheet({
 }: DocumentDetailSheetProps) {
   const [rejectReason, setRejectReason] = useState('')
   const [showReject, setShowReject] = useState(false)
+  const [distributeOpen, setDistributeOpen] = useState(false)
 
   if (!doc) return null
 
@@ -149,28 +148,19 @@ export function DocumentDetailSheet({
                   </div>
                 )}
                 <div className='flex flex-wrap gap-2'>
-                  {CHANNELS.map((channel) => {
-                    const inAppBlocked =
-                      channel === 'in-app' && !doc.employeeHasAppAccess
-                    return (
-                      <Button
-                        key={channel}
-                        size='sm'
-                        variant='outline'
-                        disabled={!finalized || inAppBlocked}
-                        title={
-                          !finalized
-                            ? 'Only finalized documents can be dispatched'
-                            : inAppBlocked
-                              ? 'Employee has no app access — use email or print'
-                              : undefined
-                        }
-                        onClick={() => store.distribute(doc.id, channel, employee)}
-                      >
-                        Send via {channel}
-                      </Button>
-                    )
-                  })}
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    disabled={!finalized}
+                    title={
+                      !finalized
+                        ? 'Only finalized documents can be dispatched'
+                        : undefined
+                    }
+                    onClick={() => setDistributeOpen(true)}
+                  >
+                    Distribute…
+                  </Button>
                   <Button
                     size='sm'
                     variant='outline'
@@ -187,8 +177,8 @@ export function DocumentDetailSheet({
                 </div>
                 {!doc.employeeHasAppAccess && (
                   <p className='text-neutral-1000 text-xs'>
-                    {doc.employeeName} has no application login — email and
-                    print channels keep them covered.
+                    {doc.employeeName} has no application login — email, print,
+                    and handover channels keep them covered.
                   </p>
                 )}
               </div>
@@ -225,13 +215,27 @@ export function DocumentDetailSheet({
                 {!finalized && ' The notification engine only dispatches finalized documents.'}
               </p>
             ) : (
-              <ul className='space-y-1'>
+              <ul className='space-y-1.5'>
                 {doc.distributions.map((dist) => (
-                  <li key={dist.id} className='flex items-center gap-2 text-sm'>
-                    <DeliveryBadge outcome={dist.outcome} />
-                    <span className='text-neutral-1900'>
-                      {dist.channel} · {dist.sentOn} — {dist.detail}
+                  <li key={dist.id} className='text-sm'>
+                    <span className='flex flex-wrap items-center gap-2'>
+                      <ChannelBadge channel={dist.channel} />
+                      <DeliveryBadge outcome={dist.outcome} />
+                      <span className='text-neutral-1900'>
+                        {dist.sentOn} — {dist.detail}
+                      </span>
                     </span>
+                    {dist.channel === 'handover' && dist.handedOverBy && (
+                      <span className='text-neutral-1000 block text-xs'>
+                        Handed over by {dist.handedOverBy}
+                        {dist.handoverDate ? ` on ${dist.handoverDate}` : ''}
+                      </span>
+                    )}
+                    {dist.ccRecipients && dist.ccRecipients.length > 0 && (
+                      <span className='text-neutral-1000 block text-xs'>
+                        CC: {dist.ccRecipients.join(', ')}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -270,6 +274,17 @@ export function DocumentDetailSheet({
             </ul>
           </div>
         </div>
+
+        {canAct && (
+          <DistributeDialog
+            open={distributeOpen}
+            onOpenChange={setDistributeOpen}
+            doc={doc}
+            onDistribute={(channel, options) =>
+              store.distribute(doc.id, channel, employee, options)
+            }
+          />
+        )}
       </FloatingSheetContent>
     </Sheet>
   )

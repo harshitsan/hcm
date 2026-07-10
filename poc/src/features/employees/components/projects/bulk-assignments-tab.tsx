@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowCounterClockwise, Plus, Trash } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,23 +12,67 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  SimpleTable,
+  sortableColumnHeader,
+} from '@/components/common/data-table/simple-table'
 import { cn } from '@/utils/helpers'
 import {
   ALLOCATED_PROJECT_NAMES,
   ASSIGNABLE_RESOURCES,
   DEFAULT_WEEKDAYS,
   WEEKDAYS,
+  type ResourceAssignment,
   type Weekday,
 } from '../../data/projects'
 import { type ProjectsStore } from '../../hooks/use-projects'
 import { SectionTitle } from '../shared'
+
+/** Committed (saved) assignments — canonical read-only table pattern. */
+const committedColumns: ColumnDef<ResourceAssignment>[] = [
+  {
+    accessorKey: 'project',
+    header: sortableColumnHeader<ResourceAssignment>('Project'),
+    cell: ({ row }) => (
+      <span className='font-medium'>{row.original.project}</span>
+    ),
+  },
+  {
+    accessorKey: 'resource',
+    header: sortableColumnHeader<ResourceAssignment>('Resource'),
+    cell: ({ row }) => row.original.resource,
+  },
+  {
+    id: 'period',
+    accessorFn: (a) => a.startDate,
+    header: sortableColumnHeader<ResourceAssignment>('Period'),
+    cell: ({ row }) => (
+      <>
+        {row.original.startDate} → {row.original.endDate}
+      </>
+    ),
+  },
+  {
+    accessorKey: 'hoursPerDay',
+    header: sortableColumnHeader<ResourceAssignment>('Hrs/day'),
+    cell: ({ row }) => row.original.hoursPerDay,
+  },
+  {
+    accessorKey: 'percentPerDay',
+    header: sortableColumnHeader<ResourceAssignment>('%/day'),
+    cell: ({ row }) => <>{row.original.percentPerDay}%</>,
+  },
+  {
+    id: 'days',
+    accessorFn: (a) => a.weekdays.join(' '),
+    header: sortableColumnHeader<ResourceAssignment>('Days'),
+    cell: ({ row }) => row.original.weekdays.join(' '),
+  },
+  {
+    accessorKey: 'savedOn',
+    header: sortableColumnHeader<ResourceAssignment>('Saved on'),
+    cell: ({ row }) => row.original.savedOn,
+  },
+]
 
 interface GridRow {
   key: number
@@ -102,6 +147,162 @@ export function BulkAssignmentsTab({ store }: { store: ProjectsStore }) {
   const touched = grid.filter(rowTouched)
   const complete = touched.length > 0 && touched.every(rowComplete)
 
+  /** Editable bulk-entry grid — data-entry cells, so headers stay static. */
+  const gridColumns: ColumnDef<GridRow>[] = [
+    {
+      id: 'project',
+      header: 'Project',
+      meta: { headerClassName: 'min-w-[190px]' },
+      cell: ({ row }) => (
+        <Select
+          value={row.original.project}
+          onValueChange={(v) => patchRow(row.original.key, { project: v })}
+        >
+          <SelectTrigger variant='secondary' className='w-full'>
+            <SelectValue placeholder='Select project' />
+          </SelectTrigger>
+          <SelectContent>
+            {projectOptions.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: 'resource',
+      header: 'Resource',
+      meta: { headerClassName: 'min-w-[160px]' },
+      cell: ({ row }) => (
+        <Select
+          value={row.original.resource}
+          onValueChange={(v) => patchRow(row.original.key, { resource: v })}
+        >
+          <SelectTrigger variant='secondary' className='w-full'>
+            <SelectValue placeholder='Select resource' />
+          </SelectTrigger>
+          <SelectContent>
+            {ASSIGNABLE_RESOURCES.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: 'startDate',
+      header: 'Start date',
+      cell: ({ row }) => (
+        <Input
+          type='date'
+          aria-label='Start date'
+          value={row.original.startDate}
+          onChange={(e) =>
+            patchRow(row.original.key, { startDate: e.target.value })
+          }
+        />
+      ),
+    },
+    {
+      id: 'endDate',
+      header: 'End date',
+      cell: ({ row }) => (
+        <Input
+          type='date'
+          aria-label='End date'
+          value={row.original.endDate}
+          min={row.original.startDate || undefined}
+          onChange={(e) =>
+            patchRow(row.original.key, { endDate: e.target.value })
+          }
+        />
+      ),
+    },
+    {
+      id: 'hoursPerDay',
+      header: 'Hrs/day',
+      cell: ({ row }) => (
+        <Input
+          type='number'
+          min={1}
+          max={12}
+          className='w-[70px]'
+          placeholder='8'
+          value={row.original.hoursPerDay}
+          onChange={(e) =>
+            patchRow(row.original.key, { hoursPerDay: e.target.value })
+          }
+        />
+      ),
+    },
+    {
+      id: 'percentPerDay',
+      header: '%/day',
+      cell: ({ row }) => (
+        <Input
+          type='number'
+          min={1}
+          max={100}
+          className='w-[70px]'
+          placeholder='100'
+          value={row.original.percentPerDay}
+          onChange={(e) =>
+            patchRow(row.original.key, { percentPerDay: e.target.value })
+          }
+        />
+      ),
+    },
+    {
+      id: 'weekdays',
+      header: 'Allocation days (Su–Sa)',
+      meta: { headerClassName: 'min-w-[230px]' },
+      cell: ({ row }) => (
+        <div className='flex gap-1'>
+          {WEEKDAYS.map((day) => {
+            const active = row.original.weekdays.includes(day)
+            return (
+              <button
+                key={day}
+                type='button'
+                aria-pressed={active}
+                onClick={() => toggleWeekday(row.original, day)}
+                className={cn(
+                  'rounded border px-1.5 py-0.5 text-xs font-medium transition-colors',
+                  active
+                    ? 'border-blue-1400 bg-blue-150 text-blue-1400'
+                    : 'text-neutral-1000 border-gray-200 bg-white hover:border-gray-300'
+                )}
+              >
+                {day}
+              </button>
+            )
+          })}
+        </div>
+      ),
+    },
+    {
+      id: 'remove',
+      header: '',
+      cell: ({ row }) => (
+        <Button
+          variant='ghost'
+          size='sm'
+          aria-label='Remove row'
+          disabled={grid.length === 1}
+          onClick={() =>
+            setGrid((prev) => prev.filter((r) => r.key !== row.original.key))
+          }
+        >
+          <Trash size={14} />
+        </Button>
+      ),
+    },
+  ]
+
   const saveAll = () => {
     if (!complete) return
     store.saveBulkAssignments(
@@ -149,147 +350,11 @@ export function BulkAssignmentsTab({ store }: { store: ProjectsStore }) {
         </div>
       </div>
 
-      <div className='overflow-x-auto rounded-md border border-gray-200 bg-white'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className='min-w-[190px]'>Project</TableHead>
-              <TableHead className='min-w-[160px]'>Resource</TableHead>
-              <TableHead>Start date</TableHead>
-              <TableHead>End date</TableHead>
-              <TableHead>Hrs/day</TableHead>
-              <TableHead>%/day</TableHead>
-              <TableHead className='min-w-[230px]'>
-                Allocation days (Su–Sa)
-              </TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {grid.map((row) => (
-              <TableRow key={row.key}>
-                <TableCell>
-                  <Select
-                    value={row.project}
-                    onValueChange={(v) => patchRow(row.key, { project: v })}
-                  >
-                    <SelectTrigger variant='secondary' className='w-full'>
-                      <SelectValue placeholder='Select project' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projectOptions.map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {p}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={row.resource}
-                    onValueChange={(v) => patchRow(row.key, { resource: v })}
-                  >
-                    <SelectTrigger variant='secondary' className='w-full'>
-                      <SelectValue placeholder='Select resource' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ASSIGNABLE_RESOURCES.map((r) => (
-                        <SelectItem key={r} value={r}>
-                          {r}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type='date'
-                    aria-label='Start date'
-                    value={row.startDate}
-                    onChange={(e) =>
-                      patchRow(row.key, { startDate: e.target.value })
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type='date'
-                    aria-label='End date'
-                    value={row.endDate}
-                    min={row.startDate || undefined}
-                    onChange={(e) =>
-                      patchRow(row.key, { endDate: e.target.value })
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type='number'
-                    min={1}
-                    max={12}
-                    className='w-[70px]'
-                    placeholder='8'
-                    value={row.hoursPerDay}
-                    onChange={(e) =>
-                      patchRow(row.key, { hoursPerDay: e.target.value })
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type='number'
-                    min={1}
-                    max={100}
-                    className='w-[70px]'
-                    placeholder='100'
-                    value={row.percentPerDay}
-                    onChange={(e) =>
-                      patchRow(row.key, { percentPerDay: e.target.value })
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <div className='flex gap-1'>
-                    {WEEKDAYS.map((day) => {
-                      const active = row.weekdays.includes(day)
-                      return (
-                        <button
-                          key={day}
-                          type='button'
-                          aria-pressed={active}
-                          onClick={() => toggleWeekday(row, day)}
-                          className={cn(
-                            'rounded border px-1.5 py-0.5 text-xs font-medium transition-colors',
-                            active
-                              ? 'border-blue-1400 bg-blue-150 text-blue-1400'
-                              : 'text-neutral-1000 border-gray-200 bg-white hover:border-gray-300'
-                          )}
-                        >
-                          {day}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    aria-label='Remove row'
-                    disabled={grid.length === 1}
-                    onClick={() =>
-                      setGrid((prev) => prev.filter((r) => r.key !== row.key))
-                    }
-                  >
-                    <Trash size={14} />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleTable
+        columns={gridColumns}
+        data={grid}
+        getRowId={(r) => String(r.key)}
+      />
       {touched.length > 0 && !complete && (
         <p className='text-paragraph-sm text-orange-1200'>
           Every started row needs a project, resource, valid start/end dates,
@@ -299,36 +364,11 @@ export function BulkAssignmentsTab({ store }: { store: ProjectsStore }) {
       )}
 
       <SectionTitle>Committed assignments</SectionTitle>
-      <div className='rounded-md border border-gray-200 bg-white'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Resource</TableHead>
-              <TableHead>Period</TableHead>
-              <TableHead>Hrs/day</TableHead>
-              <TableHead>%/day</TableHead>
-              <TableHead>Days</TableHead>
-              <TableHead>Saved on</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {store.assignments.map((a) => (
-              <TableRow key={a.id}>
-                <TableCell className='font-medium'>{a.project}</TableCell>
-                <TableCell>{a.resource}</TableCell>
-                <TableCell>
-                  {a.startDate} → {a.endDate}
-                </TableCell>
-                <TableCell>{a.hoursPerDay}</TableCell>
-                <TableCell>{a.percentPerDay}%</TableCell>
-                <TableCell>{a.weekdays.join(' ')}</TableCell>
-                <TableCell>{a.savedOn}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleTable
+        columns={committedColumns}
+        data={store.assignments}
+        getRowId={(a) => a.id}
+      />
     </div>
   )
 }

@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import {
@@ -34,6 +35,8 @@ const schema = z.object({
   positionLevel: z.string().min(1),
   exitType: z.string().min(1, 'Select a configured exit type'),
   reason: z.string().min(5, 'A reason is required'),
+  requestedLwd: z.string().optional(),
+  messageToHr: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof schema>
@@ -60,6 +63,8 @@ export function NewExitOverlay({
   defaults,
   onSubmit,
 }: NewExitOverlayProps) {
+  const [docDraft, setDocDraft] = useState('')
+  const [documents, setDocuments] = useState<string[]>([])
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -70,6 +75,8 @@ export function NewExitOverlay({
       positionLevel: 'L1 - Associate',
       exitType: '',
       reason: '',
+      requestedLwd: '',
+      messageToHr: '',
     },
   })
 
@@ -83,7 +90,11 @@ export function NewExitOverlay({
       positionLevel: defaults?.positionLevel ?? 'L1 - Associate',
       exitType: '',
       reason: '',
+      requestedLwd: '',
+      messageToHr: '',
     })
+    setDocDraft('')
+    setDocuments([])
   }, [open, defaults, form])
 
   const selectField = (
@@ -128,7 +139,13 @@ export function NewExitOverlay({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit((values) => {
-              onSubmit({ ...values, raisedBy })
+              onSubmit({
+                ...values,
+                raisedBy,
+                requestedLwd: values.requestedLwd || undefined,
+                messageToHr: values.messageToHr || undefined,
+                supportingDocuments: documents.length > 0 ? documents : undefined,
+              })
               onOpenChange(false)
             })}
             className='flex min-h-0 flex-1 flex-col'
@@ -210,6 +227,72 @@ export function NewExitOverlay({
                   </FormItem>
                 )}
               />
+              {raisedBy === 'Employee' && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name='requestedLwd'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Requested last working day (optional)
+                        </FormLabel>
+                        <FormControl>
+                          <Input type='date' {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='messageToHr'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Message to HR (visible to HR only)</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder='Anything you want HR to know — not shown to other participants'
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className='space-y-2'>
+                    <p className='text-sm font-medium'>Supporting documents</p>
+                    <div className='flex gap-2'>
+                      <Input
+                        placeholder='File name, e.g. resignation-letter.pdf'
+                        value={docDraft}
+                        onChange={(ev) => setDocDraft(ev.target.value)}
+                      />
+                      <Button
+                        type='button'
+                        size='sm'
+                        variant='outline'
+                        disabled={!docDraft.trim()}
+                        onClick={() => {
+                          setDocuments((prev) => [...prev, docDraft.trim()])
+                          setDocDraft('')
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    {documents.length > 0 && (
+                      <div className='flex flex-wrap gap-1'>
+                        {documents.map((d) => (
+                          <Badge key={d} variant='outline'>
+                            {d}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
               <p className='text-neutral-1000 text-xs'>
                 Notice period, clearance tasks, offboarding checklist and the
                 exit questionnaire are derived from the effective configuration

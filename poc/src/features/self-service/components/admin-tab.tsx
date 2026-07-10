@@ -37,6 +37,8 @@ import { CURRENT_EMPLOYEE, CURRENT_TENANT, type FieldMode } from '../data/profil
 import { type PortalStore } from '../hooks/use-portal'
 import { type ProfileStore, type UdfDraft } from '../hooks/use-profile'
 import { SelectField, TextField } from './form-fields'
+import { LearningAdminTab } from './learning-admin-tab'
+import { TaxAdminTab } from './tax-admin-tab'
 import { formatDate } from './utils'
 
 const FIELD_MODES: FieldMode[] = ['editable', 'view-only', 'hidden']
@@ -96,6 +98,12 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
         </TabsTrigger>
         <TabsTrigger variant='primary' value='nonusers'>
           Non-User Employees
+        </TabsTrigger>
+        <TabsTrigger variant='primary' value='learning-mgmt'>
+          Learning Management
+        </TabsTrigger>
+        <TabsTrigger variant='primary' value='tax-planning'>
+          Tax Planning
         </TabsTrigger>
         <RoleGate roles={['Platform Admin']}>
           <TabsTrigger variant='primary' value='data'>
@@ -262,6 +270,23 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
             </div>
           ))}
         </div>
+      </TabsContent>
+
+      <TabsContent value='learning-mgmt'>
+        <p className='text-paragraph-sm text-neutral-1000 mb-3'>
+          Configure the learning-management module step by step: setup,
+          certification questionnaire, external trainers, training cost
+          approvers and training topics. Next moves you through the flow.
+        </p>
+        <LearningAdminTab />
+      </TabsContent>
+
+      <TabsContent value='tax-planning'>
+        <p className='text-paragraph-sm text-neutral-1000 mb-3'>
+          Finance masters for tax planning: deduction categories with per-FY
+          ceilings, and the deductions employees declare investments against.
+        </p>
+        <TaxAdminTab />
       </TabsContent>
 
       <RoleGate roles={['Platform Admin']}>

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus } from 'phosphor-react'
+import { useMemo, useState } from 'react'
+import { CaretLeft, CaretRight, Plus } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,6 +30,57 @@ import {
 import { type ConfigurationStore } from '../../hooks/use-configuration'
 import { SectionTitle } from '../shared'
 
+const TIMELINE_PAGE_SIZE = 5
+const TEMPLATE_PAGE_SIZE = 8
+
+/** ETL-06 / NTT-03 — compact Previous/Next pager with a displayed range. */
+function ListPager({
+  page,
+  pageCount,
+  start,
+  end,
+  total,
+  onPageChange,
+}: {
+  page: number
+  pageCount: number
+  start: number
+  end: number
+  total: number
+  onPageChange: (page: number) => void
+}) {
+  return (
+    <div className='flex items-center justify-between'>
+      <p className='text-paragraph-sm text-neutral-1000'>
+        Displaying items {start} - {end} of {total}
+      </p>
+      <div className='flex items-center gap-2'>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={page === 0}
+          onClick={() => onPageChange(Math.max(0, page - 1))}
+        >
+          <CaretLeft size={12} weight='bold' />
+          Prev
+        </Button>
+        <span className='text-paragraph-sm text-neutral-1000'>
+          Page {page + 1} of {pageCount}
+        </span>
+        <Button
+          variant='outline'
+          size='sm'
+          disabled={page >= pageCount - 1}
+          onClick={() => onPageChange(Math.min(pageCount - 1, page + 1))}
+        >
+          Next
+          <CaretRight size={12} weight='bold' />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 /**
  * EMP-21 lifecycle stage parameters + EMP-54 timeline event configuration —
  * versioned company policy, no code deployment needed.
@@ -45,6 +96,21 @@ export function LifecycleConfigTab({ store }: { store: ConfigurationStore }) {
   const [evDescription, setEvDescription] = useState('')
   const [evColor, setEvColor] = useState('#2563eb')
   const [evDocument, setEvDocument] = useState('')
+  const [eventPage, setEventPage] = useState(0)
+
+  const eventPageCount = Math.max(
+    1,
+    Math.ceil(store.timelineEvents.length / TIMELINE_PAGE_SIZE)
+  )
+  const safeEventPage = Math.min(eventPage, eventPageCount - 1)
+  const eventRows = useMemo(
+    () =>
+      store.timelineEvents.slice(
+        safeEventPage * TIMELINE_PAGE_SIZE,
+        safeEventPage * TIMELINE_PAGE_SIZE + TIMELINE_PAGE_SIZE
+      ),
+    [store.timelineEvents, safeEventPage]
+  )
 
   const saveStage = () => {
     if (!editing || !value) return
@@ -145,7 +211,7 @@ export function LifecycleConfigTab({ store }: { store: ConfigurationStore }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {store.timelineEvents.map((t) => (
+            {eventRows.map((t) => (
               <TableRow key={t.id}>
                 <TableCell>{t.module}</TableCell>
                 <TableCell>{t.parentEvent}</TableCell>
@@ -177,6 +243,17 @@ export function LifecycleConfigTab({ store }: { store: ConfigurationStore }) {
           </TableBody>
         </Table>
       </div>
+      <ListPager
+        page={safeEventPage}
+        pageCount={eventPageCount}
+        start={safeEventPage * TIMELINE_PAGE_SIZE + 1}
+        end={Math.min(
+          safeEventPage * TIMELINE_PAGE_SIZE + TIMELINE_PAGE_SIZE,
+          store.timelineEvents.length
+        )}
+        total={store.timelineEvents.length}
+        onPageChange={setEventPage}
+      />
 
       <Dialog
         open={editing !== null}
@@ -313,6 +390,21 @@ export function NotificationsTab({ store }: { store: ConfigurationStore }) {
   const canEdit = hasRole('Company Admin', 'Platform Admin')
   const [editing, setEditing] = useState<NotificationTemplate | null>(null)
   const [body, setBody] = useState('')
+  const [page, setPage] = useState(0)
+
+  const pageCount = Math.max(
+    1,
+    Math.ceil(store.templates.length / TEMPLATE_PAGE_SIZE)
+  )
+  const safePage = Math.min(page, pageCount - 1)
+  const pageRows = useMemo(
+    () =>
+      store.templates.slice(
+        safePage * TEMPLATE_PAGE_SIZE,
+        safePage * TEMPLATE_PAGE_SIZE + TEMPLATE_PAGE_SIZE
+      ),
+    [store.templates, safePage]
+  )
 
   return (
     <div className='space-y-4'>
@@ -331,7 +423,7 @@ export function NotificationsTab({ store }: { store: ConfigurationStore }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {store.templates.map((t) => (
+            {pageRows.map((t) => (
               <TableRow key={t.id}>
                 <TableCell className='font-medium'>{t.event}</TableCell>
                 <TableCell className='text-neutral-1000'>
@@ -367,6 +459,17 @@ export function NotificationsTab({ store }: { store: ConfigurationStore }) {
           </TableBody>
         </Table>
       </div>
+      <ListPager
+        page={safePage}
+        pageCount={pageCount}
+        start={safePage * TEMPLATE_PAGE_SIZE + 1}
+        end={Math.min(
+          safePage * TEMPLATE_PAGE_SIZE + TEMPLATE_PAGE_SIZE,
+          store.templates.length
+        )}
+        total={store.templates.length}
+        onPageChange={setPage}
+      />
       <p className='text-paragraph-sm text-neutral-1000'>
         When a lifecycle event or manager-assignment change is committed, the
         Notification engine renders these templates and notifies the employee

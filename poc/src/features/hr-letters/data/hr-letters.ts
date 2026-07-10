@@ -357,9 +357,17 @@ export type DocStatus =
   | 'rejected'
   | 'distributed'
 
-export type Channel = 'email' | 'in-app' | 'print'
+export type Channel = 'email' | 'in-app' | 'print' | 'handover'
 export type DeliveryOutcome = 'sent' | 'delivered' | 'failed'
 export type GenerationTrigger = 'manual' | 'auto' | 'batch'
+
+/** Display labels for every distribution channel. */
+export const CHANNEL_LABELS: Record<Channel, string> = {
+  email: 'Email',
+  'in-app': 'In-app',
+  print: 'Print',
+  handover: 'Handover to employee',
+}
 
 export interface DocVersion {
   version: number
@@ -375,6 +383,12 @@ export interface Distribution {
   sentOn: string
   outcome: DeliveryOutcome
   detail: string
+  /** Other employees copied on the communication. */
+  ccRecipients?: string[]
+  /** Who physically handed the document over (handover channel only). */
+  handedOverBy?: string
+  /** Date the physical handover happened (handover channel only). */
+  handoverDate?: string
 }
 
 export interface AuditEntry {
@@ -455,7 +469,7 @@ export const seedDocuments: HrDocument[] = [
       { version: 1, generatedOn: '2026-04-06', event: 'Hire', templateVersion: 3, current: true },
     ],
     distributions: [
-      { id: 'dst-1', channel: 'email', sentOn: '2026-04-08', outcome: 'delivered', detail: 'arjun.mehta@kensium.com' },
+      { id: 'dst-1', channel: 'email', sentOn: '2026-04-08', outcome: 'delivered', detail: 'arjun.mehta@kensium.com', ccRecipients: ['Priya Sharma', 'Neha Gupta'] },
       { id: 'dst-2', channel: 'in-app', sentOn: '2026-04-08', outcome: 'delivered', detail: 'Available in employee portal' },
     ],
     audit: [
@@ -729,10 +743,12 @@ export const seedDocuments: HrDocument[] = [
     ],
     distributions: [
       { id: 'dst-7', channel: 'email', sentOn: '2026-06-10', outcome: 'delivered', detail: 'suresh.patil@kensium.com' },
+      { id: 'dst-7b', channel: 'handover', sentOn: '2026-06-12', outcome: 'delivered', detail: 'Physical copy handed over at the Operations desk', handedOverBy: 'Priya Sharma', handoverDate: '2026-06-12' },
     ],
     audit: [
       audit('2026-06-10', 'Priya Sharma', 'Generated', 'Employee has no app access — email channel chosen'),
       audit('2026-06-10', 'Notification engine', 'Distributed', 'Email dispatch, delivery confirmed'),
+      audit('2026-06-12', 'Priya Sharma', 'Handed over', 'Physical copy handed over to the employee in person'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,

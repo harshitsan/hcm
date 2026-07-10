@@ -93,27 +93,23 @@ export function Jurisdictions() {
 
             {isAdmin && (
               <TabsContent value='admin'>
-                <Tabs defaultValue='policies'>
-                  <TabsList className='mb-2'>
-                    <TabsTrigger value='policies'>Policies</TabsTrigger>
-                    <TabsTrigger value='rules'>Rules</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value='policies'>
+                <div className='flex flex-col gap-6'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Policies</h3>
                     <PoliciesTab
                       store={assignmentsStore}
                       catalog={jurisdictionsStore.jurisdictions}
                     />
-                  </TabsContent>
-
-                  <TabsContent value='rules'>
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Rules</h3>
                     <RulePacksTab
                       store={rulePacksStore}
                       assignments={assignmentsStore}
                       catalog={jurisdictionsStore.jurisdictions}
                     />
-                  </TabsContent>
-                </Tabs>
+                  </section>
+                </div>
               </TabsContent>
             )}
           </Tabs>

@@ -172,6 +172,7 @@ export type WorkflowKind =
   | 'overtime'
   | 'work-from-home'
   | 'shift-swap'
+  | 'comp-off'
 
 export interface ApprovalWorkflow {
   id: string
@@ -195,7 +196,85 @@ export const seedWorkflows: ApprovalWorkflow[] = [
   { id: 'wf-03', kind: 'overtime', scope: 'Locations: Chennai, Pune', levels: ['Shift In-charge', 'Plant Head'], slaHours: 48, escalateTo: 'Vikram Rathore', supervisorCapHours: 6, payrollCutoffDay: null, version: 1, effectiveFrom: '2026-01-01', status: 'active' },
   { id: 'wf-04', kind: 'work-from-home', scope: 'Company-wide', levels: ['Immediate Supervisor'], slaHours: 24, escalateTo: 'HR Manager', supervisorCapHours: null, payrollCutoffDay: null, version: 2, effectiveFrom: '2026-03-01', status: 'active' },
   { id: 'wf-05', kind: 'shift-swap', scope: 'Company-wide', levels: ['Roster Owner'], slaHours: 24, escalateTo: 'HR Manager', supervisorCapHours: null, payrollCutoffDay: null, version: 1, effectiveFrom: '2026-01-01', status: 'active' },
+  { id: 'wf-06', kind: 'comp-off', scope: 'Locations: Hyderabad, Bengaluru', levels: ['Immediate Supervisor', 'HR Manager'], slaHours: 48, escalateTo: 'Arjun Mehta (Group HR)', supervisorCapHours: null, payrollCutoffDay: null, version: 1, effectiveFrom: '2026-02-01', status: 'active' },
+  { id: 'wf-07', kind: 'comp-off', scope: 'Locations: Chennai, Pune', levels: ['Shift In-charge', 'Plant Head'], slaHours: 72, escalateTo: 'Vikram Rathore', supervisorCapHours: null, payrollCutoffDay: null, version: 1, effectiveFrom: '2026-02-01', status: 'active' },
 ]
+
+// -------------------------------------------------- Attendance audit setup
+/** Auditors panel that audits attendance for a location (Kensium AAG). */
+export interface AuditorsGroup {
+  id: string
+  panelName: string
+  description: string
+  location: string
+  /** Employee names on the audit panel. */
+  members: string[]
+}
+
+export const seedAuditorsGroups: AuditorsGroup[] = [
+  { id: 'ag-01', panelName: 'HYD Audit Panel', description: 'Audits biometric punches and manual entries for Hyderabad', location: 'Hyderabad', members: ['Lakshmi Menon', 'Meera Iyer'] },
+  { id: 'ag-02', panelName: 'Plant Floor Panel', description: 'Chennai plant-floor attendance audit panel', location: 'Chennai', members: ['Vikram Rathore', 'Kabir Anand'] },
+]
+
+export type SampleMethod = 'Random' | 'Stratified' | 'Top violators first'
+
+/** Org-wide attendance audit configuration (Kensium ACS). */
+export interface AuditConfigSettings {
+  auditEnabled: boolean
+  sampleMethod: SampleMethod
+  includeHabitualViolators: boolean
+  /** Months of history considered when identifying habitual violators. */
+  historyPeriodMonths: number
+  /** Minimum reprimands within the history period to be habitual. */
+  minReprimands: number
+  /** How many times a user may reschedule an audit. */
+  maxReschedules: number
+  /** Days before the audit run the employee list may be generated. */
+  employeeListLeadDays: number
+}
+
+export const seedAuditSettings: AuditConfigSettings = {
+  auditEnabled: true,
+  sampleMethod: 'Random',
+  includeHabitualViolators: true,
+  historyPeriodMonths: 6,
+  minReprimands: 2,
+  maxReschedules: 2,
+  employeeListLeadDays: 3,
+}
+
+// ------------------------------------------- Email & notification templates
+export type TemplateChannel = 'email' | 'notification'
+
+export interface AttendanceTemplate {
+  id: string
+  name: string
+  channel: TemplateChannel
+  /** Template type shown in the list (Approval, Rejection, Reminder…). */
+  templateType: string
+  description: string
+  /** Email templates only. */
+  subject: string | null
+  body: string
+}
+
+export const seedAttendanceTemplates: AttendanceTemplate[] = [
+  { id: 'tpl-01', name: 'Attendance Correction Approved', channel: 'email', templateType: 'Approval', description: 'Sent when a change request is approved', subject: 'Your attendance correction for {{date}} was approved', body: 'Dear {{employeeName}},\n\nYour attendance correction for {{date}} ({{requestedIn}} – {{requestedOut}}) has been approved by {{approver}}.\n\nRegards,\nHR Team' },
+  { id: 'tpl-02', name: 'Attendance Correction Rejected', channel: 'email', templateType: 'Rejection', description: 'Sent when a change request is rejected with a reason', subject: 'Your attendance correction for {{date}} was rejected', body: 'Dear {{employeeName}},\n\nYour attendance correction for {{date}} was rejected: {{reason}}.\n\nRegards,\nHR Team' },
+  { id: 'tpl-03', name: 'Overtime Approval Pending', channel: 'email', templateType: 'Reminder', description: 'Reminds the approver of pending overtime requests', subject: 'Overtime request from {{employeeName}} awaits your approval', body: 'Dear {{approver}},\n\n{{employeeName}} has requested {{hours}}h of overtime on {{date}}. Please action it before the SLA lapses.\n\nRegards,\nHR Team' },
+  { id: 'tpl-04', name: 'Missed Punch Alert', channel: 'email', templateType: 'Alert', description: 'Sent when an employee misses an in/out punch', subject: 'Missing punch on {{date}}', body: 'Dear {{employeeName}},\n\nWe did not record a complete in/out punch for {{date}}. Please raise a change request.\n\nRegards,\nHR Team' },
+  { id: 'tpl-05', name: 'Audit Scheduled', channel: 'email', templateType: 'Audit', description: 'Notifies auditors when a recurring audit is scheduled', subject: 'Attendance audit scheduled for {{location}}', body: 'Dear {{auditor}},\n\nAn attendance audit for {{location}} — {{workArea}} is scheduled on {{date}}.\n\nRegards,\nHR Team' },
+  { id: 'tpl-06', name: 'Comp Off Credited', channel: 'email', templateType: 'Approval', description: 'Sent when a compensatory off is credited', subject: 'Comp off credited for {{date}}', body: 'Dear {{employeeName}},\n\nA compensatory off has been credited for the extra hours you worked on {{date}}.\n\nRegards,\nHR Team' },
+  { id: 'tpl-07', name: 'WFH Request Outcome', channel: 'email', templateType: 'Approval', description: 'Sent when a WFH request is actioned', subject: 'Your WFH request for {{date}}: {{outcome}}', body: 'Dear {{employeeName}},\n\nYour work-from-home request for {{date}} was {{outcome}} by {{approver}}.\n\nRegards,\nHR Team' },
+  { id: 'tpl-08', name: 'Correction Submitted', channel: 'notification', templateType: 'Submission', description: 'In-app notice that a change request was submitted', subject: null, body: '{{employeeName}} submitted an attendance correction for {{date}}.' },
+  { id: 'tpl-09', name: 'Approval Actioned', channel: 'notification', templateType: 'Approval', description: 'In-app notice when a request is approved or rejected', subject: null, body: 'Your {{requestKind}} request for {{date}} was {{outcome}} by {{approver}}.' },
+  { id: 'tpl-10', name: 'Audit Started', channel: 'notification', templateType: 'Audit', description: 'In-app notice to panel members when an audit starts', subject: null, body: 'Attendance audit for {{location}} — {{workArea}} has started. Sample: {{sampleSize}} employees.' },
+  { id: 'tpl-11', name: 'Escalation Raised', channel: 'notification', templateType: 'Escalation', description: 'In-app notice when a request breaches its SLA', subject: null, body: '{{requestKind}} request from {{employeeName}} breached the {{sla}}h SLA and was escalated to {{escalateTo}}.' },
+]
+
+// ------------------------------------------------------ Overtime enablement
+/** Locations overtime applies to (Kensium OT transfer list). */
+export const seedOtScopeLocations: string[] = ['Hyderabad', 'Chennai']
 
 // -------------------------------------------------- Capture infrastructure
 export interface TrackingDevice {

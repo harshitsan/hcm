@@ -40,7 +40,7 @@ const tabsTriggerVariants = cva(
         default:
           'data-[state=active]:bg-background text-foreground h-[calc(100%-1px)] flex-1 rounded-md border border-transparent px-2 py-1 data-[state=active]:shadow-sm',
         primary:
-          'data-[state=active]:bg-blue-1400 text-grey-1600 text-paragraph-md data-[state=active]:font-semibold font-medium hover:text-blue-1400 rounded-[6px] px-1.5 py-1 transition-colors data-[state=active]:text-white',
+          'data-[state=active]:bg-transparent data-[state=active]:text-neutral-1600 text-grey-1600 text-paragraph-md data-[state=active]:font-semibold font-medium hover:text-blue-1400 rounded-[6px] px-1.5 py-1 transition-colors',
         ghost:
           'data-[state=active]:bg-transparent data-[state=active]:text-neutral-1600 text-grey-1600 text-paragraph-md data-[state=active]:font-medium font-normal hover:text-blue-1400 rounded-[6px] px-1.5 py-1 transition-colors',
       },

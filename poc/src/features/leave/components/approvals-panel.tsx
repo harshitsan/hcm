@@ -26,8 +26,9 @@ interface ApprovalsPanelProps {
 }
 
 /**
- * Approval queue (LVE-12): pending requests routed to the viewer, with
- * approve / reject-with-reason / escalate actions in the detail sheet.
+ * Approval queue (LVE-12): pending requests routed to the viewer, with the
+ * mandatory-comment approve / reject / need-clarification / cancel decision
+ * plus escalate and period-change actions in the detail sheet.
  */
 export function ApprovalsPanel({
   requests,
@@ -80,6 +81,9 @@ export function ApprovalsPanel({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='pending'>Pending with me</SelectItem>
+              <SelectItem value='needs-clarification'>
+                Needs clarification
+              </SelectItem>
               <SelectItem value='cancellation-requested'>
                 Cancellation requested
               </SelectItem>

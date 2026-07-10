@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
+  CHANNEL_LABELS,
   EMPLOYEES,
   ME_NON_USER_ID,
   ME_USER_ID,
@@ -174,7 +175,9 @@ export function MyDocumentsTab({ store, templates, questions }: MyDocumentsTabPr
                 <div className='mt-2 flex flex-wrap items-center gap-2'>
                   {doc.distributions.map((dist) => (
                     <span key={dist.id} className='flex items-center gap-1 text-xs'>
-                      <span className='text-neutral-1000'>{dist.channel} · {dist.sentOn}</span>
+                      <span className='text-neutral-1000'>
+                        {CHANNEL_LABELS[dist.channel]} · {dist.sentOn}
+                      </span>
                       <DeliveryBadge outcome={dist.outcome} />
                     </span>
                   ))}

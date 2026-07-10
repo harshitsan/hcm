@@ -98,12 +98,36 @@ export const seedScopeRules: ScopeRule[] = [
   { id: 'sr-5', kind: 'role', name: 'Timesheet Approver role', departmentId: 'DEP-0011', cascade: true, version: 1, flagged: false },
 ]
 
+/** Named rating set — a reusable list of score values for questions (IAQ-02). */
+export interface RatingSet {
+  id: string
+  name: string
+  values: string[]
+}
+
+export const seedRatingSets: RatingSet[] = [
+  { id: 'rs-1', name: 'Standard 3-point', values: ['Average', 'Good', 'Excellent'] },
+  {
+    id: 'rs-2',
+    name: '5-point scale',
+    values: ['Poor', 'Fair', 'Average', 'Good', 'Excellent'],
+  },
+  { id: 'rs-3', name: 'Pass / Fail', values: ['Fail', 'Pass'] },
+]
+
 /** Interview assessment question scoped to departments (DEPT-32). */
 export interface InterviewQuestion {
   id: string
   question: string
   departmentIds: string[]
+  /** Checklist order the question renders in during interviews (IAQ-05). */
   order: number
+  /** A written response must be captured by the interviewer (IAQ-03). */
+  responseRequired: boolean
+  /** A rating from the linked rating set must be selected (IAQ-03). */
+  ratingRequired: boolean
+  /** Named rating set used to score this question (IAQ-02). */
+  ratingSetId: string | null
   flagged: boolean
 }
 
@@ -113,6 +137,9 @@ export const seedInterviewQuestions: InterviewQuestion[] = [
     question: 'Describe a production incident you led to resolution.',
     departmentIds: ['DEP-0008', 'DEP-0009'],
     order: 1,
+    responseRequired: true,
+    ratingRequired: true,
+    ratingSetId: 'rs-1',
     flagged: false,
   },
   {
@@ -120,6 +147,9 @@ export const seedInterviewQuestions: InterviewQuestion[] = [
     question: 'How do you keep payroll compliant across states?',
     departmentIds: ['DEP-0004'],
     order: 2,
+    responseRequired: false,
+    ratingRequired: true,
+    ratingSetId: 'rs-2',
     flagged: false,
   },
   {
@@ -127,6 +157,9 @@ export const seedInterviewQuestions: InterviewQuestion[] = [
     question: 'Walk through your approach to warehouse safety audits.',
     departmentIds: ['DEP-0011', 'DEP-0012'],
     order: 3,
+    responseRequired: true,
+    ratingRequired: false,
+    ratingSetId: null,
     flagged: false,
   },
 ]

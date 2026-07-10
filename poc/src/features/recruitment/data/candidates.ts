@@ -1,3 +1,5 @@
+import type { ReferenceAnswer } from './reference-questions'
+
 export const SOURCE_CHANNELS = [
   'LinkedIn',
   'Naukri',
@@ -16,7 +18,9 @@ export const TALENT_FOLDERS = [
   'Campus Drive',
 ] as const
 
-/** Talent-pool candidate (TA-05, TA-39, TA-40). */
+export const GENDERS = ['Male', 'Female', 'Other'] as const
+
+/** Talent-pool candidate (TA-05, TA-39, TA-40) with the Kensium resume-bank profile fields. */
 export interface Candidate {
   id: string
   name: string
@@ -30,6 +34,20 @@ export interface Candidate {
   resume: string
   linkedRequisitionId: string | null
   addedAt: string
+  gender: 'Male' | 'Female' | 'Other' | ''
+  referredBy: string
+  address: string
+  experienceYears: number
+  /** Annual CTC in ₹ lakhs. */
+  currentCtc: number
+  expectedCtc: number
+  qualification: string
+  noticePeriodDays: number
+  /** Fine-grained channel behind the source (e.g. "LinkedIn Jobs", "Employee Referral"). */
+  channelSource: string
+  /** Whether the profile was shortlisted against a live vacancy (vs. parked in the pool). */
+  appliedForVacancy: boolean
+  vacancyId: string | null
 }
 
 /** End-to-end hiring stages, in gate order (TA-13, TA-28). */
@@ -53,6 +71,12 @@ export interface ReferenceCheck {
   status: 'pending' | 'completed'
   outcome?: 'positive' | 'mixed' | 'negative'
   notes?: string
+  contactEmail?: string
+  contactPhone?: string
+  /** Responses to the configured reference-check questionnaire. */
+  answers?: ReferenceAnswer[]
+  /** File name of the signed reference document, if uploaded. */
+  uploadedDocument?: string
 }
 
 export interface ScorecardRating {
@@ -81,6 +105,13 @@ export interface Interview {
   mode: 'Video' | 'In-person' | 'Phone'
   status: 'scheduled' | 'completed' | 'cancelled'
   conflict?: string
+  /** Round explicitly skipped for this candidate — cannot be scheduled again. */
+  skipped?: boolean
+  /** Whether the candidate was emailed the invite, with the template used. */
+  emailCandidate?: boolean
+  emailSubject?: string
+  emailBody?: string
+  comments?: string
 }
 
 export interface StageEvent {
@@ -128,6 +159,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'kiran-rao-resume.pdf',
     linkedRequisitionId: 'RRF-1001',
     addedAt: '2026-05-20',
+    gender: 'Male',
+    referredBy: '',
+    address: 'HSR Layout, Bengaluru',
+    experienceYears: 7,
+    currentCtc: 24,
+    expectedCtc: 32,
+    qualification: 'B.Tech, Computer Science',
+    noticePeriodDays: 60,
+    channelSource: 'LinkedIn Jobs',
+    appliedForVacancy: true,
+    vacancyId: 'v-01',
   },
   {
     id: 'c-02',
@@ -142,6 +184,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'neha-kulkarni-resume.pdf',
     linkedRequisitionId: 'RRF-1001',
     addedAt: '2026-05-22',
+    gender: 'Female',
+    referredBy: 'Dev Patel',
+    address: 'Baner, Pune',
+    experienceYears: 8,
+    currentCtc: 30,
+    expectedCtc: 40,
+    qualification: 'M.Tech, Distributed Systems',
+    noticePeriodDays: 90,
+    channelSource: 'Employee Referral',
+    appliedForVacancy: true,
+    vacancyId: 'v-01',
   },
   {
     id: 'c-03',
@@ -156,6 +209,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'arjun-nambiar-portfolio.pdf',
     linkedRequisitionId: null,
     addedAt: '2026-06-12',
+    gender: 'Male',
+    referredBy: '',
+    address: 'Panampilly Nagar, Kochi',
+    experienceYears: 5,
+    currentCtc: 16,
+    expectedCtc: 22,
+    qualification: 'B.Des, Communication Design',
+    noticePeriodDays: 30,
+    channelSource: 'Career Site',
+    appliedForVacancy: false,
+    vacancyId: null,
   },
   {
     id: 'c-04',
@@ -170,6 +234,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'pooja-hegde-resume.pdf',
     linkedRequisitionId: 'RRF-1005',
     addedAt: '2026-06-01',
+    gender: 'Female',
+    referredBy: '',
+    address: 'Indiranagar, Bengaluru',
+    experienceYears: 3,
+    currentCtc: 8,
+    expectedCtc: 11,
+    qualification: 'BBA, Marketing',
+    noticePeriodDays: 30,
+    channelSource: 'Naukri Premium',
+    appliedForVacancy: true,
+    vacancyId: 'v-02',
   },
   {
     id: 'c-05',
@@ -184,6 +259,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'sameer-shaikh-resume.pdf',
     linkedRequisitionId: 'RRF-1004',
     addedAt: '2026-06-15',
+    gender: 'Male',
+    referredBy: '',
+    address: 'Andheri West, Mumbai',
+    experienceYears: 6,
+    currentCtc: 12,
+    expectedCtc: 16,
+    qualification: 'B.Com',
+    noticePeriodDays: 45,
+    channelSource: 'applications@ mailbox',
+    appliedForVacancy: true,
+    vacancyId: 'v-03',
   },
   {
     id: 'c-06',
@@ -198,6 +284,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'lakshmi-venkatesh-resume.pdf',
     linkedRequisitionId: null,
     addedAt: '2026-06-18',
+    gender: 'Female',
+    referredBy: '',
+    address: 'T. Nagar, Chennai',
+    experienceYears: 4,
+    currentCtc: 9,
+    expectedCtc: 12,
+    qualification: 'M.Com',
+    noticePeriodDays: 30,
+    channelSource: 'LinkedIn Jobs',
+    appliedForVacancy: false,
+    vacancyId: null,
   },
   {
     id: 'c-07',
@@ -212,6 +309,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'rohan-dutta-resume.pdf',
     linkedRequisitionId: 'RRF-1001',
     addedAt: '2026-06-20',
+    gender: 'Male',
+    referredBy: '',
+    address: 'Salt Lake, Kolkata',
+    experienceYears: 4,
+    currentCtc: 14,
+    expectedCtc: 19,
+    qualification: 'B.Tech, Information Technology',
+    noticePeriodDays: 60,
+    channelSource: 'Bulk Upload',
+    appliedForVacancy: true,
+    vacancyId: 'v-01',
   },
   {
     id: 'c-08',
@@ -226,6 +334,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'ishita-malhotra-resume.pdf',
     linkedRequisitionId: 'RRF-1008',
     addedAt: '2026-04-02',
+    gender: 'Female',
+    referredBy: '',
+    address: 'Sector 45, Gurugram',
+    experienceYears: 5,
+    currentCtc: 18,
+    expectedCtc: 24,
+    qualification: 'B.Tech, Electronics',
+    noticePeriodDays: 0,
+    channelSource: 'Career Site',
+    appliedForVacancy: true,
+    vacancyId: 'v-04',
   },
   {
     id: 'c-09',
@@ -240,6 +359,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'manav-kapoor-resume.pdf',
     linkedRequisitionId: 'RRF-1005',
     addedAt: '2026-06-05',
+    gender: 'Male',
+    referredBy: 'Karthik Rao',
+    address: 'Sector 62, Noida',
+    experienceYears: 2,
+    currentCtc: 6,
+    expectedCtc: 9,
+    qualification: 'BBA',
+    noticePeriodDays: 15,
+    channelSource: 'Employee Referral',
+    appliedForVacancy: true,
+    vacancyId: 'v-02',
   },
   {
     id: 'c-10',
@@ -254,6 +384,17 @@ export const seedCandidates: Candidate[] = [
     resume: 'anita-george-resume.pdf',
     linkedRequisitionId: 'RRF-1007',
     addedAt: '2026-05-10',
+    gender: 'Female',
+    referredBy: '',
+    address: 'Whitefield, Bengaluru',
+    experienceYears: 6,
+    currentCtc: 22,
+    expectedCtc: 30,
+    qualification: 'M.Sc, Data Science',
+    noticePeriodDays: 90,
+    channelSource: 'LinkedIn Jobs',
+    appliedForVacancy: true,
+    vacancyId: 'v-06',
   },
 ]
 

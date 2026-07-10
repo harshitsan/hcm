@@ -27,6 +27,7 @@ const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   Active: 'badge_active',
   Transferred: 'open',
   'Notice Period': 'overdue',
+  Suspended: 'disqualified',
   Exited: 'badge_inactive',
   // generic workflow statuses
   'Pending initiation': 'pending',

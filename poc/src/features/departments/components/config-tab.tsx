@@ -7,6 +7,7 @@ import { CustomFieldsPanel } from './config/custom-fields-panel'
 import { QuestionsNotificationsPanel } from './config/questions-notifications-panel'
 import { RulesPanel } from './config/rules-panel'
 import { SetupStepper } from './config/setup-stepper'
+import { ShiftDefinitionsPanel } from './config/shift-definitions-panel'
 
 interface ConfigTabProps {
   store: DepartmentsStore
@@ -39,6 +40,9 @@ export function ConfigTab({ store, config }: ConfigTabProps) {
         <TabsTrigger variant='ghost' value='questions'>
           Questions & notifications
         </TabsTrigger>
+        <TabsTrigger variant='ghost' value='shift-definitions'>
+          Shift definitions
+        </TabsTrigger>
       </TabsList>
       <TabsContent value='setup'>
         <SetupStepper config={config} />
@@ -51,6 +55,9 @@ export function ConfigTab({ store, config }: ConfigTabProps) {
       </TabsContent>
       <TabsContent value='questions'>
         <QuestionsNotificationsPanel config={config} departments={companyDepts} />
+      </TabsContent>
+      <TabsContent value='shift-definitions'>
+        <ShiftDefinitionsPanel store={store} />
       </TabsContent>
     </Tabs>
   )

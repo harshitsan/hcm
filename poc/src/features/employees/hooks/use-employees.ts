@@ -1,7 +1,10 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { consumeNextEmployeeCode, getEmployeeCodeSeries } from '../data/configuration'
 import {
   companyName,
+  EMPLOYEES_TODAY,
+  MASS_FUNCTION_LABELS,
   seedDelegations,
   seedEmployees,
   seedManagerChanges,
@@ -11,6 +14,7 @@ import {
   type LifeEvent,
   type LifecycleStage,
   type ManagerChange,
+  type MassFunction,
 } from '../data/employees'
 
 export type EmployeeDraft = Omit<
@@ -25,7 +29,12 @@ export type EmployeeDraft = Omit<
   | 'esiPfEligibility'
   | 'maternityEligibility'
   | 'gratuityEligibility'
->
+  | 'suspension'
+  | 'roleTransferNote'
+> & {
+  /** Manual employee code — used only when auto-generation is off. */
+  code?: string
+}
 
 export type DedupClassification =
   | { kind: 'clear' }
@@ -87,10 +96,18 @@ export function useEmployees() {
   )
 
   const addEmployee = useCallback((draft: EmployeeDraft) => {
+    // Code derives from the configured generation series (Employee
+    // Configuration → Codes & Self-Service); manual entry when it is off.
+    const series = getEmployeeCodeSeries()
+    const code = series.autoGenerate
+      ? consumeNextEmployeeCode()
+      : draft.code?.trim() || `NEW-${String(Math.floor(1000 + Math.random() * 9000))}`
     const employee: Employee = {
       ...draft,
       id: `e-${crypto.randomUUID().slice(0, 8)}`,
-      code: `NEW-${String(Math.floor(1000 + Math.random() * 9000))}`,
+      code,
+      suspension: null,
+      roleTransferNote: null,
       esiPfEligibility: 'Pending evaluation',
       maternityEligibility: 'Pending evaluation',
       gratuityEligibility: 'Pending evaluation',
@@ -112,7 +129,9 @@ export function useEmployees() {
       ],
     }
     setEmployees((prev) => [employee, ...prev])
-    toast.success(`${draft.name} added to ${companyName(draft.companyId)}`)
+    toast.success(
+      `${draft.name} (${code}) added to ${companyName(draft.companyId)}`
+    )
     return employee
   }, [])
 
@@ -311,13 +330,90 @@ export function useEmployees() {
     []
   )
 
-  /** EMP-43 — apply one attribute value across many employee records. */
+  /**
+   * EMP-43 — mass update across many employee records. Legacy single-value
+   * functions patch the record attribute directly; the field-grid categories
+   * (contact / address / agreements / skills / generalInfo / clientFeedback)
+   * are applied as a mock bulk job against the selected sub-record fields.
+   */
   const massUpdate = useCallback(
-    (ids: string[], field: 'position' | 'employeeClass' | 'jurisdiction', value: string) => {
-      setEmployees((prev) =>
-        prev.map((e) => (ids.includes(e.id) ? { ...e, [field]: value } : e))
+    (ids: string[], fn: MassFunction, value: string, fields?: string[]) => {
+      if (fn === 'position' || fn === 'employeeClass' || fn === 'jurisdiction') {
+        setEmployees((prev) =>
+          prev.map((e) => (ids.includes(e.id) ? { ...e, [fn]: value } : e))
+        )
+        toast.success(`${ids.length} employee record(s) updated`)
+        return
+      }
+      toast.success(
+        `${MASS_FUNCTION_LABELS[fn]} mass update applied — ${fields?.length ?? 0} field(s) across ${ids.length} employee record(s)`
       )
-      toast.success(`${ids.length} employee record(s) updated`)
+    },
+    []
+  )
+
+  /**
+   * Admin role reassignment — transfers this employee's role assignments to
+   * another employee and stamps an inline audit note on both records.
+   */
+  const reassignRoles = useCallback(
+    (sourceId: string, targetId: string) => {
+      const source = employees.find((e) => e.id === sourceId)
+      const target = employees.find((e) => e.id === targetId)
+      if (!source || !target) return
+      setEmployees((prev) =>
+        prev.map((e) => {
+          if (e.id === sourceId) {
+            return {
+              ...e,
+              roles: [],
+              roleTransferNote: `Roles transferred to ${target.name} on ${EMPLOYEES_TODAY}`,
+            }
+          }
+          if (e.id === targetId) {
+            return {
+              ...e,
+              roles: [...new Set([...e.roles, ...source.roles])],
+              roleTransferNote: `Roles received from ${source.name} on ${EMPLOYEES_TODAY}`,
+            }
+          }
+          return e
+        })
+      )
+      toast.success(
+        `Role assignments transferred from ${source.name} to ${target.name}`
+      )
+    },
+    [employees]
+  )
+
+  /**
+   * Initiate Suspension — sets the Suspended status with the reason and
+   * from/to window, and records it on the lifecycle timeline.
+   */
+  const suspendEmployee = useCallback(
+    (id: string, reason: string, from: string, to: string) => {
+      setEmployees((prev) =>
+        prev.map((e) =>
+          e.id === id
+            ? {
+                ...e,
+                lifecycleStage: 'Suspended',
+                suspension: { reason, from, to },
+                lifecycleEvents: [
+                  ...e.lifecycleEvents,
+                  {
+                    id: `lc-${crypto.randomUUID().slice(0, 6)}`,
+                    type: 'Suspended',
+                    date: from,
+                    note: `Suspension ${from} → ${to}: ${reason}`,
+                  },
+                ],
+              }
+            : e
+        )
+      )
+      toast.success(`Suspension initiated — status set to Suspended until ${to}`)
     },
     []
   )
@@ -339,6 +435,8 @@ export function useEmployees() {
     removeDependant,
     addLifeEvent,
     massUpdate,
+    reassignRoles,
+    suspendEmployee,
   }
 }
 

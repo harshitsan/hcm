@@ -2,7 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
 import { type ExitCase } from '../data/exits'
 import { fmtDate } from '../data/shared'
-import { StatusBadge } from './badges'
+import { ExitStatusBadge } from './exit-status-badge'
 import { SortHeader } from './columns-shared'
 
 export const exitColumns: ColumnDef<ExitCase>[] = [
@@ -36,14 +36,31 @@ export const exitColumns: ColumnDef<ExitCase>[] = [
   {
     accessorKey: 'lastWorkingDay',
     header: ({ column }) => <SortHeader column={column} label='Last working day' />,
-    cell: ({ row }) => (
-      <div className='flex flex-col text-sm'>
-        <span>{fmtDate(row.original.lastWorkingDay)}</span>
-        <span className='text-neutral-1000 text-xs'>
-          {row.original.noticePeriodDays} day notice
-        </span>
-      </div>
-    ),
+    cell: ({ row }) => {
+      const e = row.original
+      if (e.exitType === 'Suspension' && e.suspensionFrom && e.suspensionTill) {
+        return (
+          <div className='flex flex-col text-sm'>
+            <span>
+              {fmtDate(e.suspensionFrom)} – {fmtDate(e.suspensionTill)}
+            </span>
+            <span className='text-neutral-1000 text-xs'>
+              suspension window{e.suspensionWithPay ? ' · with pay' : ' · without pay'}
+            </span>
+          </div>
+        )
+      }
+      return (
+        <div className='flex flex-col text-sm'>
+          <span>{fmtDate(e.approvedLwd ?? e.lastWorkingDay)}</span>
+          <span className='text-neutral-1000 text-xs'>
+            {e.approvedLwd
+              ? 'approved LWD'
+              : `${e.noticePeriodDays} day notice`}
+          </span>
+        </div>
+      )
+    },
   },
   {
     id: 'clearance',
@@ -64,6 +81,6 @@ export const exitColumns: ColumnDef<ExitCase>[] = [
   {
     accessorKey: 'status',
     header: ({ column }) => <SortHeader column={column} label='Status' />,
-    cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    cell: ({ row }) => <ExitStatusBadge status={row.original.status} />,
   },
 ]

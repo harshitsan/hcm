@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowsClockwise, CaretLeft, CaretRight, X } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -6,19 +7,95 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  SimpleTable,
+  sortableColumnHeader,
+} from '@/components/common/data-table/simple-table'
 import { cn } from '@/utils/helpers'
-import { PROJECT_CLIENTS, type ProjectStatus } from '../../data/projects'
+import {
+  PROJECT_CLIENTS,
+  type Project,
+  type ProjectStatus,
+} from '../../data/projects'
 import { type ProjectsStore } from '../../hooks/use-projects'
 import { FilterSelect } from '../shared'
 
 const PAGE_SIZE = 10
+
+const projectColumns: ColumnDef<Project>[] = [
+  {
+    accessorKey: 'client',
+    header: sortableColumnHeader<Project>('Client'),
+    cell: ({ row }) => row.original.client,
+  },
+  {
+    accessorKey: 'code',
+    header: sortableColumnHeader<Project>('Project code'),
+    cell: ({ row }) => (
+      <span className='font-medium'>{row.original.code}</span>
+    ),
+  },
+  {
+    accessorKey: 'name',
+    header: sortableColumnHeader<Project>('Project name'),
+    cell: ({ row }) => row.original.name,
+  },
+  {
+    accessorKey: 'billable',
+    header: sortableColumnHeader<Project>('Billable'),
+    cell: ({ row }) => (
+      <Badge variant={row.original.billable ? 'qualified' : 'pending'}>
+        {row.original.billable ? 'Billable' : 'Non-billable'}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: 'primaryApprover',
+    header: sortableColumnHeader<Project>('Primary approver'),
+    cell: ({ row }) => row.original.primaryApprover,
+  },
+  {
+    accessorKey: 'startDate',
+    header: sortableColumnHeader<Project>('Start date'),
+    cell: ({ row }) => row.original.startDate,
+  },
+  {
+    accessorKey: 'endDate',
+    header: sortableColumnHeader<Project>('End date'),
+    cell: ({ row }) => row.original.endDate,
+  },
+  {
+    accessorKey: 'resources',
+    header: sortableColumnHeader<Project>('Resources'),
+    cell: ({ row }) => row.original.resources,
+  },
+  {
+    accessorKey: 'wrike',
+    header: sortableColumnHeader<Project>('Wrike'),
+    cell: ({ row }) => (
+      <Badge variant={row.original.wrike ? 'open' : 'badge_inactive'}>
+        {row.original.wrike ? 'Wrike' : '—'}
+      </Badge>
+    ),
+  },
+  {
+    accessorKey: 'type',
+    header: sortableColumnHeader<Project>('Type'),
+    cell: ({ row }) => row.original.type,
+  },
+  {
+    accessorKey: 'status',
+    header: sortableColumnHeader<Project>('Current'),
+    cell: ({ row }) => (
+      <Badge
+        variant={
+          row.original.status === 'Active' ? 'badge_active' : 'badge_inactive'
+        }
+      >
+        {row.original.status}
+      </Badge>
+    ),
+  },
+]
 
 /**
  * PM-01..06 — Project Master: active/inactive toggle, period (From/To) and
@@ -142,68 +219,12 @@ export function ProjectMasterTab({ store }: { store: ProjectsStore }) {
         </Button>
       </div>
 
-      <div className='overflow-x-auto rounded-md border border-gray-200 bg-white'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Client</TableHead>
-              <TableHead>Project code</TableHead>
-              <TableHead>Project name</TableHead>
-              <TableHead>Billable</TableHead>
-              <TableHead>Primary approver</TableHead>
-              <TableHead>Start date</TableHead>
-              <TableHead>End date</TableHead>
-              <TableHead>Resources</TableHead>
-              <TableHead>Wrike</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Current</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pageRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={11} className='text-neutral-1000'>
-                  No projects match the current filters.
-                </TableCell>
-              </TableRow>
-            ) : (
-              pageRows.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>{p.client}</TableCell>
-                  <TableCell className='font-medium'>{p.code}</TableCell>
-                  <TableCell>{p.name}</TableCell>
-                  <TableCell>
-                    <Badge variant={p.billable ? 'qualified' : 'pending'}>
-                      {p.billable ? 'Billable' : 'Non-billable'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{p.primaryApprover}</TableCell>
-                  <TableCell>{p.startDate}</TableCell>
-                  <TableCell>{p.endDate}</TableCell>
-                  <TableCell>{p.resources}</TableCell>
-                  <TableCell>
-                    <Badge variant={p.wrike ? 'open' : 'badge_inactive'}>
-                      {p.wrike ? 'Wrike' : '—'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{p.type}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        p.status === 'Active'
-                          ? 'badge_active'
-                          : 'badge_inactive'
-                      }
-                    >
-                      {p.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleTable
+        columns={projectColumns}
+        data={pageRows}
+        emptyMessage='No projects match the current filters.'
+        getRowId={(p) => p.id}
+      />
 
       <div className='flex items-center justify-between'>
         <p className='text-paragraph-sm text-neutral-1000'>

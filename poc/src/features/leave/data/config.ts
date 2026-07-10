@@ -131,20 +131,28 @@ export interface ApproverMapping {
   approvers: string[]
   /** Only for the time-off approver screen (LVE-41). */
   lopApprovers: string[]
+  /**
+   * Kensium Time Off Approvers: when "Reporting Manager" is selected as an
+   * approver, the required hierarchy levels can be configured; null when the
+   * hierarchy does not apply.
+   */
+  reportingManagerHierarchyLevels: number | null
 }
 
 export const seedTimeOffApprovers: ApproverMapping[] = [
   {
     id: 'toa-1',
     locations: ['Hyderabad', 'Bengaluru'],
-    approvers: ['Rahul Menon', 'Sunita Patil'],
+    approvers: ['Reporting Manager', 'Sunita Patil'],
     lopApprovers: ['Sunita Patil'],
+    reportingManagerHierarchyLevels: 2,
   },
   {
     id: 'toa-2',
     locations: ['Chennai'],
-    approvers: ['Ananya Sharma'],
+    approvers: ['Reporting Manager', 'Ananya Sharma'],
     lopApprovers: ['Sunita Patil'],
+    reportingManagerHierarchyLevels: 1,
   },
 ]
 
@@ -154,6 +162,7 @@ export const seedAdjustmentApprovers: ApproverMapping[] = [
     locations: ['Hyderabad', 'Bengaluru', 'Chennai'],
     approvers: ['Sunita Patil'],
     lopApprovers: [],
+    reportingManagerHierarchyLevels: null,
   },
 ]
 
@@ -163,6 +172,7 @@ export const seedFmlaApprovers: ApproverMapping[] = [
     locations: ['Austin'],
     approvers: ['Dana Willis'],
     lopApprovers: [],
+    reportingManagerHierarchyLevels: null,
   },
 ]
 
@@ -231,6 +241,12 @@ export interface OfficeClosure {
   to: string
   locations: string[]
   departments: string[]
+  /** Details about the office closure (Kensium Office Closures #6). */
+  details: string
+  /** Email IDs of employees to be notified, comma-entered (Kensium #7). */
+  notifyEmails: string[]
+  /** Closure applies for a full day or a half day. */
+  duration: 'full-day' | 'half-day'
 }
 
 export const seedClosures: OfficeClosure[] = [
@@ -241,6 +257,10 @@ export const seedClosures: OfficeClosure[] = [
     to: '2026-11-03',
     locations: ['Chennai'],
     departments: ['Engineering', 'Operations'],
+    details:
+      'IMD red alert for the Chennai coast. Campus and parking closed; employees work from home where possible. Facilities will confirm reopening.',
+    notifyEmails: ['meera.krishnan@satellitetech.in', 'ravi.naik@orbital.in', 'lakshmi.devi@orbital.in'],
+    duration: 'full-day',
   },
   {
     id: 'oc-2',
@@ -249,6 +269,10 @@ export const seedClosures: OfficeClosure[] = [
     to: '2026-12-31',
     locations: ['Hyderabad', 'Bengaluru', 'Chennai'],
     departments: ['Engineering', 'Finance', 'Human Resources', 'Operations', 'Sales'],
+    details:
+      'Annual year-end shutdown across India offices. Closed dates are non-working and do not consume leave balance.',
+    notifyEmails: ['all-india@satellitetech.in'],
+    duration: 'full-day',
   },
 ]
 
@@ -259,18 +283,32 @@ export const TEMPLATE_EVENTS = [
   'Escalated',
   'Cancelled',
   'Adjusted',
+  'Credited',
+  'Optional Holiday',
 ] as const
+
+export type TemplateEvent = (typeof TEMPLATE_EVENTS)[number]
 
 export interface NotificationTemplate {
   id: string
-  event: (typeof TEMPLATE_EVENTS)[number]
+  event: TemplateEvent
   channel: 'Email' | 'In-app'
   subject: string
   body: string
 }
 
-export const seedTemplates: NotificationTemplate[] = TEMPLATE_EVENTS.flatMap(
-  (event, i) => [
+/** Request-lifecycle events share a generic template shape. */
+const WORKFLOW_EVENTS: TemplateEvent[] = [
+  'Submitted',
+  'Approved',
+  'Rejected',
+  'Escalated',
+  'Cancelled',
+  'Adjusted',
+]
+
+export const seedTemplates: NotificationTemplate[] = [
+  ...WORKFLOW_EVENTS.flatMap((event, i) => [
     {
       id: `tpl-e-${i}`,
       event,
@@ -285,8 +323,38 @@ export const seedTemplates: NotificationTemplate[] = TEMPLATE_EVENTS.flatMap(
       subject: `Leave ${event.toLowerCase()}`,
       body: `{{employee}} · {{leaveType}} · {{from}}–{{to}} · {{status}}`,
     },
-  ]
-)
+  ]),
+  // Kensium: notifications/emails sent after every time-off credit.
+  {
+    id: 'tpl-e-credited',
+    event: 'Credited',
+    channel: 'Email',
+    subject: 'Time off credited: {{leaveType}} balance updated',
+    body: 'Hi {{employee}}, {{credited}} day(s) of {{leaveType}} have been credited to your account on {{creditDate}} as per the accrual policy. Your available balance is now {{balance}} day(s).',
+  },
+  {
+    id: 'tpl-n-credited',
+    event: 'Credited',
+    channel: 'In-app',
+    subject: 'Time off credited',
+    body: '{{leaveType}} · +{{credited}} day(s) on {{creditDate}} · balance {{balance}} day(s)',
+  },
+  // Kensium: notifications/emails related to optional holidays.
+  {
+    id: 'tpl-e-optional',
+    event: 'Optional Holiday',
+    channel: 'Email',
+    subject: 'Optional holiday confirmation: {{holiday}} ({{date}})',
+    body: 'Hi {{recipient}}, {{employee}} has chosen the optional holiday {{holiday}} on {{date}}. Please review and approve the confirmation in the portal. Status: {{status}}.',
+  },
+  {
+    id: 'tpl-n-optional',
+    event: 'Optional Holiday',
+    channel: 'In-app',
+    subject: 'Optional holiday {{status}}',
+    body: '{{employee}} · {{holiday}} · {{date}} · {{status}}',
+  },
+]
 
 /** Platform-wide defaults inherited by new tenants (LVE-20). */
 export interface PlatformDefaults {

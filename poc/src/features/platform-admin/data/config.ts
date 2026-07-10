@@ -75,6 +75,27 @@ export interface WorkflowItem {
   submittedAt: string
 }
 
+/** Acumatica ERP integration module setup (Kensium: Integrations → Setup). */
+export const ACUMATICA_ENABLE_OPTIONS = ['Yes', 'No'] as const
+export type AcumaticaEnableOption = (typeof ACUMATICA_ENABLE_OPTIONS)[number]
+
+export interface AcumaticaSetup {
+  /** Yes = integration module enabled; No = integration turned off. */
+  enabled: AcumaticaEnableOption
+  /** Acumatica instance base URL used when the module is enabled. */
+  instanceUrl: string
+  /** False until an admin saves the setup for the first time (INT-05 prompt). */
+  configured: boolean
+  lastSavedAt: string | null
+}
+
+export const defaultAcumaticaSetup: AcumaticaSetup = {
+  enabled: 'No',
+  instanceUrl: '',
+  configured: false,
+  lastSavedAt: null,
+}
+
 export interface LocaleSettings {
   level: 'Company' | 'Jurisdiction'
   dateFormat: string

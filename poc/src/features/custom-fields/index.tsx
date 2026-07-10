@@ -67,25 +67,24 @@ export function CustomFields() {
 
             {isAdmin && (
               <TabsContent value='admin'>
-                <EngineArtifactsPanel module='Custom Fields' />
-                <Tabs defaultValue='fields'>
-                  <TabsList className='mb-2'>
-                    <TabsTrigger value='fields'>Manage Fields</TabsTrigger>
-                    <TabsTrigger value='history'>History</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value='fields'>
+                <div className='flex flex-col gap-8'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Engine Features</h3>
+                    <EngineArtifactsPanel module='Custom Fields' />
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Manage Fields</h3>
                     <DefinitionsTab store={fieldStore} />
-                  </TabsContent>
-
-                  <TabsContent value='history'>
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>History</h3>
                     <GovernanceTab
                       fields={fieldStore.fields}
                       versions={fieldStore.versions}
                       valueHistory={recordStore.valueHistory}
                     />
-                  </TabsContent>
-                </Tabs>
+                  </section>
+                </div>
               </TabsContent>
             )}
           </Tabs>

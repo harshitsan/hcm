@@ -9,6 +9,7 @@ import { AssetsTab } from './components/assets-tab'
 import { AttendanceTab } from './components/attendance-tab'
 import { LearningTab } from './components/learning-tab'
 import { LearningTeamTab } from './components/learning-team-tab'
+import { MyTimelineTab } from './components/my-timeline-tab'
 import { OverviewTab, type PendingTask } from './components/overview-tab'
 import { TaxTab } from './components/tax-tab'
 import { TimesheetTab } from './components/timesheet-tab'
@@ -91,6 +92,9 @@ export function SelfService() {
   const assets = useAssets()
   const tax = useTax()
 
+  /** Segmented selector state for the Time group (attendance vs timesheets). */
+  const [timeView, setTimeView] = useState<SectionId>('attendance')
+
   /** Cross-module pending-task rollup (ESS-39). */
   const pendingTasks = useMemo<PendingTask[]>(() => {
     const tasks: PendingTask[] = []
@@ -135,7 +139,7 @@ export function SelfService() {
   )
 
   const availableTabs = useMemo(() => {
-    const tabs = ['overview']
+    const tabs = ['overview', 'timeline']
     GROUPS.forEach((g) => {
       if (g.sections.some((s) => sectionVisible(s))) tabs.push(g.id)
     })
@@ -174,6 +178,7 @@ export function SelfService() {
 
   const tabLabel: Record<string, string> = {
     overview: 'Overview',
+    timeline: 'My Timeline',
     admin: 'Admin',
     ...Object.fromEntries(GROUPS.map((g) => [g.id, g.label])),
   }
@@ -212,6 +217,10 @@ export function SelfService() {
               />
             </TabsContent>
 
+            <TabsContent value='timeline'>
+              <MyTimelineTab />
+            </TabsContent>
+
             {GROUPS.map((group) => {
               const visibleSections = group.sections.filter((s) =>
                 sectionVisible(s)
@@ -224,26 +233,50 @@ export function SelfService() {
                   </TabsContent>
                 )
               }
+
+              // Time group: attendance and timesheets filter the same time-tracking
+              // data type — use a segmented selector (Option B).
+              if (group.id === 'time') {
+                const effectiveView = visibleSections.includes(timeView)
+                  ? timeView
+                  : visibleSections[0]
+                return (
+                  <TabsContent key={group.id} value={group.id}>
+                    <div className='mb-4 flex gap-1 rounded-lg border border-neutral-200 bg-neutral-100 p-1 w-fit'>
+                      {visibleSections.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setTimeView(s)}
+                          className={
+                            'rounded-md px-4 py-1.5 text-sm font-medium transition-colors ' +
+                            (effectiveView === s
+                              ? 'bg-white text-blue-1200 shadow-sm'
+                              : 'text-neutral-1000 hover:text-neutral-1400')
+                          }
+                        >
+                          {SECTION_LABEL[s]}
+                        </button>
+                      ))}
+                    </div>
+                    {sectionContent[effectiveView]}
+                  </TabsContent>
+                )
+              }
+
+              // Requests and Pay & Work groups hold genuinely different section
+              // types — render each as a labelled section (Option A).
               return (
                 <TabsContent key={group.id} value={group.id}>
-                  <Tabs
-                    key={visibleSections.join('-')}
-                    defaultValue={visibleSections[0]}
-                    className='w-full'
-                  >
-                    <TabsList className='mb-3 flex-wrap bg-transparent p-0'>
-                      {visibleSections.map((s) => (
-                        <TabsTrigger key={s} variant='ghost' value={s}>
-                          {SECTION_LABEL[s]}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
+                  <div className='flex flex-col gap-6'>
                     {visibleSections.map((s) => (
-                      <TabsContent key={s} value={s}>
+                      <section key={s}>
+                        <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                          {SECTION_LABEL[s]}
+                        </h3>
                         {sectionContent[s]}
-                      </TabsContent>
+                      </section>
                     ))}
-                  </Tabs>
+                  </div>
                 </TabsContent>
               )
             })}

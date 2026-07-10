@@ -43,7 +43,7 @@ export function Authentication() {
           />
 
           <Tabs defaultValue={defaultTab} className='w-full'>
-            <TabsList className='mb-2'>
+            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='sign-in' variant='primary'>
                 Sign in &amp; sessions
               </TabsTrigger>
@@ -72,20 +72,16 @@ export function Authentication() {
 
             <TabsContent value='admin'>
               <EngineArtifactsPanel module='Authentication' />
-              <Tabs defaultValue='settings' className='w-full'>
-                <TabsList className='mb-2'>
-                  <TabsTrigger value='settings'>Sign-in settings</TabsTrigger>
-                  <TabsTrigger value='audit'>Audit log</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value='settings'>
+              <div className='flex flex-col gap-6'>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Sign-in settings</h3>
                   <ConfigTab config={config} />
-                </TabsContent>
-
-                <TabsContent value='audit'>
+                </section>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Audit log</h3>
                   <AuditTab events={audit.events} />
-                </TabsContent>
-              </Tabs>
+                </section>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

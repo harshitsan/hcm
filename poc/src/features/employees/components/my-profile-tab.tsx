@@ -18,16 +18,26 @@ import {
 } from '../data/employees'
 import { LIFE_EVENT_TYPES, seedDependantTypes } from '../data/configuration'
 import { type EmployeesStore } from '../hooks/use-employees'
+import { useProfileExtras } from '../hooks/use-profile-extras'
+import { ClientFeedbackSection } from './profile/client-feedback-section'
+import { ContactInfoSection } from './profile/contact-info-section'
+import { EducationSection } from './profile/education-section'
+import { PersonalInfoSection } from './profile/personal-info-section'
+import { SkillsSection } from './profile/skills-section'
+import { WorkExperienceSection } from './profile/work-experience-section'
 import { InfoField, SectionTitle, StatusBadge } from './shared'
 
 /**
  * Employee (User) self-service: my organizational placement (EMP-13), my
  * reporting lines (EMP-14), my leave & statutory data — read-only (EMP-15),
- * plus my dependants (EMP-33) and life events (EMP-34) against configured
- * types.
+ * my dependants (EMP-33) and life events (EMP-34) against configured types,
+ * plus the Kensium profile extras — personal info (photo, place of birth,
+ * languages), contact & address with emergency contacts, education, work
+ * experience, skills & certifications and client feedback.
  */
 export function MyProfileTab({ store }: { store: EmployeesStore }) {
   const me = store.employees.find((e) => e.id === SELF_EMPLOYEE_ID)
+  const extras = useProfileExtras()
   const [depName, setDepName] = useState('')
   const [depRel, setDepRel] = useState('')
   const [depDob, setDepDob] = useState('')
@@ -74,7 +84,8 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
   }
 
   return (
-    <div className='grid gap-5 lg:grid-cols-2'>
+    <div className='space-y-5'>
+      <div className='grid gap-5 lg:grid-cols-2'>
       <Card className='border-gray-200'>
         <CardContent className='space-y-4 pt-4'>
           <SectionTitle>My organizational placement (view only)</SectionTitle>
@@ -300,6 +311,15 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
           </p>
         </CardContent>
       </Card>
+
+      <PersonalInfoSection store={extras} name={me.name} />
+      <ContactInfoSection store={extras} />
+      </div>
+
+      <EducationSection store={extras} />
+      <WorkExperienceSection store={extras} />
+      <SkillsSection store={extras} />
+      <ClientFeedbackSection store={extras} />
     </div>
   )
 }

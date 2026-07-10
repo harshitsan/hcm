@@ -2,8 +2,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { AccessMatrixTab } from './components/configuration/access-tab'
+import { AckApproversTab } from './components/configuration/ack-approvers-tab'
+import { BenefitsCompensationTab } from './components/configuration/benefits-compensation-tab'
 import { CatalogTab } from './components/configuration/catalog-tabs'
 import { DedupTab } from './components/configuration/dedup-tab'
+import { EmployeeSettingsTab } from './components/configuration/employee-settings-tab'
 import {
   LifecycleConfigTab,
   NotificationsTab,
@@ -36,6 +39,11 @@ export function EmployeesConfiguration() {
               <TabsTrigger value='notifications'>Notifications</TabsTrigger>
               <TabsTrigger value='access'>Access Matrix</TabsTrigger>
               <TabsTrigger value='catalog'>Types & Directory</TabsTrigger>
+              <TabsTrigger value='benefits-comp'>Benefits & Comp</TabsTrigger>
+              <TabsTrigger value='ack-approvers'>Ack & Approvers</TabsTrigger>
+              <TabsTrigger value='employee-settings'>
+                Codes & Self-Service
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value='rule-packs'>
@@ -55,6 +63,15 @@ export function EmployeesConfiguration() {
             </TabsContent>
             <TabsContent value='catalog'>
               <CatalogTab store={store} />
+            </TabsContent>
+            <TabsContent value='benefits-comp'>
+              <BenefitsCompensationTab store={store} />
+            </TabsContent>
+            <TabsContent value='ack-approvers'>
+              <AckApproversTab store={store} />
+            </TabsContent>
+            <TabsContent value='employee-settings'>
+              <EmployeeSettingsTab store={store} />
             </TabsContent>
           </Tabs>
         </div>

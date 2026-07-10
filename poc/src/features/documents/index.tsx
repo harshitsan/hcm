@@ -6,6 +6,7 @@ import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { CertificatesTab } from './components/certificates-tab'
 import { ConfigTab } from './components/config-tab'
+import { CustodianDeskTab } from './components/custodian-desk-tab'
 import { CustodiansTab } from './components/custodians-tab'
 import { DocumentsTab } from './components/documents-tab'
 import { MyDocumentsTab } from './components/my-documents-tab'
@@ -14,12 +15,16 @@ import { TypesTab } from './components/types-tab'
 import { useDocumentSettings } from './hooks/use-document-settings'
 import { useDocuments } from './hooks/use-documents'
 import { useMasters } from './hooks/use-masters'
+import { useReceipts } from './hooks/use-receipts'
 
 /**
  * Documents & Attachments module. One page, role-aware tabs (task-first):
  * - Documents: tenant/group/portfolio-scoped grid with upload, expiry
  *   tracking, category filters, and role-gated actions
- * - My Documents: employee self-service view/upload on own record
+ * - Custodian Desk: receipts & returns workflow — record documents received
+ *   into custody, return them to employees, and chase due reminders
+ * - My Documents: employee self-service view/upload on own record, plus
+ *   acknowledgement of documents returned by the custodian
  * - Policies: policy documents with effective windows and applicability
  * - Admin: single admin surface with nested tabs for document types,
  *   required certificates, custodians, and settings (governed taxonomy,
@@ -30,6 +35,7 @@ export function Documents() {
   const store = useDocuments()
   const settings = useDocumentSettings()
   const masters = useMasters()
+  const receipts = useReceipts()
 
   const isAdmin =
     role === 'Platform Admin' ||
@@ -45,7 +51,7 @@ export function Documents() {
   const availableTabs = useMemo(() => {
     const tabs: string[] = []
     if (isEmployeeUser) tabs.push('mine')
-    if (isAdmin) tabs.push('grid')
+    if (isAdmin) tabs.push('grid', 'custodian')
     tabs.push('policies')
     if (showAdminTab) tabs.push('admin')
     return tabs
@@ -88,6 +94,11 @@ export function Documents() {
                   Documents
                 </TabsTrigger>
               )}
+              {isAdmin && (
+                <TabsTrigger variant='primary' value='custodian'>
+                  Custodian Desk
+                </TabsTrigger>
+              )}
               <TabsTrigger variant='primary' value='policies'>
                 Policies
               </TabsTrigger>
@@ -104,6 +115,7 @@ export function Documents() {
                   store={store}
                   settings={settings}
                   documentTypes={masters.documentTypes}
+                  receipts={receipts}
                 />
               </TabsContent>
             )}
@@ -116,54 +128,49 @@ export function Documents() {
                 />
               </TabsContent>
             )}
+            {isAdmin && (
+              <TabsContent value='custodian'>
+                <CustodianDeskTab
+                  receipts={receipts}
+                  documentTypes={masters.documentTypes}
+                />
+              </TabsContent>
+            )}
             <TabsContent value='policies'>
               <PoliciesTab masters={masters} />
             </TabsContent>
             {showAdminTab && (
               <TabsContent value='admin'>
-                <EngineArtifactsPanel module='Documents' />
-                <Tabs
-                  value={adminTab}
-                  onValueChange={setAdminTab}
-                  className='w-full'
-                >
-                  <TabsList className='mb-3'>
-                    {isCompanyAdmin && (
-                      <TabsTrigger value='types'>Document types</TabsTrigger>
-                    )}
-                    {isCompanyAdmin && (
-                      <TabsTrigger value='certificates'>
-                        Required certificates
-                      </TabsTrigger>
-                    )}
-                    {showCustodians && (
-                      <TabsTrigger value='custodians'>Custodians</TabsTrigger>
-                    )}
-                    {showConfig && (
-                      <TabsTrigger value='config'>Settings</TabsTrigger>
-                    )}
-                  </TabsList>
+                <div className='flex flex-col gap-8'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Engine Features</h3>
+                    <EngineArtifactsPanel module='Documents' />
+                  </section>
                   {isCompanyAdmin && (
-                    <TabsContent value='types'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Document Types</h3>
                       <TypesTab masters={masters} />
-                    </TabsContent>
+                    </section>
                   )}
                   {isCompanyAdmin && (
-                    <TabsContent value='certificates'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Required Certificates</h3>
                       <CertificatesTab masters={masters} />
-                    </TabsContent>
+                    </section>
                   )}
                   {showCustodians && (
-                    <TabsContent value='custodians'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Custodians</h3>
                       <CustodiansTab masters={masters} />
-                    </TabsContent>
+                    </section>
                   )}
                   {showConfig && (
-                    <TabsContent value='config'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Settings</h3>
                       <ConfigTab store={store} settings={settings} />
-                    </TabsContent>
+                    </section>
                   )}
-                </Tabs>
+                </div>
               </TabsContent>
             )}
           </Tabs>

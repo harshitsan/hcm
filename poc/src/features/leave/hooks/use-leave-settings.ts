@@ -28,6 +28,7 @@ import {
   type OptionalHolidayRequest,
 } from '../data/holidays'
 import { seedCatalog, type CatalogEntry } from '../data/leave-types'
+import { seedShifts, type ShiftDefinition } from '../data/shifts'
 import {
   CURRENT_EMPLOYEE_ID,
   employeeById,
@@ -44,6 +45,7 @@ interface Deps {
  * and platform-level settings (LVE-20/22/33/37..48).
  */
 export function useLeaveSettings({ notify }: Deps) {
+  const [shifts, setShifts] = useState<ShiftDefinition[]>(seedShifts)
   const [timeOffApprovers, setTimeOffApprovers] = useState<ApproverMapping[]>(
     seedTimeOffApprovers
   )
@@ -77,6 +79,58 @@ export function useLeaveSettings({ notify }: Deps) {
     '2026-06-14 03:12 UTC — tenant tn-2 query attempted to read tn-1 leave_requests → DENIED by RLS policy, logged.',
   ])
 
+  /**
+   * Shift master (Kensium Shift section). Flexi shifts never carry a
+   * tolerance limit, and at most one shift may be the default.
+   */
+  const normalizeShift = (draft: Omit<ShiftDefinition, 'id'>) => ({
+    ...draft,
+    toleranceMinutes: draft.flexiHours ? null : draft.toleranceMinutes,
+  })
+
+  const addShift = (draft: Omit<ShiftDefinition, 'id'>) => {
+    const shift = { ...normalizeShift(draft), id: shortId('shf') }
+    setShifts((prev) => [
+      ...(shift.defaultShift
+        ? prev.map((s) => ({ ...s, defaultShift: false }))
+        : prev),
+      shift,
+    ])
+    toast.success(`Shift "${draft.name}" saved`)
+  }
+
+  const updateShift = (id: string, draft: Omit<ShiftDefinition, 'id'>) => {
+    const next = normalizeShift(draft)
+    setShifts((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? { ...next, id }
+          : next.defaultShift
+            ? { ...s, defaultShift: false }
+            : s
+      )
+    )
+    toast.success(`Shift "${draft.name}" updated`)
+  }
+
+  const removeShift = (id: string) => {
+    const target = shifts.find((s) => s.id === id)
+    setShifts((prev) => prev.filter((s) => s.id !== id))
+    toast.success(
+      target?.defaultShift
+        ? 'Default shift removed — mark another shift as default so unassigned employees are covered'
+        : 'Shift removed'
+    )
+  }
+
+  /** Mark one shift as default; the previous default is unset. */
+  const setDefaultShift = (id: string) => {
+    setShifts((prev) => prev.map((s) => ({ ...s, defaultShift: s.id === id })))
+    toast.success(
+      'Default shift updated — assigned to employees with no shift assignment'
+    )
+  }
+
   const addMapping = (
     kind: 'timeoff' | 'adjustment' | 'fmla',
     draft: Omit<ApproverMapping, 'id'>
@@ -87,6 +141,20 @@ export function useLeaveSettings({ notify }: Deps) {
       setAdjustmentApprovers((prev) => [...prev, mapping])
     if (kind === 'fmla') setFmlaApprovers((prev) => [...prev, mapping])
     toast.success('Approver mapping saved')
+  }
+
+  /** TOAP-04 / TOAA-03: edit an existing approver mapping in place. */
+  const updateMapping = (
+    kind: 'timeoff' | 'adjustment' | 'fmla',
+    id: string,
+    draft: Omit<ApproverMapping, 'id'>
+  ) => {
+    const apply = (prev: ApproverMapping[]) =>
+      prev.map((m) => (m.id === id ? { ...draft, id } : m))
+    if (kind === 'timeoff') setTimeOffApprovers(apply)
+    if (kind === 'adjustment') setAdjustmentApprovers(apply)
+    if (kind === 'fmla') setFmlaApprovers(apply)
+    toast.success('Approver mapping updated — new routing applies to future requests')
   }
 
   const removeMapping = (kind: 'timeoff' | 'adjustment' | 'fmla', id: string) => {
@@ -104,6 +172,12 @@ export function useLeaveSettings({ notify }: Deps) {
     toast.success(`FMLA ${draft.kind} reason added`)
   }
 
+  /** FMQR/FMRR: delete a configured FMLA reason. */
+  const removeFmlaReason = (id: string) => {
+    setFmlaReasons((prev) => prev.filter((r) => r.id !== id))
+    toast.success('FMLA reason removed')
+  }
+
   const updateClassRule = (id: string, patch: Partial<EmployeeClassRule>) => {
     setClassRules((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
@@ -111,12 +185,24 @@ export function useLeaveSettings({ notify }: Deps) {
     toast.success('Employee class rules updated — applied to accruals and approvals')
   }
 
-  const addClosure = (draft: Omit<OfficeClosure, 'id'>) => {
-    setClosures((prev) => [{ ...draft, id: shortId('oc') }, ...prev])
+  const addClosure = (
+    draft: Omit<OfficeClosure, 'id' | 'details' | 'notifyEmails' | 'duration'> &
+      Partial<Pick<OfficeClosure, 'details' | 'notifyEmails' | 'duration'>>
+  ) => {
+    const closure: OfficeClosure = {
+      details: '',
+      notifyEmails: [],
+      duration: 'full-day',
+      ...draft,
+      id: shortId('oc'),
+    }
+    setClosures((prev) => [closure, ...prev])
     notify(
       'Adjusted',
-      'Employees in scoped locations/departments',
-      `Office closure scheduled: ${draft.reason} (${draft.from} – ${draft.to}). Dates treated as non-working; no leave deducted.`
+      closure.notifyEmails.length
+        ? closure.notifyEmails.join(', ')
+        : 'Employees in scoped locations/departments',
+      `Office closure scheduled: ${draft.reason} (${draft.from} – ${draft.to}, ${closure.duration}). Dates treated as non-working; no leave deducted.`
     )
     toast.success('Office closure scheduled — closed dates will not consume leave')
   }
@@ -128,12 +214,35 @@ export function useLeaveSettings({ notify }: Deps) {
     toast.success('Template saved — used for the next matching event, no code changes')
   }
 
-  const addCalendar = (draft: Omit<HolidayCalendar, 'id' | 'status'>) => {
+  const addCalendar = (
+    draft: Omit<
+      HolidayCalendar,
+      'id' | 'status' | 'shiftIds' | 'notifyEmployees'
+    > &
+      Partial<Pick<HolidayCalendar, 'shiftIds' | 'notifyEmployees'>>
+  ) => {
     setCalendars((prev) => [
-      { ...draft, id: shortId('hc'), status: 'draft' },
+      {
+        shiftIds: [],
+        notifyEmployees: false,
+        ...draft,
+        id: shortId('hc'),
+        status: 'draft',
+      },
       ...prev,
     ])
     toast.success('Holiday calendar created (draft)')
+  }
+
+  /** HOLCAL-04: edit an existing calendar — details, holidays and status. */
+  const updateCalendar = (
+    id: string,
+    patch: Partial<Omit<HolidayCalendar, 'id'>>
+  ) => {
+    setCalendars((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
+    )
+    toast.success('Holiday calendar updated')
   }
 
   const publishCalendar = (id: string) => {
@@ -257,6 +366,7 @@ export function useLeaveSettings({ notify }: Deps) {
   }
 
   return {
+    shifts,
     timeOffApprovers,
     adjustmentApprovers,
     fmlaApprovers,
@@ -273,13 +383,20 @@ export function useLeaveSettings({ notify }: Deps) {
     catalog,
     tenants,
     deniedAccessLog,
+    addShift,
+    updateShift,
+    removeShift,
+    setDefaultShift,
     addMapping,
+    updateMapping,
     removeMapping,
     addFmlaReason,
+    removeFmlaReason,
     updateClassRule,
     addClosure,
     updateTemplate,
     addCalendar,
+    updateCalendar,
     publishCalendar,
     confirmOptionalHoliday,
     swapOptionalHoliday,

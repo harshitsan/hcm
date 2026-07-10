@@ -27,11 +27,6 @@ const TAB_LABELS: Record<string, string> = {
   settings: 'Settings',
 }
 
-const SETTINGS_TAB_LABELS: Record<string, string> = {
-  config: 'Configuration',
-  security: 'Security',
-  governance: 'Data rules',
-}
 
 /**
  * Platform Administration (SYS-01..77 minus the org-model and workspace
@@ -115,24 +110,20 @@ export function PlatformAdmin() {
               <div className='mb-3'>
                 <EngineArtifactsPanel module='Platform Admin' />
               </div>
-              <Tabs defaultValue='config' className='w-full'>
-                <TabsList className='mb-3 flex-wrap bg-transparent p-0'>
-                  {Object.entries(SETTINGS_TAB_LABELS).map(([value, label]) => (
-                    <TabsTrigger key={value} variant='primary' value={value}>
-                      {label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                <TabsContent value='config'>
+              <div className='flex flex-col gap-6'>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Configuration</h3>
                   <ConfigTab store={config} />
-                </TabsContent>
-                <TabsContent value='security'>
+                </section>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Security</h3>
                   <SecurityTab store={security} />
-                </TabsContent>
-                <TabsContent value='governance'>
+                </section>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Data rules</h3>
                   <GovernanceTab store={governance} />
-                </TabsContent>
-              </Tabs>
+                </section>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

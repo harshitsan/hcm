@@ -48,7 +48,7 @@ export function GroupCompanies() {
           <GroupSummary groups={store.groups} auditCount={audit.entries.length} />
 
           <Tabs defaultValue={defaultTab}>
-            <TabsList className='mb-3'>
+            <TabsList className='mb-3 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='groups' variant='primary'>
                 Groups & Members
               </TabsTrigger>
@@ -67,35 +67,24 @@ export function GroupCompanies() {
               <ReportingTab store={store} record={audit.record} />
             </TabsContent>
             <TabsContent value='admin'>
-              <Tabs defaultValue='sharing'>
-                <TabsList className='mb-3'>
-                  <TabsTrigger value='sharing' variant='ghost'>
-                    Sharing & Roles
-                  </TabsTrigger>
-                  <TabsTrigger value='locations' variant='ghost'>
-                    Shared Locations
-                  </TabsTrigger>
-                  <TabsTrigger value='policies' variant='ghost'>
-                    Policy Templates
-                  </TabsTrigger>
-                  <TabsTrigger value='audit' variant='ghost'>
-                    Activity Log
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value='sharing'>
+              <div className='flex flex-col gap-6'>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Sharing & Roles</h3>
                   <SharingTab store={store} auditEntries={audit.entries} />
-                </TabsContent>
-                <TabsContent value='locations'>
+                </section>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Shared Locations</h3>
                   <LocationsTab store={store} locations={locations} />
-                </TabsContent>
-                <TabsContent value='policies'>
+                </section>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Policy Templates</h3>
                   <PoliciesTab store={store} policies={policies} />
-                </TabsContent>
-                <TabsContent value='audit'>
+                </section>
+                <section>
+                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Activity Log</h3>
                   <AuditTab audit={audit} />
-                </TabsContent>
-              </Tabs>
+                </section>
+              </div>
             </TabsContent>
           </Tabs>
         </div>

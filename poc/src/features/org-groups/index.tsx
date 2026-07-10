@@ -48,8 +48,6 @@ export function OrgGroups() {
     return list
   }, [isEmployee, isApprover])
 
-  // Land each role on its most relevant tab: employees on self-service,
-  // portfolio admins on the Admin surface, everyone else on the main list.
   const defaultTab = isEmployee
     ? 'my'
     : role === 'Portfolio Admin'
@@ -69,9 +67,8 @@ export function OrgGroups() {
             />
           )}
 
-          {/* Remount when the role changes so the default tab stays valid. */}
           <Tabs key={role} defaultValue={defaultTab} className='w-full'>
-            <TabsList className='mb-2'>
+            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>
                   {tab.label}
@@ -90,23 +87,16 @@ export function OrgGroups() {
                 <TabsContent value='admin'>
                   <EngineArtifactsPanel module='Groups' />
                   {isGovernance ? (
-                    <Tabs
-                      defaultValue={
-                        role === 'Portfolio Admin' ? 'governance' : 'policies'
-                      }
-                      className='w-full'
-                    >
-                      <TabsList className='mb-2'>
-                        <TabsTrigger value='policies'>Policies</TabsTrigger>
-                        <TabsTrigger value='governance'>Governance</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value='policies'>
+                    <div className='flex flex-col gap-6'>
+                      <section>
+                        <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Policies</h3>
                         <PoliciesTab store={store} />
-                      </TabsContent>
-                      <TabsContent value='governance'>
+                      </section>
+                      <section>
+                        <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Governance</h3>
                         <GovernanceTab store={store} />
-                      </TabsContent>
-                    </Tabs>
+                      </section>
+                    </div>
                   ) : (
                     <PoliciesTab store={store} />
                   )}

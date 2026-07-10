@@ -1,6 +1,8 @@
 import { UserRound } from 'lucide-react'
+import { ClockCounterClockwise } from 'phosphor-react'
 import { type Role } from '@/context/role-context'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { companyById, type Employee } from '../data/directory'
 import { type CustomFieldDef } from '../data/directory-config'
@@ -18,6 +20,8 @@ interface ViewProps {
   config: PrivacyConfig
   customFields: CustomFieldDef[]
   showCompany: boolean
+  /** Opens the employee's timeline feed. */
+  onViewTimeline?: (employee: Employee) => void
 }
 
 function EmptyState() {
@@ -46,6 +50,7 @@ export function DirectoryCardView({
   config,
   customFields,
   showCompany,
+  onViewTimeline,
 }: ViewProps) {
   if (employees.length === 0) return <EmptyState />
   const canSee = (key: Parameters<typeof evaluateField>[0], e: Employee) =>
@@ -108,6 +113,16 @@ export function DirectoryCardView({
                 ) : null
               )}
             </div>
+            {onViewTimeline && (
+              <Button
+                variant='outline'
+                className='mt-3 h-7 gap-1 px-2 text-xs'
+                onClick={() => onViewTimeline(e)}
+              >
+                <ClockCounterClockwise size={13} weight='bold' />
+                View timeline
+              </Button>
+            )}
           </CardContent>
         </Card>
       ))}
@@ -121,6 +136,7 @@ export function DirectoryCompactView({
   role,
   config,
   showCompany,
+  onViewTimeline,
 }: Omit<ViewProps, 'customFields'>) {
   if (employees.length === 0) return <EmptyState />
   const canSee = (key: Parameters<typeof evaluateField>[0], e: Employee) =>
@@ -167,6 +183,16 @@ export function DirectoryCompactView({
             </span>
           )}
           <EmploymentStatusBadge status={e.employmentStatus} />
+          {onViewTimeline && (
+            <Button
+              variant='ghost'
+              className='text-blue-1400 h-6 gap-1 px-1.5 text-xs'
+              onClick={() => onViewTimeline(e)}
+            >
+              <ClockCounterClockwise size={13} weight='bold' />
+              Timeline
+            </Button>
+          )}
         </div>
       ))}
     </Card>

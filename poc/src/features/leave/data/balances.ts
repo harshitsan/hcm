@@ -134,6 +134,29 @@ export const seedCompOffCredits: CompOffCredit[] = [
   },
 ]
 
+/**
+ * Date-of-join reference per employee (Adjust Time Off pointer 3 / bulk
+ * pending adjustments pointer 4). Kept here because the shared roster does
+ * not carry joining dates.
+ */
+export const EMPLOYEE_JOIN_DATES: Record<string, string> = {
+  'emp-1001': '2019-04-15',
+  'emp-1002': '2015-08-01',
+  'emp-1003': '2021-02-08',
+  'emp-1004': '2023-07-17',
+  'emp-1005': '2026-01-12',
+  'emp-1006': '2020-10-05',
+  'emp-1007': '2018-03-26',
+  'emp-1008': '2022-06-20',
+  'emp-1009': '2024-09-02',
+  'emp-1010': '2020-01-06',
+  'emp-1011': '2019-11-11',
+}
+
+export function dateOfJoinFor(employeeId: string) {
+  return EMPLOYEE_JOIN_DATES[employeeId] ?? '2020-01-01'
+}
+
 export interface Adjustment {
   id: string
   employeeId: string
@@ -149,6 +172,20 @@ export interface Adjustment {
   reason: string
   requestedBy: string
   status: 'pending' | 'approved' | 'rejected'
+  /** Adjust Time Off pointer 3: DOJ of the selected employee. */
+  dateOfJoin: string
+  /** Pointer 5: mail the employee once the adjustment is approved. */
+  sendMailToEmployee: boolean
+  /** Pointer 6: time offs already added (this type) in the current year. */
+  addedThisYear: number
+  /** Pointer 10: total added for the year including this adjustment. */
+  totalForYear: number
+  /** Pointer 11: uploaded document names. */
+  documents: string[]
+  /** Pointer 12: coordinator comments. */
+  comments: string
+  /** Set when approved — the approver who applied the credit. */
+  approvedBy?: string | null
 }
 
 export const seedAdjustments: Adjustment[] = [
@@ -166,6 +203,13 @@ export const seedAdjustments: Adjustment[] = [
     reason: 'Attendance regularization — badge system outage on 2026-05-04/05.',
     requestedBy: 'Ananya Sharma',
     status: 'pending',
+    dateOfJoin: '2023-07-17',
+    sendMailToEmployee: true,
+    addedThisYear: 18,
+    totalForYear: 20,
+    documents: ['badge-outage-incident-report.pdf'],
+    comments: 'Facilities confirmed the badge readers were down both days.',
+    approvedBy: null,
   },
   {
     id: 'adj-2',
@@ -181,5 +225,12 @@ export const seedAdjustments: Adjustment[] = [
     reason: 'Duplicate sick entry credited during payroll migration.',
     requestedBy: 'Sunita Patil',
     status: 'approved',
+    dateOfJoin: '2021-02-08',
+    sendMailToEmployee: false,
+    addedThisYear: 96,
+    totalForYear: 88,
+    documents: ['payroll-migration-audit.xlsx'],
+    comments: 'Reversal of the duplicate credit found in the migration audit.',
+    approvedBy: 'Rahul Menon',
   },
 ]

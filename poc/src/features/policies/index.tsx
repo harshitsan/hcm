@@ -66,24 +66,16 @@ export function Policies() {
             {isAdmin && (
               <TabsContent value='admin'>
                 <EngineArtifactsPanel module='Policy Management' />
-                <Tabs defaultValue='applicability'>
-                  <TabsList className='mb-2'>
-                    <TabsTrigger value='applicability'>
-                      Who policies apply to
-                    </TabsTrigger>
-                    <TabsTrigger value='governance'>
-                      Permissions & audit
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value='applicability'>
+                <div className='flex flex-col gap-6'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Who policies apply to</h3>
                     <ApplicabilityTab store={store} />
-                  </TabsContent>
-
-                  <TabsContent value='governance'>
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Permissions & audit</h3>
                     <GovernanceTab store={store} />
-                  </TabsContent>
-                </Tabs>
+                  </section>
+                </div>
               </TabsContent>
             )}
           </Tabs>

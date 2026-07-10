@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Stack } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -8,13 +11,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { EMPLOYEE_CLASSES, fmtDate } from '../data/shared'
+import { type OptionalHolidayRequest } from '../data/holidays'
+import {
+  DEPARTMENTS,
+  EMPLOYEE_CLASSES,
+  employeeById,
+  fmtDate,
+} from '../data/shared'
 import { type LeaveSettingsStore } from '../hooks/use-leave-settings'
 import { StatusBadge } from './badges'
+import { BulkOptionalHolidayDialog } from './bulk-optional-holiday-dialog'
 
 /**
  * Employee Optional Holiday Requests (LVE-46): manager review queue with
- * status/class filters and an active/inactive employees toggle.
+ * status/class filters, an active/inactive employees toggle and the Create
+ * Bulk Optional Holiday mass update. The settings store exposes no bulk
+ * create API, so bulk-created rows live in local panel state merged with
+ * `settings.optionalRequests` for display (auto-approved rows arrive with
+ * status approved).
  */
 export function OptionalRequestsPanel({
   settings,
@@ -23,18 +37,55 @@ export function OptionalRequestsPanel({
 }) {
   const [statusFilter, setStatusFilter] = useState('pending')
   const [classFilter, setClassFilter] = useState('all')
+  // EOHR-03: narrow the queue to a department.
+  const [deptFilter, setDeptFilter] = useState('all')
+  // EOHR-01: From/To period filter over the holiday dates.
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
+  // Rows created via the bulk mass update, merged with the store's list.
+  const [bulkRequests, setBulkRequests] = useState<OptionalHolidayRequest[]>([])
 
   const rows = useMemo(
     () =>
-      settings.optionalRequests.filter(
+      [...bulkRequests, ...settings.optionalRequests].filter(
         (r) =>
           (statusFilter === 'all' || r.status === statusFilter) &&
           (classFilter === 'all' || r.employeeClass === classFilter) &&
+          (deptFilter === 'all' ||
+            employeeById(r.employeeId)?.department === deptFilter) &&
+          (!fromDate || r.date >= fromDate) &&
+          (!toDate || r.date <= toDate) &&
           (includeInactive || r.employeeActive)
       ),
-    [classFilter, includeInactive, settings.optionalRequests, statusFilter]
+    [
+      bulkRequests,
+      classFilter,
+      deptFilter,
+      fromDate,
+      includeInactive,
+      settings.optionalRequests,
+      statusFilter,
+      toDate,
+    ]
   )
+
+  /** Route the decision to local state for bulk-created rows. */
+  const decide = (id: string, approve: boolean) => {
+    if (bulkRequests.some((r) => r.id === id)) {
+      setBulkRequests((prev) =>
+        prev.map((r) =>
+          r.id === id ? { ...r, status: approve ? 'approved' : 'rejected' } : r
+        )
+      )
+      toast.success(
+        approve ? 'Optional holiday approved' : 'Optional holiday rejected'
+      )
+      return
+    }
+    settings.decideOptionalRequest(id, approve)
+  }
 
   return (
     <div className='w-full'>
@@ -42,7 +93,15 @@ export function OptionalRequestsPanel({
         <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
           Employee Optional Holiday Requests ({rows.length})
         </h2>
-        <div className='flex items-center gap-3'>
+        <div className='flex flex-wrap items-center justify-end gap-2'>
+          <Button
+            variant='outline'
+            onClick={() => setBulkOpen(true)}
+            className='h-7 gap-1! rounded-[6px]! px-1.5!'
+          >
+            <Stack size={10} weight='bold' />
+            Create bulk optional holiday
+          </Button>
           <label className='flex items-center gap-2 text-sm'>
             <Checkbox
               checked={includeInactive}
@@ -51,6 +110,33 @@ export function OptionalRequestsPanel({
             />
             Include former staff
           </label>
+          <Input
+            type='date'
+            aria-label='From date'
+            className='h-7 w-[135px]'
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+          />
+          <Input
+            type='date'
+            aria-label='To date'
+            className='h-7 w-[135px]'
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+          />
+          <Select value={deptFilter} onValueChange={setDeptFilter}>
+            <SelectTrigger variant='secondary' className='h-7 w-[160px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All departments</SelectItem>
+              {DEPARTMENTS.map((d) => (
+                <SelectItem key={d} value={d}>
+                  {d}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
               <SelectValue />
@@ -119,14 +205,14 @@ export function OptionalRequestsPanel({
                     <span className='inline-flex gap-1'>
                       <Button
                         className='h-6 px-2 text-xs'
-                        onClick={() => settings.decideOptionalRequest(r.id, true)}
+                        onClick={() => decide(r.id, true)}
                       >
                         Approve
                       </Button>
                       <Button
                         variant='outline'
                         className='text-destructive h-6 px-2 text-xs'
-                        onClick={() => settings.decideOptionalRequest(r.id, false)}
+                        onClick={() => decide(r.id, false)}
                       >
                         Reject
                       </Button>
@@ -138,6 +224,13 @@ export function OptionalRequestsPanel({
           </tbody>
         </table>
       </div>
+
+      <BulkOptionalHolidayDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        settingsStore={settings}
+        onCreate={(requests) => setBulkRequests((prev) => [...requests, ...prev])}
+      />
     </div>
   )
 }

@@ -45,17 +45,17 @@ export function TenantSwitcher({ tenants }: { tenants: Tenant[] }) {
                 <activeTenant.logo className='size-4' />
               </div>
               <div className='grid flex-1 text-left text-sm leading-tight'>
-                <span className='text-space-900 truncate font-semibold'>
+                <span className='truncate font-semibold text-white'>
                   {activeTenant.name}
                 </span>
-                <span className='text-neutral-1100 flex items-center gap-1.5 truncate text-xs'>
+                <span className='flex items-center gap-1.5 truncate text-xs text-white/60'>
                   <span
                     className={`size-1.5 shrink-0 rounded-full ${ENV_DOT[activeTenant.environment]}`}
                   />
                   {activeTenant.environment}
                 </span>
               </div>
-              <ChevronsUpDown className='text-neutral-1000 ml-auto size-4' />
+              <ChevronsUpDown className='ml-auto size-4 text-white/50' />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

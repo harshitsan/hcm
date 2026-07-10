@@ -29,6 +29,7 @@ import {
 } from '../data/requisitions'
 import type { RequisitionsStore } from '../hooks/use-requisitions'
 import { StatusBadge } from './badges'
+import { BulkRequisitionDialog } from './bulk-requisition-dialog'
 import { requisitionColumns } from './requisition-columns'
 import { RequisitionOverlay } from './requisition-overlay'
 
@@ -60,6 +61,7 @@ export function RequisitionsTab({
   const [recruiter, setRecruiter] = useState<string>(RECRUITERS[0])
   const [hiringManager, setHiringManager] = useState<string>(HIRING_MANAGERS[0])
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   const rows = useMemo(
     () =>
@@ -178,6 +180,40 @@ export function RequisitionsTab({
             >
               Assign
             </Button>
+            {/* Withdraw — allowed from any stage by requester/approver */}
+            <Button
+              variant='outline'
+              className='h-7'
+              disabled={
+                !one ||
+                ['withdrawn', 'closed', 'cancelled'].includes(one.status)
+              }
+              onClick={() => {
+                if (one) {
+                  store.withdrawRequisition(
+                    one.id,
+                    one.hiringManager ?? 'Requester'
+                  )
+                  clear()
+                }
+              }}
+            >
+              Withdraw
+            </Button>
+            {/* Resubmit — restarts the workflow for rejected RRFs */}
+            <Button
+              variant='outline'
+              className='h-7'
+              disabled={!one || one.status !== 'rejected'}
+              onClick={() => {
+                if (one) {
+                  store.resubmitRequisition(one.id)
+                  clear()
+                }
+              }}
+            >
+              Resubmit
+            </Button>
             <Button
               variant='outline'
               className='h-7'
@@ -202,6 +238,14 @@ export function RequisitionsTab({
               }}
             >
               <PencilSimple size={16} weight='fill' />
+            </Button>
+            <Button
+              variant='outline'
+              className='h-7 gap-1'
+              onClick={() => setBulkOpen(true)}
+            >
+              <Plus size={10} weight='bold' />
+              Create Bulk Requisition
             </Button>
             <Button
               variant='red'
@@ -234,11 +278,19 @@ export function RequisitionsTab({
         }}
         requisition={editing}
         customFields={customFields}
+        store={store}
         onSubmit={(draft) => {
           if (editing) store.updateRequisition(editing.id, draft)
           else store.addRequisition(draft)
           clear()
         }}
+      />
+
+      {/* Bulk RRF entry grid with optional self-approval */}
+      <BulkRequisitionDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        store={store}
       />
 
       {/* TA-02: approval decision with comments/justification */}

@@ -12,13 +12,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Table,
   TableBody,
   TableCell,
@@ -26,47 +19,101 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { QUESTION_TYPES } from '../data/config'
-import { LOCATIONS } from '../data/shared'
+import {
+  EXIT_QUESTION_VISIBILITY_NOTE,
+  type ClearanceApproverChain,
+  type ExitApproverGroup,
+  type ExitQuestionDef,
+  type ExitTaskDef,
+} from '../data/config'
 import { type LifecycleConfigStore } from '../hooks/use-lifecycle-config'
-import { CheckboxGroup, ChipList, SectionCard } from './config-widgets'
+import {
+  ExitApproverGroupDialog,
+  ExitQuestionDialog,
+  ExitQuestionnairePreviewDialog,
+  ExitTaskDialog,
+} from './config-exit-flow-dialogs'
+import {
+  ChipList,
+  ConfirmDeleteDialog,
+  ListPagination,
+  SectionCard,
+  pageSlice,
+} from './config-widgets'
+
+const GROUP_PAGE_SIZE = 2
 
 /** Exit approver groups, clearance chains, questionnaire and exit tasks. */
 export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
   const [groupOpen, setGroupOpen] = useState(false)
-  const [groupName, setGroupName] = useState('')
-  const [groupExitType, setGroupExitType] = useState('')
-  const [groupLocs, setGroupLocs] = useState<string[]>([])
-  const [groupApprovers, setGroupApprovers] = useState('')
+  const [groupEditing, setGroupEditing] = useState<ExitApproverGroup | null>(null)
+  const [groupDeleting, setGroupDeleting] = useState<ExitApproverGroup | null>(null)
+  const [groupPage, setGroupPage] = useState(1)
 
   const [chainEdit, setChainEdit] = useState<string | null>(null)
   const [chainValue, setChainValue] = useState('')
+  const [chainAddOpen, setChainAddOpen] = useState(false)
+  const [chainName, setChainName] = useState('')
+  const [chainHierarchy, setChainHierarchy] = useState('')
+  const [chainDeleting, setChainDeleting] =
+    useState<ClearanceApproverChain | null>(null)
 
   const [questionOpen, setQuestionOpen] = useState(false)
-  const [qText, setQText] = useState('')
-  const [qType, setQType] = useState<(typeof QUESTION_TYPES)[number]>('Text')
-  const [qResponder, setQResponder] = useState<'Employee' | 'Manager'>('Employee')
-  const [qExitTypes, setQExitTypes] = useState<string[]>([])
+  const [questionEditing, setQuestionEditing] = useState<ExitQuestionDef | null>(null)
+  const [questionDeleting, setQuestionDeleting] =
+    useState<ExitQuestionDef | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
 
   const [taskOpen, setTaskOpen] = useState(false)
-  const [taskName, setTaskName] = useState('')
-  const [taskOwner, setTaskOwner] = useState('Reporting Manager')
-  const [taskWhen, setTaskWhen] = useState<'Before LWD' | 'After LWD'>('Before LWD')
-  const [taskDays, setTaskDays] = useState('0')
-  const [taskExitTypes, setTaskExitTypes] = useState<string[]>([])
+  const [taskEditing, setTaskEditing] = useState<ExitTaskDef | null>(null)
+  const [taskDeleting, setTaskDeleting] = useState<ExitTaskDef | null>(null)
 
-  const exitTypeNames = config.exitTypes.items.map((t) => t.name)
+  const groupTotal = config.exitApproverGroups.items.length
+  const groupPageSafe = Math.min(
+    groupPage,
+    Math.max(1, Math.ceil(groupTotal / GROUP_PAGE_SIZE))
+  )
+  const groupRows = pageSlice(
+    config.exitApproverGroups.items,
+    groupPageSafe,
+    GROUP_PAGE_SIZE
+  )
+
+  const openGroupDialog = (g: ExitApproverGroup | null) => {
+    setGroupEditing(g)
+    setGroupOpen(true)
+  }
+
+  const openQuestionDialog = (q: ExitQuestionDef | null) => {
+    setQuestionEditing(q)
+    setQuestionOpen(true)
+  }
+
+  const openTaskDialog = (t: ExitTaskDef | null) => {
+    setTaskEditing(t)
+    setTaskOpen(true)
+  }
 
   return (
     <div>
       <SectionCard
         title='Exit approver groups'
-        description='An exit routes to the group whose exit type, location and department scope match the employee. Edits apply to new exits; in-flight exits keep their original routing.'
+        description='An exit routes to the group whose exit type, location, department and position scope match the employee. Approver 1 is always the reporting manager hierarchy. Edits apply to new exits; in-flight exits keep their original routing.'
         actions={
-          <Button size='sm' onClick={() => setGroupOpen(true)}>
-            Add group
-          </Button>
+          <>
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() =>
+                toast.success('Exit approver groups refreshed — latest set shown')
+              }
+            >
+              Refresh
+            </Button>
+            <Button size='sm' onClick={() => openGroupDialog(null)}>
+              Add group
+            </Button>
+          </>
         }
       >
         <Table>
@@ -76,11 +123,14 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
               <TableHead>Exit type</TableHead>
               <TableHead>Locations</TableHead>
               <TableHead>Departments</TableHead>
-              <TableHead>Approvers (ordered)</TableHead>
+              <TableHead>Position levels</TableHead>
+              <TableHead>Approver 1 (RM levels)</TableHead>
+              <TableHead>Additional approvers (ordered)</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {config.exitApproverGroups.items.map((g) => (
+            {groupRows.map((g) => (
               <TableRow key={g.id}>
                 <TableCell className='font-medium'>{g.name}</TableCell>
                 <TableCell>
@@ -88,23 +138,57 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
                 </TableCell>
                 <TableCell><ChipList items={g.locations} /></TableCell>
                 <TableCell><ChipList items={g.departments} /></TableCell>
+                <TableCell><ChipList items={g.positionLevels ?? []} /></TableCell>
+                <TableCell className='text-xs'>
+                  {g.reportingManagerFromLevel !== undefined
+                    ? `Level ${g.reportingManagerFromLevel} → ${g.reportingManagerToLevel ?? g.reportingManagerFromLevel}`
+                    : '—'}
+                </TableCell>
                 <TableCell>{g.approvers.join(' → ')}</TableCell>
+                <TableCell>
+                  <div className='flex gap-2'>
+                    <Button size='sm' variant='outline' onClick={() => openGroupDialog(g)}>
+                      Edit
+                    </Button>
+                    <Button size='sm' variant='outline' onClick={() => setGroupDeleting(g)}>
+                      Delete
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
+        <ListPagination
+          total={groupTotal}
+          page={groupPageSafe}
+          pageSize={GROUP_PAGE_SIZE}
+          onPageChange={setGroupPage}
+        />
       </SectionCard>
 
       <SectionCard
         title='Exit clearance functions & approver hierarchy'
         description='Clearance tasks are generated per configured function; each sign-off routes through the configured chain.'
+        actions={
+          <Button
+            size='sm'
+            onClick={() => {
+              setChainName('')
+              setChainHierarchy('')
+              setChainAddOpen(true)
+            }}
+          >
+            Add clearance approver
+          </Button>
+        }
       >
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Function</TableHead>
               <TableHead>Sign-off hierarchy</TableHead>
-              <TableHead />
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -113,16 +197,21 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
                 <TableCell className='font-medium'>{c.functionName}</TableCell>
                 <TableCell>{c.hierarchy.join(' → ')}</TableCell>
                 <TableCell>
-                  <Button
-                    size='sm'
-                    variant='outline'
-                    onClick={() => {
-                      setChainEdit(c.id)
-                      setChainValue(c.hierarchy.join(', '))
-                    }}
-                  >
-                    Edit hierarchy
-                  </Button>
+                  <div className='flex gap-2'>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => {
+                        setChainEdit(c.id)
+                        setChainValue(c.hierarchy.join(', '))
+                      }}
+                    >
+                      Edit hierarchy
+                    </Button>
+                    <Button size='sm' variant='outline' onClick={() => setChainDeleting(c)}>
+                      Delete
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -134,7 +223,7 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
         title='Exit questionnaire'
         description={
           config.settings.exitQuestionnaireEnabled
-            ? 'Questions apply per exit type and responder; mandatory questions block submission until answered.'
+            ? `Questions apply per exit type, stage, responder and scope; mandatory questions block submission until answered. ${EXIT_QUESTION_VISIBILITY_NOTE}`
             : 'Questionnaire process is disabled in Exit Management setup.'
         }
         actions={
@@ -142,7 +231,7 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
             <Button size='sm' variant='outline' onClick={() => setPreviewOpen(true)}>
               Preview exit questionnaire
             </Button>
-            <Button size='sm' onClick={() => setQuestionOpen(true)}>
+            <Button size='sm' onClick={() => openQuestionDialog(null)}>
               Add question
             </Button>
           </>
@@ -154,21 +243,46 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
               <TableHead>Question</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Exit types</TableHead>
-              <TableHead>Responder</TableHead>
+              <TableHead>Stages</TableHead>
+              <TableHead>Responded by</TableHead>
               <TableHead>Mandatory</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {config.exitQuestions.items.map((q) => (
               <TableRow key={q.id}>
                 <TableCell className='max-w-[280px]'>{q.text}</TableCell>
-                <TableCell>{q.type}</TableCell>
+                <TableCell>
+                  {q.questionFormat
+                    ? q.questionFormat === 'objective'
+                      ? 'Objective'
+                      : 'Subjective'
+                    : q.type}
+                </TableCell>
                 <TableCell><ChipList items={q.exitTypes} /></TableCell>
-                <TableCell>{q.responder}</TableCell>
+                <TableCell>
+                  <ChipList
+                    items={(q.applicableStages ?? ['pre-exit']).map((s) =>
+                      s === 'pre-exit' ? 'Pre-exit' : 'Post-exit'
+                    )}
+                  />
+                </TableCell>
+                <TableCell>{q.respondedBy ?? q.responder}</TableCell>
                 <TableCell>
                   <Badge variant={q.mandatory ? 'badge_active' : 'badge_inactive'}>
                     {q.mandatory ? 'Yes' : 'No'}
                   </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className='flex gap-2'>
+                    <Button size='sm' variant='outline' onClick={() => openQuestionDialog(q)}>
+                      Edit
+                    </Button>
+                    <Button size='sm' variant='outline' onClick={() => setQuestionDeleting(q)}>
+                      Delete
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -178,9 +292,9 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
 
       <SectionCard
         title='Exit tasks (offboarding checklist)'
-        description='Each task has a responsible owner and a time frame relative to the last working day.'
+        description='Each task has a responsible owner (role, employee or reporting manager), a creation trigger and a time frame relative to the last working day.'
         actions={
-          <Button size='sm' onClick={() => setTaskOpen(true)}>
+          <Button size='sm' onClick={() => openTaskDialog(null)}>
             Add task
           </Button>
         }
@@ -191,7 +305,10 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
               <TableHead>Task</TableHead>
               <TableHead>Exit types</TableHead>
               <TableHead>Responsible</TableHead>
+              <TableHead>Created on</TableHead>
+              <TableHead>Days allowed</TableHead>
               <TableHead>Time frame</TableHead>
+              <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -199,81 +316,114 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
               <TableRow key={t.id}>
                 <TableCell className='font-medium'>{t.name}</TableCell>
                 <TableCell><ChipList items={t.exitTypes} /></TableCell>
-                <TableCell>{t.responsible}</TableCell>
+                <TableCell>
+                  {t.responsible}
+                  {t.responsibleType && (
+                    <span className='text-neutral-1000 block text-xs'>
+                      {t.responsibleType === 'Employee'
+                        ? `${t.responsibleDepartment} · ${t.responsiblePosition}`
+                        : t.responsibleType}
+                    </span>
+                  )}
+                </TableCell>
+                <TableCell className='text-xs'>
+                  {t.taskCreatedOn
+                    ? t.taskCreatedOn === 'on-exit-approval'
+                      ? 'On exit approval'
+                      : 'Before LWD'
+                    : '—'}
+                </TableCell>
+                <TableCell>
+                  {t.daysAllowedAfterApproval !== undefined
+                    ? `${t.daysAllowedAfterApproval} day(s)`
+                    : '—'}
+                </TableCell>
                 <TableCell>{t.timing}</TableCell>
+                <TableCell>
+                  <div className='flex gap-2'>
+                    <Button size='sm' variant='outline' onClick={() => openTaskDialog(t)}>
+                      Edit
+                    </Button>
+                    <Button size='sm' variant='outline' onClick={() => setTaskDeleting(t)}>
+                      Delete
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </SectionCard>
 
-      {/* Add approver group */}
-      <Dialog open={groupOpen} onOpenChange={setGroupOpen}>
+      {/* Add / edit approver group */}
+      <ExitApproverGroupDialog
+        open={groupOpen}
+        onOpenChange={setGroupOpen}
+        config={config}
+        editing={groupEditing}
+      />
+
+      {/* Delete approver group */}
+      <ConfirmDeleteDialog
+        open={groupDeleting !== null}
+        onOpenChange={(o) => !o && setGroupDeleting(null)}
+        title='Delete exit approver group?'
+        description={`"${groupDeleting?.name ?? ''}" will no longer route new exits. In-flight exits keep their original routing.`}
+        onConfirm={() => {
+          if (groupDeleting) {
+            config.exitApproverGroups.remove(groupDeleting.id)
+            config.logConfigChange('Exit approver group deleted', groupDeleting.name)
+            toast.success('Approver group deleted')
+          }
+          setGroupDeleting(null)
+        }}
+      />
+
+      {/* Add clearance function */}
+      <Dialog open={chainAddOpen} onOpenChange={setChainAddOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add exit approver group</DialogTitle>
+            <DialogTitle>Add exit clearance approver</DialogTitle>
           </DialogHeader>
           <div className='space-y-3'>
             <div className='space-y-1'>
-              <Label>Group name</Label>
-              <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} />
-            </div>
-            <div className='space-y-1'>
-              <Label>Exit type</Label>
-              <Select value={groupExitType} onValueChange={setGroupExitType}>
-                <SelectTrigger variant='secondary' className='w-full'>
-                  <SelectValue placeholder='Select exit type' />
-                </SelectTrigger>
-                <SelectContent>
-                  {exitTypeNames.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className='space-y-1'>
-              <Label>Locations</Label>
-              <CheckboxGroup options={LOCATIONS} value={groupLocs} onChange={setGroupLocs} />
-            </div>
-            <div className='space-y-1'>
-              <Label>Ordered approvers (comma separated)</Label>
+              <Label>Clearance function</Label>
               <Input
-                value={groupApprovers}
-                onChange={(e) => setGroupApprovers(e.target.value)}
-                placeholder='Vikram Shah, Anita Desai'
+                value={chainName}
+                onChange={(e) => setChainName(e.target.value)}
+                placeholder='e.g. Facilities'
+              />
+            </div>
+            <div className='space-y-1'>
+              <Label>Sign-off hierarchy (comma separated, in order)</Label>
+              <Input
+                value={chainHierarchy}
+                onChange={(e) => setChainHierarchy(e.target.value)}
+                placeholder='Sunil Patil, Anita Desai'
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant='outline' onClick={() => setGroupOpen(false)}>
+            <Button variant='outline' onClick={() => setChainAddOpen(false)}>
               Cancel
             </Button>
             <Button
               onClick={() => {
-                const approvers = groupApprovers.split(',').map((a) => a.trim()).filter(Boolean)
-                if (!groupName.trim() || !groupExitType || groupLocs.length === 0 || approvers.length === 0) {
-                  toast.error('Name, exit type, locations and approvers are required')
+                const hierarchy = chainHierarchy.split(',').map((h) => h.trim()).filter(Boolean)
+                if (!chainName.trim() || hierarchy.length === 0) {
+                  toast.error('Function name and at least one approver are required')
                   return
                 }
-                config.exitApproverGroups.add(
-                  {
-                    name: groupName.trim(),
-                    exitType: groupExitType,
-                    locations: groupLocs,
-                    departments: ['Engineering', 'Finance', 'Human Resources', 'Sales', 'Operations', 'IT Support'],
-                    approvers,
-                  },
-                  'xg'
+                config.clearanceChains.add(
+                  { functionName: chainName.trim(), hierarchy },
+                  'cc'
                 )
-                config.logConfigChange('Exit approver group added', groupName.trim())
-                toast.success('Approver group added')
-                setGroupOpen(false)
-                setGroupName('')
-                setGroupExitType('')
-                setGroupLocs([])
-                setGroupApprovers('')
+                config.logConfigChange(
+                  'Exit clearance approver added',
+                  `${chainName.trim()} · ${hierarchy.join(' → ')}`
+                )
+                toast.success('Clearance approver added — future exits generate its task')
+                setChainAddOpen(false)
               }}
             >
               Save
@@ -317,198 +467,79 @@ export function ConfigExitFlow({ config }: { config: LifecycleConfigStore }) {
         </DialogContent>
       </Dialog>
 
-      {/* Add exit question */}
-      <Dialog open={questionOpen} onOpenChange={setQuestionOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add exit question</DialogTitle>
-          </DialogHeader>
-          <div className='space-y-3'>
-            <div className='space-y-1'>
-              <Label>Question</Label>
-              <Input value={qText} onChange={(e) => setQText(e.target.value)} />
-            </div>
-            <div className='grid grid-cols-2 gap-3'>
-              <div className='space-y-1'>
-                <Label>Type</Label>
-                <Select value={qType} onValueChange={(v) => setQType(v as typeof qType)}>
-                  <SelectTrigger variant='secondary' className='w-full'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {QUESTION_TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className='space-y-1'>
-                <Label>Responder</Label>
-                <Select
-                  value={qResponder}
-                  onValueChange={(v) => setQResponder(v as 'Employee' | 'Manager')}
-                >
-                  <SelectTrigger variant='secondary' className='w-full'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='Employee'>Employee</SelectItem>
-                    <SelectItem value='Manager'>Manager</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className='space-y-1'>
-              <Label>Applies to exit types</Label>
-              <CheckboxGroup options={exitTypeNames} value={qExitTypes} onChange={setQExitTypes} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant='outline' onClick={() => setQuestionOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (!qText.trim() || qExitTypes.length === 0) {
-                  toast.error('Question text and at least one exit type are required')
-                  return
-                }
-                config.exitQuestions.add(
-                  {
-                    text: qText.trim(),
-                    type: qType,
-                    exitTypes: qExitTypes,
-                    responder: qResponder,
-                    mandatory: true,
-                  },
-                  'xq'
-                )
-                config.logConfigChange('Exit question added', qText.trim())
-                toast.success('Question added')
-                setQuestionOpen(false)
-                setQText('')
-                setQExitTypes([])
-              }}
-            >
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete clearance function */}
+      <ConfirmDeleteDialog
+        open={chainDeleting !== null}
+        onOpenChange={(o) => !o && setChainDeleting(null)}
+        title='Delete clearance function?'
+        description={`"${chainDeleting?.functionName ?? ''}" clearance will no longer be generated for future exits.`}
+        onConfirm={() => {
+          if (chainDeleting) {
+            config.clearanceChains.remove(chainDeleting.id)
+            config.logConfigChange(
+              'Exit clearance function deleted',
+              chainDeleting.functionName
+            )
+            toast.success('Clearance function deleted')
+          }
+          setChainDeleting(null)
+        }}
+      />
+
+      {/* Add / edit exit question */}
+      <ExitQuestionDialog
+        open={questionOpen}
+        onOpenChange={setQuestionOpen}
+        config={config}
+        editing={questionEditing}
+      />
+
+      {/* Delete exit question */}
+      <ConfirmDeleteDialog
+        open={questionDeleting !== null}
+        onOpenChange={(o) => !o && setQuestionDeleting(null)}
+        title='Delete exit question?'
+        description={`"${questionDeleting?.text ?? ''}" will be removed from future exit questionnaires.`}
+        onConfirm={() => {
+          if (questionDeleting) {
+            config.exitQuestions.remove(questionDeleting.id)
+            config.logConfigChange('Exit question deleted', questionDeleting.text)
+            toast.success('Question deleted')
+          }
+          setQuestionDeleting(null)
+        }}
+      />
 
       {/* Questionnaire preview */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className='max-h-[80vh] overflow-y-auto'>
-          <DialogHeader>
-            <DialogTitle>Exit questionnaire preview (as responder sees it)</DialogTitle>
-          </DialogHeader>
-          <div className='space-y-3'>
-            {config.exitQuestions.items.map((q, i) => (
-              <div key={q.id} className='rounded-[6px] border border-gray-200 px-3 py-2'>
-                <p className='text-sm font-medium'>
-                  {i + 1}. {q.text}
-                  {q.mandatory && <span className='text-destructive'> *</span>}
-                </p>
-                <p className='text-neutral-1000 text-xs'>
-                  {q.type} · answered by {q.responder} · exit types:{' '}
-                  {q.exitTypes.join(', ')}
-                </p>
-                <Input className='mt-2' placeholder='Answer field (preview)' disabled />
-              </div>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ExitQuestionnairePreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        config={config}
+      />
 
-      {/* Add exit task */}
-      <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add exit task</DialogTitle>
-          </DialogHeader>
-          <div className='space-y-3'>
-            <div className='space-y-1'>
-              <Label>Task name</Label>
-              <Input value={taskName} onChange={(e) => setTaskName(e.target.value)} />
-            </div>
-            <div className='space-y-1'>
-              <Label>Responsible (position level or reporting manager)</Label>
-              <Select value={taskOwner} onValueChange={setTaskOwner}>
-                <SelectTrigger variant='secondary' className='w-full'>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {['Reporting Manager', 'HR', 'IT Support', 'Finance', 'Admin'].map((o) => (
-                    <SelectItem key={o} value={o}>
-                      {o}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className='grid grid-cols-2 gap-3'>
-              <div className='space-y-1'>
-                <Label>Relative to LWD</Label>
-                <Select
-                  value={taskWhen}
-                  onValueChange={(v) => setTaskWhen(v as 'Before LWD' | 'After LWD')}
-                >
-                  <SelectTrigger variant='secondary' className='w-full'>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='Before LWD'>Before LWD</SelectItem>
-                    <SelectItem value='After LWD'>After LWD</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className='space-y-1'>
-                <Label>Day(s)</Label>
-                <Input type='number' value={taskDays} onChange={(e) => setTaskDays(e.target.value)} />
-              </div>
-            </div>
-            <div className='space-y-1'>
-              <Label>Applies to exit types</Label>
-              <CheckboxGroup
-                options={exitTypeNames}
-                value={taskExitTypes}
-                onChange={setTaskExitTypes}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant='outline' onClick={() => setTaskOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (!taskName.trim() || taskExitTypes.length === 0) {
-                  toast.error('Task name and at least one exit type are required')
-                  return
-                }
-                config.exitTaskDefs.add(
-                  {
-                    name: taskName.trim(),
-                    exitTypes: taskExitTypes,
-                    responsible: taskOwner,
-                    timing: `${taskWhen} - ${Number(taskDays) || 0} Day(s)`,
-                  },
-                  'xtk'
-                )
-                config.logConfigChange('Exit task added', taskName.trim())
-                toast.success('Exit task added — future exits include it')
-                setTaskOpen(false)
-                setTaskName('')
-                setTaskExitTypes([])
-              }}
-            >
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Add / edit exit task */}
+      <ExitTaskDialog
+        open={taskOpen}
+        onOpenChange={setTaskOpen}
+        config={config}
+        editing={taskEditing}
+      />
+
+      {/* Delete exit task */}
+      <ConfirmDeleteDialog
+        open={taskDeleting !== null}
+        onOpenChange={(o) => !o && setTaskDeleting(null)}
+        title='Delete exit task?'
+        description={`"${taskDeleting?.name ?? ''}" will be removed from the offboarding checklist for future exits.`}
+        onConfirm={() => {
+          if (taskDeleting) {
+            config.exitTaskDefs.remove(taskDeleting.id)
+            config.logConfigChange('Exit task deleted', taskDeleting.name)
+            toast.success('Exit task deleted')
+          }
+          setTaskDeleting(null)
+        }}
+      />
     </div>
   )
 }

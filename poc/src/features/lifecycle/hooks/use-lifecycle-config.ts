@@ -38,7 +38,10 @@ function useList<T extends { id: string }>(seed: T[]) {
       prev.map((i) => (i.id === id ? { ...i, ...patch } : i))
     )
   }, [])
-  return { items, add, update }
+  const remove = useCallback((id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id))
+  }, [])
+  return { items, add, update, remove }
 }
 
 /**

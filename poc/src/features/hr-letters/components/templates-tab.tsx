@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Eye, PencilSimple, Plus } from 'phosphor-react'
+import { ArrowsClockwise, Eye, PencilSimple, Plus } from 'phosphor-react'
+import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,8 @@ import {
 import { TemplateOverlay } from './template-overlay'
 import { TemplatePreviewDialog } from './template-preview-dialog'
 
+const PAGE_SIZE = 5
+
 interface TemplatesTabProps {
   store: LetterTemplatesStore
 }
@@ -27,7 +30,9 @@ interface TemplatesTabProps {
  * HR letter/certificate template configuration (HLC-01): each of the eight
  * document types carries its own branded, versioned template. Editing is
  * Company Admin only; Group Company Admin reviews read-only for group
- * governance (HLC-15). View opens the read-only preview (HLC-26).
+ * governance (HLC-15). View opens the read-only preview (HLC-26). The list
+ * toolbar carries refresh (LT-03) and Previous/Next paging with a displayed
+ * item range (LT-05).
  */
 export function TemplatesTab({ store }: TemplatesTabProps) {
   const { role } = useRole()
@@ -36,6 +41,7 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [editing, setEditing] = useState<LetterTemplate | null>(null)
   const [previewing, setPreviewing] = useState<LetterTemplate | null>(null)
+  const [page, setPage] = useState(0)
 
   const letterTemplates = useMemo(
     () =>
@@ -46,6 +52,12 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
   )
 
   const coveredTypes = new Set(letterTemplates.map((t) => t.docType))
+
+  const total = letterTemplates.length
+  const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1)
+  const safePage = Math.min(page, lastPage)
+  const pageStart = safePage * PAGE_SIZE
+  const pageItems = letterTemplates.slice(pageStart, pageStart + PAGE_SIZE)
 
   const handleSubmit = (draft: TemplateDraft) => {
     if (editing) store.updateTemplate(editing.id, draft, 'Lakshmi Rao (Company Admin)')
@@ -83,6 +95,44 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
       </div>
 
       <div className='rounded-[6px] border border-gray-200 bg-white'>
+        <div className='flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 px-3 py-2'>
+          <span className='text-neutral-1000 text-sm'>
+            {total === 0
+              ? 'No letter templates configured yet'
+              : `Displaying items ${pageStart + 1} - ${Math.min(pageStart + PAGE_SIZE, total)} of ${total}`}
+          </span>
+          <div className='flex items-center gap-2'>
+            <Button
+              variant='icon2'
+              className='text-neutral-1900 h-7 w-7'
+              aria-label='Refresh'
+              onClick={() => {
+                setPage(0)
+                toast.success(
+                  'Templates refreshed — showing the latest saved versions'
+                )
+              }}
+            >
+              <ArrowsClockwise size={16} weight='bold' />
+            </Button>
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={safePage === 0}
+              onClick={() => setPage(Math.max(0, safePage - 1))}
+            >
+              Previous
+            </Button>
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={safePage >= lastPage}
+              onClick={() => setPage(Math.min(lastPage, safePage + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -95,7 +145,7 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {letterTemplates.map((t) => (
+            {pageItems.map((t) => (
               <TableRow key={t.id}>
                 <TableCell className='font-medium'>{t.name}</TableCell>
                 <TableCell>{t.docType}</TableCell>

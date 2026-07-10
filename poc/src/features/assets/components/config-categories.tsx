@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus } from 'phosphor-react'
+import { ArrowsClockwise, CaretLeft, CaretRight, Plus } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,13 +31,18 @@ interface ConfigCategoriesProps {
   assets: Asset[]
 }
 
+const PAGE_SIZE = 5
+
 /**
  * Category taxonomy master (ASM-19, ASM-37): name, code, maintain-asset-ids
  * flag and approximate life in months. Changes are versioned/effective-dated;
- * categories in use can only be deactivated after reassignment.
+ * categories in use can only be deactivated after reassignment. The list is
+ * paginated with Previous/Next controls and offers a Refresh action so admins
+ * can browse and re-pull the latest categories (ASC-06).
  */
 export function ConfigCategories({ config, assets }: ConfigCategoriesProps) {
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<AssetCategoryConfig | null>(null)
   const [draft, setDraft] = useState<CategoryDraft>({
@@ -56,6 +61,22 @@ export function ConfigCategories({ config, assets }: ConfigCategoriesProps) {
       ),
     [config.categories, search]
   )
+
+  // Pagination over the filtered list (ASC-06). Clamp the page whenever the
+  // filter shrinks the result set below the current page start.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paged = useMemo(
+    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filtered, currentPage]
+  )
+
+  const handleRefresh = () => {
+    setPage(1)
+    toast.success(
+      `Category list refreshed — showing latest taxonomy v${config.taxonomyVersion} (${config.categories.length} categories)`
+    )
+  }
 
   const inUseCount = (name: string) => assets.filter((a) => a.category === name).length
 
@@ -96,12 +117,30 @@ export function ConfigCategories({ config, assets }: ConfigCategoriesProps) {
         <div className='flex items-center gap-3'>
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
             placeholder='Search category or code'
             className='h-7 w-[220px]'
           />
-          <Button variant='outline' className='h-7 rounded-[6px] px-2.5' onClick={() => setSearch('')}>
+          <Button
+            variant='outline'
+            className='h-7 rounded-[6px] px-2.5'
+            onClick={() => {
+              setSearch('')
+              setPage(1)
+            }}
+          >
             Reset
+          </Button>
+          <Button
+            variant='outline'
+            className='h-7 gap-1 rounded-[6px] px-2.5'
+            onClick={handleRefresh}
+          >
+            <ArrowsClockwise size={14} weight='bold' />
+            Refresh
           </Button>
           <Badge variant='open'>
             taxonomy v{config.taxonomyVersion} — versioned, effective-dated
@@ -132,7 +171,7 @@ export function ConfigCategories({ config, assets }: ConfigCategoriesProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((c) => (
+            {paged.map((c) => (
               <TableRow key={c.id}>
                 <TableCell className='text-paragraph-sm text-neutral-1000'>{c.id}</TableCell>
                 <TableCell className='text-sm font-medium'>{c.name}</TableCell>
@@ -159,8 +198,51 @@ export function ConfigCategories({ config, assets }: ConfigCategoriesProps) {
                 </TableCell>
               </TableRow>
             ))}
+            {paged.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={8}
+                  className='text-paragraph-sm text-neutral-1000 py-6 text-center'
+                >
+                  No categories match the search
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
+        <div className='border-grey-200 flex items-center justify-between border-t px-3 py-2'>
+          <span className='text-paragraph-sm text-neutral-1000'>
+            {filtered.length === 0
+              ? '0 categories'
+              : `Showing ${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(
+                  currentPage * PAGE_SIZE,
+                  filtered.length
+                )} of ${filtered.length} categories`}
+          </span>
+          <div className='flex items-center gap-2'>
+            <Button
+              variant='outline'
+              className='h-7 gap-1 rounded-[6px] px-2.5'
+              disabled={currentPage <= 1}
+              onClick={() => setPage(currentPage - 1)}
+            >
+              <CaretLeft size={12} weight='bold' />
+              Previous
+            </Button>
+            <span className='text-paragraph-sm text-neutral-1000'>
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              variant='outline'
+              className='h-7 gap-1 rounded-[6px] px-2.5'
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage(currentPage + 1)}
+            >
+              Next
+              <CaretRight size={12} weight='bold' />
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

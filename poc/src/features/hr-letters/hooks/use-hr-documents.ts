@@ -146,16 +146,30 @@ export function useHrDocuments() {
   /**
    * Dispatch through the notification engine (HLC-08/09/21). Outcome is
    * deterministic: in-app needs portal access, a bouncing mailbox fails email,
-   * print always yields a print-ready copy.
+   * print always yields a print-ready copy, and handover records who handed
+   * the physical document over and when. Other employees can be CC'd on the
+   * communication; CC names are stored on the distribution record.
    */
   const distribute = useCallback(
-    (id: string, channel: Channel, employee: Employee | undefined) => {
+    (
+      id: string,
+      channel: Channel,
+      employee: Employee | undefined,
+      options?: {
+        ccRecipients?: string[]
+        handedOverBy?: string
+        handoverDate?: string
+      }
+    ) => {
       const doc = documents.find((d) => d.id === id)
       if (!doc) return
       if (doc.status !== 'approved' && doc.status !== 'distributed') {
         toast.error('Only finalized documents can be dispatched')
         return
       }
+      const ccRecipients = options?.ccRecipients?.length
+        ? options.ccRecipients
+        : undefined
       let outcome: DeliveryOutcome
       let detail: string
       if (channel === 'in-app') {
@@ -169,6 +183,9 @@ export function useHrDocuments() {
           outcome = 'delivered'
           detail = employee?.email ?? 'Employee email'
         }
+      } else if (channel === 'handover') {
+        outcome = 'delivered'
+        detail = `Physical copy handed over by ${options?.handedOverBy ?? 'HR desk'}`
       } else {
         outcome = 'sent'
         detail = 'Print-ready copy generated'
@@ -187,6 +204,13 @@ export function useHrDocuments() {
                     sentOn: todayIso(),
                     outcome,
                     detail,
+                    ccRecipients,
+                    handedOverBy:
+                      channel === 'handover' ? options?.handedOverBy : undefined,
+                    handoverDate:
+                      channel === 'handover'
+                        ? (options?.handoverDate ?? todayIso())
+                        : undefined,
                   },
                 ],
               }
@@ -195,14 +219,30 @@ export function useHrDocuments() {
       )
       appendAudit(
         id,
-        'Notification engine',
-        outcome === 'failed' ? 'Delivery failed' : 'Distributed',
-        `${channel} dispatch — ${detail}`
+        channel === 'handover'
+          ? (options?.handedOverBy ?? 'HR desk')
+          : 'Notification engine',
+        outcome === 'failed'
+          ? 'Delivery failed'
+          : channel === 'handover'
+            ? 'Handed over'
+            : 'Distributed',
+        `${channel} dispatch — ${detail}${
+          ccRecipients ? ` · CC: ${ccRecipients.join(', ')}` : ''
+        }`
       )
       if (outcome === 'failed') {
         toast.error(`Email delivery failed — re-send via another channel`)
+      } else if (channel === 'handover') {
+        toast.success(
+          `Handover recorded — ${options?.handedOverBy ?? 'HR desk'} handed the document to ${doc.employeeName}`
+        )
       } else {
-        toast.success(`Document dispatched via ${channel} (${outcome})`)
+        toast.success(
+          `Document dispatched via ${channel} (${outcome})${
+            ccRecipients ? ` — CC'd ${ccRecipients.length} employee(s)` : ''
+          }`
+        )
       }
     },
     [documents, appendAudit]

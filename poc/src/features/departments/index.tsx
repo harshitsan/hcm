@@ -74,7 +74,7 @@ export function Departments() {
 
           {/* Remount when the role changes so the default tab stays valid. */}
           <Tabs key={role} defaultValue={tabs[0].value} className='w-full'>
-            <TabsList className='mb-2'>
+            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>
                   {tab.label}
@@ -106,22 +106,16 @@ export function Departments() {
               <TabsContent value='admin'>
                 <EngineArtifactsPanel module='Departments' />
                 {isCompanyAdmin ? (
-                  <Tabs defaultValue='settings' className='w-full'>
-                    <TabsList className='bg-transparent p-0'>
-                      <TabsTrigger variant='ghost' value='settings'>
-                        Settings
-                      </TabsTrigger>
-                      <TabsTrigger variant='ghost' value='reports'>
-                        Reports & audit
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value='settings'>
+                  <div className='flex flex-col gap-6'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Settings</h3>
                       <ConfigTab store={store} config={config} />
-                    </TabsContent>
-                    <TabsContent value='reports'>
+                    </section>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Reports & audit</h3>
                       <GovernanceTab store={store} config={config} />
-                    </TabsContent>
-                  </Tabs>
+                    </section>
+                  </div>
                 ) : (
                   <GovernanceTab store={store} config={config} />
                 )}

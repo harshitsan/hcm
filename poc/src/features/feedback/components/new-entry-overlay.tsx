@@ -21,12 +21,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { type CategoryDef, type FormFieldDef } from '../data/config'
 import { ENTRY_TYPES } from '../data/entries'
 import { type EntryDraft } from '../hooks/use-feedback-entries'
+import { EmployeeRolePicker } from './employee-role-picker'
 
 interface NewEntryOverlayProps {
   open: boolean
@@ -46,6 +48,10 @@ const baseSchema = z.object({
   anonymous: z.boolean(),
   onBehalfOf: z.string(),
   details: z.record(z.string(), z.string()),
+  sendTo: z.array(z.string()),
+  copyTo: z.array(z.string()),
+  responseEmails: z.string(),
+  comments: z.string(),
 })
 
 type EntryFormValues = z.infer<typeof baseSchema>
@@ -96,6 +102,10 @@ export function NewEntryOverlay({
       anonymous: false,
       onBehalfOf: '',
       details: Object.fromEntries(activeFields.map((f) => [f.id, ''])),
+      sendTo: [],
+      copyTo: [],
+      responseEmails: '',
+      comments: '',
     }),
     [activeFields]
   )
@@ -119,6 +129,15 @@ export function NewEntryOverlay({
       details: values.details,
       anonymous: values.anonymous,
       onBehalfOf: values.onBehalfOf.trim() ? values.onBehalfOf.trim() : null,
+      sendTo: values.sendTo,
+      copyTo: values.copyTo,
+      responseEmails: values.anonymous
+        ? values.responseEmails
+            .split(',')
+            .map((e) => e.trim())
+            .filter(Boolean)
+        : [],
+      comments: values.comments.trim(),
     })
     onOpenChange(false)
   }
@@ -144,20 +163,28 @@ export function NewEntryOverlay({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Entry type</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger variant='secondary' className='w-full'>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
+                    <FormControl>
+                      <RadioGroup
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        className='flex items-center gap-6'
+                      >
                         {ENTRY_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>
+                          <label
+                            key={t}
+                            className='flex items-center gap-2 text-sm'
+                          >
+                            <RadioGroupItem value={t} />
                             {t}
-                          </SelectItem>
+                            <span className='text-neutral-1000 text-xs'>
+                              {t === 'Feedback'
+                                ? '— share feedback on anything'
+                                : '— raise a grievance'}
+                            </span>
+                          </label>
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </RadioGroup>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -220,6 +247,58 @@ export function NewEntryOverlay({
                 />
               ))}
 
+              {/* Send to / Copy to via the Employee-or-Role picker with the
+                  Applicable location → Roles → Employees cascade. */}
+              <FormField
+                control={form.control}
+                name='sendTo'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <EmployeeRolePicker
+                        label='Send to'
+                        value={field.value}
+                        onChange={field.onChange}
+                        hint='Choose Employee for specific employee(s) or Role to address a role in the organization. Leave empty to use the configured receivers.'
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='copyTo'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <EmployeeRolePicker
+                        label='Copy to'
+                        value={field.value}
+                        onChange={field.onChange}
+                        hint='Tip: employees marked "Copy to" can only see the response but cannot submit a response.'
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='comments'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Comments (optional)</FormLabel>
+                    <FormControl>
+                      <Textarea rows={2} placeholder='Enter the comments (if any)' {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               {anonymousEnabled && (
                 <FormField
                   control={form.control}
@@ -240,6 +319,29 @@ export function NewEntryOverlay({
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {anonymous && (
+                <FormField
+                  control={form.control}
+                  name='responseEmails'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Send response to emails</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='Comma-separated email ids for the response'
+                          {...field}
+                        />
+                      </FormControl>
+                      <p className='text-paragraph-sm text-neutral-1000'>
+                        Responses to this anonymous entry are sent to these
+                        addresses without linking them to your identity.
+                      </p>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />

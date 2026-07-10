@@ -8,6 +8,7 @@ import { useRole, type Role } from '@/context/role-context'
 import { ApproverGroupsTab } from './components/approver-groups-tab'
 import { AuditTab } from './components/audit-tab'
 import { BusinessLogicTab } from './components/business-logic-tab'
+import { ConfigurationHubTab } from './components/configuration-hub-tab'
 import { DefinitionsTab } from './components/definitions-tab'
 import {
   EngineSearch,
@@ -26,6 +27,7 @@ import { useApproverGroups } from './hooks/use-approver-groups'
 import { useAttendanceConfig } from './hooks/use-attendance-config'
 import { useAuditTrail } from './hooks/use-audit-trail'
 import { useBusinessLogic } from './hooks/use-business-logic'
+import { useConfiguration } from './hooks/use-configuration'
 import { useDefinitions } from './hooks/use-definitions'
 import { useInstances } from './hooks/use-instances'
 import { usePlatform } from './hooks/use-platform'
@@ -94,6 +96,16 @@ const TABS: TabDef[] = [
 /** Classic (pre-catalog) surfaces, grouped 5 → 3; sections inside each pane
     are individually role-gated so the old permissions still hold. */
 const ADMIN_TABS: TabDef[] = [
+  {
+    value: 'configuration',
+    label: 'Configuration hub',
+    roles: [
+      'Company Admin',
+      'Group Company Admin',
+      'Portfolio Admin',
+      'Platform Admin',
+    ],
+  },
   {
     value: 'flows',
     label: 'Approval workflows & routing',
@@ -184,8 +196,18 @@ export function Workflows() {
   })
   const platform = usePlatform({ append: audit.append })
   const businessLogic = useBusinessLogic({ actor })
+  const configuration = useConfiguration({
+    append: audit.append,
+    actor,
+    actorRole: role,
+  })
 
   const canConfigure = hasRole('Company Admin', 'Group Company Admin')
+  const canConfigureHub = hasRole(
+    'Company Admin',
+    'Group Company Admin',
+    'Platform Admin'
+  )
   const visibleAdminTabs = ADMIN_TABS.filter((t) => t.roles.includes(role))
   const visibleTabs = TABS.filter(
     (t) =>
@@ -195,18 +217,15 @@ export function Workflows() {
 
   // Controlled tab state so search results can navigate anywhere directly.
   const [topTab, setTopTab] = useState<string | null>(null)
-  const [adminTab, setAdminTab] = useState<string | null>(null)
   const [catalogSearch, setCatalogSearch] = useState('')
 
   useEffect(() => {
     setTopTab(null)
-    setAdminTab(null)
     setCatalogSearch('')
   }, [role])
 
   const navigate = (target: SearchTarget) => {
     setTopTab(target.top)
-    if (target.admin) setAdminTab(target.admin)
     if (target.catalogQuery !== undefined) setCatalogSearch(target.catalogQuery)
   }
 
@@ -224,6 +243,53 @@ export function Workflows() {
           hint: `${ARTIFACT_TYPE_LABELS[a.type]} · ${a.targetModule} · v${a.version}`,
           group: 'Configure — artifact catalog',
           target: { top: 'business-logic', catalogQuery: a.name },
+        })
+      }
+    }
+    if (adminVisible('configuration')) {
+      for (const a of configuration.areas) {
+        entries.push({
+          id: `cfg-area-${a.id}`,
+          label: a.name,
+          hint: `Setup area · ${a.group} · ${a.owner}`,
+          group: 'Configuration hub',
+          target: { top: 'admin', admin: 'configuration' },
+        })
+      }
+      for (const l of configuration.localizations) {
+        entries.push({
+          id: `cfg-loc-${l.id}`,
+          label: l.name,
+          hint: `Localization · ${l.timezone} · ${l.currency}`,
+          group: 'Configuration hub',
+          target: { top: 'admin', admin: 'configuration' },
+        })
+      }
+      for (const h of configuration.headOffices) {
+        entries.push({
+          id: `cfg-ho-${h.id}`,
+          label: h.name,
+          hint: `${h.type} · ${h.location}`,
+          group: 'Configuration hub',
+          target: { top: 'admin', admin: 'configuration' },
+        })
+      }
+      for (const i of configuration.integrations) {
+        entries.push({
+          id: `cfg-int-${i.id}`,
+          label: i.name,
+          hint: `Integration · ${i.system} · ${i.syncFrequency}`,
+          group: 'Configuration hub',
+          target: { top: 'admin', admin: 'configuration' },
+        })
+      }
+      for (const r of configuration.alertRules) {
+        entries.push({
+          id: `cfg-al-${r.id}`,
+          label: r.name,
+          hint: `Alert rule · ${r.channels.join(', ')}`,
+          group: 'Configuration hub',
+          target: { top: 'admin', admin: 'configuration' },
         })
       }
     }
@@ -310,6 +376,11 @@ export function Workflows() {
     visibleTabs,
     visibleAdminTabs,
     businessLogic.artifacts,
+    configuration.areas,
+    configuration.localizations,
+    configuration.headOffices,
+    configuration.integrations,
+    configuration.alertRules,
     definitions.definitions,
     routing.rules,
     attendanceConfig.rules,
@@ -391,24 +462,34 @@ export function Workflows() {
                 <p className='text-neutral-1000 mb-3 text-sm'>
                   Classic configuration screens, kept while they are absorbed
                   into Configure — each screen here corresponds to artifacts in
-                  the catalog. Use “Find any setting…” above to jump straight
+                  the catalog. Use "Find any setting…" above to jump straight
                   to anything.
                 </p>
-                <Tabs
-                  value={adminTab ?? visibleAdminTabs[0]?.value}
-                  onValueChange={setAdminTab}
-                  key={role}
-                >
-                  <TabsList className='mb-2 flex-wrap'>
-                    {visibleAdminTabs.map((t) => (
-                      <TabsTrigger key={t.value} value={t.value}>
-                        {t.label}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                <div className='flex flex-col gap-6'>
+                  {visibleAdminTabs.some((t) => t.value === 'configuration') && (
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Configuration hub
+                      </h3>
+                      <div className='space-y-6'>
+                        <AdminSection
+                          title='Configuration hub'
+                          caption='Every HRMS setup area in one place (CFG-01), organization settings — localization & head office (CFG-02) — and integrations & alerts (CFG-08).'
+                        >
+                          <ConfigurationHubTab
+                            store={configuration}
+                            canConfigure={canConfigureHub}
+                          />
+                        </AdminSection>
+                      </div>
+                    </section>
+                  )}
 
                   {visibleAdminTabs.some((t) => t.value === 'flows') && (
-                    <TabsContent value='flows'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Approval workflows &amp; routing
+                      </h3>
                       <div className='space-y-6'>
                         <AdminSection
                           title='Approval workflows'
@@ -434,11 +515,14 @@ export function Workflows() {
                           />
                         </AdminSection>
                       </div>
-                    </TabsContent>
+                    </section>
                   )}
 
                   {visibleAdminTabs.some((t) => t.value === 'approvers') && (
-                    <TabsContent value='approvers'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Approver chains &amp; SLAs
+                      </h3>
                       <div className='space-y-6'>
                         {hasRole('Company Admin', 'Group Company Admin') && (
                           <>
@@ -458,11 +542,14 @@ export function Workflows() {
                           <SlaTab store={slaConfig} canConfigure={canConfigure} />
                         </AdminSection>
                       </div>
-                    </TabsContent>
+                    </section>
                   )}
 
                   {visibleAdminTabs.some((t) => t.value === 'settings') && (
-                    <TabsContent value='settings'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                        Settings &amp; history
+                      </h3>
                       <div className='space-y-6'>
                         {hasRole('Platform Admin', 'Company Admin') && (
                           <>
@@ -489,9 +576,9 @@ export function Workflows() {
                           />
                         </AdminSection>
                       </div>
-                    </TabsContent>
+                    </section>
                   )}
-                </Tabs>
+                </div>
               </TabsContent>
             </Tabs>
           )}

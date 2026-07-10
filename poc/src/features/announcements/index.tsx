@@ -6,9 +6,11 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { ConfigTab } from './components/config-tab'
+import { CoordinatorsCard } from './components/coordinators-card'
 import { FeedTab } from './components/feed-tab'
 import { ImagesTab } from './components/images-tab'
 import { ManageTab } from './components/manage-tab'
+import { ReviewTab } from './components/review-tab'
 import { useAnnouncementSettings } from './hooks/use-announcement-settings'
 import { useAnnouncements } from './hooks/use-announcements'
 
@@ -34,7 +36,7 @@ export function Announcements() {
 
   const availableTabs = useMemo(() => {
     const tabs: string[] = []
-    if (isAdmin) tabs.push('manage')
+    if (isAdmin) tabs.push('manage', 'review')
     tabs.push('feed')
     if (isAdmin) tabs.push('admin')
     return tabs
@@ -58,6 +60,11 @@ export function Announcements() {
               {isAdmin && (
                 <TabsTrigger variant='primary' value='manage'>
                   Manage
+                </TabsTrigger>
+              )}
+              {isAdmin && (
+                <TabsTrigger variant='primary' value='review'>
+                  Review
                 </TabsTrigger>
               )}
               <TabsTrigger variant='primary' value='feed'>
@@ -91,6 +98,11 @@ export function Announcements() {
                     <ManageTab store={store} orgConfig={settings.orgConfig} />
                   </TabsContent>
                 )}
+                {isAdmin && (
+                  <TabsContent value='review'>
+                    <ReviewTab store={store} orgConfig={settings.orgConfig} />
+                  </TabsContent>
+                )}
                 <TabsContent value='feed'>
                   <FeedTab store={store} images={settings.images} />
                 </TabsContent>
@@ -100,35 +112,42 @@ export function Announcements() {
                       <EngineArtifactsPanel module='Announcements' />
                     </div>
                     {isPlatformAdmin ? (
-                      <Tabs
-                        key={moduleDisabled ? 'disabled' : 'enabled'}
-                        defaultValue={moduleDisabled ? 'settings' : 'images'}
-                        className='w-full'
-                      >
-                        <TabsList className='mb-3 bg-transparent p-0'>
-                          {!moduleDisabled && (
-                            <TabsTrigger variant='primary' value='images'>
-                              Images
-                            </TabsTrigger>
-                          )}
-                          <TabsTrigger variant='primary' value='settings'>
-                            Settings
-                          </TabsTrigger>
-                        </TabsList>
+                      <div className='flex flex-col gap-6'>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Coordinators</h3>
+                          <CoordinatorsCard
+                            settings={settings}
+                            orgConfig={settings.orgConfig}
+                          />
+                        </section>
                         {!moduleDisabled && (
-                          <TabsContent value='images'>
+                          <section>
+                            <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Images</h3>
                             <ImagesTab settings={settings} />
-                          </TabsContent>
+                          </section>
                         )}
-                        <TabsContent value='settings'>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Settings</h3>
                           <ConfigTab
                             settings={settings}
                             onRunSchedulingEngine={store.runSchedulingEngine}
                           />
-                        </TabsContent>
-                      </Tabs>
+                        </section>
+                      </div>
                     ) : (
-                      <ImagesTab settings={settings} />
+                      <div className='flex flex-col gap-6'>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Coordinators</h3>
+                          <CoordinatorsCard
+                            settings={settings}
+                            orgConfig={settings.orgConfig}
+                          />
+                        </section>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Images</h3>
+                          <ImagesTab settings={settings} />
+                        </section>
+                      </div>
                     )}
                   </TabsContent>
                 )}

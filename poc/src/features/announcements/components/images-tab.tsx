@@ -35,16 +35,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { type AnnouncementImage } from '../data/announcements'
+import { EVENT_BASES, type AnnouncementImage } from '../data/announcements'
 import {
   type AnnouncementSettingsStore,
   type ImageDraft,
 } from '../hooks/use-announcement-settings'
 
-const EVENT_TYPES = ['Date of Birth', 'Service Anniversary'] as const
+const EVENT_TYPES = EVENT_BASES.filter((b) => b !== 'None')
 
 const imageSchema = z.object({
-  name: z.string().min(3, 'Image name is required'),
+  name: z.string().min(3, 'Upload an image or enter its file name'),
+  url: z.url('Enter a valid URL').or(z.literal('')),
   eventType: z.enum(EVENT_TYPES),
   years: z.coerce
     .number<number>()
@@ -57,6 +58,7 @@ type ImageFormValues = z.infer<typeof imageSchema>
 
 const emptyImage: ImageFormValues = {
   name: '',
+  url: '',
   eventType: 'Service Anniversary',
   years: 1,
 }
@@ -82,7 +84,12 @@ export function ImagesTab({ settings }: ImagesTabProps) {
     if (!dialogOpen) return
     form.reset(
       editing
-        ? { name: editing.name, eventType: editing.eventType, years: editing.years }
+        ? {
+            name: editing.name,
+            url: editing.url,
+            eventType: editing.eventType,
+            years: editing.years,
+          }
         : emptyImage
     )
   }, [dialogOpen, editing, form])
@@ -146,9 +153,16 @@ export function ImagesTab({ settings }: ImagesTabProps) {
                     <div className='bg-blue-150 flex size-8 items-center justify-center rounded-[6px]'>
                       <ImageSquare size={16} className='text-blue-1400' />
                     </div>
-                    <span className='text-neutral-1600 text-sm font-medium'>
-                      {img.name}
-                    </span>
+                    <div className='flex min-w-0 flex-col'>
+                      <span className='text-neutral-1600 text-sm font-medium'>
+                        {img.name}
+                      </span>
+                      {img.url && (
+                        <span className='text-paragraph-sm text-neutral-1000 max-w-[280px] truncate'>
+                          {img.url}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -206,6 +220,21 @@ export function ImagesTab({ settings }: ImagesTabProps) {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
+              <FormItem>
+                <FormLabel>Upload image (browse)</FormLabel>
+                <FormControl>
+                  <Input
+                    type='file'
+                    accept='image/*'
+                    onChange={(e) => {
+                      const fileName = e.target.files?.[0]?.name
+                      if (fileName) {
+                        form.setValue('name', fileName, { shouldValidate: true })
+                      }
+                    }}
+                  />
+                </FormControl>
+              </FormItem>
               <FormField
                 control={form.control}
                 name='name'
@@ -214,6 +243,22 @@ export function ImagesTab({ settings }: ImagesTabProps) {
                     <FormLabel>Image name</FormLabel>
                     <FormControl>
                       <Input placeholder='anniversary-20yr-diamond.png' {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='url'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Image URL (optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder='https://assets.aster.dev/announcements/…'
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

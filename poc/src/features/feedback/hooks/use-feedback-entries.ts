@@ -4,6 +4,7 @@ import {
   auditEvent,
   seedEntries,
   type CompanyName,
+  type EntryResponse,
   type EntryStatus,
   type EntryType,
   type FeedbackEntry,
@@ -15,6 +16,23 @@ export interface EntryDraft {
   details: Record<string, string>
   anonymous: boolean
   onBehalfOf: string | null
+  /** "Send to" recipients (employees, or roles suffixed "(role)"). */
+  sendTo: string[]
+  /** "Copy to" recipients — can view responses but cannot respond. */
+  copyTo: string[]
+  /** Anonymous only: emails (comma-separated input) receiving responses. */
+  responseEmails: string[]
+  /** Optional submitter comments. */
+  comments: string
+}
+
+/** Receiver response draft (Kensium respond form; Type is read-only). */
+export interface ResponseDraft {
+  sendTo: string[]
+  copyTo: string[]
+  comments: string
+  showToSubmitter: boolean
+  status: EntryStatus
 }
 
 /** Routing inputs the workflow engine reads from governed config (FBG-16). */
@@ -35,8 +53,9 @@ function daysBetween(from: string, to: string): number {
   return Math.floor(ms / 86_400_000)
 }
 
-let entrySeq = 14
+let entrySeq = 15
 let anonSeq = 0
+let respondSeq = 100
 
 /**
  * In-memory Feedback & Grievance entry store. Submission enters the
@@ -48,9 +67,14 @@ export function useFeedbackEntries() {
 
   const submitEntry = useCallback((draft: EntryDraft, ctx: RoutingContext) => {
     entrySeq += 1
-    const receivers = draft.anonymous
-      ? ctx.anonymousReceivers
-      : ctx.nonAnonymousReceivers
+    /** Explicit "Send to" picks win; otherwise fall back to configured receiver roles. */
+    const explicitTargets = draft.sendTo.filter(Boolean)
+    const receivers =
+      explicitTargets.length > 0
+        ? explicitTargets
+        : draft.anonymous
+          ? ctx.anonymousReceivers
+          : ctx.nonAnonymousReceivers
     const routed = receivers.length > 0
     anonSeq += 1
     const anonymousRef = draft.anonymous
@@ -78,14 +102,33 @@ export function useFeedbackEntries() {
       submittedOn: now,
       lastActionOn: now,
       schemaVersion: ctx.schemaVersion,
+      sendTo: receivers,
+      copyTo: draft.copyTo,
+      responseEmails: draft.anonymous ? draft.responseEmails : [],
+      comments: draft.comments,
+      responses: [],
       audit: [
         draft.onBehalfOf
           ? auditEvent(now, ctx.actor, 'Submitted on behalf', `Filed on behalf of ${draft.onBehalfOf} (Employee — Non-User).`)
-          : auditEvent(now, submitterLabel, 'Submitted', `Entry created via submission form (schema v${ctx.schemaVersion}).${draft.anonymous ? ' Submitter identity withheld.' : ''}`),
+          : auditEvent(now, submitterLabel, 'Submitted', `Entry created via submission form (schema v${ctx.schemaVersion}).${draft.anonymous ? ' Submitter identity never stored.' : ''}`),
         routed
-          ? auditEvent(now, 'Workflow engine', 'Routed', `Assigned to ${draft.anonymous ? 'Anonymous' : 'Non-Anonymous'} receiver role: ${receivers[0]}.`)
-          : auditEvent(now, 'Workflow engine', 'Held', 'No matching receiver role configured — entry held and flagged instead of being routed to an unauthorized party.'),
-        auditEvent(now, 'Notification engine', 'Notification sent', `Acknowledgement issued (template: Submission acknowledgement)${draft.anonymous ? '; identifying details omitted.' : '.'}`),
+          ? auditEvent(
+              now,
+              'Workflow engine',
+              'Routed',
+              explicitTargets.length > 0
+                ? `Sent to: ${explicitTargets.join(', ')}${draft.copyTo.length > 0 ? `; copy to: ${draft.copyTo.join(', ')} (copy-to recipients can view responses but cannot respond)` : ''}.`
+                : `Assigned to ${draft.anonymous ? 'Anonymous' : 'Non-Anonymous'} receiver role: ${receivers[0]}.`
+            )
+          : auditEvent(now, 'Workflow engine', 'Held', 'No matching receiver configured — entry held and flagged instead of being routed to an unauthorized party.'),
+        auditEvent(
+          now,
+          'Notification engine',
+          'Notification sent',
+          draft.anonymous
+            ? `Acknowledgement issued; identifying details omitted.${draft.responseEmails.length > 0 ? ` Responses will be sent to: ${draft.responseEmails.join(', ')}.` : ''}`
+            : 'Acknowledgement issued (template: Submission acknowledgement).'
+        ),
       ],
     }
 
@@ -128,6 +171,68 @@ export function useFeedbackEntries() {
       })
     },
     []
+  )
+
+  /**
+   * Receiver response flow (Kensium "Employee Feedback/Grievance"): records
+   * the response, sets the status ('Feedback received' / 'Closed'), appends
+   * to the history trail, and notifies the submitter — for anonymous entries
+   * the response is "sent" to the submitter-provided emails.
+   */
+  const respondToEntry = useCallback(
+    (id: string, draft: ResponseDraft, actor: string) => {
+      const target = entries.find((e) => e.id === id)
+      if (!target) return
+      const now = today()
+      respondSeq += 1
+      const response: EntryResponse = {
+        id: `resp-live-${respondSeq}`,
+        at: now,
+        by: actor,
+        sendTo: draft.sendTo,
+        copyTo: draft.copyTo,
+        comments: draft.comments,
+        showToSubmitter: draft.showToSubmitter,
+        status: draft.status,
+      }
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === id
+            ? {
+                ...e,
+                status: draft.status,
+                lastActionOn: now,
+                responses: [...e.responses, response],
+                audit: [
+                  ...e.audit,
+                  auditEvent(
+                    now,
+                    actor,
+                    `Responded — status set to ${draft.status}`,
+                    `Response recorded${draft.showToSubmitter ? ' and shown to the submitter' : ' (internal — not shown to the submitter)'}.${draft.sendTo.length > 0 ? ` Sent to: ${draft.sendTo.join(', ')}.` : ''}${draft.copyTo.length > 0 ? ` Copy to: ${draft.copyTo.join(', ')} (copy-to recipients can view responses but cannot respond).` : ''}`
+                  ),
+                  auditEvent(
+                    now,
+                    'Notification engine',
+                    'Notification sent',
+                    e.anonymous
+                      ? `Response sent to the submitter-provided email(s): ${e.responseEmails.length > 0 ? e.responseEmails.join(', ') : 'none provided — visible via anonymous reference only'} — submitter identity remains unknown.`
+                      : 'Submitter notified that their feedback/grievance was addressed (template: Status change).'
+                  ),
+                ],
+              }
+            : e
+        )
+      )
+      toast.success(`Response submitted for ${id} — status: ${draft.status}`, {
+        description: target.anonymous
+          ? target.responseEmails.length > 0
+            ? `Response sent to ${target.responseEmails.join(', ')} (simulated email); identity remains anonymous.`
+            : 'Anonymous submitter can view the response via their tracking reference.'
+          : 'The submitter was notified that their submission has been addressed.',
+      })
+    },
+    [entries]
   )
 
   const escalate = useCallback((id: string, coordinator: string, actor: string) => {
@@ -195,7 +300,7 @@ export function useFeedbackEntries() {
     [entries]
   )
 
-  return { entries, submitEntry, updateStatus, escalate, runSlaEngine }
+  return { entries, submitEntry, updateStatus, respondToEntry, escalate, runSlaEngine }
 }
 
 export type FeedbackEntriesStore = ReturnType<typeof useFeedbackEntries>

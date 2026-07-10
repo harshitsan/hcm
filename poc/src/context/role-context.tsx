@@ -19,7 +19,9 @@ export const ROLES = [
 export type Role = (typeof ROLES)[number]
 
 const ROLE_STORAGE_KEY = 'satellitehr-poc-role'
-const DEFAULT_ROLE: Role = 'Company Admin'
+// The platform owner is the default persona — above every tenant, landing on
+// the platform overview dashboard (billing, tenant hierarchy, adoption).
+const DEFAULT_ROLE: Role = 'Platform Admin'
 
 type RoleContextType = {
   role: Role

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Plus } from 'phosphor-react'
+import { ArrowsClockwise, PencilSimple, Plus } from 'phosphor-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -27,13 +28,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Textarea } from '@/components/ui/textarea'
 import {
   ASSIGNMENT_METHODS,
   APPROVER_DIRECTORY,
+  DEFAULT_POST_TEMPLATE,
+  PUBLISH_MODES,
+  RECRUITMENT_POSITIONS,
   type AssignmentMethod,
+  type PostingApproverRule,
   type PostingChannel,
+  type PublishMode,
 } from '../data/config'
-import { RECRUITERS } from '../data/requisitions'
+import { DEPARTMENTS, LOCATIONS, RECRUITERS } from '../data/requisitions'
 import type { RecruitmentConfigStore } from '../hooks/use-recruitment-config'
 import { StatusBadge } from './badges'
 
@@ -45,6 +52,73 @@ const METHOD_HELP: Record<AssignmentMethod, string> = {
     "New vacancies assign based on each recruiter's current open-vacancy capacity.",
 }
 
+/** Channel types that integrate through an app key/secret (per the PDF). */
+const CREDENTIALED_TYPES: Array<PostingChannel['type']> = ['Social', 'Job Board']
+
+/** Sample values substituted into the post-template preview. */
+const POST_SAMPLE_VALUES: Record<string, string> = {
+  position: 'Senior Backend Engineer',
+  department: 'Engineering',
+  location: 'Bengaluru',
+  apply_link: 'careers.satellitehr.in/jobs/vac-1024',
+}
+
+function renderPostTemplate(template: string) {
+  return template.replace(
+    /\{\{(\w+)\}\}/g,
+    (m, key: string) => POST_SAMPLE_VALUES[key] ?? m
+  )
+}
+
+/** Toggle-chip multi-pick where 'All' is exclusive of specific values. */
+function ChipPicker({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string
+  options: readonly string[]
+  selected: string[]
+  onChange: (next: string[]) => void
+}) {
+  const toggle = (opt: string) => {
+    if (opt === 'All') return onChange(['All'])
+    const without = selected.filter((s) => s !== 'All' && s !== opt)
+    onChange(
+      selected.includes(opt)
+        ? without.length
+          ? without
+          : ['All']
+        : [...without, opt]
+    )
+  }
+  return (
+    <div>
+      <p className='text-paragraph-sm text-neutral-1000 mb-1.5'>{label}</p>
+      <div className='flex flex-wrap gap-1.5'>
+        {['All', ...options].map((opt) => {
+          const active = selected.includes(opt)
+          return (
+            <button
+              key={opt}
+              type='button'
+              onClick={() => toggle(opt)}
+              className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${
+                active
+                  ? 'border-blue-1200 bg-blue-150 text-blue-1400 font-medium'
+                  : 'border-gray-200 bg-white text-neutral-1000 hover:border-gray-300'
+              }`}
+            >
+              {opt}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /**
  * Sourcing configuration — vacancy assignment method, posting channels,
  * posting-source approvers, talent-pool mailbox import and recruiter
@@ -52,17 +126,100 @@ const METHOD_HELP: Record<AssignmentMethod, string> = {
  */
 export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
   const [channelOpen, setChannelOpen] = useState(false)
+  // PCH-02: the same dialog adds a new channel or edits an existing one
+  const [editingChannel, setEditingChannel] = useState<PostingChannel | null>(
+    null
+  )
   const [chDraft, setChDraft] = useState({
     name: '',
     channel: '',
     type: 'Job Board' as PostingChannel['type'],
     postingMode: 'External' as PostingChannel['postingMode'],
-    applicability: 'All departments',
+    publishMode: 'Real Time' as PublishMode,
+    appKey: '',
+    appSecret: '',
+    applicableLocations: ['All'] as string[],
+    applicableDepartments: ['All'] as string[],
+    applicablePositions: ['All'] as string[],
   })
+
+  const openChannelForm = (c: PostingChannel | null) => {
+    setEditingChannel(c)
+    setChDraft(
+      c
+        ? {
+            name: c.name,
+            channel: c.channel,
+            type: c.type,
+            postingMode: c.postingMode,
+            publishMode: c.publishMode ?? 'Manual',
+            appKey: c.credentials?.appKey ?? '',
+            appSecret: c.credentials?.appSecret ?? '',
+            applicableLocations: c.applicableLocations ?? ['All'],
+            applicableDepartments: c.applicableDepartments ?? ['All'],
+            applicablePositions: c.applicablePositions ?? ['All'],
+          }
+        : {
+            name: '',
+            channel: '',
+            type: 'Job Board',
+            postingMode: 'External',
+            publishMode: 'Real Time',
+            appKey: '',
+            appSecret: '',
+            applicableLocations: ['All'],
+            applicableDepartments: ['All'],
+            applicablePositions: ['All'],
+          }
+    )
+    setChannelOpen(true)
+  }
+
+  const saveChannel = () => {
+    const payload = {
+      name: chDraft.name,
+      channel: chDraft.channel,
+      type: chDraft.type,
+      postingMode: chDraft.postingMode,
+      publishMode: chDraft.publishMode,
+      // Legacy display string migrated from the structured applicability
+      applicability: chDraft.applicableDepartments.includes('All')
+        ? 'All departments'
+        : chDraft.applicableDepartments.join(', '),
+      credentials: CREDENTIALED_TYPES.includes(chDraft.type)
+        ? { appKey: chDraft.appKey, appSecret: chDraft.appSecret }
+        : undefined,
+      applicableLocations: chDraft.applicableLocations,
+      applicableDepartments: chDraft.applicableDepartments,
+      applicablePositions: chDraft.applicablePositions,
+    }
+    if (editingChannel) config.updatePostingChannel(editingChannel.id, payload)
+    else config.addPostingChannel({ ...payload, postTemplate: DEFAULT_POST_TEMPLATE })
+    setChannelOpen(false)
+  }
+
+  // Post template edit + preview dialog
+  const [templateChannel, setTemplateChannel] = useState<PostingChannel | null>(
+    null
+  )
+  const [postTemplateDraft, setPostTemplateDraft] = useState('')
+
+  // Mailbox change-password dialog (nothing is stored)
+  const [pwdOpen, setPwdOpen] = useState(false)
+  const [pwdDraft, setPwdDraft] = useState({ next: '', confirm: '' })
   const [ruleOpen, setRuleOpen] = useState(false)
   const [ruleMode, setRuleMode] =
     useState<PostingChannel['postingMode']>('External')
   const [ruleApprover, setRuleApprover] = useState<string>(APPROVER_DIRECTORY[0])
+  // PSA-02: edit an existing posting-source approver rule
+  const [_editingRule, setEditingRule] = useState<PostingApproverRule | null>(
+    null
+  )
+  const [_editRuleDraft, setEditRuleDraft] = useState({
+    postingMode: 'External' as PostingChannel['postingMode'],
+    location: 'All',
+    approvers: '',
+  })
   const [mailboxDraft, setMailboxDraft] = useState(config.mailbox)
   const [strengthOpen, setStrengthOpen] = useState(false)
   const [strengthDraft, setStrengthDraft] = useState({
@@ -107,13 +264,27 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
           <h3 className='text-neutral-1600 text-sm font-medium'>
             Posting channels ({config.postingChannels.length})
           </h3>
-          <Button
-            variant='outline'
-            className='h-7 gap-1 text-xs'
-            onClick={() => setChannelOpen(true)}
-          >
-            <Plus size={12} /> Add channel
-          </Button>
+          <div className='flex items-center gap-2'>
+            {/* PCH-03: refresh the posting channel list */}
+            <Button
+              variant='outline'
+              className='h-7 gap-1 text-xs'
+              onClick={() =>
+                toast.success(
+                  'Posting channel list refreshed — showing the latest channels'
+                )
+              }
+            >
+              <ArrowsClockwise size={12} weight='bold' /> Refresh
+            </Button>
+            <Button
+              variant='outline'
+              className='h-7 gap-1 text-xs'
+              onClick={() => openChannelForm(null)}
+            >
+              <Plus size={12} /> Add channel
+            </Button>
+          </div>
         </div>
         <div className='rounded-[8px] border border-gray-200 bg-white'>
           <Table>
@@ -123,9 +294,11 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
                 <TableHead>Channel</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Posting mode</TableHead>
+                <TableHead>Publish</TableHead>
                 <TableHead>Applicability</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className='text-right'>Active</TableHead>
+                <TableHead>Active</TableHead>
+                <TableHead className='text-right'>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -135,15 +308,43 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
                   <TableCell className='text-sm'>{c.channel}</TableCell>
                   <TableCell className='text-sm'>{c.type}</TableCell>
                   <TableCell className='text-sm'>{c.postingMode}</TableCell>
+                  <TableCell className='text-sm'>
+                    {c.publishMode ?? 'Manual'}
+                  </TableCell>
                   <TableCell className='text-sm'>{c.applicability}</TableCell>
                   <TableCell>
                     <StatusBadge status={c.active ? 'active' : 'inactive'} />
                   </TableCell>
-                  <TableCell className='text-right'>
+                  <TableCell>
                     <Switch
                       checked={c.active}
                       onCheckedChange={() => config.togglePostingChannel(c.id)}
                     />
+                  </TableCell>
+                  <TableCell className='text-right'>
+                    <div className='flex justify-end gap-1'>
+                      {/* Post template edit + preview */}
+                      <Button
+                        variant='outline'
+                        className='h-6 px-2 text-xs'
+                        onClick={() => {
+                          setTemplateChannel(c)
+                          setPostTemplateDraft(
+                            c.postTemplate ?? DEFAULT_POST_TEMPLATE
+                          )
+                        }}
+                      >
+                        Post template
+                      </Button>
+                      {/* PCH-02: view / edit the channel configuration */}
+                      <Button
+                        variant='outline'
+                        className='h-6 gap-1 px-2 text-xs'
+                        onClick={() => openChannelForm(c)}
+                      >
+                        <PencilSimple size={12} /> View / edit
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -177,6 +378,7 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
                 <TableHead>Employee class</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Approver(s)</TableHead>
+                <TableHead className='text-right'>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -187,6 +389,23 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
                   <TableCell className='text-sm'>{r.location}</TableCell>
                   <TableCell className='text-sm'>
                     {r.approvers.join(', ')}
+                  </TableCell>
+                  <TableCell className='text-right'>
+                    {/* PSA-02: edit the approver rule */}
+                    <Button
+                      variant='outline'
+                      className='h-6 gap-1 px-2 text-xs'
+                      onClick={() => {
+                        setEditingRule(r)
+                        setEditRuleDraft({
+                          postingMode: r.postingMode,
+                          location: r.location,
+                          approvers: r.approvers.join(', '),
+                        })
+                      }}
+                    >
+                      <PencilSimple size={12} /> Edit
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -309,13 +528,71 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
             />
             <span className='text-xs'>Notify non-shortlisted</span>
           </div>
+          <div className='flex items-center gap-2 pt-4'>
+            <Switch
+              checked={mailboxDraft.emailAsUsername}
+              onCheckedChange={(v) =>
+                setMailboxDraft((d) => ({ ...d, emailAsUsername: v }))
+              }
+            />
+            <span className='text-xs'>Email address as username</span>
+          </div>
+          <div className='flex items-center gap-2 pt-4'>
+            <Switch
+              checked={mailboxDraft.noNewInstanceWhileRunning}
+              onCheckedChange={(v) =>
+                setMailboxDraft((d) => ({ ...d, noNewInstanceWhileRunning: v }))
+              }
+            />
+            <span className='text-xs'>No new instance while running</span>
+          </div>
+          <div>
+            <p className='mb-1 text-xs font-medium'>Ignore subject words</p>
+            <Input
+              className='h-7'
+              placeholder='Comma separated'
+              value={mailboxDraft.ignoreSubjectWords}
+              onChange={(e) =>
+                setMailboxDraft((d) => ({
+                  ...d,
+                  ignoreSubjectWords: e.target.value,
+                }))
+              }
+            />
+          </div>
+          <div>
+            <p className='mb-1 text-xs font-medium'>Ignore sender ids</p>
+            <Input
+              className='h-7'
+              placeholder='Comma separated'
+              value={mailboxDraft.ignoreSenderIds}
+              onChange={(e) =>
+                setMailboxDraft((d) => ({
+                  ...d,
+                  ignoreSenderIds: e.target.value,
+                }))
+              }
+            />
+          </div>
         </div>
-        <Button
-          className='mt-3 h-7 text-xs'
-          onClick={() => config.saveMailbox(mailboxDraft)}
-        >
-          Save mailbox settings
-        </Button>
+        <div className='mt-3 flex items-center gap-2'>
+          <Button
+            className='h-7 text-xs'
+            onClick={() => config.saveMailbox(mailboxDraft)}
+          >
+            Save mailbox settings
+          </Button>
+          <Button
+            variant='outline'
+            className='h-7 text-xs'
+            onClick={() => {
+              setPwdDraft({ next: '', confirm: '' })
+              setPwdOpen(true)
+            }}
+          >
+            Change password
+          </Button>
+        </div>
       </section>
 
       {/* TA-56: recruiter strengths */}
@@ -358,13 +635,17 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
         </p>
       </section>
 
-      {/* Add channel dialog */}
+      {/* Add / edit channel dialog */}
       <Dialog open={channelOpen} onOpenChange={setChannelOpen}>
-        <DialogContent className='sm:max-w-[420px]'>
+        <DialogContent className='sm:max-w-[480px]'>
           <DialogHeader>
-            <DialogTitle>Add posting channel</DialogTitle>
+            <DialogTitle>
+              {editingChannel
+                ? `Edit posting channel — ${editingChannel.name}`
+                : 'Add posting channel'}
+            </DialogTitle>
           </DialogHeader>
-          <div className='space-y-3'>
+          <div className='max-h-[440px] space-y-3 overflow-y-auto pr-1'>
             <Input
               placeholder='Channel name'
               value={chDraft.name}
@@ -377,7 +658,7 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
                 setChDraft((d) => ({ ...d, channel: e.target.value }))
               }
             />
-            <div className='grid grid-cols-2 gap-3'>
+            <div className='grid grid-cols-3 gap-3'>
               <Select
                 value={chDraft.type}
                 onValueChange={(v) =>
@@ -417,12 +698,66 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
                   ))}
                 </SelectContent>
               </Select>
+              <Select
+                value={chDraft.publishMode}
+                onValueChange={(v) =>
+                  setChDraft((d) => ({ ...d, publishMode: v as PublishMode }))
+                }
+              >
+                <SelectTrigger className='w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PUBLISH_MODES.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Input
-              placeholder='Applicability'
-              value={chDraft.applicability}
-              onChange={(e) =>
-                setChDraft((d) => ({ ...d, applicability: e.target.value }))
+            {/* App key/secret — Social & Job Board integrations only (PDF) */}
+            {CREDENTIALED_TYPES.includes(chDraft.type) && (
+              <div className='grid grid-cols-2 gap-3'>
+                <Input
+                  placeholder='App key'
+                  value={chDraft.appKey}
+                  onChange={(e) =>
+                    setChDraft((d) => ({ ...d, appKey: e.target.value }))
+                  }
+                />
+                <Input
+                  type='password'
+                  placeholder='App secret'
+                  value={chDraft.appSecret}
+                  onChange={(e) =>
+                    setChDraft((d) => ({ ...d, appSecret: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+            <ChipPicker
+              label='Applicable locations'
+              options={LOCATIONS}
+              selected={chDraft.applicableLocations}
+              onChange={(next) =>
+                setChDraft((d) => ({ ...d, applicableLocations: next }))
+              }
+            />
+            <ChipPicker
+              label='Applicable departments'
+              options={DEPARTMENTS}
+              selected={chDraft.applicableDepartments}
+              onChange={(next) =>
+                setChDraft((d) => ({ ...d, applicableDepartments: next }))
+              }
+            />
+            <ChipPicker
+              label='Applicable positions'
+              options={RECRUITMENT_POSITIONS}
+              selected={chDraft.applicablePositions}
+              onChange={(next) =>
+                setChDraft((d) => ({ ...d, applicablePositions: next }))
               }
             />
           </div>
@@ -432,13 +767,58 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
             </Button>
             <Button
               disabled={!chDraft.name || !chDraft.channel}
+              onClick={saveChannel}
+            >
+              {editingChannel ? 'Save changes' : 'Save channel'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Post template edit + preview */}
+      <Dialog
+        open={templateChannel !== null}
+        onOpenChange={(o) => !o && setTemplateChannel(null)}
+      >
+        <DialogContent className='sm:max-w-[480px]'>
+          <DialogHeader>
+            <DialogTitle>Post template — {templateChannel?.name}</DialogTitle>
+          </DialogHeader>
+          <div className='space-y-2'>
+            <Textarea
+              rows={3}
+              placeholder='Post body — merge fields like {{position}} supported'
+              value={postTemplateDraft}
+              onChange={(e) => setPostTemplateDraft(e.target.value)}
+            />
+            <p className='text-paragraph-sm text-neutral-1000'>
+              Merge fields:{' '}
+              {Object.keys(POST_SAMPLE_VALUES)
+                .map((f) => `{{${f}}}`)
+                .join(' ')}
+            </p>
+            <div className='rounded-[8px] border border-gray-200 bg-neutral-100 p-3'>
+              <p className='mb-1 text-xs font-medium'>Preview</p>
+              <p className='text-sm whitespace-pre-wrap'>
+                {renderPostTemplate(postTemplateDraft)}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setTemplateChannel(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!postTemplateDraft}
               onClick={() => {
-                config.addPostingChannel(chDraft)
-                setChannelOpen(false)
-                setChDraft((d) => ({ ...d, name: '', channel: '' }))
+                if (templateChannel)
+                  config.updatePostingChannel(templateChannel.id, {
+                    postTemplate: postTemplateDraft,
+                  })
+                setTemplateChannel(null)
               }}
             >
-              Save channel
+              Save template
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -557,6 +937,52 @@ export function ConfigSourcing({ config }: { config: RecruitmentConfigStore }) {
               }}
             >
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Change mailbox password — demo only, nothing is stored */}
+      <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
+        <DialogContent className='sm:max-w-[360px]'>
+          <DialogHeader>
+            <DialogTitle>Change mailbox password</DialogTitle>
+          </DialogHeader>
+          <div className='space-y-3'>
+            <Input
+              type='password'
+              placeholder='New password'
+              value={pwdDraft.next}
+              onChange={(e) =>
+                setPwdDraft((d) => ({ ...d, next: e.target.value }))
+              }
+            />
+            <Input
+              type='password'
+              placeholder='Confirm new password'
+              value={pwdDraft.confirm}
+              onChange={(e) =>
+                setPwdDraft((d) => ({ ...d, confirm: e.target.value }))
+              }
+            />
+            {pwdDraft.confirm && pwdDraft.next !== pwdDraft.confirm && (
+              <p className='text-paragraph-sm text-red-600'>
+                Passwords do not match.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setPwdOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!pwdDraft.next || pwdDraft.next !== pwdDraft.confirm}
+              onClick={() => {
+                toast.success('Mailbox password updated')
+                setPwdOpen(false)
+              }}
+            >
+              Update password
             </Button>
           </DialogFooter>
         </DialogContent>

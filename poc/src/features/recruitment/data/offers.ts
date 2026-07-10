@@ -1,6 +1,15 @@
+import {
+  computeBreakup,
+  findSlab,
+  seedCompensationSlabs,
+  type ComponentMode,
+  type ComponentType,
+} from './compensation'
+
 export const OFFER_STATUSES = [
   'draft',
   'pending-approval',
+  'needs-clarification',
   'approved',
   'released',
   'accepted',
@@ -20,6 +29,35 @@ export interface OfferApproval {
   decidedAt?: string
 }
 
+/** One salary-component line on the offer (derived from the matched slab). */
+export interface OfferComponent {
+  name: string
+  type: ComponentType
+  mode: ComponentMode
+  /** Percent (0–100) when mode = percent-of-gross, annual ₹ when fixed. */
+  value: number
+  /** Annualised ₹ amount as offered (may be manually adjusted). */
+  amount: number
+}
+
+/** Audit entry for a manual salary-component amount edit. */
+export interface ComponentChange {
+  component: string
+  from: number
+  to: number
+  by: string
+  at: string
+}
+
+/** Approver clarification request raised during offer approval. */
+export interface OfferClarification {
+  question: string
+  askedBy: string
+  askedAt: string
+  answer?: string
+  answeredAt?: string
+}
+
 /** Offer lifecycle record (TA-11, TA-12, TA-46, TA-47, TA-49, TA-50). */
 export interface Offer {
   id: string
@@ -36,6 +74,28 @@ export interface Offer {
   outOfBand: boolean
   status: OfferStatus
   responseDeadline: string
+  /** Candidate compensation context captured at generation time. */
+  expectedDoj: string
+  currentCtc: number
+  expectedCtc: number
+  /** Recommended CTC from the matched compensation slab. */
+  recommendedCtc: number
+  /** Salary-component breakup derived from the matched slab. */
+  breakup: OfferComponent[]
+  /** Manual component-amount edits (generation + approver-side). */
+  componentChanges: ComponentChange[]
+  /** Approver clarification threads (needs-clarification loop). */
+  clarifications: OfferClarification[]
+  /** Offer letter generated after required documents are complete. */
+  offerLetterGenerated: boolean
+  /** Candidate-uploaded signed acknowledgment file name (on accept). */
+  acknowledgmentFile?: string
+  /** Candidate's reason for refusing the offer. */
+  refuseComments?: string
+  /** Company-side cancellation details (Cancel Offer view). */
+  cancelReason?: string
+  cancelLetterGenerated?: boolean
+  cancelEmailSent?: boolean
   approvals: OfferApproval[]
   releasedAt?: string
   respondedAt?: string
@@ -43,6 +103,23 @@ export interface Offer {
   appointmentLetterIssued: boolean
   joined: boolean
   convertedTo?: 'employee-user' | 'employee-non-user'
+}
+
+/** Slab-derived breakup for seed offers (mirrors the generate-offer flow). */
+const seedBreakup = (
+  ctc: number,
+  location: string,
+  department: string
+): OfferComponent[] => {
+  const slab = findSlab(seedCompensationSlabs, ctc, location, department)
+  if (!slab) return []
+  return computeBreakup(slab, ctc).map(({ name, type, mode, value, amount }) => ({
+    name,
+    type,
+    mode,
+    value,
+    amount,
+  }))
 }
 
 export const seedOffers: Offer[] = [
@@ -60,6 +137,14 @@ export const seedOffers: Offer[] = [
     outOfBand: false,
     status: 'released',
     responseDeadline: '2026-07-15',
+    expectedDoj: '2026-08-03',
+    currentCtc: 3000000,
+    expectedCtc: 4000000,
+    recommendedCtc: 3400000,
+    breakup: seedBreakup(3800000, 'Bengaluru', 'Engineering'),
+    componentChanges: [],
+    clarifications: [],
+    offerLetterGenerated: true,
     approvals: [
       {
         level: 1,
@@ -88,6 +173,15 @@ export const seedOffers: Offer[] = [
     outOfBand: false,
     status: 'accepted',
     responseDeadline: '2026-05-20',
+    expectedDoj: '2026-06-15',
+    currentCtc: 1900000,
+    expectedCtc: 2500000,
+    recommendedCtc: 3400000,
+    breakup: seedBreakup(2400000, 'Pune', 'Engineering'),
+    componentChanges: [],
+    clarifications: [],
+    offerLetterGenerated: true,
+    acknowledgmentFile: 'ishita-offer-acknowledgment-signed.pdf',
     approvals: [
       {
         level: 1,
@@ -117,6 +211,33 @@ export const seedOffers: Offer[] = [
     outOfBand: true,
     status: 'pending-approval',
     responseDeadline: '2026-07-30',
+    expectedDoj: '2026-08-17',
+    currentCtc: 3800000,
+    expectedCtc: 4800000,
+    recommendedCtc: 3400000,
+    // Conveyance bumped by the L1 approver — mirrored in componentChanges.
+    breakup: seedBreakup(4600000, 'Hyderabad', 'Engineering').map((c) =>
+      c.name === 'Conveyance Allowance' ? { ...c, amount: 36000 } : c
+    ),
+    componentChanges: [
+      {
+        component: 'Conveyance Allowance',
+        from: 24000,
+        to: 36000,
+        by: 'Karthik Rao',
+        at: '2026-06-24T10:05:00Z',
+      },
+    ],
+    clarifications: [
+      {
+        question: 'Why is the offer above the approved band for this role?',
+        askedBy: 'Karthik Rao',
+        askedAt: '2026-06-23T14:00:00Z',
+        answer: 'Niche data-platform skills; approved by TA head over email.',
+        answeredAt: '2026-06-24T09:30:00Z',
+      },
+    ],
+    offerLetterGenerated: false,
     approvals: [
       {
         level: 1,
@@ -150,6 +271,15 @@ export const seedOffers: Offer[] = [
     outOfBand: false,
     status: 'refused',
     responseDeadline: '2026-06-10',
+    expectedDoj: '2026-07-01',
+    currentCtc: 2200000,
+    expectedCtc: 3000000,
+    recommendedCtc: 3400000,
+    breakup: seedBreakup(2800000, 'Pune', 'Product'),
+    componentChanges: [],
+    clarifications: [],
+    offerLetterGenerated: true,
+    refuseComments: 'Accepted a counter-offer from current employer',
     approvals: [
       {
         level: 1,
@@ -179,6 +309,14 @@ export const seedOffers: Offer[] = [
     outOfBand: false,
     status: 'expired',
     responseDeadline: '2026-06-20',
+    expectedDoj: '2026-07-15',
+    currentCtc: 1500000,
+    expectedCtc: 2000000,
+    recommendedCtc: 1800000,
+    breakup: seedBreakup(1800000, 'Mumbai', 'Finance'),
+    componentChanges: [],
+    clarifications: [],
+    offerLetterGenerated: true,
     approvals: [
       {
         level: 1,

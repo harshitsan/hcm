@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { CaretLeft, CaretRight, Plus } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,16 +12,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+  SimpleTable,
+  sortableColumnHeader,
+} from '@/components/common/data-table/simple-table'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/utils/helpers'
-import { type TaskStatus } from '../../data/projects'
+import { type LibraryTask, type TaskStatus } from '../../data/projects'
 import { type ProjectsStore } from '../../hooks/use-projects'
 
 const PAGE_SIZE = 10
@@ -47,6 +44,46 @@ export function TaskLibraryTab({ store }: { store: ProjectsStore }) {
   const pageRows = filtered.slice(
     safePage * PAGE_SIZE,
     safePage * PAGE_SIZE + PAGE_SIZE
+  )
+
+  const taskColumns = useMemo<ColumnDef<LibraryTask>[]>(
+    () => [
+      {
+        accessorKey: 'name',
+        header: sortableColumnHeader<LibraryTask>('Task name'),
+        cell: ({ row }) => (
+          <span className='font-medium'>{row.original.name}</span>
+        ),
+      },
+      {
+        accessorKey: 'description',
+        header: sortableColumnHeader<LibraryTask>('Description'),
+        cell: ({ row }) => (
+          <span className='text-neutral-1000'>{row.original.description}</span>
+        ),
+      },
+      {
+        id: 'actions',
+        header: '',
+        enableSorting: false,
+        meta: { headerClassName: 'w-[120px]' },
+        cell: ({ row }) => (
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={() =>
+              store.setTaskStatus(
+                row.original.id,
+                row.original.status === 'Active' ? 'Closed' : 'Active'
+              )
+            }
+          >
+            {row.original.status === 'Active' ? 'Close' : 'Reopen'}
+          </Button>
+        ),
+      },
+    ],
+    [store]
   )
 
   const submit = () => {
@@ -89,49 +126,12 @@ export function TaskLibraryTab({ store }: { store: ProjectsStore }) {
         </Button>
       </div>
 
-      <div className='rounded-md border border-gray-200 bg-white'>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Task name</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className='w-[120px]' />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pageRows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={3} className='text-neutral-1000'>
-                  No {status.toLowerCase()} tasks.
-                </TableCell>
-              </TableRow>
-            ) : (
-              pageRows.map((t) => (
-                <TableRow key={t.id}>
-                  <TableCell className='font-medium'>{t.name}</TableCell>
-                  <TableCell className='text-neutral-1000'>
-                    {t.description}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      onClick={() =>
-                        store.setTaskStatus(
-                          t.id,
-                          t.status === 'Active' ? 'Closed' : 'Active'
-                        )
-                      }
-                    >
-                      {t.status === 'Active' ? 'Close' : 'Reopen'}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <SimpleTable
+        columns={taskColumns}
+        data={pageRows}
+        emptyMessage={`No ${status.toLowerCase()} tasks.`}
+        getRowId={(t) => t.id}
+      />
 
       <div className='flex items-center justify-between'>
         <p className='text-paragraph-sm text-neutral-1000'>

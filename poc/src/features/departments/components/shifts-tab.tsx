@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Warning } from 'phosphor-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -13,7 +15,7 @@ import {
 } from '@/components/ui/select'
 import { ROLES, useRole, type Role } from '@/context/role-context'
 import { CURRENT_COMPANY_ID } from '../data/departments'
-import { LOCATIONS, SHIFTS, WEEK_DAYS, WORK_AREAS, type WeekDay } from '../data/org-config'
+import { LOCATIONS, WEEK_DAYS, WORK_AREAS, type WeekDay } from '../data/org-config'
 import { type DepartmentsStore } from '../hooks/use-departments'
 import { DefaultShiftBadge } from './department-badges'
 
@@ -38,6 +40,20 @@ export function ShiftsTab({ store }: ShiftsTabProps) {
   const dept = companyDepts.find((d) => d.id === deptId) ?? companyDepts[0]
   // Local demo override of each shift's weekly offs (per department view).
   const [offsOverride, setOffsOverride] = useState<Record<string, WeekDay[]>>({})
+  // Pagination for the "all configured work areas" review list (DEPT/WA-04).
+  const WA_PAGE_SIZE = 4
+  const [waPage, setWaPage] = useState(0)
+  const waPageCount = Math.max(1, Math.ceil(WORK_AREAS.length / WA_PAGE_SIZE))
+  const waSlice = WORK_AREAS.slice(
+    waPage * WA_PAGE_SIZE,
+    waPage * WA_PAGE_SIZE + WA_PAGE_SIZE
+  )
+  const refreshWorkAreas = () => {
+    setWaPage(0)
+    toast.success(
+      `Work area list refreshed — ${WORK_AREAS.length} work areas configured`
+    )
+  }
 
   if (!dept) return <p className='text-neutral-1000 text-sm'>No departments available.</p>
 
@@ -56,7 +72,7 @@ export function ShiftsTab({ store }: ShiftsTabProps) {
       dept.id,
       { shiftIds, defaultShiftId },
       'shifts updated',
-      `${SHIFTS.find((s) => s.id === shiftId)?.name} ${checked ? 'assigned to' : 'removed from'} ${dept.name}.`
+      `${store.shifts.find((s) => s.id === shiftId)?.name} ${checked ? 'assigned to' : 'removed from'} ${dept.name}.`
     )
   }
 
@@ -88,7 +104,7 @@ export function ShiftsTab({ store }: ShiftsTabProps) {
 
   const offsFor = (shiftId: string): WeekDay[] =>
     offsOverride[`${dept.id}:${shiftId}`] ??
-    SHIFTS.find((s) => s.id === shiftId)?.weeklyOffs ??
+    store.shifts.find((s) => s.id === shiftId)?.weeklyOffs ??
     []
 
   return (
@@ -135,7 +151,8 @@ export function ShiftsTab({ store }: ShiftsTabProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className='space-y-4'>
-              {SHIFTS.map((shift) => {
+              <div className='max-h-[420px] space-y-3 overflow-y-auto pr-1'>
+              {store.shifts.map((shift) => {
                 const assigned = dept.shiftIds.includes(shift.id)
                 return (
                   <div key={shift.id} className='rounded-md border border-gray-200 p-3'>
@@ -194,6 +211,7 @@ export function ShiftsTab({ store }: ShiftsTabProps) {
                   </div>
                 )
               })}
+              </div>
               <div>
                 <p className='text-neutral-1600 mb-1 text-sm font-medium'>Default shift</p>
                 <p className='text-neutral-1000 mb-2 text-xs'>
@@ -207,13 +225,13 @@ export function ShiftsTab({ store }: ShiftsTabProps) {
                       dept.id,
                       { defaultShiftId: value },
                       'default shift changed',
-                      `${SHIFTS.find((s) => s.id === value)?.name} is now the default for ${dept.name}.`
+                      `${store.shifts.find((s) => s.id === value)?.name} is now the default for ${dept.name}.`
                     )
                   }
                   className='space-y-1'
                 >
                   {dept.shiftIds.map((id) => {
-                    const shift = SHIFTS.find((s) => s.id === id)
+                    const shift = store.shifts.find((s) => s.id === id)
                     if (!shift) return null
                     return (
                       <label key={id} className='flex items-center gap-2 text-sm'>
@@ -273,6 +291,67 @@ export function ShiftsTab({ store }: ShiftsTabProps) {
                     </div>
                   )
                 })}
+
+                {/* Review list of every configured work area (paged + refresh) */}
+                <div className='rounded-md border border-gray-200 p-3'>
+                  <div className='mb-2 flex items-center justify-between gap-2'>
+                    <p className='text-neutral-1600 text-sm font-medium'>
+                      All configured work areas ({WORK_AREAS.length})
+                    </p>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className='h-7 px-2 text-xs'
+                      onClick={refreshWorkAreas}
+                    >
+                      Refresh
+                    </Button>
+                  </div>
+                  {waSlice.map((wa) => {
+                    const waLoc = LOCATIONS.find((l) => l.id === wa.locationId)
+                    return (
+                      <div
+                        key={wa.id}
+                        className='flex items-center justify-between border-b border-gray-100 py-1 text-sm last:border-b-0'
+                      >
+                        <span className='text-neutral-1900'>{wa.name}</span>
+                        <span className='text-neutral-1000 text-xs'>
+                          {waLoc?.name ?? wa.locationId}
+                          {dept.workAreaIds.includes(wa.id) && (
+                            <Badge variant='open' className='ml-2'>
+                              Mapped
+                            </Badge>
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  <div className='mt-2 flex items-center justify-between'>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className='h-7 px-2 text-xs'
+                      disabled={waPage === 0}
+                      onClick={() => setWaPage((p) => Math.max(0, p - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <span className='text-neutral-1000 text-xs'>
+                      Page {waPage + 1} of {waPageCount}
+                    </span>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className='h-7 px-2 text-xs'
+                      disabled={waPage >= waPageCount - 1}
+                      onClick={() =>
+                        setWaPage((p) => Math.min(waPageCount - 1, p + 1))
+                      }
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

@@ -15,6 +15,47 @@ export const RECEIVER_ROLE_CATALOG = [
   'Wellbeing Officer',
 ] as const
 
+/** Role types selectable when defining the Feedback Coordinator role. */
+export const ROLE_TYPES = [
+  'Feedback Coordinator',
+  'Reviewer',
+  'Approver',
+  'Administrator',
+] as const
+
+/**
+ * Feedback Coordinator role definition (Kensium: Configuration > Organization
+ * > Role) — role name/type/description plus the applicable location /
+ * department / position cascade and the employee holding the role.
+ */
+export interface CoordinatorRoleDef {
+  roleName: string
+  roleType: string
+  description: string
+  applicableLocations: string[]
+  applicableDepartments: string[]
+  applicablePositions: string[]
+  /** The employee assigned the Feedback Coordinator role. */
+  applicableEmployee: string | null
+}
+
+/**
+ * A configured Feedback/Grievance receiver ("Add New Feedback/Grievance
+ * Receivers"): the cascading applicability scope plus applicable roles.
+ */
+export interface ReceiverDef {
+  id: string
+  applicableLocations: string[]
+  /** Populated based on the selected locations. */
+  applicableDepartments: string[]
+  /** Populated based on the selected departments. */
+  applicablePositions: string[]
+  applicableEmployees: string[]
+  applicableRoles: string[]
+  addedOn: string
+  addedBy: string
+}
+
 export type FieldType = 'text' | 'textarea' | 'date'
 
 export interface FormFieldDef {
@@ -56,6 +97,10 @@ export interface FeedbackConfig {
   anonymousReceivers: string[]
   /** Designated escalation owner (FBG-26). */
   coordinator: string | null
+  /** Feedback Coordinator role definition (Organization > Role). */
+  coordinatorRole: CoordinatorRoleDef
+  /** Configured Feedback/Grievance receivers with applicability cascades. */
+  receiverDefs: ReceiverDef[]
   /** Reminder to the approver after N days (FBG-24). */
   approverReminderDays: number
   /** Reminder to feedback coordinator after N days (FBG-25). */
@@ -78,6 +123,38 @@ export const seedConfig: FeedbackConfig = {
   nonAnonymousReceivers: ['HR Manager', 'HR Business Partner'],
   anonymousReceivers: ['Ethics Officer'],
   coordinator: 'People Ops Lead',
+  coordinatorRole: {
+    roleName: 'Feedback / Grievance Coordinator',
+    roleType: 'Feedback Coordinator',
+    description:
+      'Coordinates all feedback and grievances: may mark entries as received or closed on behalf of any employee, and views/manages anonymous submissions.',
+    applicableLocations: ['Hyderabad HQ', 'Chennai Campus'],
+    applicableDepartments: ['Human Resources', 'Operations'],
+    applicablePositions: ['HR Manager', 'Operations Manager'],
+    applicableEmployee: 'Meera Iyer',
+  },
+  receiverDefs: [
+    {
+      id: 'rcv-1',
+      applicableLocations: ['Hyderabad HQ'],
+      applicableDepartments: ['Human Resources'],
+      applicablePositions: ['HR Manager', 'HR Business Partner'],
+      applicableEmployees: ['Meera Iyer', 'Priya Nair'],
+      applicableRoles: ['HR Manager', 'HR Business Partner'],
+      addedOn: '2026-05-02',
+      addedBy: 'Meera Iyer',
+    },
+    {
+      id: 'rcv-2',
+      applicableLocations: ['Hyderabad HQ', 'Chennai Campus'],
+      applicableDepartments: ['Human Resources', 'Operations'],
+      applicablePositions: ['HR Executive', 'Operations Manager'],
+      applicableEmployees: ['Leo Grant', 'Harpreet Kaur'],
+      applicableRoles: ['Ethics Officer'],
+      addedOn: '2026-05-14',
+      addedBy: 'Meera Iyer',
+    },
+  ],
   approverReminderDays: 3,
   coordinatorReminderDays: 7,
   accessRoles: ['HR Manager', 'HR Business Partner', 'Ethics Officer', 'People Ops Lead'],

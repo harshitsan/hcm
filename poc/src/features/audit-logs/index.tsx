@@ -62,7 +62,7 @@ export function AuditLogs() {
           />
 
           <Tabs key={role} defaultValue='trail' className='w-full'>
-            <TabsList className='mb-2'>
+            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='trail' variant='primary'>
                 Audit Trail
               </TabsTrigger>
@@ -96,17 +96,9 @@ export function AuditLogs() {
 
             {isPlatformAdmin && (
               <TabsContent value='admin'>
-                <Tabs defaultValue='retention' className='w-full'>
-                  <TabsList className='mb-2'>
-                    <TabsTrigger value='retention' variant='primary'>
-                      Data Retention
-                    </TabsTrigger>
-                    <TabsTrigger value='access' variant='primary'>
-                      Scope &amp; Access
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value='retention'>
+                <div className='flex flex-col gap-6'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Data Retention</h3>
                     <RetentionTab
                       entries={entries}
                       policyVersions={policyVersions}
@@ -119,9 +111,9 @@ export function AuditLogs() {
                         disposeExpired(currentPolicy.totalYears)
                       }
                     />
-                  </TabsContent>
-
-                  <TabsContent value='access'>
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Scope &amp; Access</h3>
                     <GovernanceTab
                       scopeEntities={scopeEntities}
                       onToggleEntity={toggleEntityEnabled}
@@ -129,8 +121,8 @@ export function AuditLogs() {
                       accessConfig={accessConfig}
                       onToggleAccess={toggleAccess}
                     />
-                  </TabsContent>
-                </Tabs>
+                  </section>
+                </div>
               </TabsContent>
             )}
           </Tabs>

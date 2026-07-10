@@ -69,7 +69,7 @@ export function Locations() {
         <div className='w-full'>
           {/* Remount when the role changes so the default tab stays valid. */}
           <Tabs key={role} defaultValue={tabs[0].value} className='w-full'>
-            <TabsList className='mb-2'>
+            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>
                   {tab.label}
@@ -95,30 +95,26 @@ export function Locations() {
             {adminSections.length > 0 && (
               <TabsContent value='admin'>
                 <EngineArtifactsPanel module='Locations' />
-                <Tabs defaultValue={adminSections[0].value} className='w-full'>
-                  <TabsList className='mb-2'>
-                    {adminSections.map((section) => (
-                      <TabsTrigger key={section.value} value={section.value}>
-                        {section.label}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                <div className='flex flex-col gap-6'>
                   {isCompanyAdmin && (
                     <>
-                      <TabsContent value='organization'>
+                      <section>
+                        <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Company profile</h3>
                         <OrganizationTab org={org} store={store} />
-                      </TabsContent>
-                      <TabsContent value='localization'>
+                      </section>
+                      <section>
+                        <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Regional settings</h3>
                         <LocalizationTab org={org} />
-                      </TabsContent>
+                      </section>
                     </>
                   )}
                   {isPlatformAdmin && (
-                    <TabsContent value='governance'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Data quality</h3>
                       <GovernanceTab store={store} />
-                    </TabsContent>
+                    </section>
                   )}
-                </Tabs>
+                </div>
               </TabsContent>
             )}
           </Tabs>

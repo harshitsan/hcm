@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { DownloadSimple, LockSimple, Plus } from 'phosphor-react'
+import { CheckCircle, DownloadSimple, LockSimple, Plus } from 'phosphor-react'
 import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Button } from '@/components/ui/button'
@@ -14,15 +14,23 @@ import {
 import { expiryStatusOf } from '../data/documents'
 import { type DocumentType } from '../data/masters'
 import { CURRENT_EMPLOYEE } from '../data/org'
+import { type DocumentReceipt } from '../data/receipts'
 import { type DocumentsStore } from '../hooks/use-documents'
 import { type DocumentSettingsStore } from '../hooks/use-document-settings'
-import { ExpiryBadge } from './status-badges'
+import { type ReceiptsStore } from '../hooks/use-receipts'
+import { AcknowledgeReceiptDialog } from './acknowledge-receipt-dialog'
+import {
+  ExpiryBadge,
+  PhysicalCopyBadge,
+  ReceiptStatusBadge,
+} from './status-badges'
 import { UploadOverlay } from './upload-overlay'
 
 interface MyDocumentsTabProps {
   store: DocumentsStore
   settings: DocumentSettingsStore
   documentTypes: DocumentType[]
+  receipts: ReceiptsStore
 }
 
 const dateFmt = new Intl.DateTimeFormat('en-GB', {
@@ -43,9 +51,21 @@ export function MyDocumentsTab({
   store,
   settings,
   documentTypes,
+  receipts,
 }: MyDocumentsTabProps) {
   const { role } = useRole()
   const [overlayOpen, setOverlayOpen] = useState(false)
+  const [acknowledging, setAcknowledging] = useState<DocumentReceipt | null>(
+    null
+  )
+
+  const ownReceipts = useMemo(
+    () =>
+      receipts.receipts.filter(
+        (r) => r.employeeName === CURRENT_EMPLOYEE.name
+      ),
+    [receipts.receipts]
+  )
 
   const ownDocuments = useMemo(
     () =>
@@ -180,6 +200,122 @@ export function MyDocumentsTab({
           </TableBody>
         </Table>
       </div>
+
+      <div className='mt-6 mb-3'>
+        <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
+          Submitted to custodian ({ownReceipts.length})
+        </h2>
+        <p className='text-paragraph-sm text-neutral-1000'>
+          Documents you handed over to the document custodian. Acknowledge a
+          returned document once you receive it back.
+        </p>
+      </div>
+
+      <div className='rounded-md border bg-white'>
+        <Table>
+          <TableHeader>
+            <TableRow className='bg-gray-50'>
+              <TableHead>Document</TableHead>
+              <TableHead>Issued</TableHead>
+              <TableHead>Copy</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Returned on</TableHead>
+              <TableHead className='text-right'>Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ownReceipts.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className='text-neutral-1000 h-24 text-center'
+                >
+                  You have no documents with the custodian.
+                </TableCell>
+              </TableRow>
+            ) : (
+              ownReceipts.map((receipt) => (
+                <TableRow key={receipt.id}>
+                  <TableCell>
+                    <div className='flex flex-col'>
+                      <span className='text-neutral-1600 text-sm font-medium'>
+                        {receipt.documentName}
+                      </span>
+                      <span className='text-paragraph-sm text-neutral-1000'>
+                        {receipt.documentType} · {receipt.issueAuthority}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className='text-sm'>
+                    {fmtDate(receipt.dateOfIssuance)}
+                  </TableCell>
+                  <TableCell>
+                    <PhysicalCopyBadge
+                      hasPhysicalCopy={receipt.hasPhysicalCopy}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <ReceiptStatusBadge status={receipt.status} />
+                  </TableCell>
+                  <TableCell className='text-sm'>
+                    <div className='flex flex-col'>
+                      <span>
+                        {fmtDate(receipt.returnDetails?.returnedOn ?? null)}
+                      </span>
+                      {receipt.status === 'returned-temporary' &&
+                        receipt.returnDetails?.expectedDateOfSubmission && (
+                          <span className='text-paragraph-sm text-neutral-1000'>
+                            Submit back by{' '}
+                            {fmtDate(
+                              receipt.returnDetails.expectedDateOfSubmission
+                            )}
+                          </span>
+                        )}
+                    </div>
+                  </TableCell>
+                  <TableCell className='text-right'>
+                    {receipt.status === 'returned-temporary' ||
+                    receipt.status === 'returned-permanent' ? (
+                      <Button
+                        variant='outline'
+                        className='h-7 gap-1 rounded-[6px] px-2'
+                        onClick={() => setAcknowledging(receipt)}
+                      >
+                        <CheckCircle size={14} weight='bold' />
+                        Acknowledge
+                      </Button>
+                    ) : receipt.status === 'acknowledged' ? (
+                      <span className='text-paragraph-sm text-neutral-1000'>
+                        Acknowledged{' '}
+                        {fmtDate(
+                          receipt.acknowledgement?.acknowledgedOn ?? null
+                        )}
+                      </span>
+                    ) : (
+                      <span className='text-paragraph-sm text-neutral-1000'>
+                        With custodian
+                      </span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <AcknowledgeReceiptDialog
+        open={Boolean(acknowledging)}
+        onOpenChange={(open) => {
+          if (!open) setAcknowledging(null)
+        }}
+        receipt={acknowledging}
+        onSubmit={(comments) => {
+          if (acknowledging)
+            receipts.acknowledgeReceipt(acknowledging.id, comments)
+          setAcknowledging(null)
+        }}
+      />
 
       <UploadOverlay
         open={overlayOpen}

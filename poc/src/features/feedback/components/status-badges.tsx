@@ -6,6 +6,7 @@ type BadgeVariant = ComponentProps<typeof Badge>['variant']
 
 const statusVariant: Record<EntryStatus, BadgeVariant> = {
   Submitted: 'open',
+  'Feedback received': 'qualified',
   'Under Review': 'pending',
   'On Hold': 'overdue',
   Escalated: 'dropped',

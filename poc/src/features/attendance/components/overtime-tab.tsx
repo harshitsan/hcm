@@ -1,13 +1,40 @@
 import { useState } from 'react'
+import { PencilSimple, Plus } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { MultiSelectDropdown } from '@/components/ui/multi-select-dropdown'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { employeeById, employeeName, fmtDate, fmtHours } from '../data/shared'
+import { type ApprovalWorkflow } from '../data/config'
+import { LOCATIONS, employeeById, employeeName, fmtDate, fmtHours } from '../data/shared'
 import { type AttendanceStore } from '../hooks/use-attendance'
 import { type AttendanceConfigStore } from '../hooks/use-attendance-config'
 import { OtBadge, StatusBadge } from './badges'
+import { DualListTransfer } from './dual-list-transfer'
 import { SummaryCards } from './summary-cards'
+
+const OT_APPROVER_ROLES = [
+  'Immediate Supervisor',
+  'Department Head',
+  'Shift In-charge',
+  'Plant Head',
+  'HR Manager',
+]
 
 /**
  * Overtime management (TNA-09/10/25/26/30): the Time engine's accrued OT,
@@ -22,6 +49,16 @@ export function OvertimeTab({
   config: AttendanceConfigStore
 }) {
   const [capDrafts, setCapDrafts] = useState<Record<string, string>>({})
+  const [scopeDraft, setScopeDraft] = useState<string[]>(config.otScopeLocations)
+
+  // Add/edit OT approver dialog (OTA-01/02/04)
+  const [otaOpen, setOtaOpen] = useState(false)
+  const [editingOtaId, setEditingOtaId] = useState<string | null>(null)
+  const [oLocations, setOLocations] = useState<string[]>([])
+  const [oLevel1, setOLevel1] = useState('Immediate Supervisor')
+  const [oLevel2, setOLevel2] = useState('Department Head')
+  const [oCap, setOCap] = useState('4')
+  const [oEscalate, setOEscalate] = useState('HR Manager')
 
   const otRecords = attendance.records.filter(
     (r) => r.overtimeHours > 0 && !r.duplicateOfId && r.employeeId !== null
@@ -35,8 +72,119 @@ export function OvertimeTab({
 
   const otWorkflows = config.workflows.filter((w) => w.kind === 'overtime')
 
+  const openNewOta = () => {
+    setEditingOtaId(null)
+    setOLocations([])
+    setOLevel1('Immediate Supervisor')
+    setOLevel2('Department Head')
+    setOCap('4')
+    setOEscalate('HR Manager')
+    setOtaOpen(true)
+  }
+
+  const openEditOta = (w: ApprovalWorkflow) => {
+    setEditingOtaId(w.id)
+    setOLocations(
+      w.scope === 'Company-wide' ? [] : LOCATIONS.filter((l) => w.scope.includes(l))
+    )
+    setOLevel1(w.levels[0] ?? 'Immediate Supervisor')
+    setOLevel2(w.levels[1] ?? 'None')
+    setOCap(String(w.supervisorCapHours ?? 4))
+    setOEscalate(w.escalateTo)
+    setOtaOpen(true)
+  }
+
+  /** OTA-04 — save the approver; Save & Next opens the next OT approver. */
+  const saveOta = (continueNext = false) => {
+    const cap = Number(oCap)
+    if (Number.isNaN(cap) || cap <= 0) {
+      toast.error('Supervisor cap must be a positive number of hours')
+      return
+    }
+    const payload = {
+      scope:
+        oLocations.length === 0 ? 'Company-wide' : `Locations: ${oLocations.join(', ')}`,
+      levels: oLevel2 === 'None' ? [oLevel1] : [oLevel1, oLevel2],
+      supervisorCapHours: cap,
+      escalateTo: oEscalate,
+    }
+    if (editingOtaId) {
+      config.updateWorkflow(editingOtaId, payload)
+      if (continueNext) {
+        const idx = otWorkflows.findIndex((w) => w.id === editingOtaId)
+        const next = otWorkflows[idx + 1]
+        if (next) {
+          openEditOta(next)
+          toast.info(`Next approver configuration: ${next.scope}`)
+          return
+        }
+      }
+    } else {
+      config.addWorkflow({
+        kind: 'overtime',
+        slaHours: 48,
+        payrollCutoffDay: null,
+        ...payload,
+      })
+    }
+    setOtaOpen(false)
+  }
+
   return (
     <div className='w-full space-y-5'>
+      {/* Enable overtime (Kensium OT-01) */}
+      <div className='flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-gray-200 bg-white p-4'>
+        <div>
+          <h3 className='text-sm font-medium'>Over Time</h3>
+          <p className='text-paragraph-sm text-neutral-1000 pt-0.5'>
+            When enabled, employees in the assigned scope can log overtime and
+            route it for approval; when disabled, no new overtime accrues.
+          </p>
+        </div>
+        <label className='flex items-center gap-2 text-xs'>
+          Enable over time
+          <Switch
+            checked={config.overtimeEnabled}
+            onCheckedChange={config.toggleOvertimeEnabled}
+          />
+        </label>
+      </div>
+
+      {/* OT scope transfer list (Kensium OT-03/04) */}
+      {config.overtimeEnabled && (
+        <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
+          <h3 className='text-sm font-medium'>Overtime Applies To</h3>
+          <p className='text-paragraph-sm text-neutral-1000 pt-0.5 pb-2'>
+            Move locations between the lists to define the scope over time
+            applies to.
+          </p>
+          <DualListTransfer
+            options={LOCATIONS}
+            assigned={scopeDraft}
+            onChange={setScopeDraft}
+            availableTitle='Available locations'
+            assignedTitle='Overtime-enabled locations'
+          />
+          <div className='mt-3 flex justify-end gap-2'>
+            <Button className='h-7' onClick={() => config.saveOtScopeLocations(scopeDraft)}>
+              Save
+            </Button>
+            <Button
+              variant='outline'
+              className='h-7'
+              onClick={() => {
+                config.saveOtScopeLocations(scopeDraft)
+                document
+                  .getElementById('ot-approvers')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+            >
+              Save & Next — Approvers
+            </Button>
+          </div>
+        </div>
+      )}
+
       <SummaryCards
         title='Overtime — calculated and categorized by the shared engines'
         items={[
@@ -167,15 +315,21 @@ export function OvertimeTab({
         </div>
       </div>
 
-      {/* OT approvers with location routing + supervisor cap (TNA-30) */}
-      <div>
-        <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
-          Overtime Approvers ({otWorkflows.length})
-          <span className='text-neutral-1000 ml-2 text-xs'>
-            requests above the supervisor cap require higher authorization;
-            edits apply to subsequently submitted requests
-          </span>
-        </h3>
+      {/* OT approvers with location routing + supervisor cap (TNA-30 / OTA-01..04) */}
+      <div id='ot-approvers'>
+        <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+          <h3 className='text-neutral-1600 text-sm font-medium'>
+            Overtime Approvers ({otWorkflows.length})
+            <span className='text-neutral-1000 ml-2 text-xs'>
+              requests above the supervisor cap require higher authorization;
+              edits apply to subsequently submitted requests
+            </span>
+          </h3>
+          <Button variant='outline' className='h-7 gap-1' onClick={openNewOta}>
+            <Plus size={12} weight='bold' />
+            Add Approver
+          </Button>
+        </div>
         <div className='rounded-[8px] border border-gray-200 bg-white p-3'>
           <table className='w-full text-sm'>
             <thead>
@@ -204,20 +358,30 @@ export function OvertimeTab({
                   </td>
                   <td className='px-2'>v{w.version}</td>
                   <td className='px-2 text-right'>
-                    <Button
-                      variant='outline'
-                      className='h-6 px-2 text-xs'
-                      onClick={() => {
-                        const cap = Number(capDrafts[w.id] ?? w.supervisorCapHours)
-                        if (Number.isNaN(cap) || cap <= 0) {
-                          toast.error('Cap must be a positive number of hours')
-                          return
-                        }
-                        config.updateWorkflow(w.id, { supervisorCapHours: cap })
-                      }}
-                    >
-                      Save
-                    </Button>
+                    <div className='flex justify-end gap-1'>
+                      <Button
+                        variant='outline'
+                        className='h-6 px-2 text-xs'
+                        onClick={() => {
+                          const cap = Number(capDrafts[w.id] ?? w.supervisorCapHours)
+                          if (Number.isNaN(cap) || cap <= 0) {
+                            toast.error('Cap must be a positive number of hours')
+                            return
+                          }
+                          config.updateWorkflow(w.id, { supervisorCapHours: cap })
+                        }}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        variant='outline'
+                        className='h-6 gap-1 px-2 text-xs'
+                        onClick={() => openEditOta(w)}
+                      >
+                        <PencilSimple size={12} />
+                        Edit
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -225,6 +389,92 @@ export function OvertimeTab({
           </table>
         </div>
       </div>
+
+      {/* Add / edit over time approver (OTA-01/02/04) */}
+      <Dialog open={otaOpen} onOpenChange={setOtaOpen}>
+        <DialogContent className='sm:max-w-[440px]'>
+          <DialogHeader>
+            <DialogTitle>
+              {editingOtaId ? 'Edit over time approver' : 'Add over time approver'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className='space-y-3'>
+            <div className='flex flex-col gap-1'>
+              <Label className='text-xs'>Applicable locations (empty = company-wide)</Label>
+              <MultiSelectDropdown
+                items={LOCATIONS.map((l) => ({ id: l, label: l }))}
+                selectedIds={oLocations}
+                onSelectionChange={setOLocations}
+                placeholder='Company-wide'
+              />
+            </div>
+            <div className='grid grid-cols-2 gap-3'>
+              <div className='flex flex-col gap-1'>
+                <Label className='text-xs'>Level 1 approver</Label>
+                <Select value={oLevel1} onValueChange={setOLevel1}>
+                  <SelectTrigger variant='secondary' className='w-full'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OT_APPROVER_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className='flex flex-col gap-1'>
+                <Label className='text-xs'>Level 2 approver</Label>
+                <Select value={oLevel2} onValueChange={setOLevel2}>
+                  <SelectTrigger variant='secondary' className='w-full'>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='None'>None</SelectItem>
+                    {OT_APPROVER_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className='grid grid-cols-2 gap-3'>
+              <div className='flex flex-col gap-1'>
+                <Label className='text-xs'>
+                  Max OT hours the immediate supervisor may approve
+                </Label>
+                <Input
+                  type='number'
+                  value={oCap}
+                  onChange={(e) => setOCap(e.target.value)}
+                />
+              </div>
+              <div className='flex flex-col gap-1'>
+                <Label className='text-xs'>Escalate unactioned requests to</Label>
+                <Input
+                  value={oEscalate}
+                  onChange={(e) => setOEscalate(e.target.value)}
+                  placeholder='HR Manager'
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setOtaOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => saveOta()}>
+              {editingOtaId ? 'Save Changes' : 'Save Approver'}
+            </Button>
+            <Button variant='outline' onClick={() => saveOta(true)}>
+              Save & Next
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

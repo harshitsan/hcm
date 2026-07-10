@@ -230,19 +230,179 @@ export const seedApproverGraphs: ApproverGraph[] = [
 
 /* ---------------------------------- Exit configuration ------------------- */
 
+/** When a tracked exit document is collected from the employee. */
+export type DocumentCollectWhen = 'before-exit' | 'on-lwd'
+
+export interface ExitDocumentToTrack {
+  name: string
+  collectWhen: DocumentCollectWhen
+}
+
+/** Basis used to derive the default LWD for formal resignations. */
+export type DefaultLwdBasis = 'resignation-date' | 'approval-date'
+
 export interface ExitTypeDef {
   id: string
   name: string
   category: 'Voluntary' | 'Involuntary' | 'Retirement'
   employeeClassSpecific: boolean
+  /** Policy documents viewable by participants during exit transactions. */
+  policyDocuments?: string[]
+  /** SLA (days) for each approver to act on the exit request. */
+  slaDays?: number
+  /**
+   * Conflicting-LWD resolution: across departments the conflict escalates to
+   * the approvers' common approver; within a department the higher approver's
+   * LWD wins.
+   */
+  isConflictLwd?: boolean
+  /** Documents collected from the employee and when they are collected. */
+  documentsToTrack?: ExitDocumentToTrack[]
+  /* --- Formal Resignation extras --- */
+  /** Remind exit coordinator + reporting manager if the resignation form is not submitted after N days. */
+  remindAfterDays?: number
+  /** Max prior days allowed for a backdated resignation date. */
+  maxBackdateDays?: number
+  defaultLwdBasis?: DefaultLwdBasis
+  /* --- Retirement extras --- */
+  /** Retirement age in years; HR is auto-notified from the employee's DOB. */
+  retirementAge?: number
+  /* --- Absconding extras --- */
+  /** Absence of N days makes an employee eligible for an absconding exit. */
+  abscondingDays?: number
+  includeWeeklyOffs?: boolean
+  includeHolidays?: boolean
+  alertReportingManager?: boolean
+  alertCoordinator?: boolean
+  /* --- Poor Performance extras --- */
+  /** Minimum quarters of performance evaluation before initiation. */
+  minQuarters?: number
+  /* --- Layoff extras --- */
+  /** Minimum employees required to initiate a layoff. */
+  minEmployees?: number
+  layoffApproversByLocation?: { location: string; approver: string }[]
 }
 
 export const seedExitTypes: ExitTypeDef[] = [
-  { id: 'xt1', name: 'Resignation', category: 'Voluntary', employeeClassSpecific: false },
-  { id: 'xt2', name: 'Probation Separation', category: 'Involuntary', employeeClassSpecific: false },
-  { id: 'xt3', name: 'Retirement', category: 'Retirement', employeeClassSpecific: true },
-  { id: 'xt4', name: 'Contract End', category: 'Voluntary', employeeClassSpecific: true },
-  { id: 'xt5', name: 'Termination', category: 'Involuntary', employeeClassSpecific: false },
+  {
+    id: 'xt1',
+    name: 'Resignation',
+    category: 'Voluntary',
+    employeeClassSpecific: false,
+    policyDocuments: ['Exit policy', 'Notice period policy'],
+    slaDays: 3,
+    isConflictLwd: true,
+    documentsToTrack: [
+      { name: 'Resignation acceptance letter', collectWhen: 'before-exit' },
+      { name: 'Asset handover form', collectWhen: 'on-lwd' },
+    ],
+    remindAfterDays: 3,
+    maxBackdateDays: 7,
+    defaultLwdBasis: 'resignation-date',
+  },
+  {
+    id: 'xt2',
+    name: 'Probation Separation',
+    category: 'Involuntary',
+    employeeClassSpecific: false,
+    policyDocuments: ['Probation policy'],
+    slaDays: 2,
+    isConflictLwd: false,
+    documentsToTrack: [
+      { name: 'Separation memo', collectWhen: 'before-exit' },
+    ],
+  },
+  {
+    id: 'xt3',
+    name: 'Retirement',
+    category: 'Retirement',
+    employeeClassSpecific: true,
+    policyDocuments: ['Retirement policy', 'Gratuity policy'],
+    slaDays: 5,
+    isConflictLwd: false,
+    documentsToTrack: [
+      { name: 'Pension nomination form', collectWhen: 'before-exit' },
+      { name: 'Company ID card', collectWhen: 'on-lwd' },
+    ],
+    retirementAge: 60,
+  },
+  {
+    id: 'xt4',
+    name: 'Contract End',
+    category: 'Voluntary',
+    employeeClassSpecific: true,
+    policyDocuments: ['Contract staffing policy'],
+    slaDays: 3,
+    isConflictLwd: false,
+    documentsToTrack: [
+      { name: 'Contract closure summary', collectWhen: 'before-exit' },
+    ],
+  },
+  {
+    id: 'xt5',
+    name: 'Termination',
+    category: 'Involuntary',
+    employeeClassSpecific: false,
+    policyDocuments: ['Disciplinary policy'],
+    slaDays: 2,
+    isConflictLwd: false,
+    documentsToTrack: [
+      { name: 'Termination letter acknowledgement', collectWhen: 'on-lwd' },
+    ],
+  },
+  {
+    id: 'xt6',
+    name: 'Suspension',
+    category: 'Involuntary',
+    employeeClassSpecific: false,
+    policyDocuments: ['Disciplinary policy'],
+    slaDays: 2,
+    isConflictLwd: false,
+    documentsToTrack: [],
+  },
+  {
+    id: 'xt7',
+    name: 'Absconding',
+    category: 'Involuntary',
+    employeeClassSpecific: false,
+    policyDocuments: ['Absconding policy'],
+    slaDays: 2,
+    isConflictLwd: false,
+    documentsToTrack: [],
+    abscondingDays: 5,
+    includeWeeklyOffs: false,
+    includeHolidays: false,
+    alertReportingManager: true,
+    alertCoordinator: true,
+  },
+  {
+    id: 'xt8',
+    name: 'Poor Performance',
+    category: 'Involuntary',
+    employeeClassSpecific: false,
+    policyDocuments: ['Performance improvement policy'],
+    slaDays: 3,
+    isConflictLwd: false,
+    documentsToTrack: [
+      { name: 'PIP closure report', collectWhen: 'before-exit' },
+    ],
+    minQuarters: 2,
+  },
+  {
+    id: 'xt9',
+    name: 'Layoff',
+    category: 'Involuntary',
+    employeeClassSpecific: false,
+    policyDocuments: ['Workforce restructuring policy'],
+    slaDays: 0,
+    isConflictLwd: false,
+    documentsToTrack: [],
+    minEmployees: 10,
+    layoffApproversByLocation: [
+      { location: 'Hyderabad', approver: 'Farah Qureshi' },
+      { location: 'Austin', approver: 'Elena Petrova' },
+    ],
+  },
 ]
 
 export interface ExitApproverGroup {
@@ -251,7 +411,17 @@ export interface ExitApproverGroup {
   exitType: string
   locations: string[]
   departments: string[]
+  /**
+   * Additional named approvers after approver-1. Approver-1 is always the
+   * Reporting Manager hierarchy (reportingManagerFromLevel → toLevel).
+   */
   approvers: string[]
+  /** Applicable position levels; empty/undefined = all. */
+  positionLevels?: string[]
+  /** Approver-1: Reporting Manager hierarchy start level (1 = immediate RM). */
+  reportingManagerFromLevel?: number
+  /** Approver-1: Reporting Manager hierarchy end level. */
+  reportingManagerToLevel?: number
 }
 
 export const seedExitApproverGroups: ExitApproverGroup[] = [
@@ -262,6 +432,9 @@ export const seedExitApproverGroups: ExitApproverGroup[] = [
     locations: ['Hyderabad', 'Bengaluru', 'Pune'],
     departments: ['Engineering', 'Finance', 'Human Resources', 'Sales'],
     approvers: ['Vikram Shah', 'Anita Desai'],
+    positionLevels: ['L1 - Associate', 'L2 - Senior', 'L3 - Lead'],
+    reportingManagerFromLevel: 1,
+    reportingManagerToLevel: 2,
   },
   {
     id: 'xg2',
@@ -270,6 +443,9 @@ export const seedExitApproverGroups: ExitApproverGroup[] = [
     locations: ['Austin'],
     departments: ['Sales', 'Finance'],
     approvers: ['Elena Petrova', 'Anita Desai'],
+    positionLevels: ['L1 - Associate', 'L2 - Senior', 'L3 - Lead', 'L4 - Manager'],
+    reportingManagerFromLevel: 1,
+    reportingManagerToLevel: 1,
   },
   {
     id: 'xg3',
@@ -278,6 +454,9 @@ export const seedExitApproverGroups: ExitApproverGroup[] = [
     locations: ['Hyderabad', 'Bengaluru', 'Pune', 'Austin'],
     departments: ['Operations', 'Engineering'],
     approvers: ['Anita Desai'],
+    positionLevels: ['L1 - Associate', 'L2 - Senior', 'L3 - Lead', 'L4 - Manager'],
+    reportingManagerFromLevel: 1,
+    reportingManagerToLevel: 2,
   },
 ]
 
@@ -301,6 +480,27 @@ export const QUESTION_TYPES = [
   'Multiple Choice',
 ] as const
 
+/** Objective questions carry options; subjective questions are free text. */
+export type ExitQuestionFormat = 'objective' | 'subjective'
+
+export type ExitQuestionRespondedBy = 'Employee' | 'HR' | 'Reporting Manager'
+
+/** Questionnaire stage(s) a question is asked in. */
+export type ExitQuestionStage = 'pre-exit' | 'post-exit'
+
+export const EXIT_QUESTION_STAGES: readonly ExitQuestionStage[] = [
+  'pre-exit',
+  'post-exit',
+] as const
+
+/**
+ * Visibility rule (Kensium): an employee's questionnaire responses are hidden
+ * from the immediate reporting manager and visible only from the next-level
+ * approver upward.
+ */
+export const EXIT_QUESTION_VISIBILITY_NOTE =
+  'Employee responses are hidden from the immediate reporting manager and visible only from the next-level approver upward.'
+
 export interface ExitQuestionDef {
   id: string
   text: string
@@ -308,6 +508,20 @@ export interface ExitQuestionDef {
   exitTypes: string[]
   responder: 'Employee' | 'Manager'
   mandatory: boolean
+  /** Objective (with options) or subjective (free text). */
+  questionFormat?: ExitQuestionFormat
+  /** Options offered when the question is objective. */
+  options?: string[]
+  /** Who answers the question; supersedes the legacy `responder` display. */
+  respondedBy?: ExitQuestionRespondedBy
+  /** Stages the question applies to; undefined = pre-exit only. */
+  applicableStages?: ExitQuestionStage[]
+  /** Applicable locations; empty/undefined = all. */
+  locations?: string[]
+  /** Applicable departments; empty/undefined = all. */
+  departments?: string[]
+  /** Applicable position levels; empty/undefined = all. */
+  positionLevels?: string[]
 }
 
 export const seedExitQuestions: ExitQuestionDef[] = [
@@ -318,6 +532,12 @@ export const seedExitQuestions: ExitQuestionDef[] = [
     exitTypes: ['Resignation', 'Contract End'],
     responder: 'Employee',
     mandatory: true,
+    questionFormat: 'subjective',
+    respondedBy: 'Employee',
+    applicableStages: ['pre-exit'],
+    locations: ['Hyderabad', 'Bengaluru', 'Pune', 'Austin'],
+    departments: [],
+    positionLevels: [],
   },
   {
     id: 'xq2',
@@ -326,6 +546,13 @@ export const seedExitQuestions: ExitQuestionDef[] = [
     exitTypes: ['Resignation', 'Retirement', 'Contract End'],
     responder: 'Employee',
     mandatory: true,
+    questionFormat: 'objective',
+    options: ['Yes', 'No'],
+    respondedBy: 'Employee',
+    applicableStages: ['post-exit'],
+    locations: [],
+    departments: [],
+    positionLevels: [],
   },
   {
     id: 'xq3',
@@ -334,6 +561,12 @@ export const seedExitQuestions: ExitQuestionDef[] = [
     exitTypes: ['Resignation', 'Retirement'],
     responder: 'Employee',
     mandatory: false,
+    questionFormat: 'subjective',
+    respondedBy: 'Employee',
+    applicableStages: ['pre-exit', 'post-exit'],
+    locations: [],
+    departments: [],
+    positionLevels: [],
   },
   {
     id: 'xq4',
@@ -342,7 +575,54 @@ export const seedExitQuestions: ExitQuestionDef[] = [
     exitTypes: ['Resignation'],
     responder: 'Manager',
     mandatory: true,
+    questionFormat: 'objective',
+    options: ['Yes', 'No'],
+    respondedBy: 'Reporting Manager',
+    applicableStages: ['pre-exit'],
+    locations: [],
+    departments: [],
+    positionLevels: [],
   },
+]
+
+/** How the responsible owner of an exit task is resolved. */
+export type ExitTaskResponsibleType = 'Role' | 'Employee' | 'Reporting Manager'
+
+export const EXIT_TASK_RESPONSIBLE_TYPES: readonly ExitTaskResponsibleType[] = [
+  'Role',
+  'Employee',
+  'Reporting Manager',
+] as const
+
+/** Roles selectable when an exit task is owned by a role. */
+export const EXIT_TASK_ROLES = [
+  'HR',
+  'IT Support',
+  'Finance',
+  'Admin',
+  'Exit Coordinator',
+] as const
+
+/** When an exit task instance is created. */
+export type ExitTaskCreatedOn = 'on-exit-approval' | 'before-lwd'
+
+/** Mock employee directory for the department → position → employee picker. */
+export interface EmployeePickerEntry {
+  name: string
+  department: string
+  positionLevel: string
+}
+
+export const EMPLOYEE_DIRECTORY: EmployeePickerEntry[] = [
+  { name: 'Vikram Shah', department: 'Engineering', positionLevel: 'L4 - Manager' },
+  { name: 'Rohan Verma', department: 'Engineering', positionLevel: 'L2 - Senior' },
+  { name: 'Tomás Silva', department: 'IT Support', positionLevel: 'L2 - Senior' },
+  { name: 'Elena Petrova', department: 'IT Support', positionLevel: 'L4 - Manager' },
+  { name: 'Kavya Menon', department: 'Finance', positionLevel: 'L3 - Lead' },
+  { name: 'Anita Desai', department: 'Human Resources', positionLevel: 'L4 - Manager' },
+  { name: 'Farah Qureshi', department: 'Human Resources', positionLevel: 'L4 - Manager' },
+  { name: 'Sunil Patil', department: 'Operations', positionLevel: 'L1 - Associate' },
+  { name: 'Carlos Mendes', department: 'Sales', positionLevel: 'L4 - Manager' },
 ]
 
 export interface ExitTaskDef {
@@ -352,6 +632,18 @@ export interface ExitTaskDef {
   responsible: string
   /** LWD-relative timing, e.g. "Before LWD - 3 Day(s)". */
   timing: string
+  /** How `responsible` is resolved; undefined = legacy role string. */
+  responsibleType?: ExitTaskResponsibleType
+  /** Role name when responsibleType = 'Role'. */
+  responsibleRole?: string
+  /** Picker breadcrumbs when responsibleType = 'Employee'. */
+  responsibleDepartment?: string
+  responsiblePosition?: string
+  responsibleEmployee?: string
+  /** When the task instance is created. */
+  taskCreatedOn?: ExitTaskCreatedOn
+  /** Days allowed to complete the task after exit approval. */
+  daysAllowedAfterApproval?: number
 }
 
 export const seedExitTaskDefs: ExitTaskDef[] = [
@@ -361,6 +653,9 @@ export const seedExitTaskDefs: ExitTaskDef[] = [
     exitTypes: ['Resignation', 'Retirement'],
     responsible: 'Reporting Manager',
     timing: 'Before LWD - 15 Day(s)',
+    responsibleType: 'Reporting Manager',
+    taskCreatedOn: 'on-exit-approval',
+    daysAllowedAfterApproval: 5,
   },
   {
     id: 'xtk2',
@@ -368,13 +663,23 @@ export const seedExitTaskDefs: ExitTaskDef[] = [
     exitTypes: ['Resignation', 'Termination', 'Probation Separation', 'Retirement', 'Contract End'],
     responsible: 'IT Support',
     timing: 'Before LWD - 0 Day(s)',
+    responsibleType: 'Role',
+    responsibleRole: 'IT Support',
+    taskCreatedOn: 'before-lwd',
+    daysAllowedAfterApproval: 1,
   },
   {
     id: 'xtk3',
     name: 'Full & final settlement input',
     exitTypes: ['Resignation', 'Retirement', 'Termination'],
-    responsible: 'Finance',
+    responsible: 'Kavya Menon',
     timing: 'After LWD - 7 Day(s)',
+    responsibleType: 'Employee',
+    responsibleDepartment: 'Finance',
+    responsiblePosition: 'L3 - Lead',
+    responsibleEmployee: 'Kavya Menon',
+    taskCreatedOn: 'on-exit-approval',
+    daysAllowedAfterApproval: 45,
   },
   {
     id: 'xtk4',
@@ -382,9 +687,20 @@ export const seedExitTaskDefs: ExitTaskDef[] = [
     exitTypes: ['Resignation', 'Retirement', 'Contract End'],
     responsible: 'HR',
     timing: 'After LWD - 3 Day(s)',
+    responsibleType: 'Role',
+    responsibleRole: 'HR',
+    taskCreatedOn: 'before-lwd',
+    daysAllowedAfterApproval: 7,
   },
 ]
 
+export type NoticePeriodUnit = 'days' | 'months'
+
+/**
+ * Notice period rules determine the Default LWD on an exit request.
+ * `durationDays` stays the derived source of truth for existing consumers;
+ * `periodValue` + `periodUnit` capture how the period was configured.
+ */
 export interface NoticeRule {
   id: string
   name: string
@@ -393,6 +709,14 @@ export interface NoticeRule {
   locations: string[]
   departments: string[]
   positionLevels: string[]
+  /** Configured period value; durationDays is derived from value + unit. */
+  periodValue?: number
+  periodUnit?: NoticePeriodUnit
+  /** Count calendar months as-is — weekly offs and holidays are ignored. */
+  considerCalendarMonth?: boolean
+  includeWeeklyOffs?: boolean
+  includeHolidays?: boolean
+  description?: string
 }
 
 export const seedNoticeRules: NoticeRule[] = [
@@ -404,6 +728,12 @@ export const seedNoticeRules: NoticeRule[] = [
     locations: ['Hyderabad', 'Bengaluru', 'Pune'],
     departments: ['Engineering', 'Finance', 'Human Resources', 'IT Support', 'Operations'],
     positionLevels: ['L1 - Associate', 'L2 - Senior', 'L3 - Lead'],
+    periodValue: 2,
+    periodUnit: 'months',
+    considerCalendarMonth: true,
+    includeWeeklyOffs: true,
+    includeHolidays: true,
+    description: 'Standard two calendar months for India-based staff.',
   },
   {
     id: 'nr2',
@@ -413,6 +743,12 @@ export const seedNoticeRules: NoticeRule[] = [
     locations: ['Hyderabad', 'Bengaluru', 'Pune', 'Austin'],
     departments: ['Engineering', 'Finance', 'Human Resources', 'Sales', 'Operations', 'IT Support'],
     positionLevels: ['L4 - Manager'],
+    periodValue: 3,
+    periodUnit: 'months',
+    considerCalendarMonth: true,
+    includeWeeklyOffs: true,
+    includeHolidays: true,
+    description: 'Extended notice for leadership positions across all sites.',
   },
   {
     id: 'nr3',
@@ -422,6 +758,12 @@ export const seedNoticeRules: NoticeRule[] = [
     locations: ['Austin'],
     departments: ['Sales', 'Finance'],
     positionLevels: ['L1 - Associate', 'L2 - Senior', 'L3 - Lead'],
+    periodValue: 14,
+    periodUnit: 'days',
+    considerCalendarMonth: false,
+    includeWeeklyOffs: true,
+    includeHolidays: false,
+    description: 'Two working weeks including weekly offs; US holidays excluded.',
   },
   {
     id: 'nr4',
@@ -431,6 +773,12 @@ export const seedNoticeRules: NoticeRule[] = [
     locations: ['Hyderabad', 'Pune'],
     departments: ['Operations', 'IT Support'],
     positionLevels: ['L1 - Associate'],
+    periodValue: 30,
+    periodUnit: 'days',
+    considerCalendarMonth: false,
+    includeWeeklyOffs: true,
+    includeHolidays: true,
+    description: 'Thirty days for contract staff, counting offs and holidays.',
   },
 ]
 
@@ -470,7 +818,8 @@ export const seedLetterTemplates: LetterTemplate[] = [
     category: 'Exit',
     kind: 'Letter',
     letterType: 'Experience Letter',
-    description: 'Summarizes tenure and role.',
+    description:
+      'Summarizes tenure and role. Generation is blocked until all exit conditions are closed or marked not required.',
     body: 'To whomsoever it may concern,\n\n{{employee_name}} ({{employee_code}}) was employed with {{company}} from {{join_date}} to {{last_working_day}} as {{designation}}.',
   },
   {

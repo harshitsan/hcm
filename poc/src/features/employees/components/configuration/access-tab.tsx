@@ -2,6 +2,7 @@ import { Fragment, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -19,7 +20,7 @@ import {
   type AccessSection,
 } from '../../data/configuration'
 import { type ConfigurationStore } from '../../hooks/use-configuration'
-import { FilterSelect } from '../shared'
+import { FilterSelect, SectionTitle } from '../shared'
 
 /**
  * EMP-51 — per-field View/Edit permission matrix for HR, Reporting Manager
@@ -134,6 +135,32 @@ export function AccessMatrixTab({ store }: { store: ConfigurationStore }) {
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      <div className='max-w-xl space-y-3'>
+        <SectionTitle>Configuration questions (EAP-05)</SectionTitle>
+        <div className='space-y-3 rounded-md border border-gray-200 bg-white p-4'>
+          {store.accessQuestions.map((q) => (
+            <div key={q.id} className='flex items-center justify-between gap-4'>
+              <div>
+                <p className='text-neutral-1600 text-sm font-medium'>
+                  {q.question}
+                </p>
+                <p className='text-paragraph-sm text-neutral-1000'>{q.hint}</p>
+              </div>
+              <Switch
+                checked={q.answer}
+                disabled={!canEdit}
+                onCheckedChange={() => store.toggleAccessQuestion(q.id)}
+                aria-label={q.question}
+              />
+            </div>
+          ))}
+        </div>
+        <p className='text-paragraph-sm text-neutral-1000'>
+          Answers apply to {employeeClass} @ {location} and drive downstream
+          systems and reports (bench report, billing, Wrike provisioning).
+        </p>
       </div>
 
       {canEdit && (

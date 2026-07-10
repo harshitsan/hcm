@@ -203,6 +203,68 @@ export const seedNotifications: AppNotification[] = [
   },
 ]
 
+/**
+ * Direct reports' notifications, readable by the reporting manager
+ * ("Option for the reporting manager to read the notifications of his/her
+ * direct reports" — Kensium General Features, Notifications).
+ */
+export interface TeamNotification extends AppNotification {
+  employee: string
+}
+
+export const seedTeamNotifications: TeamNotification[] = [
+  {
+    id: 'tntf-4001',
+    employee: 'Priya Nair',
+    category: 'workflow',
+    title: 'Leave request LR-2214 pending with approver',
+    body: 'Priya’s 3-day casual leave request (14–16 Jul) is awaiting reporting-manager approval.',
+    linkedItem: 'Leave request LR-2214',
+    createdAt: '2026-07-02T09:42:00',
+    read: false,
+  },
+  {
+    id: 'tntf-4002',
+    employee: 'Priya Nair',
+    category: 'reminder',
+    title: 'Timesheet submission due tomorrow',
+    body: 'Weekly timesheet for 29 Jun – 05 Jul is due for submission by end of day 10 Jul.',
+    linkedItem: 'Timesheet TS-4490',
+    createdAt: '2026-07-08T09:00:00',
+    read: false,
+  },
+  {
+    id: 'tntf-4003',
+    employee: 'Theo Brooks',
+    category: 'workflow',
+    title: 'Attendance change request CR-118 submitted',
+    body: 'Theo submitted a change request for a missed punch on 30 Jun; it is pending approval.',
+    linkedItem: 'Attendance CR-118',
+    createdAt: '2026-07-06T10:12:00',
+    read: true,
+  },
+  {
+    id: 'tntf-4004',
+    employee: 'Marcus Lane',
+    category: 'workflow',
+    title: 'Travel request TR-0339 approved',
+    body: 'Marcus’s travel request to Chicago (27–29 Jul) moved from Pending Approval to Approved.',
+    linkedItem: 'Travel request TR-0339',
+    createdAt: '2026-07-05T16:40:00',
+    read: false,
+  },
+  {
+    id: 'tntf-4005',
+    employee: 'Liam Patel',
+    category: 'task',
+    title: 'Task overdue: update onboarding checklist',
+    body: 'Task TSK-2001 assigned to Liam passed its due date (06 Jul) and is now overdue.',
+    linkedItem: 'Task TSK-2001',
+    createdAt: '2026-07-07T08:00:00',
+    read: true,
+  },
+]
+
 export const seedDeliveries: DeliveryRecord[] = [
   {
     id: 'DLV-9001',

@@ -31,16 +31,19 @@ import {
   type DirectoryViewMode,
 } from '../hooks/use-directory'
 import { type DirectoryConfigStore } from '../hooks/use-directory-config'
+import { type TimelineStore } from '../hooks/use-timeline'
 import { exportDirectoryResults } from '../utils/export'
 import { scopedCompanies } from '../utils/org'
 import { AdvancedSearch } from './advanced-search'
 import { buildDirectoryColumns } from './directory-table-columns'
 import { DirectoryCardView, DirectoryCompactView } from './directory-views'
 import { SavedSearchOverlay } from './saved-search-overlay'
+import { TimelineSheet } from './timeline-sheet'
 
 interface DirectoryTabProps {
   store: DirectoryStore
   config: DirectoryConfigStore
+  timeline: TimelineStore
 }
 
 const VIEW_MODES: {
@@ -66,12 +69,15 @@ const VIEW_MODES: {
  * contact details (DIR-02/10/21), advanced search with saved searches and
  * exports (DIR-06/07/08) and cross-company scopes (DIR-09/12/15/16).
  */
-export function DirectoryTab({ store, config }: DirectoryTabProps) {
+export function DirectoryTab({ store, config, timeline }: DirectoryTabProps) {
   const { role } = useRole()
   const [filters, setFilters] = useState<DirectoryFilters>({ ...EMPTY_FILTERS })
   const [selectedRows, setSelectedRows] = useState<Employee[]>([])
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
   const [saveOverlayOpen, setSaveOverlayOpen] = useState(false)
+  const [timelineEmployee, setTimelineEmployee] = useState<Employee | null>(
+    null
+  )
 
   // Tenant scoping (DIR-16): rows outside the caller's grant never surface.
   const companies = useMemo(() => scopedCompanies(role), [role])
@@ -93,6 +99,7 @@ export function DirectoryTab({ store, config }: DirectoryTabProps) {
         config: config.privacyConfig,
         customFields: config.customFields,
         showCompany: crossCompany,
+        onViewTimeline: setTimelineEmployee,
       }),
     [role, config.privacyConfig, config.customFields, crossCompany]
   )
@@ -276,6 +283,7 @@ export function DirectoryTab({ store, config }: DirectoryTabProps) {
           config={config.privacyConfig}
           customFields={config.customFields}
           showCompany={crossCompany}
+          onViewTimeline={setTimelineEmployee}
         />
       )}
       {store.viewMode === 'compact' && (
@@ -284,6 +292,7 @@ export function DirectoryTab({ store, config }: DirectoryTabProps) {
           role={role}
           config={config.privacyConfig}
           showCompany={crossCompany}
+          onViewTimeline={setTimelineEmployee}
         />
       )}
 
@@ -301,6 +310,15 @@ export function DirectoryTab({ store, config }: DirectoryTabProps) {
         savedSearches={store.savedSearches}
         onCreate={store.addSavedSearch}
         onUpdate={store.updateSavedSearch}
+      />
+
+      {/* Employee Timeline drill-down — "View timeline" row/card action. */}
+      <TimelineSheet
+        employee={timelineEmployee}
+        timeline={timeline}
+        onOpenChange={(open) => {
+          if (!open) setTimelineEmployee(null)
+        }}
       />
     </div>
   )

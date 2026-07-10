@@ -74,15 +74,94 @@ export const EMPLOYEE_CLASSES = [
   'Trainee',
 ] as const
 
+export const GENDERS = ['Male', 'Female', 'Other'] as const
+export type Gender = (typeof GENDERS)[number]
+
+export const POSITION_LEVELS = [
+  'L1 — Associate',
+  'L2 — Senior',
+  'L3 — Lead',
+  'L4 — Manager',
+  'L5 — Director',
+] as const
+
 export const LIFECYCLE_STAGES = [
   'Onboarding',
   'Probation',
   'Active',
   'Transferred',
   'Notice Period',
+  'Suspended',
   'Exited',
 ] as const
 export type LifecycleStage = (typeof LIFECYCLE_STAGES)[number]
+
+/** Fixed "today" used for mock dates across the employees module. */
+export const EMPLOYEES_TODAY = '2026-07-09'
+
+/* ------------------------------------------------------------------ */
+/* Mass update (EMP-43) — function categories & their field catalogs   */
+/* ------------------------------------------------------------------ */
+
+export const MASS_FUNCTIONS = [
+  'position',
+  'employeeClass',
+  'jurisdiction',
+  'contact',
+  'address',
+  'agreements',
+  'skills',
+  'generalInfo',
+  'clientFeedback',
+] as const
+export type MassFunction = (typeof MASS_FUNCTIONS)[number]
+
+/**
+ * Per-category available-fields catalog for the mass-update field grid.
+ * The legacy single-value categories (position / employeeClass /
+ * jurisdiction) are value-driven and have no field list.
+ */
+export const MASS_UPDATE_FIELD_CATALOG: Partial<
+  Record<MassFunction, readonly string[]>
+> = {
+  contact: [
+    'Personal email',
+    'Personal phone',
+    'Work email',
+    'Work phone',
+    'Emergency contact',
+  ],
+  address: ['Address line 1', 'Address line 2', 'City', 'State', 'Country', 'PIN'],
+  agreements: ['Agreement type', 'Effective date', 'Expiry date'],
+  skills: [
+    'Skill',
+    'Experience years',
+    'Rating',
+    'Certification name',
+    'Valid from',
+    'Valid to',
+  ],
+  generalInfo: [
+    'Department',
+    'Position',
+    'Position level',
+    'Reporting manager',
+    'Functional manager',
+  ],
+  clientFeedback: ['Client', 'Project', 'Feedback type', 'Subject'],
+}
+
+export const MASS_FUNCTION_LABELS: Record<MassFunction, string> = {
+  position: 'Position',
+  employeeClass: 'Employee class',
+  jurisdiction: 'Jurisdiction',
+  contact: 'Contact',
+  address: 'Address',
+  agreements: 'Agreements',
+  skills: 'Skills',
+  generalInfo: 'General information',
+  clientFeedback: 'Client feedback',
+}
 
 export type Eligibility = 'Eligible' | 'Not eligible' | 'Pending evaluation'
 
@@ -113,18 +192,39 @@ export interface LifecycleEvent {
   note: string
 }
 
+/** Active/most-recent suspension window recorded on the employee. */
+export interface Suspension {
+  reason: string
+  from: string
+  to: string
+}
+
 export interface Employee {
   id: string
   code: string
   name: string
   email: string
+  gender: Gender
+  socialMediaLinkedIn: string
+  socialMediaTwitter: string
   companyId: string
   jurisdiction: Jurisdiction
   departments: string[]
   position: string
+  /** Primary functional (work) location, one of LOCATIONS. */
+  functionalLocation: string
+  positionLevel: string
+  /** Assigned system roles from the canonical role list. */
+  roles: string[]
   groups: string[]
   locations: string[]
   employeeClass: (typeof EMPLOYEE_CLASSES)[number]
+  attendanceTracked: boolean
+  abscondingAlertsEnabled: boolean
+  supervisorApprovalRequired: boolean
+  suspension: Suspension | null
+  /** Inline audit note set when role assignments are transferred. */
+  roleTransferNote: string | null
   primaryManager: string
   dottedLineManagers: string[]
   managerEffectiveDate: string
@@ -171,6 +271,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Active',
     joinDate: '2019-06-10',
+    gender: 'Female',
+    socialMediaLinkedIn: 'https://linkedin.com/in/ananya-krishnan',
+    socialMediaTwitter: 'https://x.com/ananya_hr',
+    functionalLocation: 'Bengaluru HQ',
+    positionLevel: 'L4 — Manager',
+    roles: ['Company Admin', 'Employee (User)'],
+    attendanceTracked: true,
+    abscondingAlertsEnabled: true,
+    supervisorApprovalRequired: false,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '4521-8834-1102',
     pan: 'AKPKR2211F',
     passport: 'N8123456',
@@ -219,6 +330,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Active',
     joinDate: '2017-03-01',
+    gender: 'Male',
+    socialMediaLinkedIn: 'https://linkedin.com/in/vikram-shetty',
+    socialMediaTwitter: '',
+    functionalLocation: 'Bengaluru HQ',
+    positionLevel: 'L5 — Director',
+    roles: ['Group Company Admin', 'Employee (User)'],
+    attendanceTracked: false,
+    abscondingAlertsEnabled: false,
+    supervisorApprovalRequired: false,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '7810-2245-9931',
     pan: 'VSHPS8842K',
     passport: '',
@@ -260,6 +382,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Active',
     joinDate: '2021-08-16',
+    gender: 'Male',
+    socialMediaLinkedIn: 'https://linkedin.com/in/rohit-menon-dev',
+    socialMediaTwitter: 'https://x.com/rohitcodes',
+    functionalLocation: 'Bengaluru HQ',
+    positionLevel: 'L2 — Senior',
+    roles: ['Employee (User)'],
+    attendanceTracked: true,
+    abscondingAlertsEnabled: true,
+    supervisorApprovalRequired: true,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '9034-1276-5581',
     pan: 'RMEPM5521Q',
     passport: 'Z4455112',
@@ -311,6 +444,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Probation',
     joinDate: '2026-03-02',
+    gender: 'Female',
+    socialMediaLinkedIn: 'https://linkedin.com/in/sneha-patil-eng',
+    socialMediaTwitter: '',
+    functionalLocation: 'Mumbai Office',
+    positionLevel: 'L1 — Associate',
+    roles: ['Employee (User)'],
+    attendanceTracked: true,
+    abscondingAlertsEnabled: true,
+    supervisorApprovalRequired: true,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '2218-9954-3307',
     pan: 'SPAPT7733M',
     passport: '',
@@ -352,6 +496,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: false,
     lifecycleStage: 'Active',
     joinDate: '2020-11-02',
+    gender: 'Male',
+    socialMediaLinkedIn: '',
+    socialMediaTwitter: '',
+    functionalLocation: 'Pune Plant',
+    positionLevel: 'L3 — Lead',
+    roles: ['Employee (Non-User)'],
+    attendanceTracked: true,
+    abscondingAlertsEnabled: true,
+    supervisorApprovalRequired: true,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '6650-3312-8874',
     pan: 'IQUPQ9911B',
     passport: '',
@@ -396,6 +551,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Active',
     joinDate: '2022-04-18',
+    gender: 'Male',
+    socialMediaLinkedIn: 'https://linkedin.com/in/rakesh-iyer-fin',
+    socialMediaTwitter: '',
+    functionalLocation: 'Hyderabad Hub',
+    positionLevel: 'L2 — Senior',
+    roles: ['Employee (User)'],
+    attendanceTracked: true,
+    abscondingAlertsEnabled: false,
+    supervisorApprovalRequired: true,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '5511-7823-6642',
     pan: 'RIYPI4488D',
     passport: 'M2211887',
@@ -439,6 +605,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: false,
     lifecycleStage: 'Active',
     joinDate: '2025-01-06',
+    gender: 'Male',
+    socialMediaLinkedIn: 'https://linkedin.com/in/rakesh-iyer-fin',
+    socialMediaTwitter: '',
+    functionalLocation: 'Pune Plant',
+    positionLevel: 'L2 — Senior',
+    roles: ['Employee (Non-User)'],
+    attendanceTracked: false,
+    abscondingAlertsEnabled: false,
+    supervisorApprovalRequired: true,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '5511-7823-6642',
     pan: 'RIYPI4488D',
     passport: 'M2211887',
@@ -479,6 +656,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Active',
     joinDate: '2016-02-08',
+    gender: 'Female',
+    socialMediaLinkedIn: 'https://linkedin.com/in/deepa-raghavan',
+    socialMediaTwitter: 'https://x.com/deepa_r',
+    functionalLocation: 'Hyderabad Hub',
+    positionLevel: 'L5 — Director',
+    roles: ['Company Admin', 'Employee (User)'],
+    attendanceTracked: false,
+    abscondingAlertsEnabled: false,
+    supervisorApprovalRequired: false,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '8890-4412-7753',
     pan: 'DRAPR6622H',
     passport: 'K9911223',
@@ -522,6 +710,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Notice Period',
     joinDate: '2018-09-24',
+    gender: 'Male',
+    socialMediaLinkedIn: 'https://linkedin.com/in/nilesh-kadam-ops',
+    socialMediaTwitter: '',
+    functionalLocation: 'Pune Plant',
+    positionLevel: 'L4 — Manager',
+    roles: ['Employee (User)'],
+    attendanceTracked: true,
+    abscondingAlertsEnabled: true,
+    supervisorApprovalRequired: false,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '3345-6698-2210',
     pan: 'NKAPK3355J',
     passport: '',
@@ -564,6 +763,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Onboarding',
     joinDate: '2026-06-15',
+    gender: 'Female',
+    socialMediaLinkedIn: 'https://linkedin.com/in/kavya-reddy-qa',
+    socialMediaTwitter: '',
+    functionalLocation: 'Hyderabad Hub',
+    positionLevel: 'L1 — Associate',
+    roles: ['Employee (User)'],
+    attendanceTracked: true,
+    abscondingAlertsEnabled: true,
+    supervisorApprovalRequired: true,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '9912-2034-4456',
     pan: 'KREPR8890C',
     passport: '',
@@ -604,6 +814,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: true,
     lifecycleStage: 'Exited',
     joinDate: '2020-01-13',
+    gender: 'Male',
+    socialMediaLinkedIn: '',
+    socialMediaTwitter: '',
+    functionalLocation: 'Bengaluru HQ',
+    positionLevel: 'L2 — Senior',
+    roles: [],
+    attendanceTracked: false,
+    abscondingAlertsEnabled: false,
+    supervisorApprovalRequired: false,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '1177-8845-9932',
     pan: 'TBHPB1122E',
     passport: '',
@@ -646,6 +867,17 @@ export const seedEmployees: Employee[] = [
     hasUserAccount: false,
     lifecycleStage: 'Probation',
     joinDate: '2026-02-02',
+    gender: 'Female',
+    socialMediaLinkedIn: '',
+    socialMediaTwitter: '',
+    functionalLocation: 'Bengaluru HQ',
+    positionLevel: 'L1 — Associate',
+    roles: ['Employee (Non-User)'],
+    attendanceTracked: true,
+    abscondingAlertsEnabled: true,
+    supervisorApprovalRequired: true,
+    suspension: null,
+    roleTransferNote: null,
     aadhar: '7734-9908-1123',
     pan: 'GDSPD9944A',
     passport: 'T5566771',

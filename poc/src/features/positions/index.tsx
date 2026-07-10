@@ -113,7 +113,7 @@ export function Positions() {
 
           {/* Remount when the role changes so the default tab stays valid. */}
           <Tabs key={role} defaultValue={tabs[0].value} className='w-full'>
-            <TabsList className='mb-2'>
+            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>
                   {tab.label}
@@ -172,33 +172,20 @@ export function Positions() {
             {(isCompanyAdmin || isOversight) && (
               <TabsContent value='admin'>
                 <EngineArtifactsPanel module='Positions' />
-                <Tabs
-                  defaultValue={isCompanyAdmin ? 'settings' : 'oversight'}
-                  className='w-full'
-                >
-                  <TabsList className='mb-2'>
-                    {isCompanyAdmin && (
-                      <TabsTrigger variant='primary' value='settings'>
-                        Settings
-                      </TabsTrigger>
-                    )}
-                    {isOversight && (
-                      <TabsTrigger variant='primary' value='oversight'>
-                        Company Oversight
-                      </TabsTrigger>
-                    )}
-                  </TabsList>
+                <div className='flex flex-col gap-6'>
                   {isCompanyAdmin && (
-                    <TabsContent value='settings'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Settings</h3>
                       <ConfigTab
                         companyId={activeCompanyId}
                         store={store}
                         orgConfig={orgConfig}
                       />
-                    </TabsContent>
+                    </section>
                   )}
                   {isOversight && (
-                    <TabsContent value='oversight'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Company Oversight</h3>
                       <GovernanceTab
                         companies={scopedCompanies}
                         departments={DEPARTMENTS}
@@ -207,9 +194,9 @@ export function Positions() {
                         orgConfig={orgConfig}
                         store={store}
                       />
-                    </TabsContent>
+                    </section>
                   )}
-                </Tabs>
+                </div>
               </TabsContent>
             )}
 

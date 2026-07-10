@@ -64,8 +64,6 @@ export function HrLetters() {
     if (!availableTabs.includes(tab)) setTab(availableTabs[0])
   }, [availableTabs, tab])
 
-  const adminDefaultTab = showTemplates ? 'templates' : 'config'
-
   return (
     <>
       <CommonHeader title='HR Letters & Certificates' className='bg-blue-150' />
@@ -124,55 +122,36 @@ export function HrLetters() {
             {showAdminTab && (
               <TabsContent value='admin'>
                 <EngineArtifactsPanel module='HR Letters & Certificates' />
-                <Tabs defaultValue={adminDefaultTab} className='w-full'>
-                  <TabsList className='mb-3 bg-transparent p-0'>
-                    {showTemplates && (
-                      <TabsTrigger variant='primary' value='templates'>
-                        Letter Templates
-                      </TabsTrigger>
-                    )}
-                    {showTemplates && (
-                      <TabsTrigger variant='primary' value='catalogs'>
-                        Email & Notifications
-                      </TabsTrigger>
-                    )}
-                    {isCompanyAdmin && (
-                      <TabsTrigger variant='primary' value='agreements'>
-                        Agreements
-                      </TabsTrigger>
-                    )}
-                    {showConfig && (
-                      <TabsTrigger variant='primary' value='config'>
-                        Settings
-                      </TabsTrigger>
-                    )}
-                  </TabsList>
-
+                <div className='flex flex-col gap-6'>
                   {showTemplates && (
-                    <TabsContent value='templates'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Letter Templates</h3>
                       <TemplatesTab store={templatesStore} />
-                    </TabsContent>
+                    </section>
                   )}
                   {showTemplates && (
-                    <TabsContent value='catalogs'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Email & Notifications</h3>
                       <CatalogsTab store={catalogs} />
-                    </TabsContent>
+                    </section>
                   )}
                   {isCompanyAdmin && (
-                    <TabsContent value='agreements'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Agreements</h3>
                       <AgreementsTab
                         templatesStore={templatesStore}
                         documentsStore={documentsStore}
                         catalogs={catalogs}
                       />
-                    </TabsContent>
+                    </section>
                   )}
                   {showConfig && (
-                    <TabsContent value='config'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Settings</h3>
                       <ConfigTab config={config} />
-                    </TabsContent>
+                    </section>
                   )}
-                </Tabs>
+                </div>
               </TabsContent>
             )}
           </Tabs>

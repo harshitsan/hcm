@@ -1,7 +1,10 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  seedAttendanceTemplates,
   seedAuditPatterns,
+  seedAuditSettings,
+  seedAuditorsGroups,
   seedBreaks,
   seedCalendars,
   seedCompOffTemplates,
@@ -10,6 +13,7 @@ import {
   seedGroupCompliance,
   seedIntegrations,
   seedOtEligibility,
+  seedOtScopeLocations,
   seedOutTimeSettings,
   seedOvertimeRules,
   seedStatutory,
@@ -18,13 +22,17 @@ import {
   seedWfhTemplates,
   seedWorkflows,
   type ApprovalWorkflow,
+  type AttendanceTemplate,
+  type AuditConfigSettings,
   type AuditRecurrence,
+  type AuditorsGroup,
   type BreakRule,
   type FlexiSettings,
   type Holiday,
   type HolidayCalendar,
   type OutTimeSettings,
   type StatutoryConfig,
+  type TemplateChannel,
   type TrackingDevice,
   type TrackingMode,
 } from '../data/config'
@@ -52,6 +60,11 @@ export function useAttendanceConfig() {
   const [devices, setDevices] = useState<TrackingDevice[]>(seedDevices)
   const [trackingModes, setTrackingModes] = useState(seedTrackingModes)
   const [auditPatterns, setAuditPatterns] = useState<AuditRecurrence[]>(seedAuditPatterns)
+  const [auditorsGroups, setAuditorsGroups] = useState<AuditorsGroup[]>(seedAuditorsGroups)
+  const [auditSettings, setAuditSettings] = useState<AuditConfigSettings>(seedAuditSettings)
+  const [templates, setTemplates] = useState<AttendanceTemplate[]>(seedAttendanceTemplates)
+  const [overtimeEnabled, setOvertimeEnabled] = useState(true)
+  const [otScopeLocations, setOtScopeLocations] = useState<string[]>(seedOtScopeLocations)
   const [integrations, setIntegrations] = useState(seedIntegrations)
   const [tenants, setTenants] = useState(seedTenants)
   const [groupCompliance] = useState(seedGroupCompliance)
@@ -227,6 +240,148 @@ export function useAttendanceConfig() {
     toast.success(`Audit recurrence "${draft.name}" scheduled (${draft.schedule})`)
   }, [])
 
+  /** Kensium ARP — adjust audit timing for a location or work area. */
+  const updateAuditPattern = useCallback(
+    (id: string, changes: Partial<Omit<AuditRecurrence, 'id'>>) => {
+      setAuditPatterns((prev) => prev.map((p) => (p.id === id ? { ...p, ...changes } : p)))
+      toast.success('Audit recurrence pattern updated')
+    },
+    []
+  )
+
+  /** Kensium BRK — keep break durations and applicability accurate. */
+  const updateBreak = useCallback((id: string, changes: Partial<Omit<BreakRule, 'id'>>) => {
+    setBreaks((prev) => prev.map((b) => (b.id === id ? { ...b, ...changes } : b)))
+    toast.success('Break updated')
+  }, [])
+
+  /** Kensium CMP — keep comp off thresholds accurate. */
+  const updateCompOffTemplate = useCallback(
+    (id: string, changes: { name: string; classSpecific: boolean; employeeClass: string; minHoursBeyond: number }) => {
+      setCompOffTemplates((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                name: changes.name,
+                classSpecific: changes.classSpecific,
+                employeeClass: changes.employeeClass as (typeof prev)[number]['employeeClass'],
+                minHoursBeyond: changes.minHoursBeyond,
+              }
+            : t
+        )
+      )
+      toast.success('Comp off template updated')
+    },
+    []
+  )
+
+  /** Kensium OTR — adjust out-time limits over time. */
+  const updateOutTimeSetting = useCallback(
+    (id: string, changes: Partial<Omit<OutTimeSettings, 'id'>>) => {
+      setOutTimeSettings((prev) => prev.map((s) => (s.id === id ? { ...s, ...changes } : s)))
+      toast.success('Out-time request settings updated — applies to new requests')
+    },
+    []
+  )
+
+  /** Kensium CRA/COA/OTA — add a new approver configuration. */
+  const addWorkflow = useCallback(
+    (draft: Omit<ApprovalWorkflow, 'id' | 'version' | 'effectiveFrom' | 'status'>) => {
+      setWorkflows((prev) => [
+        {
+          ...draft,
+          id: `wf-${crypto.randomUUID().slice(0, 6)}`,
+          version: 1,
+          effectiveFrom: new Date().toISOString().slice(0, 10),
+          status: 'active',
+        },
+        ...prev,
+      ])
+      toast.success(`Approver configuration saved for ${draft.scope}`)
+    },
+    []
+  )
+
+  const deleteWorkflow = useCallback((id: string) => {
+    setWorkflows((prev) => prev.filter((w) => w.id !== id))
+    toast.success('Approver configuration deleted — in-flight requests keep their assigned approvers')
+  }, [])
+
+  // ---------------------------------------------- Attendance audit (AAG/ACS)
+  const addAuditorsGroup = useCallback((draft: Omit<AuditorsGroup, 'id'>) => {
+    setAuditorsGroups((prev) => [
+      { ...draft, id: `ag-${crypto.randomUUID().slice(0, 6)}` },
+      ...prev,
+    ])
+    toast.success(`Auditors group "${draft.panelName}" saved for ${draft.location}`)
+  }, [])
+
+  const updateAuditorsGroup = useCallback(
+    (id: string, changes: Partial<Omit<AuditorsGroup, 'id'>>) => {
+      setAuditorsGroups((prev) => prev.map((g) => (g.id === id ? { ...g, ...changes } : g)))
+      toast.success('Auditors group updated')
+    },
+    []
+  )
+
+  const deleteAuditorsGroup = useCallback((id: string) => {
+    setAuditorsGroups((prev) => {
+      const group = prev.find((g) => g.id === id)
+      if (group) toast.success(`Auditors group "${group.panelName}" deleted`)
+      return prev.filter((g) => g.id !== id)
+    })
+  }, [])
+
+  const refreshAuditorsGroups = useCallback(() => {
+    setAuditorsGroups((prev) => [...prev])
+    toast.success('Auditors groups refreshed — showing the latest saved panels')
+  }, [])
+
+  /** Kensium ACS — save the org-wide attendance audit configuration. */
+  const saveAuditSettings = useCallback((next: AuditConfigSettings) => {
+    setAuditSettings(next)
+    toast.success(
+      next.auditEnabled
+        ? `Audit configuration saved — ${next.sampleMethod} sampling${next.includeHabitualViolators ? `, habitual violators (≥${next.minReprimands} reprimands in ${next.historyPeriodMonths} months) always included` : ''}`
+        : 'Attendance audit support disabled'
+    )
+  }, [])
+
+  // --------------------------------------------- Templates (Kensium ET/NT)
+  const updateTemplate = useCallback(
+    (id: string, changes: Partial<Omit<AttendanceTemplate, 'id' | 'channel'>>) => {
+      setTemplates((prev) => prev.map((t) => (t.id === id ? { ...t, ...changes } : t)))
+      toast.success('Template updated')
+    },
+    []
+  )
+
+  const refreshTemplates = useCallback((channel: TemplateChannel) => {
+    setTemplates((prev) => [...prev])
+    toast.success(
+      channel === 'email'
+        ? 'Email templates refreshed — showing the latest templates'
+        : 'Notification templates refreshed — showing the latest templates'
+    )
+  }, [])
+
+  // ------------------------------------------------ Overtime (Kensium OT)
+  const toggleOvertimeEnabled = useCallback((enabled: boolean) => {
+    setOvertimeEnabled(enabled)
+    toast.success(
+      enabled
+        ? 'Overtime enabled — employees can log and be approved for overtime work'
+        : 'Overtime disabled — no new overtime accrues'
+    )
+  }, [])
+
+  /** Kensium OT — transfer-list assignment of the locations OT applies to. */
+  const saveOtScopeLocations = useCallback((assigned: string[]) => {
+    setOtScopeLocations(assigned)
+    toast.success(`Overtime scope saved — applies to: ${assigned.join(', ') || 'no locations'}`)
+  }, [])
+
   /** TNA-21 — connection test surfaces a clear pass/fail. */
   const testIntegration = useCallback(
     (id: string) => {
@@ -283,6 +438,11 @@ export function useAttendanceConfig() {
     devices,
     trackingModes,
     auditPatterns,
+    auditorsGroups,
+    auditSettings,
+    templates,
+    overtimeEnabled,
+    otScopeLocations,
     integrations,
     tenants,
     groupCompliance,
@@ -296,10 +456,25 @@ export function useAttendanceConfig() {
     addWfhTemplate,
     saveFlexi,
     updateWorkflow,
+    addWorkflow,
+    deleteWorkflow,
     addDevice,
     addOutTimeSetting,
+    updateOutTimeSetting,
     addTrackingMode,
     addAuditPattern,
+    updateAuditPattern,
+    updateBreak,
+    updateCompOffTemplate,
+    addAuditorsGroup,
+    updateAuditorsGroup,
+    deleteAuditorsGroup,
+    refreshAuditorsGroups,
+    saveAuditSettings,
+    updateTemplate,
+    refreshTemplates,
+    toggleOvertimeEnabled,
+    saveOtScopeLocations,
     testIntegration,
     toggleIntegration,
     toggleTenant,

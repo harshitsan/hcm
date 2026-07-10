@@ -19,7 +19,17 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { type ProfileField } from '../data/profile'
 
 /**
@@ -29,7 +39,23 @@ import { type ProfileField } from '../data/profile'
  */
 function schemaFor(field: ProfileField) {
   let rule: z.ZodType<string, string>
-  if (field.inputType === 'email') {
+  if (field.inputType === 'checkbox') {
+    // Checkbox values are stored as Yes/No; mandatory means it must be ticked.
+    rule = field.required
+      ? z.string().refine((v) => v === 'Yes', `${field.label} must be checked`)
+      : z.string()
+  } else if (
+    field.inputType === 'dropdown' ||
+    field.inputType === 'radio'
+  ) {
+    rule = z
+      .string()
+      .min(1, `Select ${field.label.toLowerCase()}`)
+      .refine(
+        (v) => (field.options ?? []).includes(v),
+        'Choose one of the configured options'
+      )
+  } else if (field.inputType === 'email') {
     rule = z.email('Enter a valid email address')
   } else {
     let stringRule = z.string().min(1, `${field.label} is required`)
@@ -109,13 +135,76 @@ export function ProfileEditOverlay({
               name='value'
               render={({ field: rhf }) => (
                 <FormItem>
-                  <FormLabel>{field.label}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type={field.inputType === 'date' ? 'date' : field.inputType}
-                      {...rhf}
-                    />
-                  </FormControl>
+                  <FormLabel>
+                    {field.label}
+                    {field.required && (
+                      <span className='text-destructive'>*</span>
+                    )}
+                  </FormLabel>
+                  {field.inputType === 'dropdown' ? (
+                    <Select
+                      value={rhf.value || undefined}
+                      onValueChange={rhf.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger variant='secondary' className='w-full'>
+                          <SelectValue placeholder='Select an option' />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(field.options ?? []).map((o) => (
+                          <SelectItem key={o} value={o}>
+                            {o}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : field.inputType === 'radio' ? (
+                    <FormControl>
+                      <RadioGroup
+                        value={rhf.value || undefined}
+                        onValueChange={rhf.onChange}
+                        className='flex flex-wrap gap-x-4 gap-y-1.5 rounded-[6px] border border-gray-200 bg-white px-3 py-2'
+                      >
+                        {(field.options ?? []).map((o) => (
+                          <label
+                            key={o}
+                            className='flex items-center gap-1.5 text-sm'
+                          >
+                            <RadioGroupItem value={o} aria-label={o} />
+                            {o}
+                          </label>
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                  ) : field.inputType === 'checkbox' ? (
+                    <FormControl>
+                      <label className='flex w-fit items-center gap-2 text-sm'>
+                        <Checkbox
+                          variant='blue'
+                          checked={rhf.value === 'Yes'}
+                          onCheckedChange={(checked) =>
+                            rhf.onChange(checked === true ? 'Yes' : 'No')
+                          }
+                          aria-label={field.label}
+                        />
+                        Yes
+                      </label>
+                    </FormControl>
+                  ) : field.inputType === 'textarea' ? (
+                    <FormControl>
+                      <Textarea rows={3} {...rhf} />
+                    </FormControl>
+                  ) : (
+                    <FormControl>
+                      <Input
+                        type={
+                          field.inputType === 'date' ? 'date' : field.inputType
+                        }
+                        {...rhf}
+                      />
+                    </FormControl>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

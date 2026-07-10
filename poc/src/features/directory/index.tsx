@@ -9,9 +9,11 @@ import { FeedbackWorklistTab } from './components/feedback-worklist-tab'
 import { GovernanceTab } from './components/governance-tab'
 import { OrgChartTab } from './components/org-chart-tab'
 import { PrivacyConfigTab } from './components/privacy-config-tab'
+import { TimelineSettingsCard } from './components/timeline-settings-card'
 import { VacanciesTab } from './components/vacancies-tab'
 import { useDirectory } from './hooks/use-directory'
 import { useDirectoryConfig } from './hooks/use-directory-config'
+import { useTimeline } from './hooks/use-timeline'
 import { scopedCompanies } from './utils/org'
 
 interface TabDef {
@@ -29,6 +31,7 @@ export function DirectoryOrgChart() {
   const { role } = useRole()
   const store = useDirectory()
   const config = useDirectoryConfig()
+  const timeline = useTimeline()
 
   const isCompanyAdmin = role === 'Company Admin'
   const isPlatformAdmin = role === 'Platform Admin'
@@ -65,7 +68,7 @@ export function DirectoryOrgChart() {
 
           {/* Remount when the role changes so the default tab stays valid. */}
           <Tabs key={role} defaultValue='directory' className='w-full'>
-            <TabsList className='mb-2'>
+            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
@@ -78,7 +81,7 @@ export function DirectoryOrgChart() {
             </TabsList>
 
             <TabsContent value='directory'>
-              <DirectoryTab store={store} config={config} />
+              <DirectoryTab store={store} config={config} timeline={timeline} />
             </TabsContent>
             <TabsContent value='org-chart'>
               <OrgChartTab store={store} config={config} />
@@ -93,22 +96,22 @@ export function DirectoryOrgChart() {
             )}
             {showAdmin && (
               <TabsContent value='admin'>
-                <Tabs defaultValue='privacy' className='w-full'>
-                  <TabsList className='mb-2'>
-                    <TabsTrigger value='privacy'>Privacy & fields</TabsTrigger>
-                    {isPlatformAdmin && (
-                      <TabsTrigger value='data-checks'>Data checks</TabsTrigger>
-                    )}
-                  </TabsList>
-                  <TabsContent value='privacy'>
+                <div className='flex flex-col gap-6'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Privacy & fields</h3>
                     <PrivacyConfigTab config={config} />
-                  </TabsContent>
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Timeline settings</h3>
+                    <TimelineSettingsCard timeline={timeline} />
+                  </section>
                   {isPlatformAdmin && (
-                    <TabsContent value='data-checks'>
+                    <section>
+                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Data checks</h3>
                       <GovernanceTab store={store} />
-                    </TabsContent>
+                    </section>
                   )}
-                </Tabs>
+                </div>
               </TabsContent>
             )}
           </Tabs>

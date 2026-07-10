@@ -26,6 +26,10 @@ import type {
   RoundsConfig,
   ScorecardCriterion,
 } from '../data/config'
+import {
+  seedReferenceQuestions,
+  type ReferenceQuestion,
+} from '../data/reference-questions'
 import type { CandidatesStore } from '../hooks/use-candidates'
 import type { OffersStore } from '../hooks/use-offers'
 import { ApplicationDetailSheet } from './application-detail-sheet'
@@ -45,6 +49,8 @@ interface HiringPipelineTabProps {
   letterTemplates: LetterTemplate[]
   offerApproverRules: OfferApproverRule[]
   outOfBandApprover: string
+  /** Configured reference-check questionnaire; falls back to the seed set. */
+  referenceQuestions?: ReferenceQuestion[]
 }
 
 /** Kensium-style hiring stage views incl. On Hold and Cancelled (TA-45, TA-47). */
@@ -86,6 +92,7 @@ export function HiringPipelineTab({
   letterTemplates,
   offerApproverRules,
   outOfBandApprover,
+  referenceQuestions = seedReferenceQuestions,
 }: HiringPipelineTabProps) {
   const { role, hasRole } = useRole()
   const [view, setView] = useState<StageView>('all')
@@ -314,6 +321,7 @@ export function HiringPipelineTab({
         onOpenChange={(o) => !o && setDetail(null)}
         store={store}
         checklistQuestions={checklistQuestions}
+        referenceQuestions={referenceQuestions}
         onGenerateOffer={(app) => setOfferApp(app)}
       />
 
@@ -325,6 +333,11 @@ export function HiringPipelineTab({
         roundsConfigs={roundsConfigs}
         onSchedule={(details) => {
           store.scheduleInterviews(selected, details)
+          setSelected([])
+        }}
+        onSkipRound={(round, roundName) => {
+          // Kensium: skip the round for every selected candidate.
+          selected.forEach((id) => store.skipRound(id, round, roundName))
           setSelected([])
         }}
       />

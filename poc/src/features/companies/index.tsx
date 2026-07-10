@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useRole, type Role } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -5,12 +6,17 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { AuditTab } from './components/audit-tab'
+import { BudgetSetupTab } from './components/budget-setup-tab'
 import { DirectoryTab } from './components/directory-tab'
 import { GroupsTab } from './components/groups-tab'
 import { LifecycleTab } from './components/lifecycle-tab'
+import { LoginImagesTab } from './components/login-images-tab'
 import { SubscriptionsTab } from './components/subscriptions-tab'
+import { ThoughtsTab } from './components/thoughts-tab'
+import { VendorsTab } from './components/vendors-tab'
 import { useCompanies } from './hooks/use-companies'
 import { useGroups } from './hooks/use-groups'
+import { useOrgConfig } from './hooks/use-org-config'
 import { useSubscriptions } from './hooks/use-subscriptions'
 
 /** Persona emails recorded as the acting user in audit/history entries. */
@@ -34,6 +40,9 @@ export function Companies() {
   const store = useCompanies(ACTORS[role])
   const subscriptions = useSubscriptions(ACTORS[role])
   const groups = useGroups()
+  const orgConfig = useOrgConfig(ACTORS[role])
+  // Controlled so "Save & Continue" can advance to the next setup step.
+  const [adminTab, setAdminTab] = useState('lifecycle')
 
   return (
     <>
@@ -45,7 +54,7 @@ export function Companies() {
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
           <Tabs defaultValue='directory'>
-            <TabsList className='mb-3'>
+            <TabsList className='mb-3 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               <TabsTrigger value='directory' variant='primary'>
                 Directory
               </TabsTrigger>
@@ -75,18 +84,35 @@ export function Companies() {
             </TabsContent>
             <TabsContent value='admin'>
               <EngineArtifactsPanel module='Companies' />
-              <Tabs defaultValue='lifecycle'>
-                <TabsList className='mb-3'>
-                  <TabsTrigger value='lifecycle'>Lifecycle</TabsTrigger>
-                  <TabsTrigger value='audit'>Audit log</TabsTrigger>
-                </TabsList>
-                <TabsContent value='lifecycle'>
-                  <LifecycleTab store={store} />
-                </TabsContent>
-                <TabsContent value='audit'>
-                  <AuditTab store={store} />
-                </TabsContent>
-              </Tabs>
+              <div className='mb-4 flex gap-1 rounded-lg border border-neutral-200 bg-neutral-100 p-1 w-fit'>
+                {[
+                  { v: 'lifecycle', l: 'Lifecycle' },
+                  { v: 'audit', l: 'Audit log' },
+                  { v: 'budget-setup', l: 'HR budget setup' },
+                  { v: 'login-images', l: 'Login images' },
+                  { v: 'thoughts', l: 'Thought of the day' },
+                  { v: 'vendors', l: 'Vendors' },
+                ].map(s => (
+                  <button
+                    key={s.v}
+                    onClick={() => setAdminTab(s.v)}
+                    className={'rounded-md px-4 py-1.5 text-sm font-medium transition-colors ' + (adminTab === s.v ? 'bg-white text-blue-1200 shadow-sm' : 'text-neutral-1000 hover:text-neutral-1400')}
+                  >
+                    {s.l}
+                  </button>
+                ))}
+              </div>
+              {adminTab === 'lifecycle' && <LifecycleTab store={store} />}
+              {adminTab === 'audit' && <AuditTab store={store} />}
+              {adminTab === 'budget-setup' && <BudgetSetupTab store={orgConfig} />}
+              {adminTab === 'login-images' && (
+                <LoginImagesTab
+                  store={orgConfig}
+                  onContinue={() => setAdminTab('thoughts')}
+                />
+              )}
+              {adminTab === 'thoughts' && <ThoughtsTab store={orgConfig} />}
+              {adminTab === 'vendors' && <VendorsTab store={orgConfig} />}
             </TabsContent>
           </Tabs>
         </div>

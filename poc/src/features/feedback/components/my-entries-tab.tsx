@@ -1,8 +1,21 @@
 import { useMemo, useState } from 'react'
-import { Eye, Lock, Plus } from 'lucide-react'
+import { Eye, Lock, Plus, RefreshCw, RotateCcw, Search } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
-import { CURRENT_EMPLOYEE, type FeedbackEntry } from '../data/entries'
+import {
+  CURRENT_EMPLOYEE,
+  ENTRY_STATUSES,
+  type FeedbackEntry,
+} from '../data/entries'
 import { type FeedbackConfigStore } from '../hooks/use-feedback-config'
 import { type FeedbackEntriesStore } from '../hooks/use-feedback-entries'
 import { EntryDetailSheet } from './entry-detail-sheet'
@@ -29,11 +42,46 @@ export function MyEntriesTab({ store, configStore, allowOnBehalf }: MyEntriesTab
   const [composeOpen, setComposeOpen] = useState(false)
   const [detailEntry, setDetailEntry] = useState<FeedbackEntry | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(() =>
+    new Date().toLocaleTimeString()
+  )
 
   const myEntries = useMemo(
     () => store.entries.filter((e) => e.isMine),
     [store.entries]
   )
+
+  /** MFG-02 — track progress by status; MFG-05 — keyword search over my entries. */
+  const visibleEntries = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return myEntries.filter((e) => {
+      if (statusFilter !== 'all' && e.status !== statusFilter) return false
+      if (q === '') return true
+      return [e.id, e.subject, e.category, e.type, e.anonymousRef ?? '']
+        .join(' ')
+        .toLowerCase()
+        .includes(q)
+    })
+  }, [myEntries, search, statusFilter])
+
+  const hasCriteria = search.trim() !== '' || statusFilter !== 'all'
+
+  /** MFG-05 — reset clears the search box and status filter together. */
+  const resetCriteria = () => {
+    setSearch('')
+    setStatusFilter('all')
+  }
+
+  /** MFG-04 — explicit refresh; the store is reactive so this re-stamps time. */
+  const refresh = () => {
+    const at = new Date().toLocaleTimeString()
+    setLastRefreshedAt(at)
+    toast.info('My entries refreshed', {
+      description: `Latest statuses as of ${at}.`,
+    })
+  }
 
   const summary = useMemo(() => {
     const by = (statuses: FeedbackEntry['status'][]) =>
@@ -58,10 +106,10 @@ export function MyEntriesTab({ store, configStore, allowOnBehalf }: MyEntriesTab
     <div className='w-full'>
       <FeedbackSummary title='My Entries Summary' items={summary} />
 
-      <div className='mb-3 flex items-center justify-between'>
+      <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
         <div>
           <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
-            My entries ({myEntries.length})
+            My entries ({visibleEntries.length})
           </h2>
           <p className='text-paragraph-sm text-neutral-1000 flex items-center gap-1'>
             <Lock className='size-3.5' />
@@ -70,6 +118,51 @@ export function MyEntriesTab({ store, configStore, allowOnBehalf }: MyEntriesTab
           </p>
         </div>
         <div className='flex items-center gap-3'>
+          {/* MFG-05 — keyword search over my own entries. */}
+          <div className='relative'>
+            <Search className='text-neutral-1000 absolute top-1/2 left-2 size-3.5 -translate-y-1/2' />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder='Search my entries…'
+              className='h-7 w-[190px] pl-7 text-xs'
+              aria-label='Search my entries'
+            />
+          </div>
+          {/* MFG-02 — filter my entries by status to track progress. */}
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger variant='secondary' className='h-7 w-[150px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All statuses</SelectItem>
+              {ENTRY_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* MFG-05 — one Reset restores the full list. */}
+          <Button
+            variant='outline'
+            onClick={resetCriteria}
+            disabled={!hasCriteria}
+            className='h-7 gap-1 rounded-[6px] px-2'
+          >
+            <RotateCcw className='size-3.5' />
+            Reset
+          </Button>
+          {/* MFG-04 — explicit refresh for the latest status updates. */}
+          <Button
+            variant='outline'
+            onClick={refresh}
+            className='h-7 gap-1 rounded-[6px] px-2'
+            title={`Last refreshed ${lastRefreshedAt}`}
+          >
+            <RefreshCw className='size-3.5' />
+            Refresh
+          </Button>
           <Button
             variant='icon2'
             onClick={openDetail}
@@ -92,7 +185,7 @@ export function MyEntriesTab({ store, configStore, allowOnBehalf }: MyEntriesTab
 
       <DataTable
         columns={myEntriesColumns}
-        data={myEntries}
+        data={visibleEntries}
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(rows) => setSelectedRows(rows)}

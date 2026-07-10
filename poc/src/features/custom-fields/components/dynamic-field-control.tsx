@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -80,6 +81,35 @@ export function DynamicFieldControl({
               ))}
             </SelectContent>
           </Select>
+        )
+      case 'checkbox':
+        return (
+          <label className='flex w-fit items-center gap-2 text-sm'>
+            <Checkbox
+              variant='blue'
+              checked={value === true}
+              disabled={readOnly}
+              onCheckedChange={(checked) => onChange(checked === true)}
+              aria-label={def.name}
+            />
+            {value === true ? 'Checked' : 'Not checked'}
+          </label>
+        )
+      case 'radio':
+        return (
+          <RadioGroup
+            value={text || undefined}
+            disabled={readOnly}
+            onValueChange={(v) => onChange(v)}
+            className='flex flex-wrap gap-x-4 gap-y-1.5 rounded-md border border-gray-200 bg-white px-3 py-2'
+          >
+            {def.options.map((o) => (
+              <label key={o} className='flex items-center gap-1.5 text-sm'>
+                <RadioGroupItem value={o} aria-label={o} />
+                {o}
+              </label>
+            ))}
+          </RadioGroup>
         )
       case 'multi-select': {
         const selected = Array.isArray(value) ? value : []

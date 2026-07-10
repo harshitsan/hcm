@@ -5,8 +5,14 @@ import { type FeedbackConfigStore } from '../hooks/use-feedback-config'
 import { ConfigReceiversStep } from './config-receivers-step'
 import { ConfigSetupStep } from './config-setup-step'
 import { ConfigTemplatesStep } from './config-templates-step'
+import { CoordinatorRoleCard } from './coordinator-role-card'
 
-const STEPS = ['Setup', 'Feedback / Grievance Receivers', 'Email Templates'] as const
+const STEPS = [
+  'Setup',
+  'Feedback / Grievance Receivers',
+  'Coordinator Role',
+  'Email Templates',
+] as const
 
 /**
  * Guided multi-step configuration — Setup → Receivers → Email Templates with
@@ -54,7 +60,8 @@ export function ConfigTab({ store }: { store: FeedbackConfigStore }) {
 
       {step === 0 && <ConfigSetupStep store={store} onNext={() => setStep(1)} />}
       {step === 1 && <ConfigReceiversStep store={store} onNext={() => setStep(2)} />}
-      {step === 2 && <ConfigTemplatesStep store={store} />}
+      {step === 2 && <CoordinatorRoleCard store={store} />}
+      {step === 3 && <ConfigTemplatesStep store={store} />}
     </div>
   )
 }

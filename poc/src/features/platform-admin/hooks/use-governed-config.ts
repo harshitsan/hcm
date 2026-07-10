@@ -1,10 +1,12 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  defaultAcumaticaSetup,
   defaultLocale,
   seedConfigEntries,
   seedWebhooks,
   seedWorkflows,
+  type AcumaticaSetup,
   type ConfigEntry,
   type LocaleSettings,
   type UdfEntity,
@@ -30,6 +32,9 @@ export function useGovernedConfig() {
   const [webhooks, setWebhooks] = useState<WebhookSubscription[]>(seedWebhooks)
   const [workflows, setWorkflows] = useState<WorkflowItem[]>(seedWorkflows)
   const [locale, setLocale] = useState<LocaleSettings>(defaultLocale)
+  const [acumatica, setAcumatica] = useState<AcumaticaSetup>(
+    defaultAcumaticaSetup
+  )
 
   /** New version effective today; prior version preserved (SYS-35). */
   const publishVersion = useCallback((id: string) => {
@@ -127,6 +132,28 @@ export function useGovernedConfig() {
     )
   }, [])
 
+  /**
+   * Persist the Acumatica Integration Module setup (INT-01..03). Selecting
+   * Yes enables the integration; No turns it off. Saving marks it configured
+   * so the "please configure" prompt clears (INT-05).
+   */
+  const saveAcumatica = useCallback(
+    (draft: Pick<AcumaticaSetup, 'enabled' | 'instanceUrl'>) => {
+      setAcumatica({
+        enabled: draft.enabled,
+        instanceUrl: draft.instanceUrl,
+        configured: true,
+        lastSavedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
+      })
+      toast.success(
+        draft.enabled === 'Yes'
+          ? 'Acumatica Integration Module enabled — HRMS can now integrate with Acumatica'
+          : 'Acumatica Integration Module disabled — the integration is turned off'
+      )
+    },
+    []
+  )
+
   /** Approval decision advances the workflow (SYS-36). */
   const decideWorkflow = useCallback(
     (id: string, decision: 'approved' | 'rejected' | 'returned') => {
@@ -149,6 +176,8 @@ export function useGovernedConfig() {
     webhooks,
     workflows,
     locale,
+    acumatica,
+    saveAcumatica,
     publishVersion,
     addCustomField,
     updateLocale,

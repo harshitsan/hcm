@@ -6,20 +6,43 @@ import {
   type AnnouncementImage,
   type ConfigVersion,
 } from '../data/announcements'
-import { seedOrgConfig, type Dimension, type OrgConfig } from '../data/org'
+import {
+  seedCoordinators,
+  seedOrgConfig,
+  type AnnouncementCoordinator,
+  type Dimension,
+  type OrgConfig,
+} from '../data/org'
 import { todayIso } from '../utils/audience'
 
 export type ImageDraft = Omit<AnnouncementImage, 'id' | 'updatedAt'>
+export type CoordinatorDraft = Omit<AnnouncementCoordinator, 'id'>
 
 /**
  * In-memory settings store: the milestone image library (ANN-32/33), the
- * versioned effective-dated module toggle (ANN-18), and the governed org
- * config that feeds the audience picker (ANN-17).
+ * versioned effective-dated module toggle (ANN-18), the governed org
+ * config that feeds the audience picker (ANN-17), and the Announcement
+ * Coordinator role assignments.
  */
 export function useAnnouncementSettings() {
   const [images, setImages] = useState<AnnouncementImage[]>(seedImages)
   const [configVersions, setConfigVersions] = useState<ConfigVersion[]>(seedConfigVersions)
   const [orgConfig, setOrgConfig] = useState<OrgConfig>(seedOrgConfig)
+  const [coordinators, setCoordinators] = useState<AnnouncementCoordinator[]>(seedCoordinators)
+
+  /** Assign the Announcement Coordinator/Reviewer role to an employee. */
+  const addCoordinator = useCallback((draft: CoordinatorDraft) => {
+    setCoordinators((prev) => [
+      { ...draft, id: `coord-${crypto.randomUUID().slice(0, 8)}` },
+      ...prev,
+    ])
+    toast.success(`Role “${draft.roleName}” saved — assigned to ${draft.employee}`)
+  }, [])
+
+  const removeCoordinator = useCallback((id: string) => {
+    setCoordinators((prev) => prev.filter((c) => c.id !== id))
+    toast.success('Coordinator role assignment removed')
+  }, [])
 
   const moduleEnabled = configVersions[configVersions.length - 1]?.enabled ?? true
 
@@ -85,6 +108,9 @@ export function useAnnouncementSettings() {
   }, [])
 
   return {
+    coordinators,
+    addCoordinator,
+    removeCoordinator,
     images,
     addImage,
     updateImage,

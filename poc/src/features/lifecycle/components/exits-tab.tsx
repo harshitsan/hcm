@@ -14,16 +14,22 @@ import { type ExitTypeDef } from '../data/config'
 import { type ExitCase } from '../data/exits'
 import { type ExitsStore } from '../hooks/use-exits'
 import { ExitDetailSheet } from './exit-detail-sheet'
+import { ExitEnableOverlay } from './exit-enable-overlay'
+import { ExitTerminateOverlay } from './exit-terminate-overlay'
 import { NewExitOverlay } from './new-exit-overlay'
 import { exitColumns } from './exit-columns'
 
 const STATUSES = [
   { value: 'all', label: 'All statuses' },
+  { value: 'exit-enabled', label: 'Exit Enabled' },
   { value: 'pending-approval', label: 'Pending Approval' },
   { value: 'approved', label: 'Approved' },
   { value: 'clearance-in-progress', label: 'Clearance In Progress' },
   { value: 'finalized', label: 'Finalized' },
   { value: 'rejected', label: 'Rejected' },
+  { value: 'disabled', label: 'Disabled' },
+  { value: 'withdrawn', label: 'Withdrawn' },
+  { value: 'closed', label: 'Closed' },
 ]
 
 interface ExitsTabProps {
@@ -36,6 +42,8 @@ interface ExitsTabProps {
 export function ExitsTab({ store, exitTypes, exitManagementEnabled }: ExitsTabProps) {
   const [status, setStatus] = useState('all')
   const [newOpen, setNewOpen] = useState(false)
+  const [enableOpen, setEnableOpen] = useState(false)
+  const [terminateOpen, setTerminateOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const data = useMemo(
@@ -83,6 +91,21 @@ export function ExitsTab({ store, exitTypes, exitManagementEnabled }: ExitsTabPr
           </Select>
           <RoleGate roles={['Company Admin']}>
             <Button
+              variant='outline'
+              onClick={() => setEnableOpen(true)}
+              className='h-7 gap-1! rounded-[6px]! px-1.5!'
+            >
+              <Plus size={10} weight='bold' />
+              Enable Exit
+            </Button>
+            <Button
+              variant='outline'
+              onClick={() => setTerminateOpen(true)}
+              className='h-7 gap-1! rounded-[6px]! px-1.5!'
+            >
+              Terminate
+            </Button>
+            <Button
               variant='red'
               onClick={() => setNewOpen(true)}
               className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
@@ -107,6 +130,18 @@ export function ExitsTab({ store, exitTypes, exitManagementEnabled }: ExitsTabPr
         exitTypes={exitTypes}
         raisedBy='Admin (proxy)'
         onSubmit={store.addExit}
+      />
+      <ExitEnableOverlay
+        open={enableOpen}
+        onOpenChange={setEnableOpen}
+        exitTypes={exitTypes}
+        deriveNotice={store.deriveNotice}
+        onSubmit={store.enableExit}
+      />
+      <ExitTerminateOverlay
+        open={terminateOpen}
+        onOpenChange={setTerminateOpen}
+        onSubmit={store.initiateTermination}
       />
       <ExitDetailSheet
         open={selected !== null}

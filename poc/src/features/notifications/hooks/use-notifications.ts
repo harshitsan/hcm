@@ -4,9 +4,11 @@ import {
   EVENT_TYPE_LABELS,
   seedDeliveries,
   seedNotifications,
+  seedTeamNotifications,
   type AppNotification,
   type DeliveryRecord,
   type EventTypeId,
+  type TeamNotification,
 } from '../data/notifications'
 
 /**
@@ -19,6 +21,10 @@ export function useNotifications() {
   const [notifications, setNotifications] =
     useState<AppNotification[]>(seedNotifications)
   const [deliveries, setDeliveries] = useState<DeliveryRecord[]>(seedDeliveries)
+  /** Direct reports' notifications, readable by the reporting manager. */
+  const [teamNotifications] = useState<TeamNotification[]>(
+    seedTeamNotifications
+  )
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
@@ -35,6 +41,40 @@ export function useNotifications() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
     toast.success('All notifications marked as read')
   }, [])
+
+  /** Bulk mark-read for the checked notifications (checkboxes + Submit). */
+  const markReadMany = useCallback((ids: string[]) => {
+    if (ids.length === 0) return
+    setNotifications((prev) =>
+      prev.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n))
+    )
+    toast.success(
+      `${ids.length} notification${ids.length === 1 ? '' : 's'} marked as read.`
+    )
+  }, [])
+
+  /**
+   * Raise a system notification from another surface (task completion,
+   * message shared, …) — delivered on the dashboard and by (simulated) email.
+   */
+  const pushNotification = useCallback(
+    (category: EventTypeId, title: string, body: string) => {
+      const now = new Date().toISOString().slice(0, 19)
+      setNotifications((prev) => [
+        {
+          id: `ntf-${crypto.randomUUID().slice(0, 8)}`,
+          category,
+          title,
+          body,
+          linkedItem: `${EVENT_TYPE_LABELS[category]} — system generated`,
+          createdAt: now,
+          read: false,
+        },
+        ...prev,
+      ])
+    },
+    []
+  )
 
   /**
    * Event-driven dispatch: the engine resolves recipients, channels and the
@@ -155,9 +195,12 @@ export function useNotifications() {
 
   return {
     notifications,
+    teamNotifications,
     unreadCount,
     markRead,
     markAllRead,
+    markReadMany,
+    pushNotification,
     simulateEvent,
     runDigest,
     deliveries,

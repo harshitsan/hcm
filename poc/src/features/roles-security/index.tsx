@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
@@ -172,6 +173,15 @@ export function RolesSecurity() {
   const visibleTabs = TABS.filter((t) => t.roles.includes(role))
   const visibleAdminTabs = ADMIN_TABS.filter((t) => t.roles.includes(role))
 
+  // AD-07 / PWD-07: the admin sub-tabs are controlled so the "Save & Next"
+  // flow in Sign-in Settings can advance to the next configuration step
+  // (Jobs & Support). Falls back to the first visible sub-tab per role.
+  const [adminTab, setAdminTab] = useState<string | undefined>(undefined)
+  const activeAdminTab =
+    adminTab && visibleAdminTabs.some((t) => t.value === adminTab)
+      ? adminTab
+      : visibleAdminTabs[0]?.value
+
   // Role-relevant landing tab: employees start on their own access surface,
   // admins start on the roles list.
   const defaultTab = ADMINS.includes(role) ? 'roles' : 'access'
@@ -227,43 +237,48 @@ export function RolesSecurity() {
 
             <TabsContent value='admin'>
               <EngineArtifactsPanel module='Roles & Security' />
-              <Tabs defaultValue={visibleAdminTabs[0]?.value}>
-                <TabsList className='mb-2 flex-wrap'>
-                  {visibleAdminTabs.map((t) => (
-                    <TabsTrigger key={t.value} value={t.value}>
-                      {t.label}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
 
-                <TabsContent value='screens'>
-                  <PermissionsTab store={rolesStore} />
-                </TabsContent>
+              {/* Option B: segmented selector — required so AuthenticationTab's
+                  onFinish={() => setAdminTab('jobs')} can target a specific
+                  section; an always-visible layout would make that prop
+                  meaningless. */}
+              <div className='mb-4 flex flex-wrap gap-1 rounded-lg border border-gray-200 bg-gray-100 p-1'>
+                {visibleAdminTabs.map((t) => (
+                  <button
+                    key={t.value}
+                    type='button'
+                    onClick={() => setAdminTab(t.value)}
+                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      activeAdminTab === t.value
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
 
-                <TabsContent value='scope'>
-                  <ScopeTab store={scopeRules} />
-                </TabsContent>
-
-                <TabsContent value='context'>
-                  <ContextTab store={context} audit={audit} />
-                </TabsContent>
-
-                <TabsContent value='impersonation'>
-                  <ImpersonationTab store={impersonation} />
-                </TabsContent>
-
-                <TabsContent value='authentication'>
-                  <AuthenticationTab store={config} />
-                </TabsContent>
-
-                <TabsContent value='jobs'>
-                  <JobsTab store={config} />
-                </TabsContent>
-
-                <TabsContent value='audit'>
-                  <AuditTab audit={audit} />
-                </TabsContent>
-              </Tabs>
+              {activeAdminTab === 'screens' && (
+                <PermissionsTab store={rolesStore} />
+              )}
+              {activeAdminTab === 'scope' && (
+                <ScopeTab store={scopeRules} />
+              )}
+              {activeAdminTab === 'context' && (
+                <ContextTab store={context} audit={audit} />
+              )}
+              {activeAdminTab === 'impersonation' && (
+                <ImpersonationTab store={impersonation} />
+              )}
+              {activeAdminTab === 'authentication' && (
+                <AuthenticationTab
+                  store={config}
+                  onFinish={() => setAdminTab('jobs')}
+                />
+              )}
+              {activeAdminTab === 'jobs' && <JobsTab store={config} />}
+              {activeAdminTab === 'audit' && <AuditTab audit={audit} />}
             </TabsContent>
           </Tabs>
         </div>

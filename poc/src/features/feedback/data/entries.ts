@@ -5,12 +5,16 @@ export type EntryType = (typeof ENTRY_TYPES)[number]
 
 export const ENTRY_STATUSES = [
   'Submitted',
+  'Feedback received',
   'Under Review',
   'On Hold',
   'Escalated',
   'Resolved',
   'Closed',
 ] as const
+
+/** Statuses a receiver may set when responding (Kensium respond form). */
+export const RESPONSE_STATUSES = ['Feedback received', 'Closed'] as const
 export type EntryStatus = (typeof ENTRY_STATUSES)[number]
 
 /** Companies in the demo tenant hierarchy (portfolio → groups → companies). */
@@ -51,6 +55,23 @@ export interface AuditEvent {
   detail: string
 }
 
+/**
+ * A receiver response to an entry — Type is read-only (the entry's type);
+ * copy-to recipients can view the response but cannot respond.
+ */
+export interface EntryResponse {
+  id: string
+  at: string
+  by: string
+  sendTo: string[]
+  copyTo: string[]
+  comments: string
+  /** When checked, the response and comments are visible to the submitter. */
+  showToSubmitter: boolean
+  /** Status set with the response ('Feedback received' or 'Closed'). */
+  status: EntryStatus
+}
+
 export interface FeedbackEntry {
   id: string
   type: EntryType
@@ -59,6 +80,16 @@ export interface FeedbackEntry {
   /** Values captured under the form schema active at submission time. */
   details: Record<string, string>
   status: EntryStatus
+  /** "Send to" recipients chosen by the submitter (employees or roles). */
+  sendTo: string[]
+  /** "Copy to" recipients — may view responses but cannot respond. */
+  copyTo: string[]
+  /** Anonymous only: comma-separated emails where responses are sent. */
+  responseEmails: string[]
+  /** Optional submitter comments. */
+  comments: string
+  /** Receiver responses (feedback/grievance history details). */
+  responses: EntryResponse[]
   anonymous: boolean
   /** Tracking reference shown instead of an identity for anonymous entries. */
   anonymousRef: string | null
@@ -86,7 +117,71 @@ export function auditEvent(
   return { id: `ae-${auditSeq}`, at, actor, action, detail }
 }
 
-export const seedEntries: FeedbackEntry[] = [
+let respSeq = 0
+export function entryResponse(
+  at: string,
+  by: string,
+  partial: Omit<EntryResponse, 'id' | 'at' | 'by'>
+): EntryResponse {
+  respSeq += 1
+  return { id: `resp-${respSeq}`, at, by, ...partial }
+}
+
+/** Seed shape: recipient/response fields optional, defaulted on load. */
+type SeedEntry = Omit<
+  FeedbackEntry,
+  'sendTo' | 'copyTo' | 'responseEmails' | 'comments' | 'responses'
+> &
+  Partial<
+    Pick<
+      FeedbackEntry,
+      'sendTo' | 'copyTo' | 'responseEmails' | 'comments' | 'responses'
+    >
+  >
+
+const rawSeedEntries: SeedEntry[] = [
+  {
+    id: 'FG-2026-015',
+    type: 'Feedback',
+    category: 'Workplace Environment',
+    subject: 'Parking lot lighting for the night shift',
+    details: {
+      description:
+        'The staff parking lot is poorly lit after 21:00; several colleagues feel unsafe walking to their vehicles.',
+      desiredOutcome: 'Install two additional lamp posts near gate 3.',
+    },
+    status: 'Feedback received',
+    anonymous: true,
+    anonymousRef: 'ANON-8B4C',
+    submittedBy: null,
+    onBehalfOf: null,
+    isMine: false,
+    company: 'Aster Retail',
+    assignedTo: 'Meera Iyer',
+    submittedOn: '2026-07-01',
+    lastActionOn: '2026-07-06',
+    schemaVersion: 3,
+    sendTo: ['Meera Iyer'],
+    copyTo: ['Arjun Mehta'],
+    responseEmails: ['night.shift.concerns@personal-mail.example'],
+    comments: 'Please treat as urgent before the winter schedule starts.',
+    responses: [
+      entryResponse('2026-07-06', 'Meera Iyer (HR Manager)', {
+        sendTo: ['Sara Thomas'],
+        copyTo: ['Arjun Mehta'],
+        comments:
+          'Facilities budget approved for two lamp posts; installation scheduled within 3 weeks. Security patrol extended in the interim.',
+        showToSubmitter: true,
+        status: 'Feedback received',
+      }),
+    ],
+    audit: [
+      auditEvent('2026-07-01', 'Anonymous (ANON-8B4C)', 'Submitted', 'Anonymous entry submitted via the public (no-login) form — submitter identity never stored.'),
+      auditEvent('2026-07-01', 'Workflow engine', 'Routed', 'Sent to Meera Iyer; copy to Arjun Mehta (copy-to recipients can view responses but cannot respond).'),
+      auditEvent('2026-07-06', 'Meera Iyer (HR Manager)', 'Responded — status set to Feedback received', 'Response recorded and shown to the submitter.'),
+      auditEvent('2026-07-06', 'Notification engine', 'Notification sent', 'Response sent to the submitter-provided email(s): night.shift.concerns@personal-mail.example — identity remains unknown.'),
+    ],
+  },
   {
     id: 'FG-2026-014',
     type: 'Feedback',
@@ -167,6 +262,19 @@ export const seedEntries: FeedbackEntry[] = [
     submittedOn: '2026-06-18',
     lastActionOn: '2026-06-22',
     schemaVersion: 3,
+    sendTo: ['Leo Grant'],
+    copyTo: [],
+    responseEmails: ['fair.treatment.2026@personal-mail.example'],
+    responses: [
+      entryResponse('2026-06-22', 'Leo Grant (Ethics Officer)', {
+        sendTo: ['Priya Nair'],
+        copyTo: [],
+        comments:
+          'Case opened under the confidentiality protocol. Project allocation records for Q2 requested from the Engineering PMO.',
+        showToSubmitter: true,
+        status: 'Feedback received',
+      }),
+    ],
     audit: [
       auditEvent('2026-06-18', 'Anonymous (ANON-7K2M)', 'Submitted', 'Anonymous entry — submitter identity withheld from receivers.'),
       auditEvent('2026-06-18', 'Workflow engine', 'Routed', 'Assigned to Anonymous receiver role: Ethics Officer.'),
@@ -274,6 +382,18 @@ export const seedEntries: FeedbackEntry[] = [
     submittedOn: '2026-06-08',
     lastActionOn: '2026-06-15',
     schemaVersion: 2,
+    sendTo: ['Meera Iyer'],
+    copyTo: ['Devika Rao'],
+    responses: [
+      entryResponse('2026-06-15', 'Meera Iyer (HR Manager)', {
+        sendTo: ['Alina Novak'],
+        copyTo: ['Devika Rao'],
+        comments:
+          'Vendor has doubled the vegetarian stock and added a second counter; we will monitor for two weeks.',
+        showToSubmitter: true,
+        status: 'Feedback received',
+      }),
+    ],
     audit: [
       auditEvent('2026-06-08', 'Alina Novak', 'Submitted', 'Entry created (schema v2).'),
       auditEvent('2026-06-09', 'Meera Iyer (HR Manager)', 'Status changed to Under Review', 'Raised with the cafeteria vendor.'),
@@ -462,3 +582,12 @@ export const seedEntries: FeedbackEntry[] = [
     ],
   },
 ]
+
+export const seedEntries: FeedbackEntry[] = rawSeedEntries.map((e) => ({
+  sendTo: [e.assignedTo],
+  copyTo: [],
+  responseEmails: [],
+  comments: '',
+  responses: [],
+  ...e,
+}))
