@@ -249,9 +249,11 @@ export function useBusinessLogic({ actor }: { actor: string }) {
         if (existingIds.has(a.id)) {
           renamed += 1
           const originalId = a.id
+          const freshId = `bl-${crypto.randomUUID().slice(0, 6)}`
+          existingIds.add(freshId)
           return {
             ...a,
-            id: `bl-${crypto.randomUUID().slice(0, 6)}`,
+            id: freshId,
             name: `${a.name} (imported)`,
             version: 1,
             history: [
@@ -264,6 +266,7 @@ export function useBusinessLogic({ actor }: { actor: string }) {
             ],
           }
         }
+        existingIds.add(a.id)
         return a
       })
       mutate((prev) => [...toAdd, ...prev])

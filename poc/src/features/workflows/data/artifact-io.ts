@@ -8,6 +8,7 @@
 import {
   ARTIFACT_TYPES,
   SCOPE_LEVELS,
+  TARGET_MODULES,
   normalizeArtifact,
   type Artifact,
 } from './business-logic'
@@ -65,6 +66,24 @@ function isArtifactValid(a: unknown): a is Artifact {
   for (const level of SCOPE_LEVELS) {
     if (typeof scopes[level] !== 'boolean') return false
   }
+
+  // description must be a string (consumers call .toLowerCase())
+  if (typeof obj.description !== 'string') return false
+
+  // targetModule must be a known module (consumers use it as a key)
+  if (!TARGET_MODULES.includes(obj.targetModule as typeof TARGET_MODULES[number])) return false
+
+  // history must be an array (consumers spread it)
+  if (!Array.isArray(obj.history)) return false
+
+  // attachments, if present, must be an array of objects with a string module
+  if (
+    obj.attachments !== undefined &&
+    !(Array.isArray(obj.attachments) &&
+      (obj.attachments as unknown[]).every(
+        (x) => x != null && typeof (x as Record<string, unknown>).module === 'string'
+      ))
+  ) return false
 
   return true
 }
