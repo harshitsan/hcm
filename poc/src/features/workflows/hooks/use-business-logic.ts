@@ -3,8 +3,10 @@ import { toast } from 'sonner'
 import {
   ARTIFACT_TYPE_LABELS,
   SCOPE_LABELS,
+  normalizeArtifact,
   seedArtifacts,
   type Artifact,
+  type ArtifactAttachment,
   type ScopeLevel,
 } from '../data/business-logic'
 import { KENSIUM_ARTIFACTS } from '../data/kensium-artifacts'
@@ -13,7 +15,7 @@ import { KENSIUM_ARTIFACTS } from '../data/kensium-artifacts'
 export type ArtifactDraft = Pick<
   Artifact,
   'name' | 'description' | 'type' | 'targetModule' | 'definition'
->
+> & { attachments?: ArtifactAttachment[] }
 
 function today() {
   return new Date().toISOString().slice(0, 10)
@@ -29,7 +31,7 @@ function now() {
  * tiny external store instead of per-page useState. Seeds = the 18-plus
  * hand-modeled artifacts + the full imported Kensium Configuration catalog.
  */
-let artifactState: Artifact[] = [...seedArtifacts, ...KENSIUM_ARTIFACTS]
+let artifactState: Artifact[] = [...seedArtifacts, ...KENSIUM_ARTIFACTS].map(normalizeArtifact)
 const listeners = new Set<() => void>()
 
 function emit() {
@@ -69,6 +71,7 @@ export function useBusinessLogic({ actor }: { actor: string }) {
         id: `bl-${crypto.randomUUID().slice(0, 6)}`,
         version: 1,
         scopes: { platform: false, portfolio: false, group: false, company: true },
+        attachments: draft.attachments ?? [{ module: draft.targetModule }],
         updatedBy: actor,
         updatedAt: today(),
         history: [
@@ -145,6 +148,66 @@ export function useBusinessLogic({ actor }: { actor: string }) {
     [actor, artifacts]
   )
 
+  /** Attach an artifact to an additional module/submodule (dedupes). */
+  const attach = useCallback(
+    (id: string, attachment: ArtifactAttachment) => {
+      const target = artifacts.find((a) => a.id === id)
+      if (!target) return
+      const alreadyAttached = target.attachments.some(
+        (x) => x.module === attachment.module && x.submodule === attachment.submodule
+      )
+      if (alreadyAttached) return
+      const label = attachment.submodule
+        ? `${attachment.module} / ${attachment.submodule}`
+        : attachment.module
+      mutate((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? {
+                ...a,
+                attachments: [...a.attachments, attachment],
+                history: [
+                  ...a.history,
+                  { at: now(), actor, event: `Attached to ${label}` },
+                ],
+              }
+            : a
+        )
+      )
+      toast.success(`"${target.name}" attached to ${label}`)
+    },
+    [actor, artifacts]
+  )
+
+  /** Detach an artifact from a module/submodule attachment point. */
+  const detach = useCallback(
+    (id: string, attachment: ArtifactAttachment) => {
+      const target = artifacts.find((a) => a.id === id)
+      if (!target) return
+      const label = attachment.submodule
+        ? `${attachment.module} / ${attachment.submodule}`
+        : attachment.module
+      mutate((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? {
+                ...a,
+                attachments: a.attachments.filter(
+                  (x) => !(x.module === attachment.module && x.submodule === attachment.submodule)
+                ),
+                history: [
+                  ...a.history,
+                  { at: now(), actor, event: `Detached from ${label}` },
+                ],
+              }
+            : a
+        )
+      )
+      toast.success(`"${target.name}" detached from ${label}`)
+    },
+    [actor, artifacts]
+  )
+
   /** Deletion is confirmed at the call site (AlertDialog in the detail view). */
   const deleteArtifact = useCallback(
     (id: string) => {
@@ -159,7 +222,7 @@ export function useBusinessLogic({ actor }: { actor: string }) {
     [artifacts]
   )
 
-  return { artifacts, createArtifact, updateArtifact, toggleScope, deleteArtifact }
+  return { artifacts, createArtifact, updateArtifact, toggleScope, attach, detach, deleteArtifact }
 }
 
 export type BusinessLogicStore = ReturnType<typeof useBusinessLogic>

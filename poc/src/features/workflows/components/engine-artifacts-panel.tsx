@@ -20,6 +20,8 @@ import { Switch } from '@/components/ui/switch'
 interface EngineArtifactsPanelProps {
   /** The consuming module — the catalog is filtered to artifacts targeting it. */
   module: TargetModule
+  /** Optional submodule tab id — narrows the filter to attachments for that tab. */
+  submodule?: string
   /** Optional intro line override. */
   intro?: string
 }
@@ -30,7 +32,7 @@ interface EngineArtifactsPanelProps {
  * this module. Kensium HR features are enabled here as engine artifacts.
  * Admins toggle their own scope level inline; authoring happens in the engine.
  */
-export function EngineArtifactsPanel({ module, intro }: EngineArtifactsPanelProps) {
+export function EngineArtifactsPanel({ module, submodule, intro }: EngineArtifactsPanelProps) {
   const { role } = useRole()
   const store = useBusinessLogic({ actor: role })
   const [query, setQuery] = useState('')
@@ -40,7 +42,7 @@ export function EngineArtifactsPanel({ module, intro }: EngineArtifactsPanelProp
   const artifacts = useMemo(
     () =>
       store.artifacts
-        .filter((a) => a.targetModule === module)
+        .filter((a) => a.attachments.some(x => x.module === module && (!submodule || !x.submodule || x.submodule === submodule)))
         .filter(
           (a) =>
             !query ||
@@ -48,7 +50,7 @@ export function EngineArtifactsPanel({ module, intro }: EngineArtifactsPanelProp
             a.description.toLowerCase().includes(query.toLowerCase())
         )
         .sort((a, b) => a.name.localeCompare(b.name)),
-    [store.artifacts, module, query]
+    [store.artifacts, module, submodule, query]
   )
 
   const activeCount = artifacts.filter(

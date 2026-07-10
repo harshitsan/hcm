@@ -228,11 +228,17 @@ export interface ArtifactHistoryEntry {
   event: string
 }
 
+/** A single attachment point — one module, optionally scoped to a submodule tab. */
+export interface ArtifactAttachment {
+  module: TargetModule
+  submodule?: string   // submodule tab id from module registry; omitted = whole module
+}
+
 export interface Artifact {
   id: string
   name: string
   type: ArtifactType
-  targetModule: TargetModule
+  targetModule: TargetModule   // kept = home module
   description: string
   version: number
   /** Independent enable/disable per tenant scope level (WFE-47). */
@@ -241,13 +247,21 @@ export interface Artifact {
   updatedBy: string
   updatedAt: string
   history: ArtifactHistoryEntry[]
+  attachments: ArtifactAttachment[]
+}
+
+/** Seed shape — attachments are optional; normalizeArtifact fills them in. */
+export type SeedArtifact = Omit<Artifact, 'attachments'> & { attachments?: ArtifactAttachment[] }
+
+export function normalizeArtifact(a: SeedArtifact): Artifact {
+  return { ...a, attachments: a.attachments ?? [{ module: a.targetModule }] }
 }
 
 /**
  * 18 seed artifacts, each a real Kensium Configuration screen re-expressed as
  * an engine artifact attached to its POC module (WFE-43).
  */
-export const seedArtifacts: Artifact[] = [
+export const seedArtifacts: SeedArtifact[] = [
   {
     id: 'bl-01',
     name: 'Time Off Approvers',

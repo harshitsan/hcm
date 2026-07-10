@@ -1,4 +1,4 @@
-import type { Artifact } from './business-logic'
+import type { SeedArtifact } from './business-logic'
 
 /**
  * The full Kensium HR Configuration catalog — 174 screens imported as
@@ -6,7 +6,7 @@ import type { Artifact } from './business-logic'
  * every scope level. Generated from kensiumhr-features/Configuration/HRMS;
  * the 18 hand-modeled seeds in business-logic.ts are excluded here.
  */
-export const KENSIUM_ARTIFACTS: Artifact[] = [
+export const KENSIUM_ARTIFACTS: SeedArtifact[] = [
   {
     "id": "kx-001",
     "name": "Letter Templates",
