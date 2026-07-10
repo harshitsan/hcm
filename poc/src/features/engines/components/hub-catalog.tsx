@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
-import { Download, Paperclip, Search, X } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { Download, Paperclip, Search, Upload, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,9 +19,21 @@ import {
   type ArtifactType,
   type TargetModule,
 } from '@/features/workflows/data/business-logic'
+import { parseBundle, serializeBundle } from '@/features/workflows/data/artifact-io'
 import type { BusinessLogicStore } from '@/features/workflows/hooks/use-business-logic'
 import { useRole } from '@/context/role-context'
 import { AttachDialog } from './attach-dialog'
+
+/** Blob + URL.createObjectURL + anchor download — same pattern as downloadSampleXml. */
+function downloadBundle(artifacts: Artifact[], filename: string) {
+  const blob = new Blob([serializeBundle(artifacts)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
 
 type BrowseMode = 'by-module' | 'by-type'
 
@@ -54,6 +67,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
   const [selectedType, setSelectedType] = useState<ArtifactType>(ARTIFACT_TYPES[0])
   const [query, setQuery] = useState('')
   const [attachTarget, setAttachTarget] = useState<Artifact | null>(null)
+  const importFileRef = useRef<HTMLInputElement>(null)
 
   /** Count artifacts attached to a module (any submodule counts). */
   function moduleCount(target: TargetModule) {
@@ -92,6 +106,50 @@ export function HubCatalog({ store }: HubCatalogProps) {
   function handleAttach(attachment: ArtifactAttachment) {
     if (!attachTarget) return
     store.attach(attachTarget.id, attachment)
+  }
+
+  /** Export the current filtered view as a bundle. */
+  function handleToolbarExport() {
+    if (filteredArtifacts.length === 0) {
+      toast.error('No artifacts to export — adjust the filter first.')
+      return
+    }
+    const label =
+      browseMode === 'by-module'
+        ? (selectedModule ?? 'all').toString().replace(/\s+/g, '-').toLowerCase()
+        : selectedType
+    downloadBundle(filteredArtifacts, `artifacts-${label}.json`)
+    toast.success(`Exported ${filteredArtifacts.length} artifact${filteredArtifacts.length !== 1 ? 's' : ''}`)
+  }
+
+  /** Export a single row artifact as a bundle. */
+  function handleRowExport(artifact: Artifact) {
+    downloadBundle(
+      [artifact],
+      `artifact-${artifact.name.replace(/\s+/g, '-').toLowerCase()}.json`
+    )
+    toast.success(`"${artifact.name}" exported`)
+  }
+
+  /** Read the selected .json file and import it. */
+  function handleImportFile(file: File | undefined) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result
+      if (typeof text !== 'string') return
+      const result = parseBundle(text)
+      if (!result.ok) {
+        toast.error(result.error)
+        return
+      }
+      const { imported, renamed } = store.importArtifacts(result.artifacts)
+      const suffix = renamed > 0 ? ` (${renamed} renamed)` : ''
+      toast.success(`Imported ${imported} artifact${imported !== 1 ? 's' : ''}${suffix}`)
+    }
+    reader.readAsText(file)
+    // Reset so the same file can be re-imported if needed
+    if (importFileRef.current) importFileRef.current.value = ''
   }
 
   return (
@@ -183,14 +241,49 @@ export function HubCatalog({ store }: HubCatalogProps) {
 
       {/* ── Main list ── */}
       <div className='min-w-0 flex-1'>
-        {/* Search */}
-        <div className='relative mb-3'>
-          <Search className='text-neutral-800 absolute top-2 left-2.5 size-3.5' />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder='Search by name or description…'
-            className='h-8 pl-8 text-xs'
+        {/* Toolbar */}
+        <div className='mb-3 flex items-center gap-2'>
+          {/* Search */}
+          <div className='relative flex-1'>
+            <Search className='text-neutral-800 absolute top-2 left-2.5 size-3.5' />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder='Search by name or description…'
+              className='h-8 pl-8 text-xs'
+            />
+          </div>
+
+          {/* Export filtered view */}
+          <Button
+            variant='outline'
+            size='sm'
+            className='h-8 gap-1.5 px-3 text-xs'
+            onClick={handleToolbarExport}
+            disabled={filteredArtifacts.length === 0}
+            title='Export current view as a bundle (.json)'
+          >
+            <Download className='size-3.5' />
+            Export
+          </Button>
+
+          {/* Import bundle */}
+          <Button
+            variant='outline'
+            size='sm'
+            className='h-8 gap-1.5 px-3 text-xs'
+            onClick={() => importFileRef.current?.click()}
+            title='Import an artifact bundle (.json)'
+          >
+            <Upload className='size-3.5' />
+            Import
+          </Button>
+          <input
+            ref={importFileRef}
+            type='file'
+            accept='.json'
+            hidden
+            onChange={(e) => handleImportFile(e.target.files?.[0])}
           />
         </div>
 
@@ -297,13 +390,13 @@ export function HubCatalog({ store }: HubCatalogProps) {
                     Attach…
                   </Button>
 
-                  {/* Export placeholder — wires in A4 */}
+                  {/* Row export — single-artifact bundle */}
                   <Button
                     variant='outline'
                     size='sm'
                     className='h-7 gap-1 px-2 text-[11px]'
-                    disabled
-                    title='Available soon'
+                    onClick={() => handleRowExport(a)}
+                    title='Export this artifact as a bundle (.json)'
                   >
                     <Download className='size-3' />
                     Export

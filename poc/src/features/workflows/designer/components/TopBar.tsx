@@ -1,6 +1,10 @@
 import { useRef, useState } from 'react'
-import { ChevronDown, Download, FlaskConical, Redo2, Undo2, Upload } from 'lucide-react'
+import { ChevronDown, Download, FlaskConical, Package, Redo2, Undo2, Upload } from 'lucide-react'
+import { toast } from 'sonner'
 import { useStore } from '../state/store'
+import { serializeBundle } from '../../data/artifact-io'
+import { normalizeArtifact } from '../../data/business-logic'
+import type { Artifact, TargetModule } from '../../data/business-logic'
 
 function TestPayloadDialog({ onClose }: { onClose: () => void }) {
   const sample = useStore(s => String(s.doc.trigger.config.samplePayload ?? ''))
@@ -73,6 +77,33 @@ export function TopBar() {
     if (err) alert(err)
   }
 
+  /** Export as artifact bundle — wraps the current doc as a single `flow` artifact. */
+  const onExportBundle = () => {
+    const targetModule = (doc.trigger.config.module as TargetModule | undefined) ?? 'Platform Admin'
+    const artifact: Artifact = normalizeArtifact({
+      id: `bl-${crypto.randomUUID().slice(0, 6)}`,
+      name: doc.name,
+      type: 'flow',
+      targetModule,
+      description: `Flow exported from the Designer: ${doc.name}`,
+      version: 1,
+      scopes: { platform: false, portfolio: false, group: false, company: true },
+      definition: { kind: 'flow', doc },
+      updatedBy: 'Designer',
+      updatedAt: new Date().toISOString().slice(0, 10),
+      history: [
+        { at: new Date().toISOString().slice(0, 16).replace('T', ' '), actor: 'Designer', event: 'Exported from Designer — v1' },
+      ],
+    })
+    const blob = new Blob([serializeBundle([artifact])], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `artifact-${doc.name.replace(/\s+/g, '-').toLowerCase()}.json`
+    a.click()
+    URL.revokeObjectURL(a.href)
+    toast.success(`"${doc.name}" exported as artifact bundle — import it at the Engines Hub`)
+  }
+
   return (
     <>
       <header className="topbar">
@@ -94,6 +125,7 @@ export function TopBar() {
           <button className="icon-btn" aria-label="Undo" disabled={!canUndo} onClick={undo}><Undo2 size={15} /></button>
           <button className="icon-btn" aria-label="Redo" disabled={!canRedo} onClick={redo}><Redo2 size={15} /></button>
           <button className="icon-btn" aria-label="Export" onClick={onExport}><Download size={15} /></button>
+          <button className="icon-btn" aria-label="Export as artifact bundle" title="Export as artifact bundle" onClick={onExportBundle}><Package size={15} /></button>
           <button className="icon-btn" aria-label="Import" onClick={() => fileRef.current?.click()}><Upload size={15} /></button>
           <input ref={fileRef} type="file" accept=".json" hidden
             onChange={e => { void onImport(e.target.files?.[0]) }} />

@@ -77,7 +77,7 @@ function allKindsKnown(steps: Step[]): boolean {
   )
 }
 
-function isValidDocShape(parsed: unknown): parsed is WorkflowDoc {
+export function isValidDocShape(parsed: unknown): parsed is WorkflowDoc {
   const p = parsed as WorkflowDoc
   return !!p && typeof p === 'object' && typeof p.id === 'string'
     && typeof p.name === 'string' && !!p.trigger && Array.isArray(p.body)

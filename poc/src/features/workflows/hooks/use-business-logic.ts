@@ -226,7 +226,47 @@ export function useBusinessLogic({ actor }: { actor: string }) {
     [artifacts]
   )
 
-  return { artifacts, createArtifact, updateArtifact, toggleScope, attach, detach, deleteArtifact }
+  /**
+   * Bulk-import from a parsed bundle (A4).
+   *
+   * Collision handling: if an incoming artifact id already exists in the store,
+   * it is imported as a NEW artifact — fresh id, name suffixed " (imported)",
+   * version reset to 1, history entry noting the original id.
+   *
+   * Returns { imported, renamed } counts for the summary toast.
+   */
+  const importArtifacts = useCallback(
+    (incoming: Artifact[]): { imported: number; renamed: number } => {
+      const existingIds = new Set(artifactState.map((a) => a.id))
+      let renamed = 0
+      const toAdd: Artifact[] = incoming.map((a) => {
+        if (existingIds.has(a.id)) {
+          renamed += 1
+          const originalId = a.id
+          return {
+            ...a,
+            id: `bl-${crypto.randomUUID().slice(0, 6)}`,
+            name: `${a.name} (imported)`,
+            version: 1,
+            history: [
+              ...a.history,
+              {
+                at: now(),
+                actor,
+                event: `Imported — copy of ${originalId}`,
+              },
+            ],
+          }
+        }
+        return a
+      })
+      mutate((prev) => [...toAdd, ...prev])
+      return { imported: toAdd.length, renamed }
+    },
+    [actor]
+  )
+
+  return { artifacts, createArtifact, updateArtifact, toggleScope, attach, detach, deleteArtifact, importArtifacts }
 }
 
 export type BusinessLogicStore = ReturnType<typeof useBusinessLogic>
