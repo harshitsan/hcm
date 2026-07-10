@@ -43,14 +43,14 @@ function mutate(updater: (prev: Artifact[]) => Artifact[]) {
   emit()
 }
 
-function subscribe(listener: () => void) {
+export function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => {
     listeners.delete(listener)
   }
 }
 
-function getSnapshot() {
+export function getSnapshot() {
   return artifactState
 }
 

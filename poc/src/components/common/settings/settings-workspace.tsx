@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
-import { MagnifyingGlass, ChevronLeft } from 'phosphor-react'
+import { MagnifyingGlass, CaretLeft } from 'phosphor-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useRole } from '@/context/role-context'
@@ -117,7 +117,7 @@ export function SettingsWorkspace({
               className='flex items-center gap-1 text-neutral-1000 hover:text-neutral-1400 transition-colors shrink-0'
               aria-label='Back to settings'
             >
-              <ChevronLeft size={16} weight='bold' />
+              <CaretLeft size={16} weight='bold' />
             </button>
             <span className='text-paragraph-sm text-neutral-1000 shrink-0'>{title}</span>
             <span className='text-paragraph-sm text-neutral-1000 shrink-0'>/</span>

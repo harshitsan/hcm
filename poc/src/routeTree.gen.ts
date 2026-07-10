@@ -39,6 +39,7 @@ import { Route as AuthenticatedJurisdictionsIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedHrLettersIndexRouteImport } from './routes/_authenticated/hr-letters/index'
 import { Route as AuthenticatedGroupCompaniesIndexRouteImport } from './routes/_authenticated/group-companies/index'
 import { Route as AuthenticatedFeedbackIndexRouteImport } from './routes/_authenticated/feedback/index'
+import { Route as AuthenticatedEnginesIndexRouteImport } from './routes/_authenticated/engines/index'
 import { Route as AuthenticatedEmployeesIndexRouteImport } from './routes/_authenticated/employees/index'
 import { Route as AuthenticatedDocumentsIndexRouteImport } from './routes/_authenticated/documents/index'
 import { Route as AuthenticatedDirectoryIndexRouteImport } from './routes/_authenticated/directory/index'
@@ -225,6 +226,12 @@ const AuthenticatedFeedbackIndexRoute =
     path: '/feedback/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEnginesIndexRoute =
+  AuthenticatedEnginesIndexRouteImport.update({
+    id: '/engines/',
+    path: '/engines/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmployeesIndexRoute =
   AuthenticatedEmployeesIndexRouteImport.update({
     id: '/employees/',
@@ -361,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/directory': typeof AuthenticatedDirectoryIndexRoute
   '/documents': typeof AuthenticatedDocumentsIndexRoute
   '/employees': typeof AuthenticatedEmployeesIndexRoute
+  '/engines': typeof AuthenticatedEnginesIndexRoute
   '/feedback': typeof AuthenticatedFeedbackIndexRoute
   '/group-companies': typeof AuthenticatedGroupCompaniesIndexRoute
   '/hr-letters': typeof AuthenticatedHrLettersIndexRoute
@@ -410,6 +418,7 @@ export interface FileRoutesByTo {
   '/directory': typeof AuthenticatedDirectoryIndexRoute
   '/documents': typeof AuthenticatedDocumentsIndexRoute
   '/employees': typeof AuthenticatedEmployeesIndexRoute
+  '/engines': typeof AuthenticatedEnginesIndexRoute
   '/feedback': typeof AuthenticatedFeedbackIndexRoute
   '/group-companies': typeof AuthenticatedGroupCompaniesIndexRoute
   '/hr-letters': typeof AuthenticatedHrLettersIndexRoute
@@ -461,6 +470,7 @@ export interface FileRoutesById {
   '/_authenticated/directory/': typeof AuthenticatedDirectoryIndexRoute
   '/_authenticated/documents/': typeof AuthenticatedDocumentsIndexRoute
   '/_authenticated/employees/': typeof AuthenticatedEmployeesIndexRoute
+  '/_authenticated/engines/': typeof AuthenticatedEnginesIndexRoute
   '/_authenticated/feedback/': typeof AuthenticatedFeedbackIndexRoute
   '/_authenticated/group-companies/': typeof AuthenticatedGroupCompaniesIndexRoute
   '/_authenticated/hr-letters/': typeof AuthenticatedHrLettersIndexRoute
@@ -512,6 +522,7 @@ export interface FileRouteTypes {
     | '/directory'
     | '/documents'
     | '/employees'
+    | '/engines'
     | '/feedback'
     | '/group-companies'
     | '/hr-letters'
@@ -561,6 +572,7 @@ export interface FileRouteTypes {
     | '/directory'
     | '/documents'
     | '/employees'
+    | '/engines'
     | '/feedback'
     | '/group-companies'
     | '/hr-letters'
@@ -611,6 +623,7 @@ export interface FileRouteTypes {
     | '/_authenticated/directory/'
     | '/_authenticated/documents/'
     | '/_authenticated/employees/'
+    | '/_authenticated/engines/'
     | '/_authenticated/feedback/'
     | '/_authenticated/group-companies/'
     | '/_authenticated/hr-letters/'
@@ -858,6 +871,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFeedbackIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/engines/': {
+      id: '/_authenticated/engines/'
+      path: '/engines'
+      fullPath: '/engines'
+      preLoaderRoute: typeof AuthenticatedEnginesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/employees/': {
       id: '/_authenticated/employees/'
       path: '/employees'
@@ -1006,6 +1026,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDirectoryIndexRoute: typeof AuthenticatedDirectoryIndexRoute
   AuthenticatedDocumentsIndexRoute: typeof AuthenticatedDocumentsIndexRoute
   AuthenticatedEmployeesIndexRoute: typeof AuthenticatedEmployeesIndexRoute
+  AuthenticatedEnginesIndexRoute: typeof AuthenticatedEnginesIndexRoute
   AuthenticatedFeedbackIndexRoute: typeof AuthenticatedFeedbackIndexRoute
   AuthenticatedGroupCompaniesIndexRoute: typeof AuthenticatedGroupCompaniesIndexRoute
   AuthenticatedHrLettersIndexRoute: typeof AuthenticatedHrLettersIndexRoute
@@ -1052,6 +1073,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDirectoryIndexRoute: AuthenticatedDirectoryIndexRoute,
   AuthenticatedDocumentsIndexRoute: AuthenticatedDocumentsIndexRoute,
   AuthenticatedEmployeesIndexRoute: AuthenticatedEmployeesIndexRoute,
+  AuthenticatedEnginesIndexRoute: AuthenticatedEnginesIndexRoute,
   AuthenticatedFeedbackIndexRoute: AuthenticatedFeedbackIndexRoute,
   AuthenticatedGroupCompaniesIndexRoute: AuthenticatedGroupCompaniesIndexRoute,
   AuthenticatedHrLettersIndexRoute: AuthenticatedHrLettersIndexRoute,
