@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { Power, Bell } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
+import { ToggleTile, ToggleTileGrid } from '@/components/common/settings/toggle-tile'
+import { AdvancedSection } from '@/components/common/settings/advanced-section'
 import {
   Dialog,
   DialogContent,
@@ -224,6 +227,49 @@ export function ConfigGeneral({ settings, onNextStep }: ConfigGeneralProps) {
 
   return (
     <div className='w-full space-y-5'>
+      {/* Quick-toggle tiles */}
+      <ToggleTileGrid>
+        <ToggleTile
+          icon={<Power size={20} />}
+          label='Time-off module'
+          description='Enable the time-off management module for this organization'
+          checked={enabledChoice === 'yes'}
+          onCheckedChange={(c) => {
+            // Write through to the store so the toggle survives navigating
+            // away from the group and back within the session.
+            setEnabledChoice(c ? 'yes' : 'no')
+            settings.setModuleEnabled(c)
+          }}
+          scope='company'
+        />
+        <ToggleTile
+          icon={<Bell size={20} />}
+          label='Notify employees'
+          description='Send email notifications on leave events'
+          checked={settings.templates.some((t) => t.channel === 'Email')}
+          onCheckedChange={() => {}}
+          disabled
+        />
+      </ToggleTileGrid>
+
+      <div className='flex gap-2'>
+        <Button className='h-7' onClick={save}>
+          Save
+        </Button>
+        <Button
+          variant='outline'
+          className='h-7'
+          onClick={() => {
+            save()
+            onNextStep()
+          }}
+        >
+          Save & Next
+        </Button>
+      </div>
+
+      <AdvancedSection count={3}>
+        <div className='space-y-5'>
       {/* LVE-47: Setup */}
       <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
         <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>Setup</h3>
@@ -411,6 +457,8 @@ export function ConfigGeneral({ settings, onNextStep }: ConfigGeneralProps) {
           </Button>
         </div>
       </div>
+        </div>
+      </AdvancedSection>
     </div>
   )
 }

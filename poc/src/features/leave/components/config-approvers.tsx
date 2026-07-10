@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Plus } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
+import { ApproverChainEditor, type ApproverStep } from '@/components/common/settings/approver-chain-editor'
+import { AdvancedSection } from '@/components/common/settings/advanced-section'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -252,6 +254,12 @@ function MappingTable({
 }
 
 /**
+ * Session-persistent approval chain (module-level, so edits survive
+ * navigating away from the group and back within the session).
+ */
+let sessionChain: ApproverStep[] | null = null
+
+/**
  * Location-based approver configuration: Time Off Approvers with a distinct
  * LOP approver (LVE-41), Adjustment Approvers (LVE-42), FMLA Approvers
  * (LVE-37) and FMLA qualifying/rejection reasons (LVE-38/39).
@@ -261,6 +269,30 @@ export function ConfigApprovers({ settings }: { settings: LeaveSettingsStore }) 
   const [reasonKind, setReasonKind] = useState<'qualifying' | 'rejection'>('qualifying')
   const [fmlaType, setFmlaType] = useState('')
   const [reasonText, setReasonText] = useState('')
+
+  const chainStepsInitial: ApproverStep[] = settings.timeOffApprovers.slice(0, 5).map((m) => ({
+    id: m.id,
+    label: m.approvers[0] ?? 'Approver',
+    kind: 'role' as const,
+    meta: m.locations.join(', '),
+  }))
+
+  const stepOptions: ApproverStep[] = [
+    { id: 'rm', label: 'Reporting Manager', kind: 'role' },
+    { id: 'hr', label: 'HR Partner', kind: 'role' },
+    { id: 'mgr', label: 'Department Head', kind: 'role' },
+    { id: 'admin', label: 'Time Off Admin', kind: 'role' },
+    { id: 'dir', label: 'HR Director', kind: 'role' },
+  ]
+  // B3: seed from the session copy so chain edits survive navigating away
+  // from the group and back; store shapes stay untouched.
+  const [chainStepsState, setChainStepsState] = useState<ApproverStep[]>(
+    () => sessionChain ?? chainStepsInitial
+  )
+  const updateChain = (next: ApproverStep[]) => {
+    sessionChain = next
+    setChainStepsState(next)
+  }
 
   const saveReason = () => {
     if (!fmlaType.trim() || !reasonText.trim()) {
@@ -278,91 +310,103 @@ export function ConfigApprovers({ settings }: { settings: LeaveSettingsStore }) 
 
   return (
     <div className='w-full space-y-5'>
-      <MappingTable
-        title='Time Off Approvers'
-        hint='paid leave routes to the approver; LOP portions to the LOP approver'
-        kind='timeoff'
-        rows={settings.timeOffApprovers}
-        withLop
-        settings={settings}
-      />
-      <MappingTable
-        title='Time Off Adjustment Approvers'
-        hint='balance adjustments route here, not to normal leave approvers'
-        kind='adjustment'
-        rows={settings.adjustmentApprovers}
-        withLop={false}
-        settings={settings}
-      />
-      <MappingTable
-        title='FMLA Approvers'
-        hint='FMLA-flagged requests route only to the approvers for their location'
-        kind='fmla'
-        rows={settings.fmlaApprovers}
-        withLop={false}
-        settings={settings}
+      <ApproverChainEditor
+        title='Approval Chain'
+        steps={chainStepsState}
+        onChange={updateChain}
+        stepOptions={stepOptions}
+        maxSteps={5}
       />
 
-      <div>
-        <div className='mb-2 flex items-center justify-between'>
-          <h3 className='text-neutral-1600 text-sm font-medium'>
-            FMLA Qualifying & Rejection Reasons
-          </h3>
-          <span className='flex items-center gap-2'>
-            {/* FMQR-03 / FMRR-03: refresh the reasons lists. */}
-            <RefreshButton label='FMLA reasons' />
-            <Button variant='outline' className='h-7 gap-1' onClick={() => setReasonOpen(true)}>
-              <Plus size={12} weight='bold' />
-              Add reason
-            </Button>
-          </span>
-        </div>
-        <div className='grid gap-3 lg:grid-cols-2'>
-          {(['qualifying', 'rejection'] as const).map((kind) => (
-            <div key={kind} className='rounded-[8px] border border-gray-200 bg-white p-3'>
-              <h4 className='mb-2 text-xs font-semibold uppercase'>
-                {kind === 'qualifying' ? 'Qualifying reasons' : 'Rejection reasons'}
-              </h4>
-              {reasonRows(kind).length === 0 ? (
-                // FMQR-04 / FMRR-04: explicit empty state.
-                <p className='text-neutral-1000 py-3 text-center text-sm'>
-                  No records to display — add{' '}
-                  {kind === 'qualifying' ? 'qualifying' : 'rejection'} reasons
-                  so requests can be{' '}
-                  {kind === 'qualifying' ? 'classified' : 'rejected consistently'}.
-                </p>
-              ) : (
-                <table className='w-full text-sm'>
-                  <thead>
-                    <tr className='text-neutral-1000 border-b text-left text-xs'>
-                      <th className='py-1.5 pr-3 font-medium'>FMLA type</th>
-                      <th className='font-medium'>Reason</th>
-                      <th className='text-right font-medium'>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reasonRows(kind).map((r) => (
-                      <tr key={r.id} className='border-b last:border-0'>
-                        <td className='py-1.5 pr-3'>{r.fmlaType}</td>
-                        <td>{r.reason}</td>
-                        <td className='text-right'>
-                          <Button
-                            variant='outline'
-                            className='text-destructive h-6 px-2 text-xs'
-                            onClick={() => settings.removeFmlaReason(r.id)}
-                          >
-                            Delete
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+      <AdvancedSection count={4}>
+        <div className='space-y-5'>
+          <MappingTable
+            title='Time Off Approvers'
+            hint='paid leave routes to the approver; LOP portions to the LOP approver'
+            kind='timeoff'
+            rows={settings.timeOffApprovers}
+            withLop
+            settings={settings}
+          />
+          <MappingTable
+            title='Time Off Adjustment Approvers'
+            hint='balance adjustments route here, not to normal leave approvers'
+            kind='adjustment'
+            rows={settings.adjustmentApprovers}
+            withLop={false}
+            settings={settings}
+          />
+          <MappingTable
+            title='FMLA Approvers'
+            hint='FMLA-flagged requests route only to the approvers for their location'
+            kind='fmla'
+            rows={settings.fmlaApprovers}
+            withLop={false}
+            settings={settings}
+          />
+
+          <div>
+            <div className='mb-2 flex items-center justify-between'>
+              <h3 className='text-neutral-1600 text-sm font-medium'>
+                FMLA Qualifying & Rejection Reasons
+              </h3>
+              <span className='flex items-center gap-2'>
+                {/* FMQR-03 / FMRR-03: refresh the reasons lists. */}
+                <RefreshButton label='FMLA reasons' />
+                <Button variant='outline' className='h-7 gap-1' onClick={() => setReasonOpen(true)}>
+                  <Plus size={12} weight='bold' />
+                  Add reason
+                </Button>
+              </span>
             </div>
-          ))}
+            <div className='grid gap-3 lg:grid-cols-2'>
+              {(['qualifying', 'rejection'] as const).map((kind) => (
+                <div key={kind} className='rounded-[8px] border border-gray-200 bg-white p-3'>
+                  <h4 className='mb-2 text-xs font-semibold uppercase'>
+                    {kind === 'qualifying' ? 'Qualifying reasons' : 'Rejection reasons'}
+                  </h4>
+                  {reasonRows(kind).length === 0 ? (
+                    // FMQR-04 / FMRR-04: explicit empty state.
+                    <p className='text-neutral-1000 py-3 text-center text-sm'>
+                      No records to display — add{' '}
+                      {kind === 'qualifying' ? 'qualifying' : 'rejection'} reasons
+                      so requests can be{' '}
+                      {kind === 'qualifying' ? 'classified' : 'rejected consistently'}.
+                    </p>
+                  ) : (
+                    <table className='w-full text-sm'>
+                      <thead>
+                        <tr className='text-neutral-1000 border-b text-left text-xs'>
+                          <th className='py-1.5 pr-3 font-medium'>FMLA type</th>
+                          <th className='font-medium'>Reason</th>
+                          <th className='text-right font-medium'>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reasonRows(kind).map((r) => (
+                          <tr key={r.id} className='border-b last:border-0'>
+                            <td className='py-1.5 pr-3'>{r.fmlaType}</td>
+                            <td>{r.reason}</td>
+                            <td className='text-right'>
+                              <Button
+                                variant='outline'
+                                className='text-destructive h-6 px-2 text-xs'
+                                onClick={() => settings.removeFmlaReason(r.id)}
+                              >
+                                Delete
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      </AdvancedSection>
 
       <Dialog open={reasonOpen} onOpenChange={setReasonOpen}>
         <DialogContent>

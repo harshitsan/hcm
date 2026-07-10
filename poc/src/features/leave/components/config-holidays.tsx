@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Plus } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
+import { CalendarPreview, type CalendarMarker } from '@/components/common/settings/calendar-preview'
+import { AdvancedSection } from '@/components/common/settings/advanced-section'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -286,8 +288,37 @@ export function ConfigHolidays({ settings }: { settings: LeaveSettingsStore }) {
   const weeklyOffCount = (c: HolidayCalendar) =>
     c.holidays.filter((h) => h.kind === 'weekly-off').length
 
+  const calendarMarkers: CalendarMarker[] = settings.calendars
+    .flatMap((c) =>
+      c.holidays
+        .filter((h) => h.kind !== 'weekly-off' && h.date)
+        .map((h) => ({
+          date: h.date,
+          label: h.name,
+          kind: h.kind === 'optional' ? ('optional' as const) : ('holiday' as const),
+        }))
+    )
+    .concat(
+      settings.closures.map((cl) => ({
+        date: cl.from,
+        label: cl.reason,
+        kind: 'closure' as const,
+      }))
+    )
+
   return (
     <div className='w-full space-y-5'>
+      <div className='rounded-[8px] border border-gray-200 bg-white p-3'>
+        <h3 className='text-neutral-1600 text-sm font-medium mb-3'>Calendar Preview</h3>
+        <CalendarPreview
+          markers={calendarMarkers}
+          workingDays={[1, 2, 3, 4, 5]}
+          months={3}
+        />
+      </div>
+
+      <AdvancedSection count={2}>
+        <div className='space-y-5'>
       <div>
         <div className='mb-2 flex items-center justify-between'>
           <h3 className='text-neutral-1600 text-sm font-medium'>
@@ -462,6 +493,8 @@ export function ConfigHolidays({ settings }: { settings: LeaveSettingsStore }) {
           </table>
         </div>
       </div>
+        </div>
+      </AdvancedSection>
 
       {/* HOLCAL-03: read-only holiday details for a calendar. */}
       <Dialog
