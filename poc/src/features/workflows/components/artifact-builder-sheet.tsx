@@ -191,9 +191,9 @@ const emptyValues: BuilderValues = {
   fields: [{ label: '', fieldType: 'text', required: false, options: '' }],
   items: [{ label: '', mandatory: true }],
   body: '',
-  templateChannel: '' as const,
+  templateChannel: '',
   templateEvent: '',
-  templateKindMeta: '' as const,
+  templateKindMeta: '',
   trigger: '',
   channels: [],
   key: '',
@@ -307,9 +307,9 @@ function toDefinition(values: BuilderValues): ArtifactDefinition {
       return {
         kind: 'template',
         body: values.body,
-        ...(values.templateChannel ? { channel: values.templateChannel as 'Email' | 'In-app' | 'SMS' } : {}),
+        ...(values.templateChannel ? { channel: values.templateChannel } : {}),
         ...(values.templateEvent ? { event: values.templateEvent } : {}),
-        ...(values.templateKindMeta ? { templateKind: values.templateKindMeta as 'letter' | 'notification' } : {}),
+        ...(values.templateKindMeta ? { templateKind: values.templateKindMeta } : {}),
       }
     case 'alert':
       return { kind: 'alert', trigger: values.trigger, channels: values.channels }
@@ -959,14 +959,14 @@ export function ArtifactBuilderSheet({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Channel</FormLabel>
-                          <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                          <Select value={field.value || 'none'} onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}>
                             <FormControl>
                               <SelectTrigger variant='secondary' className='w-full'>
                                 <SelectValue placeholder='None' />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value=''>None</SelectItem>
+                              <SelectItem value='none'>None</SelectItem>
                               <SelectItem value='Email'>Email</SelectItem>
                               <SelectItem value='In-app'>In-app</SelectItem>
                               <SelectItem value='SMS'>SMS</SelectItem>
@@ -995,14 +995,14 @@ export function ArtifactBuilderSheet({
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Template kind</FormLabel>
-                          <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                          <Select value={field.value || 'none'} onValueChange={(v) => field.onChange(v === 'none' ? '' : v)}>
                             <FormControl>
                               <SelectTrigger variant='secondary' className='w-full'>
                                 <SelectValue placeholder='None' />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value=''>None</SelectItem>
+                              <SelectItem value='none'>None</SelectItem>
                               <SelectItem value='letter'>Letter</SelectItem>
                               <SelectItem value='notification'>Notification</SelectItem>
                             </SelectContent>
