@@ -18,7 +18,7 @@
 
 import type { WorkflowDoc, LeafStep } from '../designer/core/model'
 import { makeId } from '../designer/core/model'
-import { createStep, MODULE_OPTIONS, eventsForModule, getDef } from '../designer/core/registry'
+import { createStep, MODULE_OPTIONS, eventsForModule, getDef, sampleFor } from '../designer/core/registry'
 import {
   ARTIFACT_TYPE_LABELS,
   RULE_OUTCOMES,
@@ -63,6 +63,7 @@ function buildTrigger(module: string) {
   // resolved module/event so the trigger pill and validateConfig stay truthful.
   config.module = safeModule
   config.event = event
+  config.samplePayload = sampleFor(event)
   return {
     id: makeId('t'),
     kind: 'moduleEvent' as const,
