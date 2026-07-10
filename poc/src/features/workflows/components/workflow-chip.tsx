@@ -37,6 +37,7 @@ export function WorkflowChip({ artifactId, label, className }: WorkflowChipProps
         'px-1.5 py-0.5 text-[11px] font-medium text-neutral-1200',
         'hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700',
         'transition-colors shrink-0',
+        'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
         className
       )}
       onClick={(e) => {
