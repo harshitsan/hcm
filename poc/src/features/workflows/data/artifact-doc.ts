@@ -18,7 +18,7 @@
 
 import type { WorkflowDoc, LeafStep } from '../designer/core/model'
 import { makeId } from '../designer/core/model'
-import { createStep, MODULE_OPTIONS, eventsForModule, getDef, sampleFor } from '../designer/core/registry'
+import { createStep, eventsForModule, getDef, sampleFor } from '../designer/core/registry'
 import {
   ARTIFACT_TYPE_LABELS,
   RULE_OUTCOMES,
@@ -55,13 +55,15 @@ function walkTopLevelLeaves(doc: WorkflowDoc): LeafStep[] {
 
 /** Build a moduleEvent trigger literal mirroring seed.ts blankDoc(). */
 function buildTrigger(module: string) {
-  const safeModule = MODULE_OPTIONS.includes(module) ? module : 'Leave Management'
-  const events = eventsForModule(safeModule)
-  const event = events[0] ?? 'Leave request submitted'
+  // Always use the REAL artifact module — never substitute a different module name.
+  // The event falls back to the first entry in the module's event list, or a
+  // generic sentinel if the list is somehow empty.
+  const events = eventsForModule(module)
+  const event = events[0] ?? 'Workflow triggered'
   const config = structuredClone(getDef('moduleEvent').defaultConfig)
   // defaultConfig hard-codes Leave Management — override with the artifact's
-  // resolved module/event so the trigger pill and validateConfig stay truthful.
-  config.module = safeModule
+  // real module/event so the trigger pill and validateConfig stay truthful.
+  config.module = module
   config.event = event
   config.samplePayload = sampleFor(event)
   return {
@@ -101,7 +103,9 @@ export function artifactToDoc(artifact: Artifact): WorkflowDoc {
     const doc = structuredClone(def.doc)
     doc.id = makeId('wf')   // fresh id so it never collides with Build-tab library ids
     doc.name = name
-    doc.status = 'draft'
+    // Preserve the stored doc.status so a live/published flow is not silently
+    // reset to 'draft' on round-trip. Non-flow kinds keep forced 'draft' below
+    // (their docs are ephemeral adapters and doc.status is inert for them).
     return doc
   }
 

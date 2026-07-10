@@ -55,6 +55,8 @@ type BrowseMode = 'by-module' | 'by-type' | 'folders'
 const FOLDER_ALL = '__all__'
 /** "Ungrouped" sentinel — maps to folderId === null. */
 const FOLDER_UNGROUPED = '__ungrouped__'
+/** Drop-zone sentinel key for the Ungrouped section in drag-and-drop. */
+const UNGROUPED_DROP_KEY = '__ungrouped_drop__'
 
 /** Registry modules that expose an engine surface (have targetModule). */
 const MODULE_RAIL_ITEMS = MODULE_REGISTRY.filter(
@@ -324,9 +326,6 @@ export function HubCatalog({ store }: HubCatalogProps) {
 
   const derivedFolders = folderStore.folders.filter((f) => f.derived)
   const userFolders = folderStore.folders.filter((f) => !f.derived)
-
-  // Sentinel key for "Ungrouped" drop zone in dnd
-  const UNGROUPED_DROP_KEY = '__ungrouped_drop__'
 
   return (
     <div className='flex gap-4'>

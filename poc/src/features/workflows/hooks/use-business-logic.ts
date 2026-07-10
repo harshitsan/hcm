@@ -10,7 +10,7 @@ import {
   type ScopeLevel,
 } from '../data/business-logic'
 import { KENSIUM_ARTIFACTS } from '../data/kensium-artifacts'
-import { getUserFolders, moduleFolderId } from './use-workflow-folders'
+import { getUserFolders, moduleFolderId } from '../data/workflow-folders'
 
 /** Author-editable slice; id, version, scopes and history are engine-managed. */
 export type ArtifactDraft = Pick<

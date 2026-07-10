@@ -34,11 +34,17 @@ export type NodeDef = {
 /* Option lists mirror the Business logic catalog (data/business-logic.ts);
    kept local so the designer core stays free of feature-data imports. */
 
+/* Mirrors ALL 23 entries of TARGET_MODULES from data/business-logic.ts;
+   kept as local string literals so the designer core stays free of feature-data
+   imports (same APPROVER_ROLES precedent). */
 export const MODULE_OPTIONS = [
   'Leave Management', 'Time & Attendance', 'Recruitment', 'Employees',
   'Employee Lifecycle', 'Notifications', 'HR Letters & Certificates',
   'Asset Management', 'Custom Fields', 'Data Management',
   'Policy Management', 'Companies',
+  'Self Service', 'Feedback & Grievance', 'Announcements', 'Documents',
+  'Locations', 'Departments', 'Positions', 'Groups',
+  'Roles & Security', 'Authentication', 'Platform Admin',
 ]
 
 // eventsForModule is re-exported from the module registry (single source of truth).

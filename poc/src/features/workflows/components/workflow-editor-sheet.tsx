@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { GitBranch } from 'lucide-react'
+import { Workflow } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Button } from '@/components/ui/button'
@@ -139,7 +139,7 @@ function SheetInner({
     <>
       {/* Header row h-14 with border-b; pe-12 keeps Save clear of the sheet's built-in X */}
       <div className='flex h-14 shrink-0 items-center gap-3 border-b ps-4 pe-12'>
-        <GitBranch size={18} className='text-neutral-1000 shrink-0' />
+        <Workflow size={18} className='text-neutral-1000 shrink-0' />
         <span className='text-neutral-1600 truncate font-semibold text-sm'>
           {artifact.name}
         </span>

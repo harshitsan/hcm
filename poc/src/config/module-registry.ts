@@ -183,7 +183,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'admin', label: 'Admin' },
     ],
     entities: ['Location'],
-    events: [],
+    events: ['Location created', 'Location deactivated', 'Employee location changed'],
     forms: [],
   },
   {
@@ -202,7 +202,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'my', label: 'My Department' },
     ],
     entities: ['Department'],
-    events: [],
+    events: ['Department created', 'Department head changed', 'Employee moved to department'],
     forms: [],
   },
   {
@@ -221,7 +221,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'my', label: 'My Position' },
     ],
     entities: [],
-    events: [],
+    events: ['Position created', 'Role assigned', 'Position vacated'],
     forms: [],
   },
   {
@@ -239,7 +239,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'my', label: 'My Groups' },
     ],
     entities: ['Group'],
-    events: [],
+    events: ['Group created', 'Group membership changed', 'Group deactivated'],
     forms: [],
   },
   {
@@ -334,7 +334,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'admin', label: 'Admin' },
     ],
     entities: [],
-    events: [],
+    events: ['Self-service request submitted', 'Profile update requested', 'Manager delegated'],
     forms: [],
   },
   {
@@ -515,7 +515,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'admin', label: 'Admin' },
     ],
     entities: [],
-    events: [],
+    events: ['Announcement created', 'Announcement published', 'Announcement expired'],
     forms: [],
   },
   {
@@ -569,7 +569,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'admin', label: 'Admin' },
     ],
     entities: [],
-    events: [],
+    events: ['Grievance raised', 'Feedback submitted', 'Survey response received'],
     forms: [],
   },
 
@@ -655,7 +655,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'admin', label: 'Admin' },
     ],
     entities: [],
-    events: [],
+    events: ['Document uploaded', 'Document expiry approaching', 'Document acknowledged'],
     forms: [],
   },
   {
@@ -694,7 +694,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'admin', label: 'Admin' },
     ],
     entities: [],
-    events: [],
+    events: ['Role created', 'Permission granted', 'Access revoked'],
     forms: [],
   },
   {
@@ -710,7 +710,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'admin', label: 'Admin' },
     ],
     entities: [],
-    events: [],
+    events: ['User login detected', 'Password reset requested', 'MFA enrolled'],
     forms: [],
   },
   {
@@ -743,7 +743,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
       { id: 'settings', label: 'Settings' },
     ],
     entities: [],
-    events: [],
+    events: ['Tenant provisioned', 'System settings changed', 'Maintenance window started'],
     forms: [],
   },
 ]
