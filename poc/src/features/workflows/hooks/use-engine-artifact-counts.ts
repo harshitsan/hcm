@@ -1,5 +1,4 @@
-import { useMemo } from 'react'
-import { useSyncExternalStore } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 import {
   isEffectivelyActive,
   ROLE_SCOPE,
