@@ -8,7 +8,6 @@ import { AuditTab } from './components/audit-tab'
 import { ConfigTab } from './components/config-tab'
 import { DisciplinaryTab } from './components/disciplinary-tab'
 import { ExitsTab } from './components/exits-tab'
-import { ConfigKt } from './components/config-kt'
 import { KnowledgeTransferTab } from './components/kt-tasks-tab'
 import { LifecycleSummary } from './components/lifecycle-summary'
 import { MyLifecycleTab } from './components/my-lifecycle-tab'
@@ -271,26 +270,9 @@ export function Lifecycle() {
 
                     <section>
                       <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
-                        Knowledge Transfer Configuration
-                      </h3>
-                      <ConfigKt
-                        store={knowledgeTransfer}
-                        exitTypes={config.exitTypes.items.map((t) => t.name)}
-                      />
-                    </section>
-
-                    <section>
-                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
                         Lifecycle Settings
                       </h3>
-                      <ConfigTab config={config} />
-                    </section>
-
-                    <section>
-                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
-                        Engine Features
-                      </h3>
-                      <EngineArtifactsPanel module='Employee Lifecycle' />
+                      <ConfigTab config={config} kt={knowledgeTransfer} />
                     </section>
 
                     <section>
@@ -338,7 +320,7 @@ export function Lifecycle() {
                   <PlatformTab transfers={transfers} />
                 </TabsContent>
                 <TabsContent value='config'>
-                  <ConfigTab config={config} />
+                  <ConfigTab config={config} kt={knowledgeTransfer} />
                 </TabsContent>
               </>
             )}
