@@ -58,11 +58,16 @@ function buildTrigger(module: string) {
   const safeModule = MODULE_OPTIONS.includes(module) ? module : 'Leave Management'
   const events = eventsForModule(safeModule)
   const event = events[0] ?? 'Leave request submitted'
+  const config = structuredClone(getDef('moduleEvent').defaultConfig)
+  // defaultConfig hard-codes Leave Management — override with the artifact's
+  // resolved module/event so the trigger pill and validateConfig stay truthful.
+  config.module = safeModule
+  config.event = event
   return {
     id: makeId('t'),
     kind: 'moduleEvent' as const,
     label: event,
-    config: structuredClone(getDef('moduleEvent').defaultConfig),
+    config,
   }
 }
 
@@ -204,6 +209,13 @@ export function docFromCanvas(doc: WorkflowDoc, type: ArtifactType): FromDocResu
           'An approver-chain workflow can only contain Approval task steps — remove container blocks or recreate this as a Process flow.',
       }
     }
+    if (leaves.length === 0) {
+      return {
+        ok: false,
+        error:
+          'An approver-chain workflow must contain at least one Approval task step.',
+      }
+    }
     const steps: ChainStep[] = leaves.map((s, i) => ({
       order: i + 1,
       approverRole: String(s.config.approverRole ?? ''),
@@ -237,7 +249,7 @@ export function docFromCanvas(doc: WorkflowDoc, type: ArtifactType): FromDocResu
       }
     }
 
-    // Exactly one ruleOutcome, must be the last step
+    // Exactly one ruleOutcome (position is not enforced)
     const outcomeSteps = leaves.filter((s) => s.kind === 'ruleOutcome')
     if (outcomeSteps.length !== 1) {
       return {
