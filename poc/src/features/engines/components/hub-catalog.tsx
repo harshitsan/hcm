@@ -276,8 +276,17 @@ export function HubCatalog({ store }: HubCatalogProps) {
     dragEnterCounters.current.set(targetId, count)
     if (count <= 0) {
       dragEnterCounters.current.delete(targetId)
-      setDragOverFolderId(null)
+      // Only clear the highlight if this target still owns it — when the
+      // cursor slides A→B, A's trailing dragleave must not clear B's highlight.
+      setDragOverFolderId((cur) => (cur === targetId ? null : cur))
     }
+  }
+
+  /** Reset all drag-over state when a drag ends without a registered drop
+   *  (cancelled via Escape, or dropped outside any folder target). */
+  function handleDragEnd() {
+    dragEnterCounters.current.clear()
+    setDragOverFolderId(null)
   }
 
   function handleDrop(e: React.DragEvent, folderId: string | null) {
@@ -679,6 +688,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
                 key={a.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, a.id)}
+                onDragEnd={handleDragEnd}
                 className={cn(
                   'flex flex-wrap items-start gap-3 px-4 py-3 cursor-grab active:cursor-grabbing',
                   idx < filteredArtifacts.length - 1
