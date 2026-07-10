@@ -34,6 +34,7 @@ import { ArtifactDetailSheet } from './artifact-detail-sheet'
 import { LayerBanner } from './layer-banner'
 import { SummaryCards } from './summary-cards'
 import { SectionToolbar, SortableHeader } from './table-helpers'
+import { useWorkflowEditor } from './workflow-editor-context'
 
 const TYPE_BADGE_VARIANT: Record<
   ArtifactType,
@@ -171,6 +172,8 @@ export function BusinessLogicTab({
   const { artifacts, createArtifact, updateArtifact, toggleScope, deleteArtifact } =
     store
 
+  const { openEditor } = useWorkflowEditor()
+
   const [moduleFilter, setModuleFilter] = useState<string>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -287,7 +290,7 @@ export function BusinessLogicTab({
         columns={columns}
         data={rows}
         variant='no-status'
-        onRowClick={(row) => setDetailId(row.id)}
+        onRowClick={(row) => openEditor(row.id)}
       />
 
       <ArtifactDetailSheet
@@ -302,12 +305,9 @@ export function BusinessLogicTab({
           if (detail) toggleScope(detail.id, level)
         }}
         onEdit={() => {
-          if (detail?.type === 'flow') {
-            toast.info('Flow artifacts are authored on the Build tab canvas')
-            return
-          }
-          setEditing(detail)
-          setBuilderOpen(true)
+          if (!detail) return
+          setDetailId(null)
+          openEditor(detail.id)
         }}
         onDelete={() => {
           if (detail) deleteArtifact(detail.id)

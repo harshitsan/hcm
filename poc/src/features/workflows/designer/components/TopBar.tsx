@@ -48,7 +48,7 @@ function Toggle({ label, checked, onChange }: {
   )
 }
 
-export function TopBar() {
+export function TopBar({ mode = 'flow' }: { mode?: 'flow' | 'payload' }) {
   const doc = useStore(s => s.doc)
   const extended = useStore(s => s.extended)
   const issues = useStore(s => s.issues)
@@ -114,22 +114,32 @@ export function TopBar() {
         </div>
         <div className="topbar-right">
           <Toggle label="Extended" checked={extended} onChange={setExtended} />
-          <Toggle label="Activate" checked={doc.status === 'active'}
-            onChange={on => { if (on) { tryActivate() } else { deactivate() } }} />
-          <div className="test-split">
-            <button className="btn split-main" onClick={() => (runActive ? stopTestRun() : startTestRun())}>
-              <FlaskConical size={13} /> {runActive ? 'Stop' : 'Test'}
-            </button>
-            <button className="btn split-arrow" aria-label="Test options"
-              onClick={() => setPayloadDialog(true)}><ChevronDown size={13} /></button>
-          </div>
+          {mode === 'flow' && (
+            <Toggle label="Activate" checked={doc.status === 'active'}
+              onChange={on => { if (on) { tryActivate() } else { deactivate() } }} />
+          )}
+          {mode === 'flow' && (
+            <div className="test-split">
+              <button className="btn split-main" onClick={() => (runActive ? stopTestRun() : startTestRun())}>
+                <FlaskConical size={13} /> {runActive ? 'Stop' : 'Test'}
+              </button>
+              <button className="btn split-arrow" aria-label="Test options"
+                onClick={() => setPayloadDialog(true)}><ChevronDown size={13} /></button>
+            </div>
+          )}
           <button className="icon-btn" aria-label="Undo" disabled={!canUndo} onClick={undo}><Undo2 size={15} /></button>
           <button className="icon-btn" aria-label="Redo" disabled={!canRedo} onClick={redo}><Redo2 size={15} /></button>
           <button className="icon-btn" aria-label="Export" onClick={onExport}><Download size={15} /></button>
-          <button className="icon-btn" aria-label="Export as artifact bundle" title="Export as artifact bundle" onClick={onExportBundle}><Package size={15} /></button>
-          <button className="icon-btn" aria-label="Import" onClick={() => fileRef.current?.click()}><Upload size={15} /></button>
-          <input ref={fileRef} type="file" accept=".json" hidden
-            onChange={e => { void onImport(e.target.files?.[0]) }} />
+          {mode === 'flow' && (
+            <button className="icon-btn" aria-label="Export as artifact bundle" title="Export as artifact bundle" onClick={onExportBundle}><Package size={15} /></button>
+          )}
+          {mode === 'flow' && (
+            <>
+              <button className="icon-btn" aria-label="Import" onClick={() => fileRef.current?.click()}><Upload size={15} /></button>
+              <input ref={fileRef} type="file" accept=".json" hidden
+                onChange={e => { void onImport(e.target.files?.[0]) }} />
+            </>
+          )}
         </div>
       </header>
       {issues.length > 0 && (

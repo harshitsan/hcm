@@ -389,3 +389,7 @@
 /* No icon rail inside the app (the POC has its own sidebar) and a fixed
    height so the canvas pans inside the tab instead of the page. */
 .wfd .app { grid-template-columns: 1fr 300px; height: calc(100vh - 250px); min-height: 520px; }
+
+/* Sheet variant — canvas inside the wide right-slider sheet (Task 4).
+   grid-template-columns: 1fr 300px drops the icon rail (no 56px first column). */
+.wfd .app.app-sheet { grid-template-columns: 1fr 300px; }
