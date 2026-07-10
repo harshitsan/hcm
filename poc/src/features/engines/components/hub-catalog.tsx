@@ -1,9 +1,16 @@
 import { useMemo, useRef, useState } from 'react'
-import { Download, Paperclip, Search, Upload, X } from 'lucide-react'
+import { Download, Paperclip, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MODULE_REGISTRY } from '@/config/module-registry'
@@ -21,7 +28,13 @@ import {
 } from '@/features/workflows/data/business-logic'
 import { parseBundle, serializeBundle } from '@/features/workflows/data/artifact-io'
 import type { BusinessLogicStore } from '@/features/workflows/hooks/use-business-logic'
+import {
+  effectiveFolderId,
+  useWorkflowFolders,
+  type WorkflowFolder,
+} from '@/features/workflows/hooks/use-workflow-folders'
 import { useRole } from '@/context/role-context'
+import { cn } from '@/utils/helpers'
 import { WorkflowChip } from '@/features/workflows/components/workflow-chip'
 import { AttachDialog } from './attach-dialog'
 
@@ -36,7 +49,12 @@ function downloadBundle(artifacts: Artifact[], filename: string) {
   URL.revokeObjectURL(url)
 }
 
-type BrowseMode = 'by-module' | 'by-type'
+type BrowseMode = 'by-module' | 'by-type' | 'folders'
+
+/** "All workflows" sentinel — not a folder id, just a UI selection value. */
+const FOLDER_ALL = '__all__'
+/** "Ungrouped" sentinel — maps to folderId === null. */
+const FOLDER_UNGROUPED = '__ungrouped__'
 
 /** Registry modules that expose an engine surface (have targetModule). */
 const MODULE_RAIL_ITEMS = MODULE_REGISTRY.filter(
@@ -48,18 +66,21 @@ interface HubCatalogProps {
 }
 
 /**
- * Engines Hub catalog — two browse modes:
+ * Engines Hub catalog — three browse modes:
  *  "By module": left rail = registry modules with targetModule, count = attachments.
  *  "By type":   left rail = 8 artifact types.
+ *  "Folders":   left rail = folder file-manager with CRUD + drag-and-drop.
  *
  * Rows reuse the engine-artifacts-panel visual pattern, extended with:
  *  – attachment pills (each with × to detach)
  *  – "Attach…" button (opens AttachDialog)
  *  – "Export" placeholder (disabled, wires in A4)
+ *  – "Move to…" Select (a11y fallback for drag-and-drop)
  */
 export function HubCatalog({ store }: HubCatalogProps) {
   const { role } = useRole()
   const myScope = ROLE_SCOPE[role]
+  const folderStore = useWorkflowFolders()
 
   const [browseMode, setBrowseMode] = useState<BrowseMode>('by-module')
   const [selectedModule, setSelectedModule] = useState<TargetModule | null>(
@@ -70,12 +91,34 @@ export function HubCatalog({ store }: HubCatalogProps) {
   const [attachTarget, setAttachTarget] = useState<Artifact | null>(null)
   const importFileRef = useRef<HTMLInputElement>(null)
 
+  // Folder mode state
+  const [selectedFolderItem, setSelectedFolderItem] = useState<string>(FOLDER_ALL)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false)
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
+  const [renamingFolderName, setRenamingFolderName] = useState('')
+
+  // Drag-and-drop state
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
+  const dragEnterCounters = useRef<Map<string, number>>(new Map())
+
   /** Count artifacts attached to a module (any submodule counts). */
   function moduleCount(target: TargetModule) {
     return store.artifacts.filter((a) =>
       a.attachments.some((x) => x.module === target)
     ).length
   }
+
+  /** Count artifacts in a given folder (by effectiveFolderId). */
+  function folderCount(folderId: string) {
+    return store.artifacts.filter((a) => effectiveFolderId(a) === folderId).length
+  }
+
+  /** Count explicitly ungrouped artifacts (folderId === null). */
+  const ungroupedCount = useMemo(
+    () => store.artifacts.filter((a) => a.folderId === null).length,
+    [store.artifacts]
+  )
 
   const filteredArtifacts = useMemo(() => {
     let list = store.artifacts
@@ -86,6 +129,13 @@ export function HubCatalog({ store }: HubCatalogProps) {
       )
     } else if (browseMode === 'by-type') {
       list = list.filter((a) => a.type === selectedType)
+    } else if (browseMode === 'folders') {
+      if (selectedFolderItem === FOLDER_UNGROUPED) {
+        list = list.filter((a) => a.folderId === null)
+      } else if (selectedFolderItem !== FOLDER_ALL) {
+        list = list.filter((a) => effectiveFolderId(a) === selectedFolderItem)
+      }
+      // FOLDER_ALL → no filter, show all workflows
     }
 
     if (query.trim()) {
@@ -98,7 +148,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
     }
 
     return [...list].sort((a, b) => a.name.localeCompare(b.name))
-  }, [store.artifacts, browseMode, selectedModule, selectedType, query])
+  }, [store.artifacts, browseMode, selectedModule, selectedType, selectedFolderItem, query])
 
   function handleDetach(artifact: Artifact, attachment: ArtifactAttachment) {
     store.detach(artifact.id, attachment)
@@ -115,10 +165,14 @@ export function HubCatalog({ store }: HubCatalogProps) {
       toast.error('No artifacts to export — adjust the filter first.')
       return
     }
-    const label =
-      browseMode === 'by-module'
-        ? (selectedModule ?? 'all').toString().replace(/\s+/g, '-').toLowerCase()
-        : selectedType
+    let label: string
+    if (browseMode === 'by-module') {
+      label = (selectedModule ?? 'all').toString().replace(/\s+/g, '-').toLowerCase()
+    } else if (browseMode === 'by-type') {
+      label = selectedType
+    } else {
+      label = 'folders'
+    }
     downloadBundle(filteredArtifacts, `artifacts-${label}.json`)
     toast.success(`Exported ${filteredArtifacts.length} artifact${filteredArtifacts.length !== 1 ? 's' : ''}`)
   }
@@ -153,6 +207,97 @@ export function HubCatalog({ store }: HubCatalogProps) {
     if (importFileRef.current) importFileRef.current.value = ''
   }
 
+  // ── Folder CRUD handlers ──────────────────────────────────────────────────
+
+  function handleCreateFolder() {
+    const name = newFolderName.trim()
+    if (!name) return
+    folderStore.createFolder(name)
+    setNewFolderName('')
+    setShowNewFolderInput(false)
+    toast.success(`Folder "${name}" created`)
+  }
+
+  function handleStartRename(folder: WorkflowFolder) {
+    setRenamingFolderId(folder.id)
+    setRenamingFolderName(folder.name)
+  }
+
+  function handleConfirmRename(id: string) {
+    const name = renamingFolderName.trim()
+    if (name) {
+      folderStore.renameFolder(id, name)
+    }
+    setRenamingFolderId(null)
+    setRenamingFolderName('')
+  }
+
+  function handleDeleteFolder(folder: WorkflowFolder) {
+    if (
+      !window.confirm(
+        `Delete folder "${folder.name}"? All workflows inside will be moved to Ungrouped.`
+      )
+    )
+      return
+    // Move members to root before deleting (per plan spec)
+    store.artifacts
+      .filter((a) => effectiveFolderId(a) === folder.id)
+      .forEach((a) => store.moveToFolder(a.id, null))
+    folderStore.deleteFolder(folder.id)
+    // If the deleted folder was selected, fall back to "All workflows"
+    if (selectedFolderItem === folder.id) {
+      setSelectedFolderItem(FOLDER_ALL)
+    }
+    toast.success(`Folder "${folder.name}" deleted — workflows moved to Ungrouped`)
+  }
+
+  // ── Drag-and-drop handlers ────────────────────────────────────────────────
+
+  function handleDragStart(e: React.DragEvent<HTMLDivElement>, artifactId: string) {
+    e.dataTransfer.setData('text/plain', artifactId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function handleDragOver(e: React.DragEvent, targetId: string) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverFolderId(targetId)
+  }
+
+  function handleDragEnter(e: React.DragEvent, targetId: string) {
+    e.preventDefault()
+    const count = (dragEnterCounters.current.get(targetId) ?? 0) + 1
+    dragEnterCounters.current.set(targetId, count)
+    setDragOverFolderId(targetId)
+  }
+
+  function handleDragLeave(_e: React.DragEvent, targetId: string) {
+    const count = (dragEnterCounters.current.get(targetId) ?? 1) - 1
+    dragEnterCounters.current.set(targetId, count)
+    if (count <= 0) {
+      dragEnterCounters.current.delete(targetId)
+      setDragOverFolderId(null)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent, folderId: string | null) {
+    e.preventDefault()
+    const artifactId = e.dataTransfer.getData('text/plain')
+    if (!artifactId) return
+    store.moveToFolder(artifactId, folderId)
+    // Clear all drag-over state
+    dragEnterCounters.current.clear()
+    setDragOverFolderId(null)
+  }
+
+  // ── Derived folder sections ───────────────────────────────────────────────
+
+  const derivedFolders = folderStore.folders.filter((f) => f.derived)
+  const userFolders = folderStore.folders.filter((f) => !f.derived)
+
+  // Sentinel key for "Ungrouped" drop zone in dnd
+  const UNGROUPED_DROP_KEY = '__ungrouped_drop__'
+
   return (
     <div className='flex gap-4'>
       {/* ── Left rail ── */}
@@ -167,11 +312,14 @@ export function HubCatalog({ store }: HubCatalogProps) {
           className='mb-3'
         >
           <TabsList className='w-full'>
-            <TabsTrigger value='by-module' className='flex-1'>
+            <TabsTrigger value='by-module' className='flex-1 text-xs'>
               By module
             </TabsTrigger>
-            <TabsTrigger value='by-type' className='flex-1'>
+            <TabsTrigger value='by-type' className='flex-1 text-xs'>
               By type
+            </TabsTrigger>
+            <TabsTrigger value='folders' className='flex-1 text-xs'>
+              Folders
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -237,6 +385,230 @@ export function HubCatalog({ store }: HubCatalogProps) {
                 </button>
               )
             })}
+
+          {browseMode === 'folders' && (
+            <div className='py-1'>
+              {/* All workflows */}
+              <button
+                onClick={() => setSelectedFolderItem(FOLDER_ALL)}
+                className={cn(
+                  'flex w-full items-center justify-between px-3 py-2 text-left text-xs transition-colors rounded-t-[8px]',
+                  selectedFolderItem === FOLDER_ALL
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-neutral-1400 hover:bg-gray-50'
+                )}
+              >
+                <span>All workflows</span>
+                <span
+                  className={cn(
+                    'ml-1 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                    selectedFolderItem === FOLDER_ALL
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-neutral-1000'
+                  )}
+                >
+                  {store.artifacts.length}
+                </span>
+              </button>
+
+              {/* Ungrouped — drop zone */}
+              <div
+                onDragOver={(e) => handleDragOver(e, UNGROUPED_DROP_KEY)}
+                onDragEnter={(e) => handleDragEnter(e, UNGROUPED_DROP_KEY)}
+                onDragLeave={(e) => handleDragLeave(e, UNGROUPED_DROP_KEY)}
+                onDrop={(e) => handleDrop(e, null)}
+                onClick={() => setSelectedFolderItem(FOLDER_UNGROUPED)}
+                className={cn(
+                  'flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition-colors',
+                  selectedFolderItem === FOLDER_UNGROUPED
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-neutral-1400 hover:bg-gray-50',
+                  dragOverFolderId === UNGROUPED_DROP_KEY &&
+                    'bg-amber-50 ring-1 ring-inset ring-amber-300'
+                )}
+              >
+                <span>Ungrouped</span>
+                {ungroupedCount > 0 && (
+                  <span
+                    className={cn(
+                      'ml-1 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                      selectedFolderItem === FOLDER_UNGROUPED
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-neutral-1000'
+                    )}
+                  >
+                    {ungroupedCount}
+                  </span>
+                )}
+              </div>
+
+              {/* Modules section (derived folders) */}
+              {derivedFolders.length > 0 && (
+                <>
+                  <div className='px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-600'>
+                    Modules
+                  </div>
+                  {derivedFolders.map((folder) => {
+                    const count = folderCount(folder.id)
+                    const isActive = selectedFolderItem === folder.id
+                    const isDragTarget = dragOverFolderId === folder.id
+                    return (
+                      <div
+                        key={folder.id}
+                        onDragOver={(e) => handleDragOver(e, folder.id)}
+                        onDragEnter={(e) => handleDragEnter(e, folder.id)}
+                        onDragLeave={(e) => handleDragLeave(e, folder.id)}
+                        onDrop={(e) => handleDrop(e, folder.id)}
+                        onClick={() => setSelectedFolderItem(folder.id)}
+                        className={cn(
+                          'flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-xs transition-colors',
+                          isActive
+                            ? 'bg-blue-50 text-blue-700 font-medium'
+                            : 'text-neutral-1400 hover:bg-gray-50',
+                          isDragTarget && 'bg-blue-50 ring-1 ring-inset ring-blue-300'
+                        )}
+                      >
+                        <span className='truncate'>{folder.name}</span>
+                        {count > 0 && (
+                          <span
+                            className={cn(
+                              'ml-1 shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                              isActive
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-neutral-1000'
+                            )}
+                          >
+                            {count}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </>
+              )}
+
+              {/* My folders section (user folders) */}
+              <>
+                <div className='px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-600'>
+                  My folders
+                </div>
+                {userFolders.length === 0 && (
+                  <p className='px-3 pb-2 text-[10px] text-neutral-500 italic'>
+                    No folders yet
+                  </p>
+                )}
+                {userFolders.map((folder) => {
+                  const count = folderCount(folder.id)
+                  const isActive = selectedFolderItem === folder.id
+                  const isDragTarget = dragOverFolderId === folder.id
+                  const isRenaming = renamingFolderId === folder.id
+
+                  return (
+                    <div
+                      key={folder.id}
+                      onDragOver={(e) => handleDragOver(e, folder.id)}
+                      onDragEnter={(e) => handleDragEnter(e, folder.id)}
+                      onDragLeave={(e) => handleDragLeave(e, folder.id)}
+                      onDrop={(e) => handleDrop(e, folder.id)}
+                      onClick={() => {
+                        if (!isRenaming) setSelectedFolderItem(folder.id)
+                      }}
+                      className={cn(
+                        'group flex w-full cursor-pointer items-center gap-1 px-3 py-2 text-xs transition-colors',
+                        isActive
+                          ? 'bg-blue-50 text-blue-700 font-medium'
+                          : 'text-neutral-1400 hover:bg-gray-50',
+                        isDragTarget && 'bg-blue-50 ring-1 ring-inset ring-blue-300'
+                      )}
+                    >
+                      {isRenaming ? (
+                        <input
+                          autoFocus
+                          value={renamingFolderName}
+                          onChange={(e) => setRenamingFolderName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleConfirmRename(folder.id)
+                            if (e.key === 'Escape') {
+                              setRenamingFolderId(null)
+                              setRenamingFolderName('')
+                            }
+                          }}
+                          onBlur={() => handleConfirmRename(folder.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          className='min-w-0 flex-1 rounded border border-blue-300 bg-white px-1 py-0.5 text-xs text-neutral-1600 outline-none focus:ring-1 focus:ring-blue-400'
+                        />
+                      ) : (
+                        <>
+                          <span className='min-w-0 flex-1 truncate'>{folder.name}</span>
+                          {count > 0 && (
+                            <span
+                              className={cn(
+                                'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium',
+                                isActive
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-100 text-neutral-1000'
+                              )}
+                            >
+                              {count}
+                            </span>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleStartRename(folder)
+                            }}
+                            className='ml-0.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 text-neutral-600 hover:text-blue-600'
+                            aria-label={`Rename folder ${folder.name}`}
+                          >
+                            <Pencil className='size-3' />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteFolder(folder)
+                            }}
+                            className='shrink-0 opacity-0 transition-opacity group-hover:opacity-100 text-neutral-600 hover:text-red-600'
+                            aria-label={`Delete folder ${folder.name}`}
+                          >
+                            <Trash2 className='size-3' />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {/* + New folder */}
+                {showNewFolderInput ? (
+                  <div className='flex items-center gap-1 px-3 py-2'>
+                    <input
+                      autoFocus
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCreateFolder()
+                        if (e.key === 'Escape') {
+                          setShowNewFolderInput(false)
+                          setNewFolderName('')
+                        }
+                      }}
+                      onBlur={handleCreateFolder}
+                      placeholder='Folder name…'
+                      className='min-w-0 flex-1 rounded border border-blue-300 bg-white px-1.5 py-0.5 text-xs text-neutral-1600 outline-none focus:ring-1 focus:ring-blue-400'
+                    />
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNewFolderInput(true)}
+                    className='flex w-full items-center gap-1.5 px-3 py-2 text-xs text-blue-600 hover:text-blue-700 rounded-b-[8px] hover:bg-blue-50 transition-colors'
+                  >
+                    <Plus className='size-3' />
+                    New folder
+                  </button>
+                )}
+              </>
+            </div>
+          )}
         </div>
       </div>
 
@@ -305,11 +677,14 @@ export function HubCatalog({ store }: HubCatalogProps) {
             return (
               <div
                 key={a.id}
-                className={`flex flex-wrap items-start gap-3 px-4 py-3 ${
+                draggable
+                onDragStart={(e) => handleDragStart(e, a.id)}
+                className={cn(
+                  'flex flex-wrap items-start gap-3 px-4 py-3 cursor-grab active:cursor-grabbing',
                   idx < filteredArtifacts.length - 1
                     ? 'border-b border-gray-100'
                     : ''
-                }`}
+                )}
               >
                 {/* Main info */}
                 <div className='min-w-0 flex-1'>
@@ -380,6 +755,31 @@ export function HubCatalog({ store }: HubCatalogProps) {
                       aria-label={`Toggle ${a.name} at your scope`}
                     />
                   )}
+
+                  {/* Move to… fallback Select (a11y + non-drag path) */}
+                  <Select
+                    value={effectiveFolderId(a) ?? FOLDER_UNGROUPED}
+                    onValueChange={(val) => {
+                      store.moveToFolder(a.id, val === FOLDER_UNGROUPED ? null : val)
+                    }}
+                  >
+                    <SelectTrigger
+                      variant='secondary'
+                      size='xs'
+                      className='h-7 min-w-[80px] text-[11px]'
+                      title='Move this workflow to a folder'
+                    >
+                      <SelectValue placeholder='Move to…' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={FOLDER_UNGROUPED}>Ungrouped</SelectItem>
+                      {folderStore.folders.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
                   {/* Attach button */}
                   <Button
