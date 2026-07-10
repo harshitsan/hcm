@@ -35,8 +35,10 @@ const TARGET_MODULES_FROM_REGISTRY = MODULE_REGISTRY.filter(
  *   2. Optionally pick a submodule (defaults to "Whole module").
  */
 export function AttachDialog({ artifact, open, onOpenChange, onAttach }: AttachDialogProps) {
+  const WHOLE_MODULE_SENTINEL = '__whole__'
+
   const [selectedTarget, setSelectedTarget] = useState<TargetModule | ''>('')
-  const [selectedSubmodule, setSelectedSubmodule] = useState<string>('')
+  const [selectedSubmodule, setSelectedSubmodule] = useState<string>(WHOLE_MODULE_SENTINEL)
 
   const submodules = selectedTarget
     ? submodulesFor(selectedTarget as TargetModule)
@@ -44,20 +46,24 @@ export function AttachDialog({ artifact, open, onOpenChange, onAttach }: AttachD
 
   function handleAttach() {
     if (!selectedTarget) return
+    const submodule =
+      selectedSubmodule && selectedSubmodule !== WHOLE_MODULE_SENTINEL
+        ? selectedSubmodule
+        : undefined
     const attachment: ArtifactAttachment = {
       module: selectedTarget as TargetModule,
-      ...(selectedSubmodule ? { submodule: selectedSubmodule } : {}),
+      ...(submodule ? { submodule } : {}),
     }
     onAttach(attachment)
     onOpenChange(false)
     setSelectedTarget('')
-    setSelectedSubmodule('')
+    setSelectedSubmodule(WHOLE_MODULE_SENTINEL)
   }
 
   function handleOpenChange(next: boolean) {
     if (!next) {
       setSelectedTarget('')
-      setSelectedSubmodule('')
+      setSelectedSubmodule(WHOLE_MODULE_SENTINEL)
     }
     onOpenChange(next)
   }
@@ -102,10 +108,10 @@ export function AttachDialog({ artifact, open, onOpenChange, onAttach }: AttachD
               disabled={!selectedTarget || submodules.length === 0}
             >
               <SelectTrigger variant='secondary' className='w-full'>
-                <SelectValue placeholder='Whole module' />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value=''>Whole module</SelectItem>
+                <SelectItem value={WHOLE_MODULE_SENTINEL}>Whole module</SelectItem>
                 {submodules.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.label}

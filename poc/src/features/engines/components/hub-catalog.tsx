@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MODULE_REGISTRY } from '@/config/module-registry'
 import {
   ARTIFACT_TYPE_LABELS,
@@ -98,34 +99,23 @@ export function HubCatalog({ store }: HubCatalogProps) {
       {/* ── Left rail ── */}
       <div className='w-52 shrink-0'>
         {/* Browse mode toggle */}
-        <div className='mb-3 flex gap-1 rounded-md border border-gray-200 bg-white p-1'>
-          <button
-            onClick={() => {
-              setBrowseMode('by-module')
-              setQuery('')
-            }}
-            className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
-              browseMode === 'by-module'
-                ? 'bg-blue-600 text-white'
-                : 'text-neutral-1000 hover:bg-gray-100'
-            }`}
-          >
-            By module
-          </button>
-          <button
-            onClick={() => {
-              setBrowseMode('by-type')
-              setQuery('')
-            }}
-            className={`flex-1 rounded px-2 py-1 text-xs font-medium transition-colors ${
-              browseMode === 'by-type'
-                ? 'bg-blue-600 text-white'
-                : 'text-neutral-1000 hover:bg-gray-100'
-            }`}
-          >
-            By type
-          </button>
-        </div>
+        <Tabs
+          value={browseMode}
+          onValueChange={(v) => {
+            setBrowseMode(v as BrowseMode)
+            setQuery('')
+          }}
+          className='mb-3'
+        >
+          <TabsList className='w-full'>
+            <TabsTrigger value='by-module' className='flex-1'>
+              By module
+            </TabsTrigger>
+            <TabsTrigger value='by-type' className='flex-1'>
+              By type
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* Rail items */}
         <div className='rounded-[8px] border border-gray-200 bg-white'>

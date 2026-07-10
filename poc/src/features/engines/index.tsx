@@ -2,7 +2,6 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
 import { useBusinessLogic } from '@/features/workflows/hooks/use-business-logic'
-import { ACTORS } from '@/features/workflows/data/shared'
 import { HubCatalog } from './components/hub-catalog'
 
 /**
@@ -13,8 +12,7 @@ import { HubCatalog } from './components/hub-catalog'
  */
 export function EnginesHub() {
   const { role } = useRole()
-  const actor = ACTORS[role]
-  const store = useBusinessLogic({ actor })
+  const store = useBusinessLogic({ actor: role })
 
   return (
     <>
