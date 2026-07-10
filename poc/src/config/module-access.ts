@@ -50,6 +50,7 @@ export const MODULE_ACCESS: Record<string, readonly Role[]> = {
   '/hr-letters': [C],
   '/feedback': [C, EU],
   // Platform
+  '/engines': [P, C],
   '/workflows': [P, C],
   '/custom-fields': [P, C],
   '/data-management': [P, C],
