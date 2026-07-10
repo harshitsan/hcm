@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { PencilSimple, Trash } from 'phosphor-react'
 import type { Role } from '@/context/role-context'
+import { WorkflowChip } from './workflow-chip'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -422,20 +423,26 @@ export function ArtifactDetailSheet({
               </div>
             </div>
 
-            {canAuthor && (
-              <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
-                <Button
-                  variant='outline'
-                  className='gap-1.5'
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Trash size={14} weight='bold' /> Delete
-                </Button>
-                <Button className='gap-1.5' onClick={onEdit}>
-                  <PencilSimple size={14} weight='fill' /> Edit
-                </Button>
-              </div>
-            )}
+            <div className='border-grey-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
+              <WorkflowChip
+                artifactId={artifact.id}
+                label='Open in visual builder'
+              />
+              {canAuthor && (
+                <div className='flex items-center gap-3'>
+                  <Button
+                    variant='outline'
+                    className='gap-1.5'
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Trash size={14} weight='bold' /> Delete
+                  </Button>
+                  <Button className='gap-1.5' onClick={onEdit}>
+                    <PencilSimple size={14} weight='fill' /> Edit
+                  </Button>
+                </div>
+              )}
+            </div>
           </>
         )}
 

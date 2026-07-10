@@ -55,6 +55,7 @@ import { type RequestDraft } from '../hooks/use-leave-requests'
 import { getArtifacts } from '@/features/workflows/hooks/use-business-logic'
 import { linkedFlows } from '@/features/workflows/data/flow-links'
 import { triggerFormFlows } from '@/features/workflows/hooks/use-flow-runs'
+import { WorkflowChip } from '@/features/workflows/components/workflow-chip'
 
 const LEAVE_SUBMIT_EVENT = 'Leave request submitted'
 const LEAVE_MODULE = 'Leave Management' as const
@@ -180,9 +181,9 @@ export function ApplyLeaveOverlay({
     setCustomErrors({})
   }, [open, form, employeeId])
 
-  // A7: count flow artifacts linked to the Leave apply form (hint badge).
-  const linkedFlowCount = useMemo(
-    () => linkedFlows(getArtifacts(), LEAVE_MODULE, LEAVE_SUBMIT_EVENT).length,
+  // A7 / Task 5: flow artifacts linked to the Leave apply form (chip per flow).
+  const linkedFlowArtifacts = useMemo(
+    () => linkedFlows(getArtifacts(), LEAVE_MODULE, LEAVE_SUBMIT_EVENT),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [open]
   )
@@ -310,11 +311,9 @@ export function ApplyLeaveOverlay({
                   ? `Record time off — ${employee?.name}`
                   : 'Apply Time Off'}
               </SheetTitle>
-              {linkedFlowCount > 0 && (
-                <span className='inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700'>
-                  {linkedFlowCount} flow{linkedFlowCount === 1 ? '' : 's'} will run on submit
-                </span>
-              )}
+              {linkedFlowArtifacts.map((a) => (
+                <WorkflowChip key={a.id} artifactId={a.id} label={a.name} />
+              ))}
             </div>
           </SheetHeader>
           <Form {...form}>

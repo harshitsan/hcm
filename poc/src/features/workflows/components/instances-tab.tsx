@@ -33,6 +33,7 @@ import { InstanceDetailSheet } from './instance-detail-sheet'
 import { StartRequestDialog } from './start-request-dialog'
 import { SummaryCards } from './summary-cards'
 import { SectionToolbar, SortableHeader } from './table-helpers'
+import { WorkflowChip } from './workflow-chip'
 
 interface InboxRow {
   id: string
@@ -401,9 +402,14 @@ export function InstancesTab({
         accessorKey: 'artifactName',
         header: () => <span className='text-paragraph-sm font-medium'>Flow</span>,
         cell: ({ row }) => (
-          <span className='text-neutral-1600 text-sm font-medium'>
-            {row.original.artifactName}
-          </span>
+          <div className='flex items-center gap-1.5'>
+            <span className='text-neutral-1600 text-sm font-medium'>
+              {row.original.artifactName}
+            </span>
+            {row.original.artifactId && (
+              <WorkflowChip artifactId={row.original.artifactId} />
+            )}
+          </div>
         ),
       },
       {

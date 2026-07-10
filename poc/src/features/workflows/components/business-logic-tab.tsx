@@ -35,6 +35,7 @@ import { LayerBanner } from './layer-banner'
 import { SummaryCards } from './summary-cards'
 import { SectionToolbar, SortableHeader } from './table-helpers'
 import { useWorkflowEditor } from './workflow-editor-context'
+import { WorkflowChip } from './workflow-chip'
 
 const TYPE_BADGE_VARIANT: Record<
   ArtifactType,
@@ -68,9 +69,12 @@ const BASE_COLUMNS: ColumnDef<ArtifactRow>[] = [
     header: ({ column }) => <SortableHeader column={column} label='Artifact' />,
     cell: ({ row }) => (
       <div className='flex min-w-0 flex-col'>
-        <LongText className='text-neutral-1600 font-medium'>
-          {row.original.name}
-        </LongText>
+        <div className='flex items-center gap-1.5'>
+          <LongText className='text-neutral-1600 font-medium'>
+            {row.original.name}
+          </LongText>
+          <WorkflowChip artifactId={row.original.id} />
+        </div>
         <span className='text-paragraph-sm text-neutral-1000 truncate'>
           {row.original.description}
         </span>

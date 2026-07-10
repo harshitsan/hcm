@@ -33,6 +33,7 @@ import { type RequisitionDraft } from '../hooks/use-requisitions'
 import { getArtifacts } from '@/features/workflows/hooks/use-business-logic'
 import { linkedFlows } from '@/features/workflows/data/flow-links'
 import { triggerFormFlows } from '@/features/workflows/hooks/use-flow-runs'
+import { WorkflowChip } from '@/features/workflows/components/workflow-chip'
 
 const ASSET_SUBMIT_EVENT = 'Asset requisition submitted'
 const ASSET_MODULE = 'Asset Management' as const
@@ -88,9 +89,9 @@ export function RequisitionFormOverlay({
     },
   })
 
-  // A7: count flow artifacts linked to the Asset Requisition form (hint badge).
-  const linkedFlowCount = useMemo(
-    () => linkedFlows(getArtifacts(), ASSET_MODULE, ASSET_SUBMIT_EVENT).length,
+  // A7 / Task 5: flow artifacts linked to the Asset Requisition form (chip per flow).
+  const linkedFlowArtifacts = useMemo(
+    () => linkedFlows(getArtifacts(), ASSET_MODULE, ASSET_SUBMIT_EVENT),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [open]
   )
@@ -152,11 +153,9 @@ export function RequisitionFormOverlay({
             <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
               {adminMode ? 'New requisition (on behalf)' : 'New asset requisition'}
             </SheetTitle>
-            {linkedFlowCount > 0 && (
-              <span className='inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700'>
-                {linkedFlowCount} flow{linkedFlowCount === 1 ? '' : 's'} will run on submit
-              </span>
-            )}
+            {linkedFlowArtifacts.map((a) => (
+              <WorkflowChip key={a.id} artifactId={a.id} label={a.name} />
+            ))}
           </div>
         </SheetHeader>
 

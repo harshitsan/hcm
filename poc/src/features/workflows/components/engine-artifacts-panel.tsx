@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { WorkflowChip } from './workflow-chip'
 
 interface EngineArtifactsPanelProps {
   /** The consuming module — the catalog is filtered to artifacts targeting it. */
@@ -119,6 +120,7 @@ export function EngineArtifactsPanel({ module, submodule, intro }: EngineArtifac
                   <Badge variant='secondary' className='shrink-0 text-[10px]'>
                     v{a.version}
                   </Badge>
+                  <WorkflowChip artifactId={a.id} />
                 </div>
                 <p className='text-neutral-1000 truncate text-xs'>
                   {a.description}

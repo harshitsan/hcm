@@ -22,6 +22,7 @@ import {
 import { parseBundle, serializeBundle } from '@/features/workflows/data/artifact-io'
 import type { BusinessLogicStore } from '@/features/workflows/hooks/use-business-logic'
 import { useRole } from '@/context/role-context'
+import { WorkflowChip } from '@/features/workflows/components/workflow-chip'
 import { AttachDialog } from './attach-dialog'
 
 /** Blob + URL.createObjectURL + anchor download — same pattern as downloadSampleXml. */
@@ -322,6 +323,7 @@ export function HubCatalog({ store }: HubCatalogProps) {
                     <Badge variant='secondary' className='shrink-0 text-[10px]'>
                       v{a.version}
                     </Badge>
+                    <WorkflowChip artifactId={a.id} />
                   </div>
                   <p className='text-neutral-1000 mt-0.5 text-xs'>
                     {a.description}
