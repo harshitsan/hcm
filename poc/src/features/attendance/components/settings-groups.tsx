@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import {
+  Bell,
   CalendarBlank,
-  ClockClockwise,
   Gauge,
   Plug,
   Shield,
-  Timer,
   UsersThree,
 } from 'phosphor-react'
 import type { SettingGroup } from '@/components/common/settings/types'
@@ -380,7 +379,7 @@ export function useAttendanceSettingGroups(
       title: 'Notifications & templates',
       description:
         'Email and in-app notification templates for attendance events — correction, overtime, WFH, comp off and audit.',
-      icon: <Timer size={24} />,
+      icon: <Bell size={24} />,
       keywords: [
         'notification',
         'template',
