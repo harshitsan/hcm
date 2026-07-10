@@ -30,6 +30,12 @@ import { type FieldValue } from '@/features/custom-fields/data/records'
 import { type AssetCategoryConfig } from '../data/config'
 import { SELF_EMPLOYEE_ID, employeeName, type Employee } from '../data/org'
 import { type RequisitionDraft } from '../hooks/use-requisitions'
+import { getArtifacts } from '@/features/workflows/hooks/use-business-logic'
+import { linkedFlows } from '@/features/workflows/data/flow-links'
+import { triggerFormFlows } from '@/features/workflows/hooks/use-flow-runs'
+
+const ASSET_SUBMIT_EVENT = 'Asset requisition submitted'
+const ASSET_MODULE = 'Asset Management' as const
 
 interface RequisitionFormOverlayProps {
   open: boolean
@@ -82,6 +88,13 @@ export function RequisitionFormOverlay({
     },
   })
 
+  // A7: count flow artifacts linked to the Asset Requisition form (hint badge).
+  const linkedFlowCount = useMemo(
+    () => linkedFlows(getArtifacts(), ASSET_MODULE, ASSET_SUBMIT_EVENT).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open]
+  )
+
   // A6: custom fields for Asset Requisition form.
   const [customValues, setCustomValues] = useState<Record<string, FieldValue>>({})
   const [customErrors, setCustomErrors] = useState<Record<string, string>>({})
@@ -118,6 +131,16 @@ export function RequisitionFormOverlay({
       return
     }
     onSubmit({ ...values, custom: customValues })
+    // A7: trigger any flow artifacts linked to this form.
+    const requesterLabel = adminMode
+      ? employees.find((e) => e.id === values.requesterId)?.name ?? values.requesterId
+      : employeeName(SELF_EMPLOYEE_ID)
+    triggerFormFlows({
+      module: ASSET_MODULE,
+      event: ASSET_SUBMIT_EVENT,
+      summary: `${values.assetName} · qty ${values.quantity}`,
+      requester: requesterLabel,
+    })
     onOpenChange(false)
   }
 
@@ -125,9 +148,16 @@ export function RequisitionFormOverlay({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[460px]'>
         <SheetHeader className='border-grey-200 border-b px-5 py-4'>
-          <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
-            {adminMode ? 'New requisition (on behalf)' : 'New asset requisition'}
-          </SheetTitle>
+          <div className='flex items-center gap-3'>
+            <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
+              {adminMode ? 'New requisition (on behalf)' : 'New asset requisition'}
+            </SheetTitle>
+            {linkedFlowCount > 0 && (
+              <span className='inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700'>
+                {linkedFlowCount} flow{linkedFlowCount === 1 ? '' : 's'} will run on submit
+              </span>
+            )}
+          </div>
         </SheetHeader>
 
         <Form {...form}>

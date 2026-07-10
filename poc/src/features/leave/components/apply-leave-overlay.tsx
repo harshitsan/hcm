@@ -52,6 +52,12 @@ import { type LeaveType } from '../data/leave-types'
 import { type FmlaReason } from '../data/config'
 import { EMPLOYEES, daySpan, employeeById } from '../data/shared'
 import { type RequestDraft } from '../hooks/use-leave-requests'
+import { getArtifacts } from '@/features/workflows/hooks/use-business-logic'
+import { linkedFlows } from '@/features/workflows/data/flow-links'
+import { triggerFormFlows } from '@/features/workflows/hooks/use-flow-runs'
+
+const LEAVE_SUBMIT_EVENT = 'Leave request submitted'
+const LEAVE_MODULE = 'Leave Management' as const
 
 const emailList = z
   .string()
@@ -174,6 +180,13 @@ export function ApplyLeaveOverlay({
     setCustomErrors({})
   }, [open, form, employeeId])
 
+  // A7: count flow artifacts linked to the Leave apply form (hint badge).
+  const linkedFlowCount = useMemo(
+    () => linkedFlows(getArtifacts(), LEAVE_MODULE, LEAVE_SUBMIT_EVENT).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open]
+  )
+
   const employee = employeeById(employeeId)
   const values = form.watch()
   const selectedType = leaveTypes.find((t) => t.id === values.typeId)
@@ -271,7 +284,15 @@ export function ApplyLeaveOverlay({
       })
       return
     }
-    onSubmit(buildDraft(v, selectedType?.category === 'unpaid' ? amount : 0))
+    const draft = buildDraft(v, selectedType?.category === 'unpaid' ? amount : 0)
+    onSubmit(draft)
+    // A7: trigger any flow artifacts linked to this form.
+    triggerFormFlows({
+      module: LEAVE_MODULE,
+      event: LEAVE_SUBMIT_EVENT,
+      summary: `${selectedType?.name ?? 'Leave'} · ${amount} ${selectedType?.unit ?? 'days'}`,
+      requester: employee?.name ?? employeeId,
+    })
     onOpenChange(false)
   }
 
@@ -283,11 +304,18 @@ export function ApplyLeaveOverlay({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
           <SheetHeader className='border-grey-200 border-b px-5 py-4'>
-            <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
-              {onBehalfOf
-                ? `Record time off — ${employee?.name}`
-                : 'Apply Time Off'}
-            </SheetTitle>
+            <div className='flex items-center gap-3'>
+              <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
+                {onBehalfOf
+                  ? `Record time off — ${employee?.name}`
+                  : 'Apply Time Off'}
+              </SheetTitle>
+              {linkedFlowCount > 0 && (
+                <span className='inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700'>
+                  {linkedFlowCount} flow{linkedFlowCount === 1 ? '' : 's'} will run on submit
+                </span>
+              )}
+            </div>
           </SheetHeader>
           <Form {...form}>
             <form
@@ -748,7 +776,17 @@ export function ApplyLeaveOverlay({
             <AlertDialogCancel>Don’t submit</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (lopConfirm) onSubmit(lopConfirm.draft)
+                if (lopConfirm) {
+                  onSubmit(lopConfirm.draft)
+                  // A7: trigger linked flows on the LOP-confirm submit path too.
+                  const leaveName = leaveTypes.find((t) => t.id === lopConfirm.draft.typeId)?.name ?? 'Leave'
+                  triggerFormFlows({
+                    module: LEAVE_MODULE,
+                    event: LEAVE_SUBMIT_EVENT,
+                    summary: `${leaveName} · ${lopConfirm.draft.amount} ${leaveTypes.find((t) => t.id === lopConfirm.draft.typeId)?.unit ?? 'days'} (LOP)`,
+                    requester: employee?.name ?? employeeId,
+                  })
+                }
                 setLopConfirm(null)
                 onOpenChange(false)
               }}

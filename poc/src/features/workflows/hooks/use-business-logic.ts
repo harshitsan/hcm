@@ -54,6 +54,12 @@ export function getSnapshot() {
   return artifactState
 }
 
+/** Plain accessor — returns the current artifact snapshot synchronously.
+ *  Used by triggerFormFlows (A7) so it can be called outside React render. */
+export function getArtifacts() {
+  return artifactState
+}
+
 /**
  * One business-logic engine behind every configuration screen (WFE-43 …
  * WFE-49): artifacts are authored once, attached to a target module, versioned

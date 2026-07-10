@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/common/data-table/table'
+import { SimpleTable } from '@/components/common/data-table/simple-table'
+import { useFlowRuns, type FlowRun } from '../hooks/use-flow-runs'
 import { LongText } from '@/components/common/long-text'
 import type { Role } from '@/context/role-context'
 import type { AuditEvent } from '../data/audit'
@@ -390,6 +392,68 @@ export function InstancesTab({
     ? (instances.find((i) => i.id === detail.id) ?? null)
     : null
 
+  // A7: engine-linked flow runs from the external store.
+  const { runs: flowRuns } = useFlowRuns()
+
+  const flowRunCols = useMemo<ColumnDef<FlowRun>[]>(
+    () => [
+      {
+        accessorKey: 'artifactName',
+        header: () => <span className='text-paragraph-sm font-medium'>Flow</span>,
+        cell: ({ row }) => (
+          <span className='text-neutral-1600 text-sm font-medium'>
+            {row.original.artifactName}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'event',
+        header: () => <span className='text-paragraph-sm font-medium'>Event</span>,
+        cell: ({ row }) => (
+          <span className='text-neutral-1900 text-sm'>{row.original.event}</span>
+        ),
+      },
+      {
+        accessorKey: 'summary',
+        header: () => <span className='text-paragraph-sm font-medium'>Summary</span>,
+        cell: ({ row }) => (
+          <span className='text-neutral-1900 text-sm'>{row.original.summary}</span>
+        ),
+      },
+      {
+        accessorKey: 'requester',
+        header: () => <span className='text-paragraph-sm font-medium'>Requester</span>,
+        cell: ({ row }) => (
+          <span className='text-neutral-1900 text-sm'>{row.original.requester}</span>
+        ),
+      },
+      {
+        accessorKey: 'startedAt',
+        header: () => <span className='text-paragraph-sm font-medium'>Started</span>,
+        cell: ({ row }) => (
+          <span className='text-neutral-1900 text-sm'>{row.original.startedAt}</span>
+        ),
+      },
+      {
+        id: 'steps',
+        header: () => <span className='text-paragraph-sm font-medium'>Steps</span>,
+        cell: ({ row }) => (
+          <span className='text-neutral-1900 text-sm'>{row.original.steps.length}</span>
+        ),
+      },
+      {
+        accessorKey: 'status',
+        header: () => <span className='text-paragraph-sm font-medium'>Status</span>,
+        cell: () => (
+          <span className='inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700'>
+            Completed
+          </span>
+        ),
+      },
+    ],
+    []
+  )
+
   return (
     <div className='w-full'>
       <SummaryCards title='Approvals at a glance' items={summary} />
@@ -440,6 +504,24 @@ export function InstancesTab({
           onRowClick={(row) => setDetail(row)}
         />
       </div>
+
+      {/* A7: engine-linked flow runs (new external store — does not touch
+           the per-component useInstances engine above). */}
+      {flowRuns.length > 0 && (
+        <div className='mt-6'>
+          <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
+            <p className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+              Engine-linked flow runs ({flowRuns.length})
+            </p>
+            <SimpleTable
+              columns={flowRunCols}
+              data={flowRuns}
+              getRowId={(row) => row.id}
+              emptyMessage='No flow runs yet'
+            />
+          </div>
+        </div>
+      )}
 
       <StartRequestDialog
         open={startOpen}
