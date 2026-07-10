@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { makeId } from './model'
 import type { Branch, Config, Step, StepKind } from './model'
+import { eventsForModule, MODULE_REGISTRY } from '@/config/module-registry'
 
 export type FieldDef = {
   key: string
@@ -37,47 +38,11 @@ export const MODULE_OPTIONS = [
   'Policy Management', 'Companies',
 ]
 
-/** Starting points per source module — a flow can begin from any of these. */
-export const MODULE_EVENT_MAP: Record<string, string[]> = {
-  'Leave Management': [
-    'Leave request submitted', 'Leave request cancelled',
-    'Leave balance below threshold', 'Holiday calendar updated',
-    'Time-off adjustment requested',
-  ],
-  'Time & Attendance': [
-    'Attendance shortfall detected', 'Overtime request submitted',
-    'Comp-off request submitted', 'Missed punch detected',
-    'Work-from-home request submitted', 'Shift change requested',
-  ],
-  Recruitment: [
-    'Offer approved', 'Candidate shortlisted', 'Interview scheduled',
-    'Offer accepted', 'Requisition opened',
-  ],
-  Employees: [
-    'New employee joined', 'Employee profile updated',
-    'Employee document expired',
-  ],
-  'Employee Lifecycle': [
-    'Probation ending in 15 days', 'Exit initiated', 'Confirmation due',
-    'Transfer requested', 'Layoff initiated',
-  ],
-  Notifications: ['Announcement published', 'Alert rule triggered'],
-  'HR Letters & Certificates': ['Letter requested', 'Certificate expiring'],
-  'Asset Management': [
-    'Asset assigned', 'Asset return due', 'Asset reported damaged',
-  ],
-  'Custom Fields': ['Custom field value changed'],
-  'Data Management': [
-    'Import file uploaded', 'Import completed with errors',
-    'Export requested',
-  ],
-  'Policy Management': ['Policy published', 'Policy acknowledgement overdue'],
-  Companies: ['Company created', 'Localization settings changed'],
-}
+// eventsForModule is re-exported from the module registry (single source of truth).
+export { eventsForModule }
 
-export function eventsForModule(module: string): string[] {
-  return MODULE_EVENT_MAP[module] ?? []
-}
+/** All trigger events across every module — used as a flat option list. */
+const ALL_MODULE_EVENTS: string[] = MODULE_REGISTRY.flatMap((m) => m.events)
 
 const GENERIC_SAMPLE =
   '{\n  "employee": { "name": "Ananya Sharma", "department": "Engineering", "id": "EMP-0142" }\n}'
@@ -133,7 +98,7 @@ const defs: NodeDef[] = [
     // list depends on the selected module (options here cover validation).
     configFields: [
       { key: 'module', label: 'Source module', type: 'select', options: MODULE_OPTIONS, required: true },
-      { key: 'event', label: 'Event (starting point)', type: 'select', options: Object.values(MODULE_EVENT_MAP).flat(), required: true },
+      { key: 'event', label: 'Event (starting point)', type: 'select', options: ALL_MODULE_EVENTS, required: true },
       { key: 'samplePayload', label: 'Sample event payload (JSON)', type: 'textarea' },
     ],
     validateConfig: config => {

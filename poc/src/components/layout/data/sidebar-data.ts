@@ -1,41 +1,39 @@
 import {
   AudioWaveform,
-  BadgeCheck,
-  BellRing,
-  BookText,
-  BookUser,
-  Boxes,
-  Briefcase,
-  Building,
-  Building2,
-  CalendarClock,
-  CalendarDays,
-  ChartColumnBig,
   Command,
-  DatabaseZap,
-  FileCheck,
-  FileSignature,
-  FolderOpen,
   GalleryVerticalEnd,
-  IdCard,
-  KeyRound,
-  Landmark,
-  LayoutDashboard,
-  MapPin,
-  Megaphone,
-  MessagesSquare,
-  Milestone,
-  Network,
-  Package,
-  Puzzle,
-  ScrollText,
-  ServerCog,
-  ShieldCheck,
-  UserCog,
-  UserPlus,
-  Workflow,
 } from 'lucide-react'
-import { type SidebarData } from '../types'
+import { MODULE_REGISTRY, type SidebarGroup } from '@/config/module-registry'
+import { type SidebarData, type NavGroup } from '../types'
+
+/** Sidebar groups that appear in navGroups (in display order). */
+const NAV_GROUP_ORDER: SidebarGroup[] = [
+  'Home',
+  'Organization',
+  'Workforce',
+  'Policies & Comms',
+  'Platform',
+]
+
+/** The Administration group is pinned to the bottom separately. */
+const BOTTOM_GROUP: SidebarGroup = 'Administration'
+
+/** Title shown in the sidebar for each group (Home uses an empty string). */
+const GROUP_TITLE: Record<SidebarGroup, string> = {
+  Home: '',
+  Organization: 'Organization',
+  Workforce: 'Workforce',
+  'Policies & Comms': 'Policies & Comms',
+  Platform: 'Platform',
+  Administration: 'Administration',
+}
+
+function buildNavGroup(group: SidebarGroup): NavGroup {
+  const items = MODULE_REGISTRY
+    .filter((m) => m.group === group)
+    .map((m) => ({ title: m.name, url: m.route, icon: m.icon }))
+  return { title: GROUP_TITLE[group], items }
+}
 
 export const sidebarData: SidebarData = {
   user: {
@@ -78,79 +76,7 @@ export const sidebarData: SidebarData = {
       environment: 'Sandbox',
     },
   ],
-  navGroups: [
-    {
-      title: '',
-      items: [{ title: 'Dashboard', url: '/', icon: LayoutDashboard }],
-    },
-    {
-      title: 'Organization',
-      items: [
-        { title: 'Companies', url: '/companies', icon: Building2 },
-        { title: 'Group Companies', url: '/group-companies', icon: Building },
-        { title: 'Portfolios', url: '/portfolios', icon: Briefcase },
-        { title: 'Jurisdictions', url: '/jurisdictions', icon: Landmark },
-        { title: 'Locations', url: '/locations', icon: MapPin },
-        { title: 'Departments', url: '/departments', icon: Network },
-        { title: 'Positions', url: '/positions', icon: BadgeCheck },
-        { title: 'Groups', url: '/org-groups', icon: Boxes },
-        { title: 'Directory & Org Chart', url: '/directory', icon: BookUser },
-      ],
-    },
-    {
-      title: 'Workforce',
-      items: [
-        { title: 'Employees', url: '/employees', icon: IdCard },
-        { title: 'Employee Lifecycle', url: '/lifecycle', icon: Milestone },
-        { title: 'Self Service', url: '/self-service', icon: UserCog },
-        { title: 'Recruitment', url: '/recruitment', icon: UserPlus },
-        { title: 'Leave Management', url: '/leave', icon: CalendarDays },
-        { title: 'Time & Attendance', url: '/attendance', icon: CalendarClock },
-        { title: 'Asset Management', url: '/assets', icon: Package },
-      ],
-    },
-    {
-      title: 'Policies & Comms',
-      items: [
-        { title: 'Policy Management', url: '/policies', icon: BookText },
-        {
-          title: 'Policy Distribution',
-          url: '/policy-distribution',
-          icon: FileCheck,
-        },
-        { title: 'Announcements', url: '/announcements', icon: Megaphone },
-        { title: 'Notifications', url: '/notifications', icon: BellRing },
-        { title: 'HR Letters', url: '/hr-letters', icon: FileSignature },
-        {
-          title: 'Feedback & Grievance',
-          url: '/feedback',
-          icon: MessagesSquare,
-        },
-      ],
-    },
-    {
-      title: 'Platform',
-      items: [
-        { title: 'Workflow Engine', url: '/workflows', icon: Workflow },
-        { title: 'Custom Fields', url: '/custom-fields', icon: Puzzle },
-        { title: 'Data Management', url: '/data-management', icon: DatabaseZap },
-        { title: 'Documents', url: '/documents', icon: FolderOpen },
-        {
-          title: 'Reports & Analytics',
-          url: '/reports',
-          icon: ChartColumnBig,
-        },
-      ],
-    },
-  ],
+  navGroups: NAV_GROUP_ORDER.map(buildNavGroup),
   /** Rarely used security/ops modules — pinned to the sidebar bottom. */
-  bottomGroup: {
-    title: 'Administration',
-    items: [
-      { title: 'Roles & Security', url: '/roles-security', icon: ShieldCheck },
-      { title: 'Authentication', url: '/authentication', icon: KeyRound },
-      { title: 'Audit & Logging', url: '/audit-logs', icon: ScrollText },
-      { title: 'Platform Admin', url: '/platform-admin', icon: ServerCog },
-    ],
-  },
+  bottomGroup: buildNavGroup(BOTTOM_GROUP),
 }
