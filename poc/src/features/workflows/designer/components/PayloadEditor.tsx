@@ -524,7 +524,8 @@ export function PayloadEditor({ config, patch }: { config: Config; patch: (p: Co
       return <CalendarEditor def={definition} onChange={emit} />
 
     case 'approver-chain': {
-      // Read-only display for approver chains (handled by approvalTask in the flow)
+      // Defensive fallback: approver chains normally render as approvalTask
+      // nodes on the canvas, but if one lands here the steps stay editable.
       return (
         <div className="form-field">
           <PLabel>Approver chain steps</PLabel>
