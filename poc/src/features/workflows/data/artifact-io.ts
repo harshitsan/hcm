@@ -13,6 +13,7 @@ import {
   type Artifact,
 } from './business-logic'
 import { isValidDocShape } from '../designer/state/store'
+import type { WorkflowFolder } from '../hooks/use-workflow-folders'
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -21,20 +22,23 @@ export interface ArtifactBundle {
   version: 1
   exportedAt: string  // ISO-8601
   artifacts: Artifact[]
+  /** User folders referenced by exported artifacts. Additive — old bundles omit this key. */
+  folders?: WorkflowFolder[]
 }
 
 export type ParseResult =
-  | { ok: true; artifacts: Artifact[] }
+  | { ok: true; artifacts: Artifact[]; folders?: WorkflowFolder[] }
   | { ok: false; error: string }
 
 // ── serialize ─────────────────────────────────────────────────────────────────
 
-export function serializeBundle(artifacts: Artifact[]): string {
+export function serializeBundle(artifacts: Artifact[], folders?: WorkflowFolder[]): string {
   const bundle: ArtifactBundle = {
     format: 'satellitehr.artifacts',
     version: 1,
     exportedAt: new Date().toISOString(),
     artifacts,
+    ...(folders && folders.length > 0 ? { folders } : {}),
   }
   return JSON.stringify(bundle, null, 2)
 }
@@ -133,6 +137,28 @@ export function parseBundle(text: string): ParseResult {
     }
     // Run through normalizeArtifact so pre-attachments bundles import cleanly.
     artifacts.push(normalizeArtifact(a as Artifact))
+  }
+
+  // Validate optional folders array when present.
+  if (obj.folders !== undefined) {
+    if (!Array.isArray(obj.folders)) {
+      return { ok: false, error: 'Workflow bundle "folders" field must be an array.' }
+    }
+    for (let i = 0; i < (obj.folders as unknown[]).length; i++) {
+      const f = (obj.folders as unknown[])[i]
+      if (
+        !f ||
+        typeof f !== 'object' ||
+        typeof (f as Record<string, unknown>).id !== 'string' ||
+        typeof (f as Record<string, unknown>).name !== 'string'
+      ) {
+        return {
+          ok: false,
+          error: `Workflow bundle folder at index ${i} is invalid — each folder must have a string "id" and string "name".`,
+        }
+      }
+    }
+    return { ok: true, artifacts, folders: obj.folders as WorkflowFolder[] }
   }
 
   return { ok: true, artifacts }

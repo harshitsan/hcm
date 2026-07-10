@@ -39,8 +39,8 @@ import { WorkflowChip } from '@/features/workflows/components/workflow-chip'
 import { AttachDialog } from './attach-dialog'
 
 /** Blob + URL.createObjectURL + anchor download — same pattern as downloadSampleXml. */
-function downloadBundle(artifacts: Artifact[], filename: string) {
-  const blob = new Blob([serializeBundle(artifacts)], { type: 'application/json' })
+function downloadBundle(artifacts: Artifact[], filename: string, folders?: WorkflowFolder[]) {
+  const blob = new Blob([serializeBundle(artifacts, folders)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -159,6 +159,22 @@ export function HubCatalog({ store }: HubCatalogProps) {
     store.attach(attachTarget.id, attachment)
   }
 
+  /**
+   * Returns the user folders (non-derived, fld- prefixed but not fld-mod-*)
+   * referenced by the given artifacts. Used to embed folders in export bundles.
+   */
+  function referencedUserFolders(arts: Artifact[]): WorkflowFolder[] {
+    const referencedIds = new Set<string>()
+    for (const a of arts) {
+      if (a.folderId && !a.folderId.startsWith('fld-mod-')) {
+        referencedIds.add(a.folderId)
+      }
+    }
+    return folderStore.folders.filter(
+      (f) => !f.derived && referencedIds.has(f.id)
+    )
+  }
+
   /** Export the current filtered view as a bundle. */
   function handleToolbarExport() {
     if (filteredArtifacts.length === 0) {
@@ -173,15 +189,18 @@ export function HubCatalog({ store }: HubCatalogProps) {
     } else {
       label = 'folders'
     }
-    downloadBundle(filteredArtifacts, `workflows-${label}.json`)
+    const folders = referencedUserFolders(filteredArtifacts)
+    downloadBundle(filteredArtifacts, `workflows-${label}.json`, folders)
     toast.success(`Exported ${filteredArtifacts.length} workflow${filteredArtifacts.length !== 1 ? 's' : ''}`)
   }
 
   /** Export a single row artifact as a bundle. */
   function handleRowExport(artifact: Artifact) {
+    const folders = referencedUserFolders([artifact])
     downloadBundle(
       [artifact],
-      `workflow-${artifact.name.replace(/\s+/g, '-').toLowerCase()}.json`
+      `workflow-${artifact.name.replace(/\s+/g, '-').toLowerCase()}.json`,
+      folders,
     )
     toast.success(`"${artifact.name}" exported`)
   }
@@ -198,6 +217,8 @@ export function HubCatalog({ store }: HubCatalogProps) {
         toast.error(result.error)
         return
       }
+      // Import folders first so artifacts can reference them by id.
+      folderStore.importFolders(result.folders ?? [])
       const { imported, renamed } = store.importArtifacts(result.artifacts)
       const suffix = renamed > 0 ? ` (${renamed} renamed)` : ''
       toast.success(`Imported ${imported} workflow${imported !== 1 ? 's' : ''}${suffix}`)
