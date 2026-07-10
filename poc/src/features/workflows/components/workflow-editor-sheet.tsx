@@ -27,8 +27,7 @@ import type { StepKind } from '../designer/core/model'
 import { createDesignerStore } from '../designer/state/store'
 import type { DesignerStore } from '../designer/state/store'
 import { DesignerStoreProvider, useStore } from '../designer/state/store-context'
-import { subscribe, getSnapshot } from '../hooks/use-business-logic'
-import { useBusinessLogic } from '../hooks/use-business-logic'
+import { subscribe, getSnapshot, useBusinessLogic } from '../hooks/use-business-logic'
 import '../designer/designer.css'
 
 // ─── paletteFor ───────────────────────────────────────────────────────────────
@@ -204,7 +203,11 @@ function SheetBodyWithStore({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artifact.id, artifact.version])
 
-  // Bind Cmd/Ctrl+Z / +Y undo-redo scoped to this sheet's store while open
+  // Bind Cmd/Ctrl+Z / +Y undo-redo scoped to this sheet's store while open.
+  // Uses capture phase (true) so this listener runs before any bubble-phase
+  // listener (including designer-tab's). stopPropagation prevents the event
+  // from reaching bubble-phase listeners so the designer-tab store is not
+  // also triggered on the same keypress.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return
@@ -212,14 +215,16 @@ function SheetBodyWithStore({
       if (key !== 'z' && key !== 'y') return
       if (isEditableTarget(e.target)) return
       e.preventDefault()
+      e.stopPropagation()
+      e.stopImmediatePropagation()
       const s = storeRef.current
       if (!s) return
       const { undo, redo } = s.getState()
       if (key === 'y' || (key === 'z' && e.shiftKey)) redo()
       else undo()
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
   if (!store) return null
@@ -259,10 +264,6 @@ export function WorkflowEditorSheet({
    */
   const closeRequestRef = useRef<(() => void) | null>(null)
 
-  const handleRequestClose = () => {
-    onOpenChange(false)
-  }
-
   return (
     <Sheet open={open} onOpenChange={(next) => {
       if (!next) {
@@ -293,7 +294,7 @@ export function WorkflowEditorSheet({
         {open && artifact && (
           <SheetBodyWithStore
             artifact={artifact}
-            onRequestClose={handleRequestClose}
+            onRequestClose={() => onOpenChange(false)}
             closeRequestRef={closeRequestRef}
           />
         )}

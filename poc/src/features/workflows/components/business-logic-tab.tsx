@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Plus } from 'phosphor-react'
+import { List, Plus } from 'phosphor-react'
 import { toast } from 'sonner'
 import type { Role } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
@@ -62,7 +62,7 @@ interface ArtifactRow extends Artifact {
   typeLabel: string
 }
 
-const columns: ColumnDef<ArtifactRow>[] = [
+const BASE_COLUMNS: ColumnDef<ArtifactRow>[] = [
   {
     accessorKey: 'name',
     header: ({ column }) => <SortableHeader column={column} label='Artifact' />,
@@ -179,6 +179,29 @@ export function BusinessLogicTab({
   const [detailId, setDetailId] = useState<string | null>(null)
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editing, setEditing] = useState<Artifact | null>(null)
+
+  // Build columns inside the component so the Details action can close over setDetailId.
+  const columns = useMemo<ColumnDef<ArtifactRow>[]>(() => [
+    ...BASE_COLUMNS,
+    {
+      id: 'actions',
+      header: () => null,
+      cell: ({ row }) => (
+        <Button
+          variant='ghost'
+          size='icon'
+          className='h-6 w-6 shrink-0 text-neutral-700 hover:text-neutral-1600'
+          title='Details (scopes, history, delete)'
+          onClick={(e) => {
+            e.stopPropagation()
+            setDetailId(row.original.id)
+          }}
+        >
+          <List size={14} />
+        </Button>
+      ),
+    },
+  ], [])
 
   /** Authoring new artifacts is reserved for Company and Platform Admins (WFE-44). */
   const canAuthor = role === 'Company Admin' || role === 'Platform Admin'
