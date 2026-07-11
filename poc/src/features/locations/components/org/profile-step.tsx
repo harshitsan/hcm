@@ -74,7 +74,7 @@ export function ProfileStep({ org, store, onNext }: ProfileStepProps) {
                 <FormItem>
                   <FormLabel>Organization name</FormLabel>
                   <FormControl>
-                    <Input placeholder='Orion Retail India Pvt Ltd' {...field} />
+                    <Input placeholder='e.g. Orion Retail India Pvt Ltd' {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

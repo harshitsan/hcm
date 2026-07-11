@@ -142,7 +142,7 @@ export function GroupRolesCard({ group, store, canManage }: GroupRolesCardProps)
             <Input
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              placeholder='Jordan Avery'
+              placeholder='e.g. Jordan Avery'
               className='h-8 w-40'
             />
           </div>
@@ -151,7 +151,7 @@ export function GroupRolesCard({ group, store, canManage }: GroupRolesCardProps)
             <Input
               value={userEmail}
               onChange={(e) => setUserEmail(e.target.value)}
-              placeholder='user@company.in'
+              placeholder='e.g. user@company.in'
               className='h-8 w-56'
             />
           </div>

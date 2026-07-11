@@ -87,7 +87,7 @@ export function ConfigReminders({
           per criticality. Optional and Read-Only policies never receive
           enforcement reminders. New policies inherit these rules automatically.
         </p>
-        <div className='border-grey-200 rounded-[6px] border bg-white'>
+        <div className='border-gray-200 rounded-[6px] border bg-white'>
           <Table>
             <TableHeader>
               <TableRow>
@@ -172,7 +172,7 @@ export function ConfigReminders({
           runs the path mapped to the policy&rsquo;s criticality. Escalations
           close automatically when the employee acknowledges.
         </p>
-        <div className='border-grey-200 rounded-[6px] border bg-white'>
+        <div className='border-gray-200 rounded-[6px] border bg-white'>
           <Table>
             <TableHeader>
               <TableRow>

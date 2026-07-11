@@ -90,7 +90,7 @@ export function ConfigSetupStep({ store, onNext }: ConfigSetupStepProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-3 px-4'>
-          <div className='border-grey-200 flex items-center justify-between gap-4 rounded-[6px] border px-3 py-2'>
+          <div className='border-gray-200 flex items-center justify-between gap-4 rounded-[6px] border px-3 py-2'>
             <div>
               <Label className='text-sm font-medium'>
                 Do you support feedback/grievance?
@@ -211,7 +211,7 @@ export function ConfigSetupStep({ store, onNext }: ConfigSetupStepProps) {
                   <TableCell className='text-sm font-medium'>{f.label}</TableCell>
                   <TableCell className='text-sm'>{f.type}</TableCell>
                   <TableCell>
-                    <Badge variant={f.custom ? 'pending' : 'booked'}>
+                    <Badge variant={f.custom ? 'pending' : 'open'}>
                       {f.custom ? 'Custom (UDF)' : 'Base'}
                     </Badge>
                   </TableCell>

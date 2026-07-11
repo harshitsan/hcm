@@ -12,6 +12,10 @@ import { FeedTab } from './components/feed-tab'
 import { ImagesTab } from './components/images-tab'
 import { ManageTab } from './components/manage-tab'
 import { ReviewTab } from './components/review-tab'
+import {
+  ThoughtOfTheDayAdmin,
+  ThoughtOfTheDayCard,
+} from './components/thought-of-the-day'
 import { useAnnouncementSettings } from './hooks/use-announcement-settings'
 import { useAnnouncements } from './hooks/use-announcements'
 
@@ -79,7 +83,7 @@ export function Announcements() {
             </TabsList>
 
             {moduleDisabled && !(tab === 'admin' && isPlatformAdmin) ? (
-              <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+              <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
                 <MegaphoneSimple size={32} className='text-neutral-1000' />
                 <p className='text-neutral-1600 text-paragraph-md font-medium'>
                   Announcements are disabled for this tenant
@@ -105,6 +109,8 @@ export function Announcements() {
                   </TabsContent>
                 )}
                 <TabsContent value='feed'>
+                  {/* kx-084 surface: thought of the day on the employee feed */}
+                  <ThoughtOfTheDayCard settings={settings} />
                   <FeedTab store={store} images={settings.images} />
                 </TabsContent>
                 {isAdmin && (
@@ -114,6 +120,10 @@ export function Announcements() {
                     </div>
                     {isPlatformAdmin ? (
                       <div className='flex flex-col gap-6'>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Thought of the day</h3>
+                          <ThoughtOfTheDayAdmin settings={settings} />
+                        </section>
                         <section>
                           <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Coordinators</h3>
                           <CoordinatorsCard
@@ -137,6 +147,10 @@ export function Announcements() {
                       </div>
                     ) : (
                       <div className='flex flex-col gap-6'>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Thought of the day</h3>
+                          <ThoughtOfTheDayAdmin settings={settings} />
+                        </section>
                         <section>
                           <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Coordinators</h3>
                           <CoordinatorsCard

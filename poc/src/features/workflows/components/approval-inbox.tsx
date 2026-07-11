@@ -12,6 +12,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
 import { LongText } from '@/components/common/long-text'
 import type { Role } from '@/context/role-context'
@@ -22,7 +30,7 @@ import {
   type ApprovalTask,
   type WorkflowInstance,
 } from '../data/instances'
-import { CURRENT_APPROVER } from '../data/shared'
+import { CURRENT_APPROVER, MANAGERS, PEOPLE } from '../data/shared'
 import type { InstancesStore } from '../hooks/use-instances'
 import { PatternBadge, SlaBadge } from './badges'
 import { InstanceDetailSheet } from './instance-detail-sheet'
@@ -247,14 +255,21 @@ export function ApprovalInbox({
   events: AuditEvent[]
   companies: string[]
 }) {
-  const { instances, decide, escalateTask, sendReminder } = store
+  const { instances, decide, delegateTask, sendReminder } = store
 
   const canAdmin = role === 'Company Admin'
   const isEmployee = role === 'Employee (User)'
   const inboxRows = useInboxRows(store, role, companies)
 
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null)
+  const [delegateTo, setDelegateTo] = useState('')
   const [detail, setDetail] = useState<WorkflowInstance | null>(null)
+
+  /** Everyone except the task's current approver can receive the delegation. */
+  const delegateCandidates =
+    confirmAction?.kind === 'delegate'
+      ? PEOPLE.filter((p) => p !== confirmAction.row.approver)
+      : []
 
   const canDecide = useCallback(
     (row: InboxRow) =>
@@ -268,7 +283,15 @@ export function ApprovalInbox({
         canDecide,
         canAdmin,
         (row) => decide(row.task.id, 'approved'),
-        (action) => setConfirmAction(action),
+        (action) => {
+          // Delegation defaults to the approver's manager, but the picker
+          // lets the delegator choose anyone else (WFE-13, BRD 6.4.3).
+          if (action.kind === 'delegate') {
+            const fallback = PEOPLE.find((p) => p !== action.row.approver) ?? ''
+            setDelegateTo(MANAGERS[action.row.approver] ?? fallback)
+          }
+          setConfirmAction(action)
+        },
         (row) => sendReminder(row.task.id)
       ),
     [canDecide, canAdmin, decide, sendReminder]
@@ -308,7 +331,10 @@ export function ApprovalInbox({
       <AlertDialog
         open={confirmAction !== null}
         onOpenChange={(open) => {
-          if (!open) setConfirmAction(null)
+          if (!open) {
+            setConfirmAction(null)
+            setDelegateTo('')
+          }
         }}
       >
         <AlertDialogContent>
@@ -322,22 +348,50 @@ export function ApprovalInbox({
               {confirmAction?.kind === 'reject'
                 ? `"${confirmAction.row.title}" will halt at ${confirmAction.row.stageName}. Sibling pending tasks are closed and downstream approvers are never engaged.`
                 : confirmAction
-                  ? `The task at "${confirmAction.row.stageName}" moves away from ${confirmAction.row.approver} per the stage's configured escalation strategy, and the new approver is notified.`
+                  ? `The task at "${confirmAction.row.stageName}" moves away from ${confirmAction.row.approver} to the person you pick below, and they are notified with full request context.`
                   : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {confirmAction?.kind === 'delegate' && (
+            <div className='flex flex-col gap-1.5'>
+              <Label
+                htmlFor='delegate-target'
+                className='text-neutral-1600 text-sm font-medium'
+              >
+                Delegate to
+              </Label>
+              <Select value={delegateTo} onValueChange={setDelegateTo}>
+                <SelectTrigger
+                  id='delegate-target'
+                  variant='secondary'
+                  className='h-8 w-full'
+                >
+                  <SelectValue placeholder='Choose an approver' />
+                </SelectTrigger>
+                <SelectContent>
+                  {delegateCandidates.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                      {MANAGERS[confirmAction.row.approver] === p
+                        ? ' (manager)'
+                        : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              disabled={confirmAction?.kind === 'delegate' && delegateTo === ''}
               onClick={() => {
                 if (confirmAction?.kind === 'reject')
                   decide(confirmAction.row.task.id, 'rejected')
-                if (confirmAction?.kind === 'delegate')
-                  escalateTask(
-                    confirmAction.row.task.id,
-                    'Delegated by Company Admin'
-                  )
+                if (confirmAction?.kind === 'delegate' && delegateTo !== '')
+                  delegateTask(confirmAction.row.task.id, delegateTo)
                 setConfirmAction(null)
+                setDelegateTo('')
               }}
               className={
                 confirmAction?.kind === 'reject'

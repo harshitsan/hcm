@@ -78,7 +78,7 @@ export function ApprovalsTab({ store, templates }: ApprovalsTabProps) {
                   </span>
                   <Badge variant='overdue'>Pending approval</Badge>
                   <Badge variant='pending'>
-                    v{doc.versions.length} · tpl v{doc.templateVersion}
+                    Version {doc.versions.length} · template v{doc.templateVersion}
                   </Badge>
                 </div>
                 <div className='flex gap-2'>

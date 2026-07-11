@@ -76,6 +76,14 @@ function inView(status: ApplicationStatus, view: StageView) {
   return status === view
 }
 
+/** Stage-view filter a funnel card maps to (cards and chips stay in sync). */
+function viewForStage(stage: (typeof PIPELINE_STAGES)[number]): StageView {
+  if (stage === 'applied' || stage === 'screening' || stage === 'shortlisted')
+    return 'in-review'
+  if (stage === 'reference-check') return 'interview'
+  return stage as StageView
+}
+
 /**
  * End-to-end hiring pipeline (TA-06, TA-13, TA-17, TA-32, TA-42, TA-44,
  * TA-45) — metadata-driven stage board, stage-view filters with counts,
@@ -142,29 +150,35 @@ export function HiringPipelineTab({
 
   return (
     <div className='w-full'>
-      {/* TA-32: pipeline board — stage columns driven by stage metadata */}
+      {/* TA-32: pipeline board — stage cards double as table filters, kept
+          in sync with the stage-view chip row below (active card highlighted) */}
       <div className='mb-4 grid grid-cols-4 gap-2 lg:grid-cols-7'>
-        {stageCounts.map(({ stage, count }) => (
-          <button
-            key={stage}
-            type='button'
-            className='rounded-[6px] border border-gray-200 bg-white px-2 py-1.5 text-left transition-colors hover:border-gray-300'
-            onClick={() => {
-              setView(
-                stage === 'applied' || stage === 'screening' || stage === 'shortlisted'
-                  ? 'in-review'
-                  : stage === 'reference-check'
-                    ? 'interview'
-                    : (stage as StageView)
-              )
-            }}
-          >
-            <p className='text-paragraph-sm text-neutral-1000 capitalize'>
-              {stage.replace('-', ' ')}
-            </p>
-            <p className='text-neutral-1600 text-lg font-medium'>{count}</p>
-          </button>
-        ))}
+        {stageCounts.map(({ stage, count }) => {
+          const target = viewForStage(stage)
+          const active = view === target
+          return (
+            <button
+              key={stage}
+              type='button'
+              aria-pressed={active}
+              title={`Filter the candidate table by ${target.replace('-', ' ')}`}
+              className={[
+                'cursor-pointer rounded-[6px] border px-2 py-1.5 text-left transition-colors',
+                active
+                  ? 'border-blue-1200 bg-blue-150'
+                  : 'border-gray-200 bg-white hover:border-gray-300',
+              ].join(' ')}
+              onClick={() => setView(active ? 'all' : target)}
+            >
+              <p
+                className={`text-paragraph-sm capitalize ${active ? 'text-blue-1200' : 'text-neutral-1000'}`}
+              >
+                {stage.replace('-', ' ')}
+              </p>
+              <p className='text-neutral-1600 text-lg font-medium'>{count}</p>
+            </button>
+          )
+        })}
       </div>
 
       <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>

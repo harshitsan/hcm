@@ -243,7 +243,7 @@ export function SurveyFormDialog({
               control={form.control}
               name='anonymous'
               render={({ field }) => (
-                <FormItem className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
+                <FormItem className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
                   <div>
                     <FormLabel>Anonymous responses</FormLabel>
                     <p className='text-paragraph-sm text-neutral-1000'>

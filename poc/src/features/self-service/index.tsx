@@ -6,18 +6,23 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { AdminTab } from './components/admin-tab'
 import { AssetsTab } from './components/assets-tab'
+import { AssetsTeamTab } from './components/assets-team-tab'
 import { AttendanceTab } from './components/attendance-tab'
+import { AttendanceTeamTab } from './components/attendance-team-tab'
 import { LearningTab } from './components/learning-tab'
 import { LearningTeamTab } from './components/learning-team-tab'
 import { MyTimelineTab } from './components/my-timeline-tab'
 import { OverviewTab, type PendingTask } from './components/overview-tab'
 import { TaxTab } from './components/tax-tab'
 import { TimesheetTab } from './components/timesheet-tab'
+import { TimesheetTeamTab } from './components/timesheet-team-tab'
 import { TravelTab } from './components/travel-tab'
 import { TravelTeamTab } from './components/travel-team-tab'
 import { WorkTab } from './components/work-tab'
 import { useAssets } from './hooks/use-assets'
+import { useAssetsTeam } from './hooks/use-assets-team'
 import { useAttendance } from './hooks/use-attendance'
+import { useAttendanceTeam } from './hooks/use-attendance-team'
 import { useLearning } from './hooks/use-learning'
 import { useLearningTeam } from './hooks/use-learning-team'
 import { usePortal } from './hooks/use-portal'
@@ -37,29 +42,41 @@ const ADMIN_ROLES = [
 
 type SectionId =
   | 'attendance'
+  | 'attendance-team'
   | 'timesheets'
+  | 'timesheet-team'
   | 'travel'
   | 'travel-team'
   | 'learning'
   | 'learning-team'
   | 'assets'
+  | 'assets-team'
   | 'tax'
   | 'work'
 
 const SECTION_LABEL: Record<SectionId, string> = {
   attendance: 'Attendance',
+  'attendance-team': 'Team Attendance',
   timesheets: 'Timesheets',
+  'timesheet-team': 'Team Utilization',
   travel: 'Travel & Expenses',
   'travel-team': 'Team Travel & Trips',
   learning: 'Learning',
   'learning-team': 'Team Learning',
   assets: 'Assets',
+  'assets-team': 'Team Assets',
   tax: 'Tax & Pay',
   work: 'Work & Handover',
 }
 
 /** Manager/coordinator-only review surfaces, hidden from employee roles. */
-const MANAGER_SECTIONS: readonly SectionId[] = ['travel-team', 'learning-team']
+const MANAGER_SECTIONS: readonly SectionId[] = [
+  'attendance-team',
+  'timesheet-team',
+  'travel-team',
+  'learning-team',
+  'assets-team',
+]
 
 /** Task-first grouping: everyday sections folded under a few plain-language tabs. */
 const GROUPS: ReadonlyArray<{
@@ -67,8 +84,8 @@ const GROUPS: ReadonlyArray<{
   label: string
   sections: readonly SectionId[]
 }> = [
-  { id: 'time', label: 'Time', sections: ['attendance', 'timesheets'] },
-  { id: 'requests', label: 'Requests', sections: ['travel', 'travel-team', 'learning', 'learning-team', 'assets'] },
+  { id: 'time', label: 'Time', sections: ['attendance', 'timesheets', 'attendance-team', 'timesheet-team'] },
+  { id: 'requests', label: 'Requests', sections: ['travel', 'travel-team', 'learning', 'learning-team', 'assets', 'assets-team'] },
   { id: 'pay-work', label: 'Pay & Work', sections: ['tax', 'work'] },
 ]
 
@@ -85,12 +102,14 @@ export function SelfService() {
   const profile = useProfile()
   const portal = usePortal()
   const attendance = useAttendance()
+  const attendanceTeam = useAttendanceTeam()
   const timesheets = useTimesheets()
   const travel = useTravel()
   const travelTeam = useTravelTeam()
   const learning = useLearning()
   const learningTeam = useLearningTeam()
   const assets = useAssets()
+  const assetsTeam = useAssetsTeam()
   const tax = useTax()
 
   /** Segmented selector state for the Time group (attendance vs timesheets). */
@@ -101,19 +120,19 @@ export function SelfService() {
     const tasks: PendingTask[] = []
     travel.expenses.forEach((e) => {
       if (e.task)
-        tasks.push({ id: e.id, module: 'Travel · Expenses', item: e.title, action: e.task })
+        tasks.push({ id: e.id, module: 'Travel · Expenses', item: e.title, action: e.task, section: 'travel' })
     })
     learning.requests.forEach((r) => {
       if (r.task)
-        tasks.push({ id: r.id, module: 'Learning', item: r.program, action: r.task })
+        tasks.push({ id: r.id, module: 'Learning', item: r.program, action: r.task, section: 'learning' })
     })
     assets.requisitions.forEach((r) => {
       if (r.task)
-        tasks.push({ id: r.id, module: 'Assets · Requisitions', item: `${r.number} — ${r.asset}`, action: r.task })
+        tasks.push({ id: r.id, module: 'Assets · Requisitions', item: `${r.number} — ${r.asset}`, action: r.task, section: 'assets' })
     })
     assets.assignedAssets.forEach((a) => {
       if (a.task)
-        tasks.push({ id: a.id, module: 'Assets · My Assets', item: a.assetName, action: a.task })
+        tasks.push({ id: a.id, module: 'Assets · My Assets', item: a.assetName, action: a.task, section: 'assets' })
     })
     timesheets.timesheets.forEach((ts) => {
       if (ts.status === 'Pending for submission')
@@ -122,6 +141,7 @@ export function SelfService() {
           module: 'Timesheets',
           item: `Week ${ts.periodStart}`,
           action: 'Submit for approval',
+          section: 'timesheets',
         })
     })
     return tasks
@@ -155,12 +175,22 @@ export function SelfService() {
     if (!availableTabs.includes(tab)) setTab('overview')
   }, [availableTabs, tab])
 
+  /** Pending-task rows deep-link to the group tab hosting their source list. */
+  const openTask = useCallback((task: PendingTask) => {
+    if (task.section === 'timesheets') {
+      setTimeView('timesheets')
+      setTab('time')
+    } else {
+      setTab('requests')
+    }
+  }, [])
+
   if (isNonUser) {
     return (
       <>
         <CommonHeader title='Self Service' className='bg-blue-150' />
         <Main fluid className='bg-neutral-200'>
-          <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+          <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
             <UserCircleMinus size={32} className='text-neutral-1000' />
             <p className='text-neutral-1600 text-paragraph-md font-medium'>
               No self-service login for non-user employees
@@ -186,12 +216,15 @@ export function SelfService() {
 
   const sectionContent: Record<SectionId, ReactNode> = {
     attendance: <AttendanceTab store={attendance} />,
+    'attendance-team': <AttendanceTeamTab store={attendanceTeam} />,
     timesheets: <TimesheetTab store={timesheets} />,
+    'timesheet-team': <TimesheetTeamTab />,
     travel: <TravelTab store={travel} />,
     'travel-team': <TravelTeamTab store={travelTeam} />,
     learning: <LearningTab store={learning} />,
     'learning-team': <LearningTeamTab store={learningTeam} />,
     assets: <AssetsTab store={assets} />,
+    'assets-team': <AssetsTeamTab store={assetsTeam} />,
     tax: <TaxTab store={tax} />,
     work: <WorkTab />,
   }
@@ -215,6 +248,7 @@ export function SelfService() {
                 profile={profile}
                 portal={portal}
                 pendingTasks={pendingTasks}
+                onOpenTask={openTask}
               />
             </TabsContent>
 

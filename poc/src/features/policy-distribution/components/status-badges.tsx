@@ -30,7 +30,7 @@ export function CriticalityBadge({ level }: { level: Criticality }) {
 const distStatusVariant: Record<DistributionStatus, BadgeVariant> = {
   Sent: 'completed',
   Scheduled: 'open',
-  Armed: 'booked',
+  Armed: 'open',
   Cancelled: 'badge_inactive',
 }
 

@@ -85,7 +85,7 @@ export function StepAdminSetup({
         name='adminEmail'
         label='Initial company administrator email'
         type='email'
-        placeholder='admin@acme.example'
+        placeholder='e.g. admin@acme.example'
         hint='If provided, a default Company Administrator user is created and a welcome email is sent. If left blank, the tenant is still provisioned with default policies.'
       />
     </div>

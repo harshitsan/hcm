@@ -15,6 +15,7 @@ import { RequisitionsTab } from './components/requisitions-tab'
 import { RecruitmentSummary } from './components/summary-cards'
 import { TalentPoolTab } from './components/talent-pool-tab'
 import { VacanciesTab } from './components/vacancies-tab'
+import { hireFromOffer } from './data/hire-bridge'
 import { useCandidateDocuments } from './hooks/use-candidate-documents'
 import { useCandidates } from './hooks/use-candidates'
 import { useOffers } from './hooks/use-offers'
@@ -97,8 +98,8 @@ export function Recruitment() {
     outOfBandApprover: config.outOfBandApprover,
     logEngine: config.logEngine,
     notify: config.notify,
-    onConverted: (applicationId, requisitionId) => {
-      candidates.patchApp(applicationId, (a) => ({
+    onConverted: (offer, mode) => {
+      candidates.patchApp(offer.applicationId, (a) => ({
         ...a,
         status: 'hired',
         stageHistory: [
@@ -107,10 +108,38 @@ export function Recruitment() {
         ],
       }))
       requisitions.setStatus(
-        requisitionId,
+        offer.requisitionId,
         'filled',
         'Requisition filled via candidate conversion'
       )
+      // BRD 6.13.6 — the conversion creates a real employee record and an
+      // onboarding case cross-module (visible in /employees and /lifecycle).
+      const app = candidates.applications.find(
+        (a) => a.id === offer.applicationId
+      )
+      const cand = candidates.candidates.find((c) => c.id === app?.candidateId)
+      const req = requisitions.requisitions.find(
+        (r) => r.id === offer.requisitionId
+      )
+      return hireFromOffer({
+        offerId: offer.id,
+        applicationId: offer.applicationId,
+        requisitionId: offer.requisitionId,
+        candidateName: offer.candidateName,
+        email: app?.candidateEmail ?? '',
+        phone: cand?.phone,
+        gender: cand?.gender || undefined,
+        position: offer.requisitionTitle,
+        department: req?.department ?? 'Engineering',
+        location: offer.location,
+        employeeClass: req?.employeeClass,
+        positionLevel: req?.positionLevel,
+        hiringManager: req?.hiringManager ?? undefined,
+        annualCtc: offer.annualCtc,
+        breakup: offer.breakup,
+        joinDate: offer.expectedDoj,
+        hasUserAccount: mode === 'employee-user',
+      })
     },
     onOfferCancelled: (applicationId) => {
       candidates.patchApp(applicationId, (a) => ({

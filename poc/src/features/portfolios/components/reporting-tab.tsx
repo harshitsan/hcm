@@ -221,7 +221,7 @@ export function ReportingTab({ store, ops }: ReportingTabProps) {
         {report && (
           <CardContent className='space-y-3 px-4'>
             <div className='flex flex-wrap gap-2'>
-              <Badge variant='qualified'>Row-level security applied</Badge>
+              <Badge variant='badge_active'>Row-level security applied</Badge>
               {report.withheld > 0 && (
                 <Badge variant='overdue'>
                   {report.withheld} compan

@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AccessMatrixTab } from './components/configuration/access-tab'
 import { AckApproversTab } from './components/configuration/ack-approvers-tab'
 import { BenefitsCompensationTab } from './components/configuration/benefits-compensation-tab'
@@ -28,10 +29,15 @@ export function EmployeesConfiguration() {
       <CommonHeader
         title='Employees — Configuration'
         className='bg-blue-150'
+        backButton
       />
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
-          <Tabs defaultValue='rule-packs'>
+          <Tabs
+            defaultValue={
+              takeRequestedTab('/employees/configuration') ?? 'rule-packs'
+            }
+          >
             <TabsList className='mb-3'>
               <TabsTrigger value='rule-packs'>Rule-Packs & Schema</TabsTrigger>
               <TabsTrigger value='dedup'>Duplicate Detection</TabsTrigger>

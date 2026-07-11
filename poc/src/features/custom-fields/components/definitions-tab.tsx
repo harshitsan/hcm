@@ -126,6 +126,7 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
             onClick={refresh}
             className='text-neutral-1900 h-7 w-7'
             aria-label='Refresh'
+            title='Refresh list'
           >
             <ArrowsClockwise size={16} weight='bold' />
           </Button>
@@ -143,6 +144,7 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
             className='text-neutral-1900 h-7 w-7'
             disabled={selectedRows.length !== 1}
             aria-label='Edit'
+            title='Edit the selected field'
           >
             <PencilSimple size={16} weight='fill' />
           </Button>
@@ -152,6 +154,7 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
             className='text-neutral-1900 h-7 w-7'
             disabled={deletableSelection.length === 0}
             aria-label='Delete'
+            title='Delete the selected field'
           >
             <Trash size={16} weight='bold' />
           </Button>

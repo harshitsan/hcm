@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { PencilSimple, Plus, UsersThree } from 'phosphor-react'
+import { LockKeyOpen, PencilSimple, Plus, UsersThree } from 'phosphor-react'
 import { RoleGate, useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,7 +28,8 @@ interface UsersTabProps {
  */
 export function UsersTab({ store }: UsersTabProps) {
   const { role } = useRole()
-  const { users, employees, emailTaken, addUser, updateUser } = store
+  const { users, employees, emailTaken, addUser, updateUser, unlockUser } =
+    store
 
   const [selectedRows, setSelectedRows] = useState<AuthUser[]>([])
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
@@ -37,6 +38,11 @@ export function UsersTab({ store }: UsersTabProps) {
   const [membershipsUser, setMembershipsUser] = useState<AuthUser | null>(null)
 
   const isAdmin = (ADMIN_ROLES as readonly string[]).includes(role)
+  // Resolve the selection against live rows — lock state changes in place.
+  const selectedUser =
+    selectedRows.length === 1
+      ? (users.find((u) => u.id === selectedRows[0].id) ?? null)
+      : null
   const workforceOnly = useMemo(
     () => employees.filter((e) => e.linkedUserId === null),
     [employees]
@@ -87,6 +93,19 @@ export function UsersTab({ store }: UsersTabProps) {
         </h2>
         <div className='flex items-center gap-3'>
           <RoleGate roles={[...ADMIN_ROLES]}>
+            {selectedUser?.lockedAt && (
+              <Button
+                variant='outline'
+                onClick={() => {
+                  unlockUser(selectedUser.id, `${role} (demo)`)
+                  clearSelection()
+                }}
+                className='h-7 gap-1 rounded-[6px] px-2 text-xs'
+              >
+                <LockKeyOpen size={14} weight='bold' />
+                Unlock
+              </Button>
+            )}
             <Button
               variant='icon2'
               onClick={() => {

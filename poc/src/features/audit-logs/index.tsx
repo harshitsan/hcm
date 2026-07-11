@@ -11,6 +11,7 @@ import { RetentionTab } from './components/retention-tab'
 import { scopeEntries } from './data/audit-entries'
 import { useAuditConfig } from './hooks/use-audit-config'
 import { useAuditLog } from './hooks/use-audit-log'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 
 /**
  * Audit & Logging (FR 6.29): tamper-resistant audit trail over the mandatory
@@ -97,6 +98,7 @@ export function AuditLogs() {
             {isPlatformAdmin && (
               <TabsContent value='admin'>
                 <div className='flex flex-col gap-6'>
+                  <EngineArtifactsPanel module='Audit & Logging' />
                   <section>
                     <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Data Retention</h3>
                     <RetentionTab

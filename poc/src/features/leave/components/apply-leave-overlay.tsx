@@ -269,11 +269,11 @@ export function ApplyLeaveOverlay({
       toast.error('Not enough comp-off credits — request is validated against your comp-off balance')
       return
     }
-    // A6: validate custom fields before proceeding.
+    // A6: validate custom fields before proceeding — errors render inline
+    // next to each field via CustomFieldsSection.
     const cfErrors = validateCustomFields('Leave Request', customValues, 'employee')
     if (Object.keys(cfErrors).length > 0) {
       setCustomErrors(cfErrors)
-      toast.error('Please complete the required additional fields')
       return
     }
     if (excess > 0 && selectedType?.category === 'paid') {
@@ -293,8 +293,20 @@ export function ApplyLeaveOverlay({
       event: LEAVE_SUBMIT_EVENT,
       summary: `${selectedType?.name ?? 'Leave'} · ${amount} ${selectedType?.unit ?? 'days'}`,
       requester: employee?.name ?? employeeId,
+      quiet: true,
     })
     onOpenChange(false)
+  }
+
+  /**
+   * Runs when zod validation fails: also validate the custom fields so the
+   * very first submit flags every required field inline in one pass (rather
+   * than the custom-field errors only appearing after the core fields pass).
+   */
+  const handleInvalid = () => {
+    setCustomErrors(
+      validateCustomFields('Leave Request', customValues, 'employee')
+    )
   }
 
   const qualifying = fmlaReasons.filter((r) => r.kind === 'qualifying')
@@ -304,7 +316,7 @@ export function ApplyLeaveOverlay({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
-          <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+          <SheetHeader className='border-gray-200 border-b px-5 py-4'>
             <div className='flex items-center gap-3'>
               <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
                 {onBehalfOf
@@ -318,7 +330,7 @@ export function ApplyLeaveOverlay({
           </SheetHeader>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(handleSubmit)}
+              onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
               className='flex min-h-0 flex-1 flex-col'
             >
               <div className='flex-1 space-y-4 overflow-y-auto px-5 py-5'>
@@ -693,7 +705,7 @@ export function ApplyLeaveOverlay({
                         <FormItem>
                           <FormLabel>Notify (emails, comma separated)</FormLabel>
                           <FormControl>
-                            <Input placeholder='a@ext.com, b@ext.com' {...field} />
+                            <Input placeholder='e.g. a@ext.com, b@ext.com' {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -712,7 +724,7 @@ export function ApplyLeaveOverlay({
                 />
               </div>
 
-              <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+              <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
                 <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
@@ -782,15 +794,16 @@ export function ApplyLeaveOverlay({
                   triggerFormFlows({
                     module: LEAVE_MODULE,
                     event: LEAVE_SUBMIT_EVENT,
-                    summary: `${leaveName} · ${lopConfirm.draft.amount} ${leaveTypes.find((t) => t.id === lopConfirm.draft.typeId)?.unit ?? 'days'} (LOP)`,
+                    summary: `${leaveName} · ${lopConfirm.draft.amount} ${leaveTypes.find((t) => t.id === lopConfirm.draft.typeId)?.unit ?? 'days'} (Loss of Pay)`,
                     requester: employee?.name ?? employeeId,
+                    quiet: true,
                   })
                 }
                 setLopConfirm(null)
                 onOpenChange(false)
               }}
             >
-              Confirm LOP & submit
+              Confirm Loss of Pay & submit
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

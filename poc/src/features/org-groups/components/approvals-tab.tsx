@@ -45,7 +45,7 @@ export function ApprovalsTab({ store }: ApprovalsTabProps) {
   const requestCard = (r: MembershipRequest) => (
     <div
       key={r.id}
-      className='border-grey-200 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border bg-white px-3 py-2'
+      className='border-gray-200 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border bg-white px-3 py-2'
     >
       <div className='flex min-w-0 flex-col'>
         <span className='text-neutral-1600 text-sm font-medium'>
@@ -86,7 +86,7 @@ export function ApprovalsTab({ store }: ApprovalsTabProps) {
 
   return (
     <div className='w-full space-y-4'>
-      <p className='text-paragraph-sm text-neutral-1000 border-grey-200 rounded-[6px] border bg-white px-3 py-2'>
+      <p className='text-paragraph-sm text-neutral-1000 border-gray-200 rounded-[6px] border bg-white px-3 py-2'>
         {isApprover
           ? 'Membership changes on approval-controlled groups (benefit and security cohorts) wait here. Approvals apply effective as of the approval date; rejections notify the requester with the reason.'
           : 'You can review the status of your submitted membership change requests here. Changes on groups that don’t require approval apply immediately without a pending state.'}

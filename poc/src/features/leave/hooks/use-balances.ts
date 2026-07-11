@@ -10,6 +10,7 @@ import {
   type CompOffCredit,
   type LeaveBalance,
 } from '../data/balances'
+import { seedEncashments, type EncashmentRequest } from '../data/encashment'
 import { employeeById, shortId, todayISO } from '../data/shared'
 
 /**
@@ -70,6 +71,8 @@ export function useBalances({ append, notify, actor, actorRole }: Deps) {
   const [compOffCredits, setCompOffCredits] =
     useState<CompOffCredit[]>(seedCompOffCredits)
   const [adjustments, setAdjustments] = useState<Adjustment[]>(seedAdjustments)
+  const [encashments, setEncashments] =
+    useState<EncashmentRequest[]>(seedEncashments)
 
   const balanceFor = useCallback(
     (employeeId: string, typeId: string) =>
@@ -357,10 +360,143 @@ export function useBalances({ append, notify, actor, actorRole }: Deps) {
     [actor, actorRole, adjustments, append, applyApprovedAdjustment, notify]
   )
 
+  /**
+   * "Leave encashment requested" (module registry): employee raises a payout
+   * request per the configured payout rules; routed to the Time Off Admin.
+   */
+  const requestEncashment = useCallback(
+    (input: {
+      employeeId: string
+      typeId: string
+      typeName: string
+      unit: 'days' | 'hours'
+      units: number
+      reason: string
+    }) => {
+      const emp = employeeById(input.employeeId)
+      const req: EncashmentRequest = {
+        id: shortId('enc'),
+        employeeId: input.employeeId,
+        employeeName: emp?.name ?? input.employeeId,
+        typeId: input.typeId,
+        typeName: input.typeName,
+        units: input.units,
+        unit: input.unit,
+        reason: input.reason,
+        status: 'pending',
+        requestedOn: todayISO(),
+        decidedBy: null,
+        decidedOn: null,
+        decisionNote: null,
+      }
+      setEncashments((prev) => [req, ...prev])
+      notify(
+        'Submitted',
+        'Time Off Admin (payout approver)',
+        `Encashment requested: ${req.employeeName} — ${req.units} ${req.unit} of ${req.typeName}. Reason: ${req.reason}`
+      )
+      toast.success(
+        `Encashment request submitted — pending with the Time Off Admin (${req.units} ${req.unit})`
+      )
+    },
+    [notify]
+  )
+
+  /** Admin decision on an encashment request; approval deducts the balance. */
+  const decideEncashment = useCallback(
+    (id: string, approve: boolean, note: string) => {
+      const req = encashments.find((e) => e.id === id)
+      if (!req || req.status !== 'pending') return
+      setEncashments((prev) =>
+        prev.map((e) =>
+          e.id === id
+            ? {
+                ...e,
+                status: approve ? 'approved' : 'rejected',
+                decidedBy: actor,
+                decidedOn: todayISO(),
+                decisionNote: note || null,
+              }
+            : e
+        )
+      )
+      if (approve) {
+        applyDelta(req.employeeId, req.typeId, { credited: -req.units })
+      }
+      append({
+        actor,
+        actorRole,
+        action: approve ? 'Encashment approved' : 'Encashment rejected',
+        target: `${req.employeeName} · ${req.typeName}`,
+        before: `Pending encashment of ${req.units} ${req.unit}`,
+        after: approve
+          ? `Balance reduced by ${req.units} ${req.unit}; payout recorded`
+          : 'Balance unchanged',
+        reason: note || req.reason,
+      })
+      notify(
+        approve ? 'Approved' : 'Rejected',
+        `${req.employeeName} (applicant)`,
+        `Encashment ${approve ? 'approved' : 'rejected'}: ${req.units} ${req.unit} of ${req.typeName}.${note ? ` Note: ${note}` : ''}`
+      )
+      toast.success(
+        approve
+          ? `Encashment approved — ${req.units} ${req.unit} deducted, payout recorded`
+          : 'Encashment rejected — applicant notified'
+      )
+    },
+    [actor, actorRole, append, applyDelta, encashments, notify]
+  )
+
+  /**
+   * "Leave year rollover completed" (module registry): closes the leave year —
+   * remaining balances carry forward up to the cap and become the opening
+   * credit; year counters reset. Append-only audit entry is written.
+   */
+  const runYearRollover = useCallback(
+    (carryForwardCap = 15) => {
+      setBalances((prev) =>
+        prev.map((b) => ({
+          ...b,
+          credited: Math.min(remaining(b), carryForwardCap),
+          taken: 0,
+          tentative: 0,
+          scheduled: 0,
+          pendingApproval: 0,
+          lopPending: 0,
+          lopApproved: 0,
+          cancelled: 0,
+        }))
+      )
+      append({
+        actor,
+        actorRole,
+        action: 'Leave year rollover completed',
+        target: 'All active balances',
+        before: 'Prior-year balances and counters',
+        after: `Remaining balances carried forward (cap ${carryForwardCap} days); year counters reset`,
+        reason: 'Year-end rollover per the configured carry-forward policy.',
+      })
+      notify(
+        'Adjusted',
+        'All employees',
+        `Leave year rollover completed — unused balances carried forward up to ${carryForwardCap} days per policy.`
+      )
+      toast.success(
+        `Leave year rollover completed — balances carried forward (cap ${carryForwardCap} days)`
+      )
+    },
+    [actor, actorRole, append, notify]
+  )
+
   return {
     balances,
     compOffCredits,
     adjustments,
+    encashments,
+    requestEncashment,
+    decideEncashment,
+    runYearRollover,
     balanceFor,
     remainingFor: (employeeId: string, typeId: string) => {
       const b = balanceFor(employeeId, typeId)

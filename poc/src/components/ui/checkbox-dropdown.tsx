@@ -175,7 +175,7 @@ export function CheckboxDropdown({
         side='bottom'
       >
         {searchable && (
-          <div className='border-grey-200 sticky top-0 z-10 border-b bg-white p-2'>
+          <div className='border-gray-200 sticky top-0 z-10 border-b bg-white p-2'>
             <div className='relative'>
               <Search className='text-neutral-1600 absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2' />
               <Input

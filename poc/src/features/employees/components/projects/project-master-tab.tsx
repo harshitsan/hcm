@@ -43,7 +43,7 @@ const projectColumns: ColumnDef<Project>[] = [
     accessorKey: 'billable',
     header: sortableColumnHeader<Project>('Billable'),
     cell: ({ row }) => (
-      <Badge variant={row.original.billable ? 'qualified' : 'pending'}>
+      <Badge variant={row.original.billable ? 'badge_active' : 'pending'}>
         {row.original.billable ? 'Billable' : 'Non-billable'}
       </Badge>
     ),

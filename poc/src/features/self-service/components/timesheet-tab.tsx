@@ -197,7 +197,7 @@ export function TimesheetTab({ store }: TimesheetTabProps) {
                     <TableCell>{entry.typeOfWork}</TableCell>
                     <TableCell>
                       {entry.productive ? (
-                        <Badge variant='qualified'>Productive</Badge>
+                        <Badge variant='badge_active'>Productive</Badge>
                       ) : (
                         <Badge variant='overdue'>
                           Non-productive · {entry.nonProductiveReason}

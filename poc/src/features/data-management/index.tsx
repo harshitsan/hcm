@@ -7,7 +7,6 @@ import {
   UploadSimple,
   ArrowCounterClockwise,
 } from 'phosphor-react'
-import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -25,7 +24,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable } from '@/components/common/data-table/table'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { ConfigTab } from './components/config-tab'
+import { downloadErrorReportCsv } from './components/error-report'
 import { ExportOverlay } from './components/export-overlay'
 import { ImportLogTab } from './components/import-log-tab'
 import { ImportWizard } from './components/import-wizard'
@@ -43,7 +44,6 @@ import { type DataJob } from './data/jobs'
 import { useDataConfig } from './hooks/use-data-config'
 import { useDataJobs } from './hooks/use-data-jobs'
 import { useMappings } from './hooks/use-mappings'
-import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 
 export function DataManagement() {
   const { role, hasRole } = useRole()
@@ -160,9 +160,7 @@ export function DataManagement() {
                   <Button
                     variant='icon2'
                     onClick={() =>
-                      toast.success(
-                        `Record-level error report for ${selectedLive?.id} downloaded (CSV)`
-                      )
+                      selectedLive && downloadErrorReportCsv(selectedLive)
                     }
                     className='text-neutral-1900 h-7 w-7'
                     disabled={!selectedLive || selectedLive.failedRecords === 0}
@@ -230,6 +228,7 @@ export function DataManagement() {
       <ImportWizard
         open={wizardOpen}
         onOpenChange={setWizardOpen}
+        currentConfig={configStore.currentConfig}
         functionToggles={configStore.functionToggles}
         tierMap={configStore.tierMap}
         mappings={mappings}

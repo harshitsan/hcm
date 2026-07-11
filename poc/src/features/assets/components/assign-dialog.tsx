@@ -91,7 +91,7 @@ export function AssignDialog({
             availableAssets.map((a) => (
               <label
                 key={a.id}
-                className='border-grey-200 flex cursor-pointer items-center gap-3 rounded-[6px] border bg-white p-2.5'
+                className='border-gray-200 flex cursor-pointer items-center gap-3 rounded-[6px] border bg-white p-2.5'
               >
                 <Checkbox
                   variant='blue'

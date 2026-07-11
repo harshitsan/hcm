@@ -78,7 +78,7 @@ export function AlertsTab({ alerts, saveAlerts }: AlertsTabProps) {
             </p>
           </CardHeader>
           <CardContent className='space-y-4 px-4'>
-            <div className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
+            <div className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
               <div>
                 <Label htmlFor='alerts-master' className='text-sm font-medium'>
                   Enable Alerts module
@@ -146,7 +146,7 @@ export function AlertsTab({ alerts, saveAlerts }: AlertsTabProps) {
             {ALERT_TOGGLES.map((t) => (
               <div
                 key={t.key}
-                className='border-grey-200 flex items-center justify-between gap-3 rounded-[6px] border px-3 py-2'
+                className='border-gray-200 flex items-center justify-between gap-3 rounded-[6px] border px-3 py-2'
               >
                 <div>
                   <p className='text-neutral-1600 text-sm font-medium'>

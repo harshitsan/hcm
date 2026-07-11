@@ -83,7 +83,7 @@ export function ReceiptDialog({
             audit evidence · template v{receiptTemplate?.version ?? 1}
           </DialogDescription>
         </DialogHeader>
-        <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
+        <div className='border-gray-200 rounded-[6px] border bg-white p-4'>
           {text.split('\n\n').map((para, i) => (
             <p key={i} className='text-neutral-1600 mb-2 text-sm leading-6 last:mb-0'>
               {para}

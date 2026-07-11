@@ -116,7 +116,7 @@ export function EntryDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {entry.id} · {entry.subject}
           </SheetTitle>
@@ -335,7 +335,7 @@ export function EntryDetailSheet({
                 {visibleResponses.map((r) => (
                   <div
                     key={r.id}
-                    className='border-grey-200 rounded-[6px] border px-3 py-2'
+                    className='border-gray-200 rounded-[6px] border px-3 py-2'
                   >
                     <div className='flex items-center justify-between'>
                       <p className='text-neutral-1600 text-sm font-medium'>
@@ -384,7 +384,7 @@ export function EntryDetailSheet({
               {[...visibleAudit].reverse().map((event) => (
                 <li
                   key={event.id}
-                  className='border-grey-200 rounded-[6px] border px-3 py-2'
+                  className='border-gray-200 rounded-[6px] border px-3 py-2'
                 >
                   <div className='flex items-center justify-between'>
                     <p className='text-neutral-1600 text-sm font-medium'>

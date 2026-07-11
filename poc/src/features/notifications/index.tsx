@@ -86,18 +86,21 @@ export function Notifications() {
     settings.channels.find((c) => c.channel === 'in-app')?.enabled ?? false
 
   // Controlled tabs so the templates screen can Cancel back to the page the
-  // admin came from (AET-05/FIN-04/PET-06/RET-05).
+  // admin came from (AET-05/FIN-04/PET-06/RET-05). The sidebar link says
+  // "Notifications", so the page lands on the Notifications inbox tab.
   const [activeTab, setActiveTab] = useState(
-    () => takeRequestedTab('/notifications') ?? 'tasks'
+    () => takeRequestedTab('/notifications') ?? 'notifications'
   )
-  const previousTabRef = useRef('tasks')
+  const previousTabRef = useRef('notifications')
   const handleTabChange = (value: string) => {
     if (value !== activeTab) previousTabRef.current = activeTab
     setActiveTab(value)
   }
   const handleTemplatesCancel = () => {
     const target =
-      previousTabRef.current === 'admin' ? 'tasks' : previousTabRef.current
+      previousTabRef.current === 'admin'
+        ? 'notifications'
+        : previousTabRef.current
     setActiveTab(target)
     previousTabRef.current = 'admin'
     toast.info('Left the templates screen without changes.')
@@ -181,6 +184,7 @@ export function Notifications() {
                 markAllRead={markAllRead}
                 markReadMany={markReadMany}
                 simulateEvent={simulateEvent}
+                openTab={handleTabChange}
               />
             </TabsContent>
 

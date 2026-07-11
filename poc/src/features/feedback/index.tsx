@@ -68,7 +68,7 @@ export function Feedback() {
         <div className='w-full'>
           {isNonUser ? (
             <div className='flex flex-col gap-4'>
-              <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+              <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
                 <ChatCircleText size={32} className='text-neutral-1000' />
                 <p className='text-neutral-1600 text-paragraph-md font-medium'>
                   Employees without system access don't use this screen
@@ -117,7 +117,7 @@ export function Feedback() {
 
               {moduleDisabled &&
               (tab === 'my' || tab === 'worklist' || tab === 'anonymous') ? (
-                <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+                <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
                   <ChatCircleText size={32} className='text-neutral-1000' />
                   <p className='text-neutral-1600 text-paragraph-md font-medium'>
                     Feedback & Grievance is disabled for this company

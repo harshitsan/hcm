@@ -94,6 +94,7 @@ export function AssignmentsTab({
             disabled={selectedRows.length === 0}
             onClick={() => setConfirmEnd(true)}
             aria-label='End assignment'
+            title='End this assignment now'
           >
             <Prohibit size={16} weight='bold' />
           </Button>
@@ -117,7 +118,7 @@ export function AssignmentsTab({
       />
 
       <p className='text-neutral-1000 text-xs'>
-        Assignments are effective-dated, bitemporal records: ending one closes
+        Assignments are effective-dated records with full change history: ending one closes
         it with an effective-to date and the row remains as history. Change
         the as-of date above to reconstruct exactly who held which role at
         that moment; scheduled assignments activate automatically on their

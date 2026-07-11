@@ -182,7 +182,7 @@ function SetupStep({
     <div className='rounded-[6px] border border-gray-200 bg-white'>
       <div className='flex items-center justify-between border-b border-gray-200 px-4 py-2'>
         <p className='text-sm font-medium'>Module setup</p>
-        <Badge variant={draft.moduleEnabled ? 'qualified' : 'badge_inactive'}>
+        <Badge variant={draft.moduleEnabled ? 'badge_active' : 'badge_inactive'}>
           {draft.moduleEnabled ? 'Module enabled' : 'Module disabled'}
         </Badge>
       </div>

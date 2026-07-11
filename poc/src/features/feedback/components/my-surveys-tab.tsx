@@ -129,7 +129,7 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
 
   if (!store.settings.moduleEnabled) {
     return (
-      <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+      <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
         <ClipboardText size={32} className='text-neutral-1000' />
         <p className='text-neutral-1600 text-paragraph-md font-medium'>
           The Survey Module is disabled for this company
@@ -247,7 +247,7 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
                   <TableCell className='text-sm'>{s.startDate}</TableCell>
                   <TableCell className='text-sm'>{s.endDate}</TableCell>
                   <TableCell>
-                    <Badge variant={s.anonymous ? 'booked' : 'pending'}>
+                    <Badge variant={s.anonymous ? 'open' : 'pending'}>
                       {s.anonymous ? 'Anonymous' : 'Identified'}
                     </Badge>
                   </TableCell>

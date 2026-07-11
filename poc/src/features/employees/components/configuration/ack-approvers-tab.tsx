@@ -390,7 +390,7 @@ function ClassChangeApproversSection({
                   <TableCell>
                     <div className='flex flex-wrap gap-1'>
                       {m.approvers.map((a) => (
-                        <Badge key={a} variant='qualified'>
+                        <Badge key={a} variant='badge_active'>
                           {a}
                         </Badge>
                       ))}

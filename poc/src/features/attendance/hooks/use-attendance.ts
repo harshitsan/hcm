@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { type UploadResult } from '@/components/common/upload-modal'
 import {
   seedAttendance,
   type AttendanceRecord,
@@ -188,21 +189,36 @@ export function useAttendance(actor: string) {
     [compute]
   )
 
-  /** TNA-04 — simulated CSV/XLS import with a success/failure summary. */
+  /**
+   * TNA-04 — CSV/XLS import through the sanctioned UploadModal framework:
+   * the uploaded file is staged, every staged row is validated, the dry-run
+   * reports row-level errors, and only clean rows commit to the register.
+   */
   const importFile = useCallback(
-    (fileName: string) => {
-      const rows: ManualEntryDraft[] = [
-        { employeeId: 'emp-11', date: '2026-07-02', punchIn: '09:05', punchOut: '18:00', workCategory: 'office', comment: '' },
-        { employeeId: 'emp-12', date: '2026-07-02', punchIn: '08:50', punchOut: '17:45', workCategory: 'office', comment: '' },
+    async (file: File): Promise<UploadResult> => {
+      // Staging: rows parsed out of the uploaded file (mock batch — the POC
+      // has no backend, so the staged content is deterministic).
+      const staged: (ManualEntryDraft & { row: number; error?: { fieldName: string; reason: string } })[] = [
+        { row: 2, employeeId: 'emp-11', date: '2026-07-02', punchIn: '09:05', punchOut: '18:00', workCategory: 'office', comment: '' },
+        { row: 3, employeeId: 'ST-9999', date: '2026-07-02', punchIn: '09:00', punchOut: '18:00', workCategory: 'office', comment: '', error: { fieldName: 'Employee ID', reason: 'Unknown employee ID "ST-9999" — no matching roster record' } },
+        { row: 4, employeeId: 'emp-04', date: '2026-07-02', punchIn: '18:10', punchOut: '09:00', workCategory: 'office', comment: '', error: { fieldName: 'Punch out', reason: 'Out-time before in-time — row failed dry-run validation' } },
+        { row: 5, employeeId: 'emp-12', date: '2026-07-02', punchIn: '08:50', punchOut: '17:45', workCategory: 'office', comment: '' },
       ]
-      const imported: AttendanceRecord[] = rows.map((row, i) => ({
+
+      // Validate + dry-run: simulate the round-trip before committing.
+      await new Promise((resolve) => setTimeout(resolve, 900))
+      const failed = staged.filter((r) => r.error)
+      const valid = staged.filter((r) => !r.error)
+
+      // Commit: only rows that passed the dry-run land, tagged "import".
+      const imported: AttendanceRecord[] = valid.map((row, i) => ({
         id: `att-${crypto.randomUUID().slice(0, 6)}-${i}`,
         employeeId: row.employeeId,
         date: row.date,
         punchIn: row.punchIn,
         punchOut: row.punchOut,
         source: 'import' as CaptureSource,
-        origin: fileName,
+        origin: file.name,
         enteredBy: actor,
         shiftName: 'General 9–6',
         nightShift: false,
@@ -228,8 +244,18 @@ export function useAttendance(actor: string) {
       }))
       setRecords((prev) => [...imported, ...prev])
       toast.success(
-        `${fileName}: ${imported.length} rows imported, 2 rows rejected (unknown employee ID "ST-9999", out-time before in-time on row 4)`
+        `${file.name}: ${staged.length} rows staged — dry-run passed ${valid.length}, rejected ${failed.length}; ${valid.length} committed pending approval`
       )
+      return {
+        state: failed.length > 0 ? 'partial' : 'success',
+        successCount: valid.length,
+        failedCount: failed.length,
+        errors: failed.map((r) => ({
+          row: r.row,
+          fieldName: r.error!.fieldName,
+          reason: r.error!.reason,
+        })),
+      }
     },
     [actor, compute]
   )

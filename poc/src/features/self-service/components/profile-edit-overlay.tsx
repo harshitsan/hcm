@@ -113,7 +113,7 @@ export function ProfileEditOverlay({
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             Edit {field.label}
-            {field.isUdf && <Badge variant='open'>UDF</Badge>}
+            {field.isUdf && <Badge variant='open'>Custom field</Badge>}
           </DialogTitle>
         </DialogHeader>
 

@@ -1,4 +1,3 @@
-import { useRole } from '@/context/role-context'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -20,16 +19,18 @@ import { useLoginSession } from './hooks/use-login-session'
  * configuration and the append-only authentication audit log.
  */
 export function Authentication() {
-  const { role } = useRole()
   const audit = useAuthAudit()
   const usersStore = useAuthUsers(audit.logEvent)
   const config = useAuthConfig(audit.logEvent)
-  const sessionStore = useLoginSession(usersStore.users, audit.logEvent)
+  const sessionStore = useLoginSession(
+    usersStore,
+    audit.logEvent,
+    config.currentPolicy,
+    config.mfaCompanyIds
+  )
 
-  // Employees land on their own sign-in & session view; admins land on the
-  // operational user list.
-  const isEmployee = role === 'Employee (User)' || role === 'Employee (Non-User)'
-  const defaultTab = isEmployee ? 'sign-in' : 'users'
+  // Land on the first tab, matching sibling admin screens.
+  const defaultTab = 'sign-in'
 
   return (
     <>
@@ -64,6 +65,7 @@ export function Authentication() {
                 sessionStore={sessionStore}
                 policy={config.currentPolicy}
                 logEvent={audit.logEvent}
+                onPasswordReset={usersStore.completePasswordReset}
               />
             </TabsContent>
 

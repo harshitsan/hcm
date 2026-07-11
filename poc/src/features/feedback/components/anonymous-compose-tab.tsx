@@ -39,7 +39,7 @@ export function AnonymousComposeTab({
 
   if (!config.anonymousEnabled) {
     return (
-      <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+      <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
         <EyeOff size={32} className='text-neutral-1000' />
         <p className='text-neutral-1600 text-paragraph-md font-medium'>
           Anonymous feedback/grievances are not supported

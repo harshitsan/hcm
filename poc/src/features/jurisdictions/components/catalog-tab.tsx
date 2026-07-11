@@ -19,6 +19,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
+import { DetailSheet } from '@/components/module-page'
+import { StatusBadge } from './jurisdiction-badges'
 import { RoleGate, useRole } from '@/context/role-context'
 import {
   JURISDICTION_TYPES,
@@ -58,6 +60,7 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [editing, setEditing] = useState<Jurisdiction | null>(null)
   const [historyFor, setHistoryFor] = useState<Jurisdiction | null>(null)
+  const [detailFor, setDetailFor] = useState<Jurisdiction | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
 
   const refCounts = useMemo(
@@ -127,12 +130,18 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
           </Select>
         </div>
         <div className='flex items-center gap-3'>
+          {selectedRows.length > 0 && (
+            <span className='text-neutral-1000 text-xs'>
+              {selectedRows.length} selected
+            </span>
+          )}
           <Button
             variant='icon2'
             onClick={() => selected && setHistoryFor(selected)}
             className='text-neutral-1900 h-7 w-7'
             disabled={selectedRows.length !== 1}
             aria-label='View history'
+            title='View effective-dated history of the selected jurisdiction'
           >
             <ClockCounterClockwise size={16} weight='bold' />
           </Button>
@@ -147,6 +156,7 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
               className='text-neutral-1900 h-7 w-7'
               disabled={selectedRows.length !== 1}
               aria-label='Edit'
+              title='Edit the selected jurisdiction'
             >
               <PencilSimple size={16} weight='fill' />
             </Button>
@@ -156,6 +166,7 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
               className='text-neutral-1900 h-7 w-7'
               disabled={selectedRows.length !== 1}
               aria-label='Delete or deactivate'
+              title='Delete or deactivate the selected jurisdiction'
             >
               <Trash size={16} weight='bold' />
             </Button>
@@ -187,6 +198,40 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(r) => setSelectedRows(r)}
+        onRowClick={(row) => setDetailFor(row)}
+      />
+
+      <DetailSheet
+        open={detailFor !== null}
+        onOpenChange={(o) => !o && setDetailFor(null)}
+        title={detailFor?.name ?? ''}
+        description={detailFor?.code}
+        badges={detailFor && <StatusBadge status={detailFor.status} />}
+        sections={
+          detailFor
+            ? [
+                {
+                  title: 'Jurisdiction',
+                  fields: [
+                    { label: 'Code', value: detailFor.code },
+                    { label: 'Type', value: detailFor.type },
+                    { label: 'Effective from', value: detailFor.effectiveFrom },
+                    { label: 'Effective to', value: detailFor.effectiveTo ?? 'Open-ended' },
+                  ],
+                },
+                {
+                  title: 'Taxes & fees',
+                  fields:
+                    detailFor.taxFees.length > 0
+                      ? detailFor.taxFees.map((t) => ({
+                          label: t.name,
+                          value: t.rate,
+                        }))
+                      : [{ label: 'Configuration', value: 'Not configured' }],
+                },
+              ]
+            : []
+        }
       />
 
       <JurisdictionOverlay

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { BellRinging, Package } from 'phosphor-react'
+import { BellRinging, Package, Plus } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,16 +21,26 @@ import {
 } from '@/components/ui/table'
 import { type Acknowledgement } from '../data/acknowledgements'
 import { type Asset } from '../data/assets'
-import { SELF_EMPLOYEE_ID, employeeName, formatDate, todayIso } from '../data/org'
+import {
+  EMPLOYEES,
+  HOME_COMPANY,
+  SELF_EMPLOYEE_ID,
+  employeeName,
+  formatDate,
+  todayIso,
+} from '../data/org'
 import { type AssetConfigStore } from '../hooks/use-asset-config'
 import { type AssetsStore } from '../hooks/use-assets'
+import { type RequisitionsStore } from '../hooks/use-requisitions'
 import { daysOverdue } from './asset-columns'
 import { AckDialog } from './ack-dialog'
+import { RequisitionFormOverlay } from './requisition-form-overlay'
 import { AckStatusBadge, AssetStateBadge, OverdueBadge } from './badges'
 
 interface MyAssetsTabProps {
   store: AssetsStore
   config: AssetConfigStore
+  reqStore: RequisitionsStore
 }
 
 /** Employee-facing statuses derived per asset (AST-03). */
@@ -61,8 +71,9 @@ const MY_STATUS_VARIANTS: Record<MyAssetStatus, 'completed' | 'pending' | 'overd
  * selections (AST-04). Each row also surfaces the 'To be returned on' due
  * date so employees can return assets on time (AST-05).
  */
-export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
+export function MyAssetsTab({ store, config, reqStore }: MyAssetsTabProps) {
   const [ackTarget, setAckTarget] = useState<Acknowledgement | null>(null)
+  const [reqFormOpen, setReqFormOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState('All')
   const [fromFilter, setFromFilter] = useState('')
   const [toFilter, setToFilter] = useState('')
@@ -171,7 +182,7 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
           {notifications.map((n) => (
             <div
               key={n.id}
-              className='border-grey-200 flex items-start justify-between gap-3 rounded-[6px] border bg-white p-3'
+              className='border-gray-200 flex items-start justify-between gap-3 rounded-[6px] border bg-white p-3'
             >
               <div className='flex items-start gap-2'>
                 <BellRinging size={18} className='text-orange-1200 mt-0.5 shrink-0' />
@@ -191,12 +202,22 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
       )}
 
       <div>
-        <h2 className='text-neutral-1600 text-paragraph-md mb-2 font-medium'>
-          My asset list ({filteredRows.length}
-          {filteredRows.length !== rows.length ? ` of ${rows.length}` : ''})
-        </h2>
+        <div className='mb-2 flex items-center justify-between'>
+          <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
+            My asset list ({filteredRows.length}
+            {filteredRows.length !== rows.length ? ` of ${rows.length}` : ''})
+          </h2>
+          <Button
+            variant='red'
+            onClick={() => setReqFormOpen(true)}
+            className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
+          >
+            <Plus size={10} weight='bold' />
+            New Requisition
+          </Button>
+        </div>
 
-        <div className='border-grey-200 mb-3 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
+        <div className='border-gray-200 mb-3 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
           <div className='flex flex-col gap-1'>
             <Label className='text-paragraph-sm'>Status</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -253,17 +274,18 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
         </div>
 
         {rows.length === 0 ? (
-          <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+          <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
             <Package size={32} className='text-neutral-1000' />
             <p className='text-neutral-1600 text-paragraph-md font-medium'>
               No assets are allocated to you
             </p>
             <p className='text-paragraph-sm text-neutral-1000'>
-              Raise an asset requisition from the Requisitions tab when you need equipment.
+              Raise an asset requisition with the New Requisition button above (or from the
+              Requests tab) when you need equipment.
             </p>
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+          <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
             <Package size={32} className='text-neutral-1000' />
             <p className='text-neutral-1600 text-paragraph-md font-medium'>
               No assets match the applied filters
@@ -275,7 +297,7 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
             )}
           </div>
         ) : (
-          <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
+          <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -359,7 +381,7 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
           </h2>
           <div className='grid gap-2 lg:grid-cols-2'>
             {completedAcks.map((ack) => (
-              <div key={ack.id} className='border-grey-200 rounded-[6px] border bg-white p-3'>
+              <div key={ack.id} className='border-gray-200 rounded-[6px] border bg-white p-3'>
                 <div className='mb-1 flex items-center gap-1.5'>
                   <span className='text-neutral-1600 text-sm font-medium'>{ack.assetLabel}</span>
                   <Badge variant='open'>{ack.type}</Badge>
@@ -381,6 +403,17 @@ export function MyAssetsTab({ store, config }: MyAssetsTabProps) {
           </div>
         </div>
       )}
+
+      <RequisitionFormOverlay
+        open={reqFormOpen}
+        onOpenChange={setReqFormOpen}
+        categories={config.categories}
+        adminMode={false}
+        employees={EMPLOYEES.filter((e) => e.company === HOME_COMPANY && e.active)}
+        onSubmit={(draft) =>
+          reqStore.raiseRequisition(draft, null, config.approverFor('Requisition'))
+        }
+      />
 
       <AckDialog
         open={ackTarget !== null}

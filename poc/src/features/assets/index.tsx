@@ -47,7 +47,12 @@ export function Assets() {
     return tabs
   }, [isCompanyAdmin, isOversight, isEmployeeUser, isPlatformAdmin])
 
-  const [tab, setTab] = useState(() => takeRequestedTab('/assets') ?? (isEmployeeUser ? 'my-assets' : 'inventory'))
+  // Land on the first visible tab for the role: My Assets for employees,
+  // Requests for Company Admin (pending requisitions await action there),
+  // Inventory for oversight roles that have no Requests tab.
+  const [tab, setTab] = useState(
+    () => takeRequestedTab('/assets') ?? availableTabs[0] ?? 'inventory'
+  )
   const [inventoryView, setInventoryView] = useState<'assets' | 'reports'>('assets')
 
   useEffect(() => {
@@ -62,7 +67,7 @@ export function Assets() {
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
           {isNonUser ? (
-            <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+            <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
               <Package size={32} className='text-neutral-1000' />
               <p className='text-neutral-1600 text-paragraph-md font-medium'>
                 No system access for this workforce type
@@ -104,7 +109,7 @@ export function Assets() {
               </TabsList>
 
               {moduleDisabled && tab !== 'config' ? (
-                <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+                <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
                   <Package size={32} className='text-neutral-1000' />
                   <p className='text-neutral-1600 text-paragraph-md font-medium'>
                     Asset tracking is disabled for this company
@@ -121,7 +126,7 @@ export function Assets() {
                 <>
                   {isEmployeeUser && (
                     <TabsContent value='my-assets'>
-                      <MyAssetsTab store={store} config={config} />
+                      <MyAssetsTab store={store} config={config} reqStore={reqStore} />
                     </TabsContent>
                   )}
                   {(isCompanyAdmin || isEmployeeUser) && (

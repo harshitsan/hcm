@@ -20,6 +20,15 @@ export interface EntityRecordsStore {
     actor: string,
     effectiveDate: string
   ) => void
+  /**
+   * Commit rows that passed the import dry-run (staging → validate →
+   * dry-run → commit). Returns how many value changes were versioned.
+   */
+  importRecordValues: (
+    rows: { recordId: string; updates: Record<string, FieldValue> }[],
+    defs: FieldDefinition[],
+    actor: string
+  ) => number
 }
 
 /**
@@ -85,5 +94,51 @@ export function useEntityRecords(): EntityRecordsStore {
     [records]
   )
 
-  return { records, valueHistory, saveRecordValues }
+  const importRecordValues = useCallback(
+    (
+      rows: { recordId: string; updates: Record<string, FieldValue> }[],
+      defs: FieldDefinition[],
+      actor: string
+    ) => {
+      const todayIso = new Date().toISOString().slice(0, 10)
+      const historyRows: ValueHistoryEntry[] = []
+      for (const { recordId, updates } of rows) {
+        const rec = records.find((r) => r.id === recordId)
+        if (!rec) continue
+        for (const [fieldId, next] of Object.entries(updates)) {
+          const def = defs.find((d) => d.id === fieldId)
+          if (!def) continue
+          const priorText = formatFieldValue(def, rec.values[fieldId] ?? null)
+          const nextText = formatFieldValue(def, next)
+          if (priorText === nextText) continue
+          historyRows.push({
+            id: `vh-${crypto.randomUUID().slice(0, 8)}`,
+            recordId: rec.id,
+            recordName: rec.name,
+            fieldId,
+            fieldName: def.name,
+            priorValue: priorText,
+            newValue: nextText,
+            effectiveDate: todayIso,
+            changedAt: todayIso,
+            changedBy: actor,
+            kind: 'change',
+          })
+        }
+      }
+
+      const byRecord = new Map(rows.map((r) => [r.recordId, r.updates]))
+      setRecords((prev) =>
+        prev.map((r) => {
+          const updates = byRecord.get(r.id)
+          return updates ? { ...r, values: { ...r.values, ...updates } } : r
+        })
+      )
+      if (historyRows.length) setValueHistory((h) => [...historyRows, ...h])
+      return historyRows.length
+    },
+    [records]
+  )
+
+  return { records, valueHistory, saveRecordValues, importRecordValues }
 }

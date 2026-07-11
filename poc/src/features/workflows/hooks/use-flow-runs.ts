@@ -90,7 +90,8 @@ export function useFlowRuns(): { runs: FlowRun[] } {
  * 1. Reads the current artifact snapshot via `getArtifacts()`.
  * 2. Calls `linkedFlows` to find matching flow artifacts.
  * 3. Creates one FlowRun per match and pushes it into the store.
- * 4. Shows a sonner toast per run started.
+ * 4. Shows a sonner toast per run started (suppressed with `quiet` when the
+ *    caller already surfaces its own confirmation).
  *
  * Returns the number of flows triggered (0 = silent).
  */
@@ -99,6 +100,8 @@ export function triggerFormFlows(input: {
   event: string
   summary: string
   requester: string
+  /** Skip the per-run toast — for callers that show their own confirmation. */
+  quiet?: boolean
 }): number {
   const artifacts = getArtifacts()
   const matched = linkedFlows(artifacts, input.module, input.event)
@@ -129,10 +132,12 @@ export function triggerFormFlows(input: {
   flowRunState = [...newRuns, ...flowRunState]
   emitFlowRuns()
 
-  for (const run of newRuns) {
-    toast.success(
-      `Flow "${run.artifactName}" started — see Workflow Engine → Requests`
-    )
+  if (!input.quiet) {
+    for (const run of newRuns) {
+      toast.success(
+        `Flow "${run.artifactName}" started — see Workflow Engine → Requests`
+      )
+    }
   }
 
   return newRuns.length

@@ -108,7 +108,7 @@ export function CustodianDeskTab({
             reminders.map((reminder) => (
               <div
                 key={`${reminder.receipt.id}-${reminder.kind}`}
-                className='border-grey-200 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border px-3 py-2'
+                className='border-gray-200 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border px-3 py-2'
               >
                 <div className='flex flex-col'>
                   <span className='text-neutral-1600 text-sm font-medium'>
@@ -123,7 +123,7 @@ export function CustodianDeskTab({
                 <div className='flex items-center gap-2'>
                   <Badge
                     variant={
-                      reminder.kind === 'return-to-employee' ? 'open' : 'booked'
+                      reminder.kind === 'return-to-employee' ? 'open' : 'open'
                     }
                   >
                     {reminder.kind === 'return-to-employee'

@@ -174,7 +174,7 @@ export function AuditTrailTab({
       />
 
       {isAdmin && (
-        <Card className='border-grey-200 mt-4 w-full border bg-white'>
+        <Card className='border-gray-200 mt-4 w-full border bg-white'>
           <CardHeader className='px-4 pt-4 pb-0'>
             <CardTitle className='text-paragraph-sm text-neutral-1600 font-medium'>
               Security events — blocked tamper &amp; denied-access attempts
@@ -184,11 +184,11 @@ export function AuditTrailTab({
             {securityEvents.map((event) => (
               <div
                 key={event.id}
-                className='border-grey-200 flex flex-wrap items-center gap-2 rounded-[6px] border px-3 py-2'
+                className='border-gray-200 flex flex-wrap items-center gap-2 rounded-[6px] border px-3 py-2'
               >
                 <Badge
                   variant={
-                    event.type === 'tamper-attempt' ? 'disqualified' : 'pending'
+                    event.type === 'tamper-attempt' ? 'dropped' : 'pending'
                   }
                 >
                   {event.type === 'tamper-attempt'

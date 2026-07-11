@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { BellOff, CheckCheck, Mail, Users, Zap } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { BellSlash, Checks, EnvelopeSimple, Lightning, Users } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { RoleGate, useRole } from '@/context/role-context'
+import { requestModuleTab } from '@/features/workflows/data/module-nav'
 import {
   EVENT_TYPES,
   type AppNotification,
@@ -27,6 +29,7 @@ import {
   type EventTypeId,
   type TeamNotification,
 } from '../data/notifications'
+import { resolveRecordLink } from '../data/record-links'
 import { CategoryBadge } from './notification-badges'
 
 interface InboxTabProps {
@@ -39,6 +42,8 @@ interface InboxTabProps {
   markAllRead: () => void
   markReadMany: (ids: string[]) => void
   simulateEvent: (category: EventTypeId, title: string) => void
+  /** Switch to another tab on this page (for records that live here). */
+  openTab: (tab: string) => void
 }
 
 const SIMULATIONS: { category: EventTypeId; title: string }[] = [
@@ -71,8 +76,10 @@ export function InboxTab({
   markAllRead,
   markReadMany,
   simulateEvent,
+  openTab,
 }: InboxTabProps) {
-  const { hasRole } = useRole()
+  const { role, hasRole } = useRole()
+  const navigate = useNavigate()
   const [categoryFilter, setCategoryFilter] = useState<'all' | EventTypeId>('all')
   const [unreadOnly, setUnreadOnly] = useState(false)
   const [search, setSearch] = useState('')
@@ -129,7 +136,21 @@ export function InboxTab({
 
   const openItem = (n: AppNotification) => {
     markRead(n.id)
-    toast.info(`Navigating to ${n.linkedItem} (demo navigation)`)
+    const link = resolveRecordLink(n.linkedItem, role)
+    if (!link) {
+      toast.info(
+        `${n.linkedItem} has no dedicated screen — its items are summarised in this inbox.`
+      )
+      return
+    }
+    if (link.route === '/notifications') {
+      // The record lives on another tab of this page — switch locally.
+      if (link.tab) openTab(link.tab)
+      return
+    }
+    if (link.tab) requestModuleTab(link.route, link.tab)
+    toast.info(`Opening ${n.linkedItem}…`)
+    navigate({ to: link.route })
   }
 
   const nonUserEmails = deliveries.filter((d) => d.recipientType === 'non-user')
@@ -147,7 +168,7 @@ export function InboxTab({
         <Card className='gap-3 border-none bg-white py-4'>
           <CardHeader className='px-4'>
             <CardTitle className='text-paragraph-md text-neutral-1600 flex items-center gap-2 font-medium'>
-              <Mail className='text-blue-1400 size-4' />
+              <EnvelopeSimple className='text-blue-1400 size-4' />
               You receive communications by email
             </CardTitle>
           </CardHeader>
@@ -163,7 +184,7 @@ export function InboxTab({
               {nonUserEmails.map((d) => (
                 <div
                   key={d.id}
-                  className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'
+                  className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'
                 >
                   <div>
                     <p className='text-neutral-1600 text-sm font-medium'>
@@ -184,7 +205,7 @@ export function InboxTab({
       {!inAppEnabled && (
         <Card className='mb-3 gap-2 border-none bg-white py-3'>
           <CardContent className='flex items-center gap-2 px-4'>
-            <BellOff className='text-neutral-1000 size-4' />
+            <BellSlash className='text-neutral-1000 size-4' />
             <p className='text-paragraph-sm text-neutral-1000'>
               In-app notifications are currently disabled for your company —
               no new in-app notifications will appear. Enabled channels (with
@@ -252,7 +273,7 @@ export function InboxTab({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant='outline' className='h-7 gap-1 rounded-[6px] px-2'>
-                <Zap className='size-3.5' />
+                <Lightning className='size-3.5' />
                 Simulate event
               </Button>
             </DropdownMenuTrigger>
@@ -272,7 +293,7 @@ export function InboxTab({
             onClick={markAllRead}
             disabled={unreadCount === 0}
           >
-            <CheckCheck className='size-3.5' />
+            <Checks className='size-3.5' />
             Mark all read
           </Button>
         </div>
@@ -345,7 +366,7 @@ export function InboxTab({
                     {' · '}
                     <span className='inline-flex items-center gap-1'>
                       Delivered via Dashboard + Email
-                      <Mail className='size-3' aria-hidden />
+                      <EnvelopeSimple className='size-3' aria-hidden />
                     </span>
                   </p>
                 </div>

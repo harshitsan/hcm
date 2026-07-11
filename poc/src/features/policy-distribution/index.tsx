@@ -9,6 +9,7 @@ import { DistributionsTab } from './components/distributions-tab'
 import { InboxTab } from './components/inbox-tab'
 import { usePolicyConfig } from './hooks/use-policy-config'
 import { usePolicyDistribution } from './hooks/use-policy-distribution'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 
 const ADMIN_ROLES = [
   'Platform Admin',
@@ -90,6 +91,7 @@ export function PolicyDistribution() {
             )}
             {canConfigure && (
               <TabsContent value='config'>
+                <EngineArtifactsPanel module='Policy Distribution' />
                 <ConfigTab config={config} />
               </TabsContent>
             )}

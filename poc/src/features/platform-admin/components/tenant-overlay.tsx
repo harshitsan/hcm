@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { TENANT_STATUSES, type Tenant } from '../data/tenants'
-import { type TenantsStore, type TenantDraft } from '../hooks/use-tenants'
+import { type TenantsStore, type TenantEditDraft } from '../hooks/use-tenants'
 
 const ARRANGEMENTS = ['standalone', 'portfolio', 'group'] as const
 
@@ -67,7 +67,7 @@ interface TenantOverlayProps {
   onOpenChange: (open: boolean) => void
   tenant?: Tenant | null
   store: TenantsStore
-  onSubmit: (draft: TenantDraft) => void
+  onSubmit: (draft: TenantEditDraft) => void
 }
 
 export function TenantOverlay({
@@ -122,7 +122,7 @@ export function TenantOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[460px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? 'Edit company' : 'Provision new company'}
           </SheetTitle>
@@ -141,7 +141,7 @@ export function TenantOverlay({
                   <FormItem>
                     <FormLabel>Legal name</FormLabel>
                     <FormControl>
-                      <Input placeholder='Acme Industries Pvt Ltd' {...field} />
+                      <Input placeholder='e.g. Acme Industries Pvt Ltd' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -155,7 +155,7 @@ export function TenantOverlay({
                   <FormItem>
                     <FormLabel>Tenant code</FormLabel>
                     <FormControl>
-                      <Input placeholder='ACME-IN' {...field} />
+                      <Input placeholder='e.g. ACME-IN' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -170,7 +170,7 @@ export function TenantOverlay({
                     <FormLabel>
                       Supported jurisdictions (from the platform catalog)
                     </FormLabel>
-                    <div className='border-grey-200 grid grid-cols-2 gap-2 rounded-[6px] border p-3'>
+                    <div className='border-gray-200 grid grid-cols-2 gap-2 rounded-[6px] border p-3'>
                       {store.jurisdictions
                         .filter((j) => j.status === 'available')
                         .map((j) => (
@@ -298,7 +298,12 @@ export function TenantOverlay({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {TENANT_STATUSES.map((s) => (
+                        {/* Suspension only via the suspend flow — needs a
+                            mandatory reason + approval (US-PA-07). */}
+                        {TENANT_STATUSES.filter(
+                          (s) =>
+                            s !== 'suspended' || tenant?.status === 'suspended'
+                        ).map((s) => (
                           <SelectItem key={s} value={s}>
                             {s[0].toUpperCase() + s.slice(1)}
                           </SelectItem>
@@ -311,7 +316,7 @@ export function TenantOverlay({
               />
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

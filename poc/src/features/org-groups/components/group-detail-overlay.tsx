@@ -54,7 +54,7 @@ export function GroupDetailOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[480px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             View group — {group.name}
           </SheetTitle>
@@ -134,7 +134,7 @@ export function GroupDetailOverlay({
                   return (
                     <li
                       key={m.id}
-                      className='border-grey-200 flex items-center justify-between rounded-[6px] border bg-white px-3 py-2'
+                      className='border-gray-200 flex items-center justify-between rounded-[6px] border bg-white px-3 py-2'
                     >
                       <div className='flex min-w-0 flex-col'>
                         <span className='text-neutral-1600 truncate text-sm font-medium'>

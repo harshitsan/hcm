@@ -255,6 +255,68 @@ export const refreshedTimesheetExtras: TimesheetEntry[] = [
 ]
 
 /* ------------------------------------------------------------------ */
+/* My Timesheet Entry — weekly grid (TME)                              */
+/* ------------------------------------------------------------------ */
+
+export const TIMESHEET_PROJECTS = [
+  'Orbital ERP Rollout',
+  'Nimbus Portal',
+  'Internal',
+] as const
+
+/** Type-of-work options for each weekly entry row. */
+export const TYPES_OF_WORK = [
+  'Development',
+  'Support',
+  'Meetings',
+  'Documentation',
+  'Training',
+] as const
+export type TypeOfWork = (typeof TYPES_OF_WORK)[number]
+
+/** Which types of work bill to the client (Internal rows never bill). */
+const BILLABLE_TYPES = new Set<TypeOfWork>(['Development', 'Support'])
+
+export function isBillableWork(project: string, typeOfWork: TypeOfWork) {
+  return project !== 'Internal' && BILLABLE_TYPES.has(typeOfWork)
+}
+
+/** One prefill row for the weekly grid: hours indexed Mon(0) … Sun(6). */
+export interface TimesheetSeedRow {
+  project: (typeof TIMESHEET_PROJECTS)[number]
+  task: string
+  typeOfWork: TypeOfWork
+  hours: number[]
+}
+
+/** What the employee logged last week — the Copy Previous Week source. */
+export const previousWeekTimesheetRows: TimesheetSeedRow[] = [
+  { project: 'Orbital ERP Rollout', task: 'Sprint 14 — API integration', typeOfWork: 'Development', hours: [6.5, 7, 6, 7.5, 5, 0, 0] },
+  { project: 'Nimbus Portal', task: 'UAT defect triage', typeOfWork: 'Support', hours: [1, 0.5, 1.5, 0, 2, 0, 0] },
+  { project: 'Internal', task: 'Standups + sprint ceremonies', typeOfWork: 'Meetings', hours: [0.5, 0.5, 0.5, 0.5, 1, 0, 0] },
+]
+
+/** Rows the project-tracker export contributes via the Import action. */
+export const importedTimesheetRows: TimesheetSeedRow[] = [
+  { project: 'Orbital ERP Rollout', task: 'Sprint 15 — payroll connector fixes', typeOfWork: 'Development', hours: [7, 6.5, 0, 0, 0, 0, 0] },
+  { project: 'Internal', task: 'Security training module 3', typeOfWork: 'Training', hours: [0, 1.5, 0, 0, 0, 0, 0] },
+]
+
+export const ENTRY_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+
+/** ISO dates Mon → Sun for the week containing today (local timezone). */
+export function currentWeekDays(): string[] {
+  const now = new Date()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+  return ENTRY_DAY_LABELS.map((_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    return localIso(d)
+  })
+}
+
+/* ------------------------------------------------------------------ */
 /* Timesheet Utilization Summary (TUS-06 / TUS-07)                     */
 /* ------------------------------------------------------------------ */
 

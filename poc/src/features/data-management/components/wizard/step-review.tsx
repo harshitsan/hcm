@@ -66,7 +66,7 @@ export function StepReview({
     [
       'Effective dating',
       values.preserveEffectiveDates
-        ? 'Preserved (bitemporal history)'
+        ? 'Preserved (full change history)'
         : 'Load date used',
     ],
   ]

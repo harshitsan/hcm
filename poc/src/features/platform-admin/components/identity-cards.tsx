@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
+import { type PersonRecord } from '../data/identity'
 import { type Tenant } from '../data/tenants'
 import { type IdentityStore } from '../hooks/use-identity'
 import { MiniTable, SectionCard, ToneBadge } from './shared'
@@ -19,10 +22,18 @@ export function PersonRecordsCard({
 }) {
   const { hasRole } = useRole()
   const canAdmin = hasRole('Company Admin', 'Platform Admin')
+  const [terminating, setTerminating] = useState<PersonRecord | null>(null)
   const tenantCode = (id: string) =>
     tenants.find((t) => t.id === id)?.code ?? id
   const userEmail = (id: string | null) =>
     id ? identity.systemUsers.find((u) => u.id === id)?.email : null
+
+  /** Other engagements of the same physical person — these continue. */
+  const otherEngagements = terminating
+    ? identity.personRecords.filter(
+        (r) => r.personKey === terminating.personKey && r.id !== terminating.id
+      )
+    : []
 
   return (
     <SectionCard
@@ -63,7 +74,7 @@ export function PersonRecordsCard({
               <Button
                 variant='outline'
                 className='h-7 px-2 text-xs'
-                onClick={() => identity.terminateEngagement(r.id)}
+                onClick={() => setTerminating(r)}
               >
                 Terminate
               </Button>
@@ -76,6 +87,47 @@ export function PersonRecordsCard({
         by exactly one company. Non-user records run through reporting and
         lifecycle actions identically to user-mapped records.
       </p>
+
+      {/* Named-consequence confirmation before terminating (critical UX fix) */}
+      <ConfirmDialog
+        open={terminating !== null}
+        onOpenChange={(open) => {
+          if (!open) setTerminating(null)
+        }}
+        destructive
+        title={`Terminate ${terminating?.personName ?? 'this'} engagement?`}
+        desc={
+          terminating ? (
+            <>
+              This ends <b>{terminating.personName}</b>&apos;s{' '}
+              {terminating.workforceType} engagement as{' '}
+              <b>{terminating.position}</b> at{' '}
+              <b>{tenantCode(terminating.tenantId)}</b>.{' '}
+              {otherEngagements.length > 0 ? (
+                <>
+                  Their {otherEngagements.length} other engagement
+                  {otherEngagements.length > 1 ? 's' : ''} (
+                  {otherEngagements
+                    .map((r) => `${tenantCode(r.tenantId)} — ${r.position}`)
+                    .join('; ')}
+                  ) continue unaffected.
+                </>
+              ) : (
+                <>This is their only engagement on the platform.</>
+              )}{' '}
+              The record is retained for reporting and cannot be reactivated
+              from here.
+            </>
+          ) : (
+            ''
+          )
+        }
+        confirmText='Terminate engagement'
+        handleConfirm={() => {
+          if (terminating) identity.terminateEngagement(terminating.id)
+          setTerminating(null)
+        }}
+      />
     </SectionCard>
   )
 }
@@ -96,7 +148,7 @@ export function RolesCard({ identity }: { identity: IdentityStore }) {
           <button
             key={set.id}
             type='button'
-            className='border-grey-200 hover:bg-neutral-200 flex items-center gap-2 rounded-[6px] border px-2 py-1 text-left'
+            className='border-gray-200 hover:bg-neutral-200 flex items-center gap-2 rounded-[6px] border px-2 py-1 text-left'
             onClick={() => {
               if (hasRole('Company Admin', 'Platform Admin'))
                 identity.touchPermissionSet(set.id)

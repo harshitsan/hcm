@@ -217,9 +217,9 @@ export function QuadrantTab({ store }: { store: PerformanceStore }) {
                   <Badge
                     variant={
                       r.quadrant === 'Key Members'
-                        ? 'qualified'
+                        ? 'badge_active'
                         : r.quadrant === 'Bad Performers'
-                          ? 'disqualified'
+                          ? 'dropped'
                           : 'open'
                     }
                   >

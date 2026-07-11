@@ -4,7 +4,7 @@ import {
   GalleryVerticalEnd,
 } from 'lucide-react'
 import { MODULE_REGISTRY, type SidebarGroup } from '@/config/module-registry'
-import { type SidebarData, type NavGroup } from '../types'
+import { type SidebarData, type NavGroup, type NavItem } from '../types'
 
 /** Sidebar groups that appear in navGroups (in display order). */
 const NAV_GROUP_ORDER: SidebarGroup[] = [
@@ -29,9 +29,24 @@ const GROUP_TITLE: Record<SidebarGroup, string> = {
 }
 
 function buildNavGroup(group: SidebarGroup): NavGroup {
-  const items = MODULE_REGISTRY
+  const items: NavItem[] = MODULE_REGISTRY
     .filter((m) => m.group === group)
-    .map((m) => ({ title: m.name, url: m.route, icon: m.icon }))
+    .map((m) => {
+      // Submodules with a standalone route (e.g. /employees/configuration)
+      // render as sidebar sub-links so the pages are reachable from nav.
+      const routed = m.submodules.filter((s) => s.route)
+      if (routed.length > 0) {
+        return {
+          title: m.name,
+          icon: m.icon,
+          items: [
+            { title: m.name, url: m.route },
+            ...routed.map((s) => ({ title: s.label, url: s.route! })),
+          ],
+        }
+      }
+      return { title: m.name, url: m.route, icon: m.icon }
+    })
   return { title: GROUP_TITLE[group], items }
 }
 

@@ -97,7 +97,7 @@ export function ComplianceRollups({ assignments }: { assignments: Assignment[] }
           ? 'Portfolio compliance drill-down'
           : 'Per-company rollup (group-wide)'}
       </h3>
-      <div className='border-grey-200 rounded-[6px] border bg-white'>
+      <div className='border-gray-200 rounded-[6px] border bg-white'>
         <Table>
           <TableHeader>
             <TableRow>

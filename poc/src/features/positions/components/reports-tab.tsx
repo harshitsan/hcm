@@ -124,7 +124,7 @@ export function ReportsTab({
                   No positions defined in this department.
                 </p>
               ) : (
-                <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+                <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
                   {rows.map(({ position, holders }) => (
                     <div key={position.id} className='px-3 py-2'>
                       <div className='flex items-center justify-between gap-2'>

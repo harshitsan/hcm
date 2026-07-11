@@ -208,7 +208,7 @@ export function SurveyListPanel({ store }: { store: SurveysStore }) {
                 <TableCell className='text-sm'>{s.startDate}</TableCell>
                 <TableCell className='text-sm'>{s.endDate}</TableCell>
                 <TableCell>
-                  <Badge variant={s.anonymous ? 'booked' : 'pending'}>
+                  <Badge variant={s.anonymous ? 'open' : 'pending'}>
                     {s.anonymous ? 'Anonymous' : 'Identified'}
                   </Badge>
                 </TableCell>

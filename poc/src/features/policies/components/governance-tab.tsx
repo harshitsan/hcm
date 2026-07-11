@@ -38,7 +38,7 @@ export function GovernanceTab({ store }: { store: PoliciesStore }) {
           </p>
         </CardHeader>
         <CardContent className='px-4'>
-          <div className='border-grey-200 divide-grey-200 divide-y rounded-[6px] border'>
+          <div className='border-gray-200 divide-grey-200 divide-y rounded-[6px] border'>
             <div className='grid grid-cols-[1fr_110px_110px] gap-2 px-3 py-2'>
               <span className='text-neutral-1000 text-sm'>Role</span>
               <span className='text-neutral-1000 text-sm'>Maintain</span>
@@ -86,7 +86,7 @@ export function GovernanceTab({ store }: { store: PoliciesStore }) {
           </p>
         </CardHeader>
         <CardContent className='px-4'>
-          <div className='border-grey-200 divide-grey-200 divide-y rounded-[6px] border'>
+          <div className='border-gray-200 divide-grey-200 divide-y rounded-[6px] border'>
             {LINKED_MODULES.map((module) => (
               <div
                 key={module}
@@ -122,7 +122,7 @@ export function GovernanceTab({ store }: { store: PoliciesStore }) {
         </CardHeader>
         <CardContent className='space-y-2 px-4'>
           {store.notifications.map((n) => (
-            <div key={n.id} className='border-grey-200 rounded-[6px] border p-2.5'>
+            <div key={n.id} className='border-gray-200 rounded-[6px] border p-2.5'>
               <div className='flex items-center justify-between gap-2'>
                 <span className='text-neutral-1600 text-sm font-medium'>
                   {n.editionName}
@@ -157,7 +157,7 @@ export function GovernanceTab({ store }: { store: PoliciesStore }) {
           </p>
         </CardHeader>
         <CardContent className='px-4'>
-          <div className='border-grey-200 divide-grey-200 divide-y rounded-[6px] border'>
+          <div className='border-gray-200 divide-grey-200 divide-y rounded-[6px] border'>
             {store.auditLog.map((entry) => (
               <div
                 key={entry.id}

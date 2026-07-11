@@ -31,7 +31,7 @@ export function SurveyDetailSheet({ survey, open, onOpenChange }: SurveyDetailSh
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[440px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {survey?.title ?? 'Survey'}
           </SheetTitle>
@@ -40,7 +40,7 @@ export function SurveyDetailSheet({ survey, open, onOpenChange }: SurveyDetailSh
           <div className='flex-1 space-y-4 overflow-y-auto px-5 py-4'>
             <div>
               <p className='text-neutral-1600 mb-1 text-sm font-medium'>Configuration</p>
-              <div className='border-grey-200 divide-grey-200 divide-y rounded-[6px] border px-3'>
+              <div className='border-gray-200 divide-grey-200 divide-y rounded-[6px] border px-3'>
                 <DetailRow
                   label='Status'
                   value={
@@ -53,7 +53,7 @@ export function SurveyDetailSheet({ survey, open, onOpenChange }: SurveyDetailSh
                 <DetailRow
                   label='Anonymity'
                   value={
-                    <Badge variant={survey.anonymous ? 'booked' : 'pending'}>
+                    <Badge variant={survey.anonymous ? 'open' : 'pending'}>
                       {survey.anonymous ? 'Anonymous' : 'Identified'}
                     </Badge>
                   }
@@ -74,7 +74,7 @@ export function SurveyDetailSheet({ survey, open, onOpenChange }: SurveyDetailSh
             <div>
               <p className='text-neutral-1600 mb-1 text-sm font-medium'>Results</p>
               {hasResults ? (
-                <div className='border-grey-200 divide-grey-200 divide-y rounded-[6px] border px-3'>
+                <div className='border-gray-200 divide-grey-200 divide-y rounded-[6px] border px-3'>
                   <DetailRow label='Invitations sent' value='248' />
                   <DetailRow
                     label='Responses received'

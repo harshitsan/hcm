@@ -61,6 +61,8 @@ export type State = {
   loadExternal: (doc: WorkflowDoc, source: DocSource) => void
   /** Record that the active doc is published as this catalog artifact. */
   linkArtifact: (source: DocSource) => void
+  /** Publishing clears the Draft badge — the canvas now mirrors the catalog. */
+  markPublished: () => void
   /** Starts a test run; optional JSON overrides the trigger's sample payload.
       Returns an error message if the JSON is invalid (run not started). */
   startTestRun: (payloadJson?: string) => string | null
@@ -300,6 +302,11 @@ export function createDesignerStore(opts?: {
       const { doc, sources } = get()
       set({ sources: { ...sources, [doc.id]: source }, activeSource: source })
     },
+
+    // Any later edit drops the doc back to draft via apply(), so the badge
+    // stays honest: Active = what the catalog has, Draft = unpublished edits.
+    markPublished: () =>
+      set(s => ({ doc: { ...s.doc, status: 'active' }, issues: [] })),
 
     startTestRun: (payloadJson?: string) => {
       let payloadOverride: unknown

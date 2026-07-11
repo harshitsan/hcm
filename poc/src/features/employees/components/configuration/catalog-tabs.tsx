@@ -336,7 +336,7 @@ export function CatalogTab({ store }: { store: ConfigurationStore }) {
                   <TableCell className='font-medium'>{v.name}</TableCell>
                   <TableCell>{v.applicableAt}</TableCell>
                   <TableCell>
-                    <Badge variant={v.recurring ? 'qualified' : 'pending'}>
+                    <Badge variant={v.recurring ? 'badge_active' : 'pending'}>
                       {v.recurring ? 'Recurring' : 'One-time'}
                     </Badge>
                   </TableCell>

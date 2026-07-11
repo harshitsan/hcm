@@ -134,7 +134,7 @@ export function GroupsTab({ store, groups }: GroupsTabProps) {
                         </span>
                         <Badge
                           variant={
-                            m.relationship === 'Parent' ? 'qualified' : 'pending'
+                            m.relationship === 'Parent' ? 'badge_active' : 'pending'
                           }
                         >
                           {m.relationship}

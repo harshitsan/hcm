@@ -333,7 +333,7 @@ export function DirectoryTab({
               className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
             >
               <Plus size={10} weight='bold' />
-              Create Company
+              New Company
             </Button>
           </RoleGate>
         </div>

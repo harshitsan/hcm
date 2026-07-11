@@ -27,7 +27,7 @@ export function ChartCard({
 }: ChartCardProps) {
   return (
     <Card className={cn('gap-0 py-0', className)}>
-      <div className='border-grey-200 flex items-start justify-between gap-3 border-b px-5 py-4'>
+      <div className='border-gray-200 flex items-start justify-between gap-3 border-b px-5 py-4'>
         <div className='min-w-0'>
           <h3 className='text-paragraph-md text-neutral-1600 truncate font-semibold'>
             {title}

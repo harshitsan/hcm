@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { companyName } from '../data/companies'
 import { AUTH_METHOD_LABELS, type AuthMethod } from '../data/auth-users'
 import {
   seedMethodConfigs,
+  seedMfaCompanyIds,
   seedPolicyVersions,
   seedTemplates,
   type AuthMethodConfig,
@@ -24,6 +26,8 @@ export function useAuthConfig(logEvent: (draft: AuditEventDraft) => void) {
     useState<PasswordPolicyVersion[]>(seedPolicyVersions)
   const [templates, setTemplates] =
     useState<NotificationTemplate[]>(seedTemplates)
+  const [mfaCompanyIds, setMfaCompanyIds] =
+    useState<string[]>(seedMfaCompanyIds)
 
   const enabledMethods = useMemo(
     () => methods.filter((m) => m.enabled).map((m) => m.method),
@@ -106,6 +110,27 @@ export function useAuthConfig(logEvent: (draft: AuditEventDraft) => void) {
     [logEvent]
   )
 
+  /** Per-company MFA requirement (BRD 6.12.5) — enforced at sign-in. */
+  const toggleMfaCompany = useCallback(
+    (companyId: string, actor: string) => {
+      const enabled = !mfaCompanyIds.includes(companyId)
+      setMfaCompanyIds((prev) =>
+        enabled ? [...prev, companyId] : prev.filter((id) => id !== companyId)
+      )
+      logEvent({
+        actor,
+        eventType: 'config-change',
+        companyId,
+        outcome: 'info',
+        detail: `Multi-factor authentication ${enabled ? 'now required' : 'no longer required'} for ${companyName(companyId)} sign-ins.`,
+      })
+      toast.success(
+        `MFA ${enabled ? 'enabled' : 'disabled'} for ${companyName(companyId)}`
+      )
+    },
+    [mfaCompanyIds, logEvent]
+  )
+
   const customizeTemplate = useCallback(
     (id: string, subject: string, actor: string) => {
       setTemplates((prev) =>
@@ -143,6 +168,8 @@ export function useAuthConfig(logEvent: (draft: AuditEventDraft) => void) {
     policyVersions,
     currentPolicy,
     savePolicy,
+    mfaCompanyIds,
+    toggleMfaCompany,
     templates,
     customizeTemplate,
     sendTestNotification,

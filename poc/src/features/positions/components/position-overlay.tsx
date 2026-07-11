@@ -30,13 +30,16 @@ import {
 import type { PositionDraft } from '../hooks/use-positions'
 
 const positionFormSchema = z.object({
-  name: z.string().min(2, 'Position name is required'),
+  name: z.string().trim().min(2, 'Enter a position name of at least 2 characters'),
   // Exactly one department is mandatory (POS-02).
   departmentId: z.string().min(1, 'Select the department this position belongs to'),
   // Level may be left blank without blocking creation (POS-19).
-  level: z.string().regex(/^\d*$/, 'Level must be a whole number'),
-  status: z.enum(POSITION_STATUSES),
-  customFields: z.record(z.string(), z.string()),
+  level: z.string().regex(/^\d*$/, 'Level must be a whole number, e.g. 1, 2 or 3'),
+  status: z.enum(POSITION_STATUSES, 'Choose Active or Inactive'),
+  // Tenant custom fields are never required: untouched inputs arrive as
+  // undefined, so values must be optional or empty submits would fail with
+  // a generic "Invalid input" under each custom field (worklist #29).
+  customFields: z.record(z.string(), z.string().optional()),
 })
 
 type PositionFormValues = z.infer<typeof positionFormSchema>
@@ -104,13 +107,20 @@ export function PositionOverlay({
       })
       return
     }
+    // Keep only custom fields that were actually filled in; blanks are
+    // simply "not set" rather than stored as empty strings.
+    const customFields: Record<string, string> = {}
+    for (const [key, value] of Object.entries(values.customFields)) {
+      const trimmed = value?.trim()
+      if (trimmed) customFields[key] = trimmed
+    }
     onSubmit({
       name: values.name.trim(),
       companyId,
       departmentId: values.departmentId,
       level,
       status: values.status,
-      customFields: values.customFields,
+      customFields,
     })
     onOpenChange(false)
   }
@@ -118,7 +128,7 @@ export function PositionOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[460px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? `Edit ${position?.id}` : 'New position'}
           </SheetTitle>
@@ -262,7 +272,7 @@ export function PositionOverlay({
               )}
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>

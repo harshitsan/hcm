@@ -44,16 +44,17 @@ export function CatalogTab({
   const [running, setRunning] = useState<ReportDef | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const visible = useMemo(
-    () =>
-      reports.filter(
-        (r) =>
-          r.enabled &&
-          (category === 'all' || r.category === category) &&
-          r.name.toLowerCase().includes(search.toLowerCase())
-      ),
-    [reports, category, search]
-  )
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return reports.filter(
+      (r) =>
+        r.enabled &&
+        (category === 'all' || r.category === category) &&
+        (q === '' ||
+          r.name.toLowerCase().includes(q) ||
+          r.description.toLowerCase().includes(q))
+    )
+  }, [reports, category, search])
 
   const grouped = useMemo(
     () =>
@@ -75,7 +76,10 @@ export function CatalogTab({
         <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
           Standard Report Catalog ({visible.length})
           <span className='text-neutral-1000 ml-2 text-xs'>
-            scope: {companies.join(', ')}
+            scope:{' '}
+            {companies.length > 0
+              ? companies.join(', ')
+              : 'none (no active grants)'}
           </span>
         </h2>
         <div className='flex items-center gap-2'>

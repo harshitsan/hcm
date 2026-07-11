@@ -50,7 +50,7 @@ export function TentativeBadge() {
 export function LopBadge({ amount, unit }: { amount: number; unit: string }) {
   return (
     <Badge variant='dropped'>
-      LOP {amount} {unit}
+      Loss of Pay {amount} {unit}
     </Badge>
   )
 }

@@ -76,7 +76,7 @@ export const jobsTableColumns: ColumnDef<DataJob>[] = [
     size: 70,
     cell: ({ row }) => (
       <Badge
-        variant={row.original.kind === 'import' ? 'open' : 'qualified'}
+        variant={row.original.kind === 'import' ? 'open' : 'badge_active'}
         className='capitalize'
       >
         {row.original.kind}

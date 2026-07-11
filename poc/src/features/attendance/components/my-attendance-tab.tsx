@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { Info } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -11,18 +10,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { type AttendanceException, type AttendanceRecord } from '../data/attendance'
+import { type CorrectionKind } from '../data/requests'
 import {
   CURRENT_EMPLOYEE_ID,
   employeeById,
+  employeeName,
+  fmtBreaks,
   fmtDate,
   fmtHours,
   todayIso,
 } from '../data/shared'
 import { type AttendanceConfigStore } from '../hooks/use-attendance-config'
 import { type AttendanceStore } from '../hooks/use-attendance'
+import { type RequestsStore } from '../hooks/use-requests'
 import { type ShiftsStore } from '../hooks/use-shifts'
 import { StatusBadge } from './badges'
+import { CorrectionDialog, type CorrectionPrefill } from './correction-dialog'
 import { SummaryCards } from './summary-cards'
+
+const EXCEPTION_LABEL: Record<AttendanceException, string> = {
+  'missed-punch': 'Missed punch',
+  'late-arrival': 'Late arrival',
+  'early-exit': 'Early exit',
+  'over-break': 'Over break',
+}
+
+/** Map an attendance exception onto the correction-request kinds (TNA-11). */
+function correctionKindFor(exception: AttendanceException): CorrectionKind {
+  return exception === 'over-break' ? 'missed-punch' : exception
+}
 
 /**
  * Employee self-service (TNA-17/28/42/48): my attendance breakdown with
@@ -33,16 +50,37 @@ export function MyAttendanceTab({
   attendance,
   shifts,
   config,
+  requests,
+  payrollCutoffDay,
 }: {
   attendance: AttendanceStore
   shifts: ShiftsStore
   config: AttendanceConfigStore
+  requests: RequestsStore
+  payrollCutoffDay: number
 }) {
   const [from, setFrom] = useState('2026-06-01')
   const [to, setTo] = useState('2026-07-31')
   const [assignStatus, setAssignStatus] = useState('all')
+  const [correctionFor, setCorrectionFor] = useState<AttendanceRecord | null>(null)
 
   const me = employeeById(CURRENT_EMPLOYEE_ID)
+
+  // Pre-fill the correction flow with the flagged day's record (TNA-11).
+  const correctionPrefill = useMemo<CorrectionPrefill | undefined>(
+    () =>
+      correctionFor
+        ? {
+            date: correctionFor.date,
+            kind: correctionFor.exception
+              ? correctionKindFor(correctionFor.exception)
+              : 'missed-punch',
+            requestedIn: correctionFor.punchIn,
+            requestedOut: correctionFor.punchOut ?? '18:00',
+          }
+        : undefined,
+    [correctionFor]
+  )
 
   const myRecords = useMemo(
     () =>
@@ -85,17 +123,6 @@ export function MyAttendanceTab({
           { label: 'Exceptions', value: exceptions },
         ]}
       />
-
-      {/* Metadata-driven presentation note (TNA-28) */}
-      <div className='flex items-start gap-2 rounded-[8px] border border-gray-200 bg-white px-3 py-2'>
-        <Info size={16} weight='bold' className='text-neutral-1000 mt-0.5 shrink-0' />
-        <p className='text-paragraph-sm text-neutral-1000'>
-          These screens render from tenant metadata: fields, validations,
-          labels and this grid&apos;s search, filter, sort and pagination are
-          configuration-driven, themed per tenant with role-appropriate
-          navigation.
-        </p>
-      </div>
 
       {/* My attendance details (TNA-17/48) */}
       <div>
@@ -143,6 +170,7 @@ export function MyAttendanceTab({
                 <th className='px-2 font-medium'>Effective</th>
                 <th className='px-2 font-medium'>Category</th>
                 <th className='px-2 font-medium'>Status</th>
+                <th className='px-2 font-medium'>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -154,19 +182,35 @@ export function MyAttendanceTab({
                     {r.punchIn} → {r.punchOut ?? 'missing'}
                   </td>
                   <td className='px-2'>{fmtHours(r.workedHours)}</td>
-                  <td className='px-2'>
-                    {r.breaksCount} · {r.breakMinutes}m
-                  </td>
+                  <td className='px-2'>{fmtBreaks(r.breaksCount, r.breakMinutes)}</td>
                   <td className='px-2 font-medium'>{fmtHours(r.effectiveHours)}</td>
                   <td className='px-2 capitalize'>{r.workCategory.replace(/-/g, ' ')}</td>
                   <td className='px-2'>
                     <StatusBadge status={r.status} />
+                    {r.exception && (
+                      <span className='text-neutral-1000 block text-xs'>
+                        {EXCEPTION_LABEL[r.exception]}
+                      </span>
+                    )}
+                  </td>
+                  <td className='px-2'>
+                    {r.exception ? (
+                      <Button
+                        variant='outline'
+                        className='h-6 px-2 text-xs'
+                        onClick={() => setCorrectionFor(r)}
+                      >
+                        Raise correction
+                      </Button>
+                    ) : (
+                      <span className='text-neutral-1000'>—</span>
+                    )}
                   </td>
                 </tr>
               ))}
               {myRecords.length === 0 && (
                 <tr>
-                  <td colSpan={8} className='text-neutral-1000 py-3 text-center'>
+                  <td colSpan={9} className='text-neutral-1000 py-3 text-center'>
                     No attendance in the selected period.
                   </td>
                 </tr>
@@ -298,6 +342,16 @@ export function MyAttendanceTab({
           )}
         </div>
       </div>
+
+      <CorrectionDialog
+        open={correctionFor !== null}
+        onOpenChange={(open) => !open && setCorrectionFor(null)}
+        employeeId={CURRENT_EMPLOYEE_ID}
+        requestedBy={employeeName(CURRENT_EMPLOYEE_ID)}
+        afterPayrollCutoff={new Date().getDate() > payrollCutoffDay}
+        onSubmit={requests.submitCorrection}
+        prefill={correctionPrefill}
+      />
     </div>
   )
 }

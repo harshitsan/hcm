@@ -126,7 +126,7 @@ export function DeliveryLogTab({
           {deadLetters.map((d) => (
             <div
               key={d.id}
-              className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'
+              className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'
             >
               <div>
                 <div className='flex items-center gap-2'>

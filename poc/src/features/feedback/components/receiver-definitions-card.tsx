@@ -171,7 +171,7 @@ export function ReceiverDefinitionsCard({
                       <span className='text-neutral-1000 text-sm'>—</span>
                     )}
                     {r.applicableRoles.map((role) => (
-                      <Badge key={role} variant='booked'>
+                      <Badge key={role} variant='open'>
                         {role}
                       </Badge>
                     ))}
@@ -196,7 +196,7 @@ export function ReceiverDefinitionsCard({
         </Table>
 
         {adding && (
-          <div className='border-grey-200 space-y-3 rounded-[8px] border bg-white p-3'>
+          <div className='border-gray-200 space-y-3 rounded-[8px] border bg-white p-3'>
             <p className='text-neutral-1600 text-sm font-semibold'>
               Add New Feedback/Grievance Receivers
             </p>

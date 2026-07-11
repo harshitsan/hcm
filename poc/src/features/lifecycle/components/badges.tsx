@@ -30,6 +30,11 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeVariant }> = {
   'clearance-in-progress': { label: 'Clearance In Progress', variant: 'open' },
   finalized: { label: 'Finalized', variant: 'completed' },
   cleared: { label: 'Cleared', variant: 'completed' },
+  // layoffs
+  withdrawn: { label: 'Withdrawn', variant: 'dropped' },
+  exited: { label: 'Exited', variant: 'completed' },
+  // new joinees
+  'pending-initiation': { label: 'Pending Initiation', variant: 'pending' },
   // documents
   missing: { label: 'Missing', variant: 'badge_inactive' },
   submitted: { label: 'Submitted', variant: 'open' },

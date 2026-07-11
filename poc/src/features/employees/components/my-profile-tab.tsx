@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
-import { Plus, Trash } from 'phosphor-react'
+import { FloppyDisk, Plus, Trash } from 'phosphor-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -11,7 +12,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { CustomFieldsSection } from '@/features/custom-fields/components/custom-fields-section'
+import {
+  CustomFieldsSection,
+  validateCustomFields,
+} from '@/features/custom-fields/components/custom-fields-section'
 import { type FieldValue } from '@/features/custom-fields/data/records'
 import {
   companyGroup,
@@ -21,6 +25,10 @@ import {
 import { LIFE_EVENT_TYPES, seedDependantTypes } from '../data/configuration'
 import { type EmployeesStore } from '../hooks/use-employees'
 import { useProfileExtras } from '../hooks/use-profile-extras'
+import {
+  getProfileFieldValues,
+  saveProfileFieldValues,
+} from '../hooks/use-profile-field-values'
 import { ClientFeedbackSection } from './profile/client-feedback-section'
 import { ContactInfoSection } from './profile/contact-info-section'
 import { EducationSection } from './profile/education-section'
@@ -28,6 +36,21 @@ import { PersonalInfoSection } from './profile/personal-info-section'
 import { SkillsSection } from './profile/skills-section'
 import { WorkExperienceSection } from './profile/work-experience-section'
 import { InfoField, SectionTitle, StatusBadge } from './shared'
+
+/** Anchor targets for the profile's in-page section navigation. */
+const PROFILE_SECTIONS = [
+  { id: 'profile-placement', label: 'Placement' },
+  { id: 'profile-reporting', label: 'Reporting & leave' },
+  { id: 'profile-statutory', label: 'Statutory' },
+  { id: 'profile-dependants', label: 'Dependants & events' },
+  { id: 'profile-personal', label: 'Personal info' },
+  { id: 'profile-contact', label: 'Contact & address' },
+  { id: 'profile-education', label: 'Education' },
+  { id: 'profile-experience', label: 'Work experience' },
+  { id: 'profile-skills', label: 'Skills & certifications' },
+  { id: 'profile-feedback', label: 'Client feedback' },
+  { id: 'profile-custom', label: 'Custom fields' },
+] as const
 
 /**
  * Employee (User) self-service: my organizational placement (EMP-13), my
@@ -46,11 +69,40 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
   const [eventType, setEventType] = useState('')
   const [eventDate, setEventDate] = useState('')
   const [eventDetails, setEventDetails] = useState('')
-  // A6: employee-level custom field values (employee profile form).
-  const [customValues, setCustomValues] = useState<Record<string, FieldValue>>({})
+  // A6: employee-level custom field values (employee profile form) — draft
+  // starts from the last saved snapshot; Save validates then persists.
+  const [customValues, setCustomValues] = useState<Record<string, FieldValue>>(
+    () => ({ ...getProfileFieldValues() })
+  )
+  const [customErrors, setCustomErrors] = useState<Record<string, string>>({})
   const handleCustomChange = useCallback((fieldId: string, value: FieldValue) => {
     setCustomValues((prev) => ({ ...prev, [fieldId]: value }))
+    setCustomErrors((prev) => {
+      if (!(fieldId in prev)) return prev
+      const next = { ...prev }
+      delete next[fieldId]
+      return next
+    })
   }, [])
+
+  const saveCustomFields = () => {
+    const errors = validateCustomFields('Employees', customValues, 'employee')
+    setCustomErrors(errors)
+    const count = Object.keys(errors).length
+    if (count > 0) {
+      toast.error(
+        `Cannot save — fix ${count} field${count === 1 ? '' : 's'} highlighted below`
+      )
+      return
+    }
+    saveProfileFieldValues(customValues)
+    toast.success('Custom profile fields saved to your employee record')
+  }
+
+  const jumpTo = (id: string) =>
+    document
+      .getElementById(id)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   if (!me) {
     return (
@@ -92,8 +144,27 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
 
   return (
     <div className='space-y-5'>
+      <nav
+        aria-label='Profile sections'
+        className='sticky top-0 z-10 flex flex-wrap items-center gap-1.5 rounded-[8px] border border-gray-200 bg-white p-2'
+      >
+        <span className='text-paragraph-sm text-neutral-1000 px-1 font-medium'>
+          Jump to:
+        </span>
+        {PROFILE_SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            type='button'
+            onClick={() => jumpTo(s.id)}
+            className='text-neutral-1000 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-xs font-medium transition-colors hover:border-gray-300 hover:text-black'
+          >
+            {s.label}
+          </button>
+        ))}
+      </nav>
+
       <div className='grid gap-5 lg:grid-cols-2'>
-      <Card className='border-gray-200'>
+      <Card id='profile-placement' className='scroll-mt-16 border-gray-200'>
         <CardContent className='space-y-4 pt-4'>
           <SectionTitle>My organizational placement (view only)</SectionTitle>
           <div className='grid grid-cols-2 gap-4'>
@@ -119,7 +190,7 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
         </CardContent>
       </Card>
 
-      <Card className='border-gray-200'>
+      <Card id='profile-reporting' className='scroll-mt-16 border-gray-200'>
         <CardContent className='space-y-4 pt-4'>
           <SectionTitle>My reporting structure (as of today)</SectionTitle>
           <div className='space-y-2'>
@@ -130,7 +201,7 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
                   Effective {me.managerEffectiveDate}
                 </p>
               </div>
-              <Badge variant='qualified'>Primary manager</Badge>
+              <Badge variant='badge_active'>Primary manager</Badge>
             </div>
             {me.dottedLineManagers.map((m) => (
               <div
@@ -173,7 +244,7 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
         </CardContent>
       </Card>
 
-      <Card className='border-gray-200'>
+      <Card id='profile-statutory' className='scroll-mt-16 border-gray-200'>
         <CardContent className='space-y-4 pt-4'>
           <SectionTitle>My statutory data (read-only)</SectionTitle>
           <div className='grid grid-cols-2 gap-4'>
@@ -207,7 +278,7 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
         </CardContent>
       </Card>
 
-      <Card className='border-gray-200'>
+      <Card id='profile-dependants' className='scroll-mt-16 border-gray-200'>
         <CardContent className='space-y-4 pt-4'>
           <SectionTitle>My dependants</SectionTitle>
           {me.dependants.length === 0 && (
@@ -319,23 +390,51 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
         </CardContent>
       </Card>
 
-      <PersonalInfoSection store={extras} name={me.name} />
-      <ContactInfoSection store={extras} />
+      <div id='profile-personal' className='scroll-mt-16'>
+        <PersonalInfoSection store={extras} name={me.name} />
+      </div>
+      <div id='profile-contact' className='scroll-mt-16'>
+        <ContactInfoSection store={extras} />
+      </div>
       </div>
 
-      <EducationSection store={extras} />
-      <WorkExperienceSection store={extras} />
-      <SkillsSection store={extras} />
-      <ClientFeedbackSection store={extras} />
+      <div id='profile-education' className='scroll-mt-16'>
+        <EducationSection store={extras} />
+      </div>
+      <div id='profile-experience' className='scroll-mt-16'>
+        <WorkExperienceSection store={extras} />
+      </div>
+      <div id='profile-skills' className='scroll-mt-16'>
+        <SkillsSection store={extras} />
+      </div>
+      <div id='profile-feedback' className='scroll-mt-16'>
+        <ClientFeedbackSection store={extras} />
+      </div>
 
-      {/* A6: employee entity-level custom fields on the profile. */}
-      <CustomFieldsSection
-        entity='Employees'
-        values={customValues}
-        onChange={handleCustomChange}
-        audience='employee'
-        title='Custom profile fields'
-      />
+      {/* A6: employee entity-level custom fields — validated + persisted on Save. */}
+      <div
+        id='profile-custom'
+        className='scroll-mt-16 rounded-[8px] border border-gray-200 bg-white p-4'
+      >
+        <CustomFieldsSection
+          entity='Employees'
+          values={customValues}
+          onChange={handleCustomChange}
+          errors={customErrors}
+          audience='employee'
+          title='Custom profile fields'
+        />
+        <div className='mt-4 flex items-center justify-between border-t border-gray-100 pt-3'>
+          <p className='text-paragraph-sm text-neutral-1000'>
+            Required fields are marked; values are kept on your employee
+            record after saving.
+          </p>
+          <Button size='sm' onClick={saveCustomFields}>
+            <FloppyDisk size={12} weight='bold' />
+            Save profile fields
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

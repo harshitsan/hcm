@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 import {
   seedAuditEntries,
@@ -7,6 +7,7 @@ import {
   type SecurityEvent,
   type SecurityEventType,
 } from '../data/audit-entries'
+import { getLiveAuditEntries, subscribeLiveAudit } from '../data/live-trail'
 
 export type AuditLogStore = ReturnType<typeof useAuditLog>
 
@@ -17,9 +18,19 @@ export type AuditLogStore = ReturnType<typeof useAuditLog>
  * exceed total retention. There is no update/delete API by design.
  */
 export function useAuditLog() {
-  const [entries, setEntries] = useState<AuditEntry[]>(seedAuditEntries)
+  const [localEntries, setEntries] = useState<AuditEntry[]>(seedAuditEntries)
   const [securityEvents, setSecurityEvents] =
     useState<SecurityEvent[]>(seedSecurityEvents)
+  // Live entries published by other modules (leave, employees, workflows…)
+  // while this page was mounted or not — merged ahead of the seed data.
+  const liveEntries = useSyncExternalStore(
+    subscribeLiveAudit,
+    getLiveAuditEntries
+  )
+  const entries = useMemo(
+    () => [...liveEntries, ...localEntries],
+    [liveEntries, localEntries]
+  )
 
   /**
    * Demo of FR 6.29.1: a committed change generates its audit entry

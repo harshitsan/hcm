@@ -171,7 +171,7 @@ export function TypesTab({ masters }: TypesTabProps) {
             ))}
           </TableBody>
         </Table>
-        <div className='border-grey-200 border-t px-3 py-2'>
+        <div className='border-gray-200 border-t px-3 py-2'>
           <span className='text-paragraph-sm text-neutral-1000'>
             Displaying items 1 - {total} of {total}
           </span>

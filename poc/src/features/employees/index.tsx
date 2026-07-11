@@ -1,12 +1,19 @@
 import { useMemo, useState } from 'react'
-import { PencilSimple, Plus, Rows } from 'phosphor-react'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
+import { ArrowSquareOut, PencilSimple, Plus, Rows } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable } from '@/components/common/data-table/table'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { RoleGate, useRole } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
+import {
+  requestModuleTab,
+  takeRequestedTab,
+} from '@/features/workflows/data/module-nav'
 import { DelegationsTab } from './components/delegations-tab'
 import { EmployeeDetailSheet } from './components/employee-detail-sheet'
 import { EmployeeOverlay } from './components/employee-overlay'
@@ -15,6 +22,7 @@ import { employeesTableColumns } from './components/employees-table-columns'
 import { MassUpdateDialog } from './components/mass-update-dialog'
 import { MyProfileTab } from './components/my-profile-tab'
 import { ProjectsTab } from './components/projects/projects-tab'
+import { ReportsTab } from './components/reports-tab'
 import { FilterSelect } from './components/shared'
 import {
   COMPANIES,
@@ -32,6 +40,28 @@ import { useEmployees, type EmployeeDraft } from './hooks/use-employees'
 const ADMIN_COMPANY_ID = 'c-aur-ret'
 const ADMIN_GROUP = 'Aurora Group'
 
+/** Dedicated sub-route workspaces of the Employees module (Admin tab links). */
+const MODULE_SUITES = [
+  {
+    to: '/employees/configuration',
+    title: 'Employee Configuration',
+    description:
+      'Nine governed catalogs — rule-packs & schema, duplicate detection, lifecycle stages, notifications, access matrix, types & directory, benefits & comp, acknowledgements and code series.',
+  },
+  {
+    to: '/employees/lifecycle',
+    title: 'Onboarding & Exit',
+    description:
+      'New-joinee onboarding checklists, exits & resignation workflow, layoffs and exit-support tasks across the lifecycle.',
+  },
+  {
+    to: '/employees/performance',
+    title: 'Performance & Requests',
+    description:
+      'Appreciations, performance quadrant, salary revisions and employee class-change requests.',
+  },
+] as const
+
 /**
  * Employees — metadata-driven directory (company / group / portfolio scoped
  * by role), employee record capture with dedup + statutory data, self-service
@@ -45,9 +75,30 @@ export function Employees() {
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null)
-  const [detailEmployee, setDetailEmployee] = useState<Employee | null>(null)
+  // Detail sheet is reflected in the URL (?employee=CODE) so records are
+  // deep-linkable and browser Back closes the sheet instead of the list.
+  const navigate = useNavigate()
+  const search = useSearch({ strict: false }) as { employee?: string }
+  const detailEmployee = useMemo(
+    () =>
+      search.employee
+        ? (store.employees.find((e) => e.code === search.employee) ?? null)
+        : null,
+    [search.employee, store.employees]
+  )
+  const setDetailEmployee = (employee: Employee | null) => {
+    if (employee) {
+      void navigate({
+        to: '/employees',
+        search: { employee: employee.code },
+      })
+    } else {
+      void navigate({ to: '/employees', search: {}, replace: true })
+    }
+  }
   const [massUpdateOpen, setMassUpdateOpen] = useState(false)
 
+  const [nameSearch, setNameSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState('all')
   const [jurisdictionFilter, setJurisdictionFilter] = useState('all')
   const [departmentFilter, setDepartmentFilter] = useState('all')
@@ -81,28 +132,31 @@ export function Employees() {
     [scoped]
   )
 
-  const filtered = useMemo(
-    () =>
-      scoped.filter(
-        (e) =>
-          (companyFilter === 'all' ||
-            companyName(e.companyId) === companyFilter) &&
-          (jurisdictionFilter === 'all' ||
-            e.jurisdiction === jurisdictionFilter) &&
-          (departmentFilter === 'all' ||
-            e.departments.includes(departmentFilter)) &&
-          (locationFilter === 'all' || e.locations.includes(locationFilter)) &&
-          (stageFilter === 'all' || e.lifecycleStage === stageFilter)
-      ),
-    [
-      scoped,
-      companyFilter,
-      jurisdictionFilter,
-      departmentFilter,
-      locationFilter,
-      stageFilter,
-    ]
-  )
+  const filtered = useMemo(() => {
+    const needle = nameSearch.trim().toLowerCase()
+    return scoped.filter(
+      (e) =>
+        (needle === '' ||
+          e.name.toLowerCase().includes(needle) ||
+          e.code.toLowerCase().includes(needle)) &&
+        (companyFilter === 'all' ||
+          companyName(e.companyId) === companyFilter) &&
+        (jurisdictionFilter === 'all' ||
+          e.jurisdiction === jurisdictionFilter) &&
+        (departmentFilter === 'all' ||
+          e.departments.includes(departmentFilter)) &&
+        (locationFilter === 'all' || e.locations.includes(locationFilter)) &&
+        (stageFilter === 'all' || e.lifecycleStage === stageFilter)
+    )
+  }, [
+    scoped,
+    nameSearch,
+    companyFilter,
+    jurisdictionFilter,
+    departmentFilter,
+    locationFilter,
+    stageFilter,
+  ])
 
   const managerOptions = useMemo(
     () =>
@@ -146,6 +200,13 @@ export function Employees() {
     clearSelection()
   }
 
+  const isAdmin = hasRole(
+    'Company Admin',
+    'Group Company Admin',
+    'Portfolio Admin',
+    'Platform Admin'
+  )
+
   const defaultTab = hasRole('Employee (User)', 'Employee (Non-User)')
     ? 'profile'
     : 'directory'
@@ -157,19 +218,31 @@ export function Employees() {
         <div className='w-full'>
           <EmployeesSummary employees={scoped} scopeLabel={scopeLabel} />
 
-          <Tabs defaultValue={defaultTab} key={role}>
-            <TabsList className='mb-2'>
+          <Tabs
+            defaultValue={takeRequestedTab('/employees') ?? defaultTab}
+            key={role}
+          >
+            <TabsList className='mb-2 flex-wrap'>
               <TabsTrigger value='profile'>My Profile</TabsTrigger>
-              <TabsTrigger value='directory'>Directory</TabsTrigger>
+              <TabsTrigger value='directory'>Employee Records</TabsTrigger>
               <TabsTrigger value='delegations'>
                 Managers & Delegation
               </TabsTrigger>
               <TabsTrigger value='projects'>Projects</TabsTrigger>
+              {isAdmin && <TabsTrigger value='reports'>Reports</TabsTrigger>}
+              {isAdmin && <TabsTrigger value='admin'>Admin</TabsTrigger>}
             </TabsList>
 
             <TabsContent value='directory'>
               <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
                 <div className='flex flex-wrap items-center gap-2'>
+                  <Input
+                    value={nameSearch}
+                    onChange={(e) => setNameSearch(e.target.value)}
+                    placeholder='Search name or code…'
+                    aria-label='Search employees by name or code'
+                    className='h-8 w-[180px]'
+                  />
                   {(hasRole('Group Company Admin') ||
                     hasRole('Portfolio Admin', 'Platform Admin')) && (
                     <FilterSelect
@@ -257,9 +330,18 @@ export function Employees() {
                 onRowClick={(row) => setDetailEmployee(row)}
               />
               <p className='text-paragraph-sm text-neutral-1000 mt-2'>
-                Grid columns and filters are metadata-driven (see Employee
-                Configuration → Types & Directory). One person employed by two
-                companies appears as two independent company-scoped records.
+                Grid columns and filters are metadata-driven (see{' '}
+                <Link
+                  to='/employees/configuration'
+                  onClick={() =>
+                    requestModuleTab('/employees/configuration', 'catalog')
+                  }
+                  className='text-blue-1400 font-medium underline underline-offset-2'
+                >
+                  Employee Configuration → Types & Directory
+                </Link>
+                ). One person employed by two companies appears as two
+                independent company-scoped records.
               </p>
             </TabsContent>
 
@@ -294,20 +376,60 @@ export function Employees() {
             <TabsContent value='projects'>
               <ProjectsTab />
             </TabsContent>
-          </Tabs>
 
-          <RoleGate
-            roles={[
-              'Platform Admin',
-              'Portfolio Admin',
-              'Group Company Admin',
-              'Company Admin',
-            ]}
-          >
-            <div className='mt-4'>
-              <EngineArtifactsPanel module='Employees' />
-            </div>
-          </RoleGate>
+            {isAdmin && (
+              <TabsContent value='reports'>
+                <ReportsTab employees={scoped} scopeLabel={scopeLabel} />
+              </TabsContent>
+            )}
+
+            {isAdmin && (
+              <TabsContent value='admin'>
+                <div className='flex flex-col gap-6'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                      Module suites
+                    </h3>
+                    <p className='text-neutral-1000 mb-3 text-xs'>
+                      Dedicated workspaces of the Employees module — each opens
+                      as its own page.
+                    </p>
+                    <div className='grid gap-3 lg:grid-cols-3'>
+                      {MODULE_SUITES.map((suite) => (
+                        <Link
+                          key={suite.to}
+                          to={suite.to}
+                          className='group rounded-[8px] border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300'
+                        >
+                          <div className='mb-1 flex items-center justify-between'>
+                            <p className='text-neutral-1600 text-paragraph-md font-medium'>
+                              {suite.title}
+                            </p>
+                            <ArrowSquareOut
+                              size={16}
+                              className='text-neutral-1000 group-hover:text-blue-1400'
+                            />
+                          </div>
+                          <p className='text-paragraph-sm text-neutral-1000'>
+                            {suite.description}
+                          </p>
+                        </Link>
+                      ))}
+                    </div>
+                  </section>
+
+                  <Separator />
+
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                      Engine features consumed by this module
+                    </h3>
+                    <EngineArtifactsPanel module='Employees' />
+                  </section>
+                </div>
+              </TabsContent>
+            )}
+          </Tabs>
         </div>
       </Main>
 
@@ -324,11 +446,7 @@ export function Employees() {
       />
 
       <EmployeeDetailSheet
-        employee={
-          detailEmployee
-            ? (store.employees.find((e) => e.id === detailEmployee.id) ?? null)
-            : null
-        }
+        employee={detailEmployee}
         open={detailEmployee !== null}
         onOpenChange={(open) => {
           if (!open) setDetailEmployee(null)

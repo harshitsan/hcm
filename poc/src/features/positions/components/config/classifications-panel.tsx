@@ -162,7 +162,7 @@ export function ClassificationsPanel({
         </Button>
       </div>
 
-      <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+      <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
         {rows.length === 0 && (
           <p className='text-paragraph-sm text-neutral-1000 px-3 py-3'>
             No classes with this status.

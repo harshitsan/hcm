@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
-  ArrowDownUp,
-  CheckCircle2,
-  ExternalLink,
-  Mail,
-  RotateCcw,
-} from 'lucide-react'
+  ArrowsDownUp,
+  ArrowSquareOut,
+  ArrowUUpLeft,
+  CheckCircle,
+  EnvelopeSimple,
+} from 'phosphor-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,9 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { RoleGate } from '@/context/role-context'
+import { RoleGate, useRole } from '@/context/role-context'
+import { requestModuleTab } from '@/features/workflows/data/module-nav'
+import { resolveRecordLink } from '../data/record-links'
 import type { HrTask, TaskModule, TaskStatus } from '../data/tasks'
 import { isOverdue } from '../hooks/use-tasks'
 
@@ -54,6 +56,7 @@ const MODULE_ROUTES: Record<Exclude<TaskModule, 'other'>, string> = {
  */
 export function TasksTab({ myTasks, completeTask, reopenTask }: TasksTabProps) {
   const navigate = useNavigate()
+  const { role } = useRole()
   const [statusFilter, setStatusFilter] = useState<TaskStatus>('Pending')
   const [sortAsc, setSortAsc] = useState(true)
   const [completing, setCompleting] = useState<HrTask | null>(null)
@@ -84,16 +87,24 @@ export function TasksTab({ myTasks, completeTask, reopenTask }: TasksTabProps) {
   }, [myTasks])
 
   const initiate = (task: HrTask) => {
+    const record = task.linkedRecord ?? task.title
+    // Prefer the record-level deep link (route + role-appropriate tab);
+    // fall back to the module route named on the task.
+    const link = resolveRecordLink(record, role)
+    if (link && link.route !== '/notifications') {
+      if (link.tab) requestModuleTab(link.route, link.tab)
+      toast.info(`Redirecting to the transaction screen for ${record}…`)
+      navigate({ to: link.route })
+      return
+    }
     if (task.linkedModule && task.linkedModule !== 'other') {
       toast.info(
-        `Redirecting to the ${task.linkedModule} transaction screen for ${task.linkedRecord ?? task.title}…`
+        `Redirecting to the ${task.linkedModule} transaction screen for ${record}…`
       )
       navigate({ to: MODULE_ROUTES[task.linkedModule] })
-    } else {
-      toast.info(
-        `Redirecting to the transaction screen for ${task.linkedRecord ?? task.title} (demo navigation).`
-      )
+      return
     }
+    toast.info(`No transaction screen is linked to ${record}.`)
   }
 
   const submitCompletion = () => {
@@ -120,7 +131,7 @@ export function TasksTab({ myTasks, completeTask, reopenTask }: TasksTabProps) {
         <Card className='rounded-[8px] border border-gray-200 bg-white py-4'>
           <CardHeader className='px-4'>
             <CardTitle className='text-paragraph-md text-neutral-1600 flex items-center gap-2 font-medium'>
-              <Mail className='text-blue-1400 size-4' />
+              <EnvelopeSimple className='text-blue-1400 size-4' />
               Tasks are communicated to you by email
             </CardTitle>
           </CardHeader>
@@ -152,7 +163,7 @@ export function TasksTab({ myTasks, completeTask, reopenTask }: TasksTabProps) {
           className='h-7 gap-1 rounded-[6px] px-2'
           onClick={() => setSortAsc((v) => !v)}
         >
-          <ArrowDownUp className='size-3.5' />
+          <ArrowsDownUp className='size-3.5' />
           Due date {sortAsc ? '(earliest first)' : '(latest first)'}
         </Button>
       </div>
@@ -225,7 +236,7 @@ export function TasksTab({ myTasks, completeTask, reopenTask }: TasksTabProps) {
                       className='h-7 gap-1 rounded-[6px] px-2'
                       onClick={() => initiate(t)}
                     >
-                      <ExternalLink className='size-3.5' />
+                      <ArrowSquareOut className='size-3.5' />
                       Initiate
                     </Button>
                   )}
@@ -237,7 +248,7 @@ export function TasksTab({ myTasks, completeTask, reopenTask }: TasksTabProps) {
                         setComment('')
                       }}
                     >
-                      <CheckCircle2 className='size-3.5' />
+                      <CheckCircle className='size-3.5' />
                       Mark Complete
                     </Button>
                   )}
@@ -247,7 +258,7 @@ export function TasksTab({ myTasks, completeTask, reopenTask }: TasksTabProps) {
                       className='h-7 gap-1 rounded-[6px] px-2'
                       onClick={() => reopenTask(t.id)}
                     >
-                      <RotateCcw className='size-3.5' />
+                      <ArrowUUpLeft className='size-3.5' />
                       Reopen
                     </Button>
                   )}

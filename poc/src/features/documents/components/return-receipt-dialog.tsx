@@ -170,7 +170,7 @@ export function ReturnReceiptDialog({
             />
 
             {returnType === 'Temporary' && (
-              <div className='border-grey-200 space-y-4 rounded-[6px] border px-3 py-3'>
+              <div className='border-gray-200 space-y-4 rounded-[6px] border px-3 py-3'>
                 <FormField
                   control={form.control}
                   name='expectedDateOfSubmission'

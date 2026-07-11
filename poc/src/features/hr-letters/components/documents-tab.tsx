@@ -205,6 +205,7 @@ export function DocumentsTab({ store, templates, config }: DocumentsTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(rows) => setSelectedRows(rows)}
+        onRowClick={(row) => setDetailId(row.id)}
       />
 
       <GenerateOverlay

@@ -29,6 +29,7 @@ import {
 import { type PasswordPolicyVersion } from '../data/auth-config'
 import { type AuditEventDraft } from '../hooks/use-auth-audit'
 import {
+  DEMO_MFA_CODE,
   DEMO_PASSWORD,
   type LoginSessionStore,
 } from '../hooks/use-login-session'
@@ -57,12 +58,16 @@ interface SignInTabProps {
   sessionStore: LoginSessionStore
   policy: PasswordPolicyVersion
   logEvent: (draft: AuditEventDraft) => void
+  /** Completed self-service reset — refreshes the credential + clears lockout. */
+  onPasswordReset: (userId: string) => void
 }
 
 /**
- * Metadata-driven login screen simulator (AUTH-01/02/11/18/19). Renders only
- * the enabled authentication methods; a successful sign-in shows the active
- * session with company switcher, per-company roles and employee context.
+ * Metadata-driven login screen simulator (AUTH-01/02/11/18/19 + BRD 6.12.5).
+ * Renders only the enabled authentication methods; verified credentials pass
+ * through the MFA enrollment/challenge step when the user's company requires
+ * it, and a successful sign-in shows the active session with company
+ * switcher, per-company roles and employee context.
  */
 export function SignInTab({
   users,
@@ -71,12 +76,24 @@ export function SignInTab({
   sessionStore,
   policy,
   logEvent,
+  onPasswordReset,
 }: SignInTabProps) {
-  const { session, sessionUser, loginWithPassword, loginWithSso, switchCompany, logout } =
-    sessionStore
+  const {
+    session,
+    sessionUser,
+    mfaPending,
+    mfaPendingUser,
+    loginWithPassword,
+    loginWithSso,
+    submitMfaCode,
+    cancelMfa,
+    switchCompany,
+    logout,
+  } = sessionStore
 
   const [resetOpen, setResetOpen] = useState(false)
   const [ssoIdentity, setSsoIdentity] = useState<Record<string, string>>({})
+  const [mfaCode, setMfaCode] = useState('')
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -117,6 +134,79 @@ export function SignInTab({
     )
   }
 
+  // Credentials verified but the second factor is still owed — no session
+  // exists until the enrollment/challenge below passes (BRD 6.12.5).
+  if (mfaPending && mfaPendingUser) {
+    const enrolling = mfaPending.mode === 'enroll'
+    return (
+      <div className='max-w-[520px] rounded-[6px] border border-gray-200 bg-white p-4'>
+        <div className='mb-3 flex items-center justify-between'>
+          <h3 className='text-neutral-1600 text-sm font-medium'>
+            {enrolling
+              ? 'Set up two-factor authentication'
+              : 'Two-factor verification'}
+          </h3>
+          <Badge variant='pending'>
+            {AUTH_METHOD_LABELS[mfaPending.method]}
+          </Badge>
+        </div>
+        <p className='text-neutral-1900 text-xs'>
+          {enrolling
+            ? `${mfaPendingUser.name}, one of your companies requires MFA. Add the setup key to an authenticator app, then enter the 6-digit code it shows to finish enrollment.`
+            : `Welcome back, ${mfaPendingUser.name}. Enter the 6-digit code from your enrolled authenticator to finish signing in.`}
+        </p>
+        {enrolling && (
+          <div className='mt-3 rounded border border-gray-100 p-2.5 text-center'>
+            <p className='text-neutral-1000 text-xs'>
+              Authenticator setup key (mock TOTP secret)
+            </p>
+            <p className='text-neutral-1600 font-mono text-sm font-medium tracking-widest'>
+              SHRM-{mfaPendingUser.id.toUpperCase()}-TOTP
+            </p>
+          </div>
+        )}
+        <div className='mt-3 flex items-center gap-2'>
+          <Input
+            value={mfaCode}
+            onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+            inputMode='numeric'
+            maxLength={6}
+            placeholder='6-digit code'
+            className='h-7 w-[140px] text-xs'
+            aria-label='One-time code'
+          />
+          <Button
+            size='sm'
+            className='h-7 px-3 text-xs'
+            disabled={mfaCode.trim().length !== 6}
+            onClick={() => {
+              submitMfaCode(mfaCode)
+              setMfaCode('')
+            }}
+          >
+            {enrolling ? 'Verify & enroll' : 'Verify code'}
+          </Button>
+          <Button
+            variant='outline'
+            size='sm'
+            className='h-7 px-2 text-xs'
+            onClick={() => {
+              cancelMfa()
+              setMfaCode('')
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+        <p className='text-neutral-1000 mt-3 text-xs'>
+          Demo: the mock authenticator always shows{' '}
+          <span className='font-medium'>{DEMO_MFA_CODE}</span>. Wrong codes are
+          rejected and audited; no session exists until the challenge passes.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className='grid gap-4 lg:grid-cols-2'>
       <div className='rounded-[6px] border border-gray-200 bg-white p-4'>
@@ -141,7 +231,7 @@ export function SignInTab({
                     <FormControl>
                       <Input
                         type='email'
-                        placeholder='name@company.example'
+                        placeholder='e.g. name@company.example'
                         {...field}
                       />
                     </FormControl>
@@ -193,6 +283,9 @@ export function SignInTab({
           password <span className='font-medium'>{DEMO_PASSWORD}</span>. A
           wrong email or password returns the same generic error — the failing
           field is never disclosed, and every attempt lands in the audit log.
+          After {policy.lockoutThreshold} consecutive failures the account is
+          locked out (policy v{policy.version}) until an administrator unlocks
+          it or a password reset completes.
         </p>
       </div>
 
@@ -275,6 +368,7 @@ export function SignInTab({
         users={users}
         policy={policy}
         logEvent={logEvent}
+        onResetComplete={onPasswordReset}
       />
     </div>
   )

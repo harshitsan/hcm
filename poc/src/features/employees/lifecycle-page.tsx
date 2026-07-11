@@ -25,6 +25,7 @@ export function EmployeesLifecycle() {
       <CommonHeader
         title='Employees — Onboarding & Exit'
         className='bg-blue-150'
+        backButton
       />
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>

@@ -166,6 +166,19 @@ export function AdjustmentsPanel({
           Pending Time Off Adjustments ({rows.length})
         </h2>
         <div className='flex items-center gap-2'>
+          {/* PTOA-05: one-click reset back to the default filter state */}
+          {(statusFilter !== 'pending' || deptFilter !== 'all') && (
+            <Button
+              variant='outline'
+              className='h-7'
+              onClick={() => {
+                setStatusFilter('pending')
+                setDeptFilter('all')
+              }}
+            >
+              Reset filters
+            </Button>
+          )}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
               <SelectValue />

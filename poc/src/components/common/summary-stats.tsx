@@ -20,7 +20,7 @@ export function SummaryStats({ stats, columns = '4' }: SummaryStatsProps) {
       {stats.map((stat, index) => (
         <div
           key={index}
-          className='border-grey-200 rounded-md border bg-white p-4 py-3'
+          className='border-gray-200 rounded-md border bg-white p-4 py-3'
         >
           <h4 className='text-neutral-1600 mb-1 text-2xl font-medium'>
             {stat.value}

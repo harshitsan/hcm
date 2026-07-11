@@ -14,6 +14,7 @@ import { policySpecificity } from '../data/policies'
 import { DEPARTMENTS, EMPLOYEES, LOCATIONS, fmtDate } from '../data/shared'
 import { type BalancesStore } from '../hooks/use-balances'
 import { type LeaveConfigStore } from '../hooks/use-leave-config'
+import { exportCsv } from '../utils/export-csv'
 import { StatusBadge } from './badges'
 
 interface ReportsTabProps {
@@ -63,6 +64,77 @@ export function ReportsTab({ balances, config, portfolio }: ReportsTabProps) {
         : config.policies.filter((p) => p.source === 'company'),
     [config.policies, portfolio]
   )
+
+  const filtersDirty =
+    dept !== 'all' ||
+    location !== 'all' ||
+    typeFilter !== 'all' ||
+    empStatus !== 'active'
+
+  const resetFilters = () => {
+    setDept('all')
+    setLocation('all')
+    setTypeFilter('all')
+    setEmpStatus('active')
+  }
+
+  /** Real CSV download for the visible dataset (LVE-11 export). */
+  const handleExport = () => {
+    if (dataset === 'balances') {
+      exportCsv(
+        'leave-balances-report.csv',
+        [
+          'Employee',
+          ...(portfolio ? ['Company'] : []),
+          'Department',
+          'Location',
+          'Leave type',
+          'Unit',
+          'Entitlement',
+          'Taken',
+          'Pending',
+          'Loss of Pay',
+          'Remaining',
+        ],
+        balanceRows.map(({ b, emp, type }) => [
+          emp?.name,
+          ...(portfolio ? [emp?.company] : []),
+          emp?.department,
+          emp?.location,
+          type?.name,
+          type?.unit,
+          b.credited,
+          b.taken,
+          b.pendingApproval,
+          b.lopApproved + b.lopPending,
+          remaining(b),
+        ])
+      )
+      toast.success(
+        `Exported ${balanceRows.length} balance rows to leave-balances-report.csv`
+      )
+      return
+    }
+    exportCsv(
+      'leave-policies-report.csv',
+      ['Policy', 'Owner', 'Scope', 'Entitlements', 'Version', 'Effective', 'Status'],
+      policyRows.map((p) => [
+        p.name,
+        p.company,
+        Object.entries(p.scope)
+          .filter(([, v]) => v !== null)
+          .map(([, v]) => v)
+          .join('; ') || 'all employees',
+        p.entitlementSummary,
+        `v${p.version}`,
+        fmtDate(p.effectiveFrom),
+        p.status,
+      ])
+    )
+    toast.success(
+      `Exported ${policyRows.length} policy rows to leave-policies-report.csv`
+    )
+  }
 
   return (
     <div className='w-full'>
@@ -136,13 +208,12 @@ export function ReportsTab({ balances, config, portfolio }: ReportsTabProps) {
               </Select>
             </>
           )}
-          <Button
-            variant='outline'
-            className='h-7 gap-1'
-            onClick={() =>
-              toast.success('Report exported (CSV) for compliance and analysis')
-            }
-          >
+          {dataset === 'balances' && filtersDirty && (
+            <Button variant='outline' className='h-7' onClick={resetFilters}>
+              Reset filters
+            </Button>
+          )}
+          <Button variant='outline' className='h-7 gap-1' onClick={handleExport}>
             <DownloadSimple size={14} weight='bold' />
             Export
           </Button>
@@ -161,7 +232,7 @@ export function ReportsTab({ balances, config, portfolio }: ReportsTabProps) {
                 <th className='px-2 font-medium'>Entitlement</th>
                 <th className='px-2 font-medium'>Taken</th>
                 <th className='px-2 font-medium'>Pending</th>
-                <th className='px-2 font-medium'>LOP</th>
+                <th className='px-2 font-medium'>Loss of Pay</th>
                 <th className='px-2 font-medium'>Remaining</th>
               </tr>
             </thead>

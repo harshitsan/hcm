@@ -85,7 +85,7 @@ export function GovernanceTab({
               </CardHeader>
               <CardContent className='space-y-3 px-4'>
                 {/* Each position stays scoped to its owning company (POS-16). */}
-                <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+                <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
                   {companyPositions.length === 0 && (
                     <p className='text-paragraph-sm text-neutral-1000 px-3 py-2'>
                       No positions defined yet.
@@ -161,7 +161,7 @@ export function GovernanceTab({
               security restricts every query to the requesting tenant&apos;s
               scope.
             </p>
-            <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+            <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
               {store.history.slice(0, 6).map((h) => (
                 <div key={h.id} className='flex flex-col gap-0.5 px-3 py-2'>
                   <div className='flex items-center gap-2'>

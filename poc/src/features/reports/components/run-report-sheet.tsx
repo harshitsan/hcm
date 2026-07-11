@@ -20,8 +20,8 @@ import {
   type ReportDef,
 } from '../data/report-catalog'
 import {
-  categoryRows,
   EFFECTIVE_CUTOVER,
+  reportRows,
   SELF_EMPLOYEE,
   type ReportRow,
 } from '../data/report-rows'
@@ -70,7 +70,7 @@ export function RunReportSheet({
 
   const rows = useMemo(() => {
     if (!report) return []
-    return categoryRows[report.category].filter(
+    return reportRows(report).filter(
       (r) =>
         companies.includes(r.company) &&
         (dept === 'all' || r.department === dept) &&
@@ -105,7 +105,7 @@ export function RunReportSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[720px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {report.name}
           </SheetTitle>
@@ -113,7 +113,7 @@ export function RunReportSheet({
             {report.description}{' '}
             {selfOnly
               ? '· scoped to your own records'
-              : `· scope: ${companies.join(', ')}`}
+              : `· scope: ${companies.length > 0 ? companies.join(', ') : 'none (no active grants)'}`}
           </p>
         </SheetHeader>
 
@@ -214,7 +214,7 @@ export function RunReportSheet({
           </div>
         </div>
 
-        <div className='border-grey-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
+        <div className='border-gray-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
           <span className='text-neutral-1000 text-xs'>
             {rows.length} record(s) · {period.replace('-', ' ')}
           </span>

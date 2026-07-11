@@ -71,7 +71,7 @@ export function ConfigTaxonomy({ settings }: ConfigTaxonomyProps) {
           {settings.categories.map((category, index) => (
             <div
               key={category.name}
-              className='border-grey-200 flex items-center gap-2 rounded-[6px] border px-3 py-1.5'
+              className='border-gray-200 flex items-center gap-2 rounded-[6px] border px-3 py-1.5'
             >
               <div className='flex items-center gap-1'>
                 <Button
@@ -168,7 +168,7 @@ export function ConfigTaxonomy({ settings }: ConfigTaxonomyProps) {
             return (
               <div
                 key={category}
-                className='border-grey-200 rounded-[6px] border px-3 py-2'
+                className='border-gray-200 rounded-[6px] border px-3 py-2'
               >
                 <p className='text-neutral-1600 mb-1 text-sm font-medium'>
                   {category}

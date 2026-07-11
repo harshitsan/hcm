@@ -2,7 +2,7 @@ import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { type AttendanceRecord } from '../data/attendance'
-import { employeeById, employeeName, fmtDate, fmtHours } from '../data/shared'
+import { employeeById, employeeName, fmtBreaks, fmtDate, fmtHours } from '../data/shared'
 import { DuplicateBadge, OtBadge, SourceBadge, StatusBadge, ViolationBadge } from './badges'
 
 interface RecordDetailSheetProps {
@@ -28,7 +28,7 @@ export function RecordDetailSheet({ record, onOpenChange }: RecordDetailSheetPro
   return (
     <Sheet open={record !== null} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[480px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             Attendance Record — {record ? employeeName(record.employeeId) : ''}
           </SheetTitle>
@@ -69,7 +69,7 @@ export function RecordDetailSheet({ record, onOpenChange }: RecordDetailSheetPro
             </p>
             <Row label='Worked hours'>{fmtHours(record.workedHours)}</Row>
             <Row label='Breaks'>
-              {record.breaksCount} · {record.breakMinutes} min
+              {fmtBreaks(record.breaksCount, record.breakMinutes)}
             </Row>
             <Row label='Effective hours'>{fmtHours(record.effectiveHours)}</Row>
             <Row label='Overtime'>
@@ -90,7 +90,7 @@ export function RecordDetailSheet({ record, onOpenChange }: RecordDetailSheetPro
               <p className='text-paragraph-sm text-neutral-1000'>
                 No overrides. Any administrative change will record before and
                 after values, the mandatory reason, the acting user and a
-                timestamp here (bitemporal history — prior states remain
+                timestamp here (full change history — prior states remain
                 reconstructable).
               </p>
             ) : (

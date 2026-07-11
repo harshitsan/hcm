@@ -7,18 +7,24 @@ import {
   seedPortfolios,
   seedSharingRequests,
   seedTenants,
+  TIER_DEFAULTS,
   type CompanyGroup,
   type Jurisdiction,
   type PlatformLogEntry,
+  type PlatformModule,
   type SharingRequest,
+  type SubscriptionTier,
   type Tenant,
-  type TenantStatus,
 } from '../data/tenants'
 
+/** Full provisioning payload — produced by the 6-step tenant wizard. */
 export type TenantDraft = Omit<
   Tenant,
-  'id' | 'createdAt' | 'employees' | 'authorized'
+  'id' | 'createdAt' | 'employees' | 'authorized' | 'suspension'
 >
+
+/** Edit payload — subscription is managed separately (US-PA-42..44). */
+export type TenantEditDraft = Omit<TenantDraft, 'subscription'>
 
 /**
  * In-memory tenant provisioning store (SYS-01, 03, 04, 05, 08, 09, 13, 40,
@@ -61,11 +67,12 @@ export function useTenants() {
         employees: 0,
         createdAt: new Date().toISOString().slice(0, 10),
         authorized: true,
+        suspension: null,
       }
       setTenants((prev) => [tenant, ...prev])
       log(
         'provisioned',
-        `Tenant ${draft.code} provisioned with ${draft.jurisdictionIds.length} jurisdiction(s)`,
+        `Tenant ${draft.code} provisioned — ${draft.subscription.tier} tier, ${draft.jurisdictionIds.length} jurisdiction(s)`,
         tenant.id
       )
       toast.success(`${draft.name} provisioned as a new tenant`)
@@ -73,22 +80,148 @@ export function useTenants() {
     [log]
   )
 
-  const updateTenant = useCallback((id: string, draft: TenantDraft) => {
+  const updateTenant = useCallback((id: string, draft: TenantEditDraft) => {
     setTenants((prev) =>
       prev.map((t) => (t.id === id ? { ...t, ...draft } : t))
     )
     toast.success('Company updated')
   }, [])
 
-  const setTenantStatus = useCallback(
-    (id: string, status: TenantStatus) => {
-      setTenants((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, status } : t))
-      )
+  /** Suspension requires a mandatory reason + second-admin approval (US-PA-07). */
+  const suspendTenant = useCallback(
+    (id: string, reason: string, approvedBy: string) => {
       const tenant = tenants.find((t) => t.id === id)
-      log('status', `Tenant status changed to ${status}`, id)
+      setTenants((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                status: 'suspended',
+                suspension: {
+                  reason,
+                  approvedBy,
+                  at: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                },
+              }
+            : t
+        )
+      )
+      log(
+        'status',
+        `Tenant ${tenant?.code ?? id} suspended — reason: ${reason} (approved by ${approvedBy})`,
+        id
+      )
       toast.success(
-        `${tenant?.name ?? 'Tenant'} ${status === 'suspended' ? 'suspended' : 'reactivated'}`
+        `${tenant?.name ?? 'Tenant'} suspended — reason recorded and approval logged`
+      )
+    },
+    [tenants, log]
+  )
+
+  const reactivateTenant = useCallback(
+    (id: string) => {
+      const tenant = tenants.find((t) => t.id === id)
+      setTenants((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, status: 'active', suspension: null } : t
+        )
+      )
+      log('status', `Tenant ${tenant?.code ?? id} reactivated`, id)
+      toast.success(`${tenant?.name ?? 'Tenant'} reactivated`)
+    },
+    [tenants, log]
+  )
+
+  /** Tier change re-applies tier defaults; downgrades below headcount are denied (US-PA-42). */
+  const changeTier = useCallback(
+    (id: string, tier: SubscriptionTier) => {
+      const tenant = tenants.find((t) => t.id === id)
+      if (!tenant) return
+      const defaults = TIER_DEFAULTS[tier]
+      if (tenant.employees > defaults.employeeLimit) {
+        log(
+          'denial',
+          `Tier downgrade denied for ${tenant.code} — ${tenant.employees} employees exceed the ${tier} limit of ${defaults.employeeLimit}`,
+          id
+        )
+        toast.error(
+          `Cannot move ${tenant.name} to the ${tier} tier — ${tenant.employees.toLocaleString('en-US')} employees exceed its limit of ${defaults.employeeLimit.toLocaleString('en-US')}`
+        )
+        return
+      }
+      setTenants((prev) =>
+        prev.map((t) =>
+          t.id === id ? { ...t, subscription: { ...defaults } } : t
+        )
+      )
+      log('config', `Subscription tier changed to ${tier} for ${tenant.code}`, id)
+      toast.success(
+        `${tenant.name} moved to the ${tier} tier — limit ${defaults.employeeLimit.toLocaleString('en-US')} employees, ${defaults.modules.length} modules`
+      )
+    },
+    [tenants, log]
+  )
+
+  /** Toggle a module entitlement; Core HR can never be removed (US-PA-44). */
+  const toggleModuleEntitlement = useCallback(
+    (id: string, module: PlatformModule) => {
+      const tenant = tenants.find((t) => t.id === id)
+      if (!tenant) return
+      if (module === 'Core HR') {
+        toast.error('Core HR is included in every tier and cannot be removed')
+        return
+      }
+      const entitled = tenant.subscription.modules.includes(module)
+      setTenants((prev) =>
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                subscription: {
+                  ...t.subscription,
+                  modules: entitled
+                    ? t.subscription.modules.filter((m) => m !== module)
+                    : [...t.subscription.modules, module],
+                },
+              }
+            : t
+        )
+      )
+      log(
+        'config',
+        `Module ${module} ${entitled ? 'removed from' : 'added to'} ${tenant.code}'s subscription`,
+        id
+      )
+      toast.success(
+        entitled
+          ? `${module} unsubscribed — ${tenant.name}'s users are now denied access to it`
+          : `${module} entitled for ${tenant.name}`
+      )
+    },
+    [tenants, log]
+  )
+
+  /** Mock hire — blocked at the subscription's employee limit (US-PA-43). */
+  const simulateHire = useCallback(
+    (id: string) => {
+      const tenant = tenants.find((t) => t.id === id)
+      if (!tenant) return
+      if (tenant.employees >= tenant.subscription.employeeLimit) {
+        log(
+          'denial',
+          `Hire blocked for ${tenant.code} — employee limit of ${tenant.subscription.employeeLimit} reached on the ${tenant.subscription.tier} tier`,
+          id
+        )
+        toast.error(
+          `Hire blocked — ${tenant.name} has reached its ${tenant.subscription.tier}-tier limit of ${tenant.subscription.employeeLimit.toLocaleString('en-US')} employees. Upgrade the tier to add more.`
+        )
+        return
+      }
+      setTenants((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, employees: t.employees + 1 } : t))
+      )
+      toast.success(
+        `Employee added — ${tenant.name} now at ${(tenant.employees + 1).toLocaleString('en-US')} of ${tenant.subscription.employeeLimit.toLocaleString('en-US')}`
       )
     },
     [tenants, log]
@@ -162,7 +295,11 @@ export function useTenants() {
     activeCompanyId,
     addTenant,
     updateTenant,
-    setTenantStatus,
+    suspendTenant,
+    reactivateTenant,
+    changeTier,
+    toggleModuleEntitlement,
+    simulateHire,
     addJurisdiction,
     switchCompany,
     updateGroup,

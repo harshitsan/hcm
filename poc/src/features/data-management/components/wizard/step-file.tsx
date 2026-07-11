@@ -19,17 +19,17 @@ import {
 } from '@/components/ui/select'
 import {
   DELIMITERS,
-  FILE_FORMATS,
   FILE_TYPES,
   HEADER_FORMATS,
-  MAX_BATCH_RECORDS,
-  MAX_FILE_SIZE_MB,
   TEXT_QUALIFIERS,
 } from '../../data/catalog'
+import { type ConfigVersion } from '../../data/config'
 import { type WizardValues } from './schema'
 
 interface StepFileProps {
   form: UseFormReturn<WizardValues>
+  /** Latest published config version — governs formats and limits (DM-17). */
+  config: ConfigVersion
 }
 
 // Kensium reference sample offered for download when Xml is selected.
@@ -54,7 +54,7 @@ function downloadSampleXml() {
   toast.success('Sample XML downloaded — use it as the structure reference')
 }
 
-function HeaderFormatField({ form }: StepFileProps) {
+function HeaderFormatField({ form }: { form: UseFormReturn<WizardValues> }) {
   return (
     <FormField
       control={form.control}
@@ -88,7 +88,7 @@ function HeaderFormatField({ form }: StepFileProps) {
  * options, the data file itself and an optional supporting-documents zip
  * (DM-03 / DM-04 / DM-22 / DM-23 / DM-28).
  */
-export function StepFile({ form }: StepFileProps) {
+export function StepFile({ form, config }: StepFileProps) {
   const fileType = form.watch('fileType')
 
   return (
@@ -136,7 +136,7 @@ export function StepFile({ form }: StepFileProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {FILE_FORMATS.map((f) => (
+                  {config.formats.map((f) => (
                     <SelectItem key={f} value={f}>
                       {f}
                     </SelectItem>
@@ -261,7 +261,7 @@ export function StepFile({ form }: StepFileProps) {
             <FormItem>
               <FormLabel>File size (MB)</FormLabel>
               <FormControl>
-                <Input placeholder={`Max ${MAX_FILE_SIZE_MB}`} {...field} />
+                <Input placeholder={`Max ${config.maxFileSizeMb}`} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -275,7 +275,7 @@ export function StepFile({ form }: StepFileProps) {
               <FormLabel>Records in batch</FormLabel>
               <FormControl>
                 <Input
-                  placeholder={`Max ${MAX_BATCH_RECORDS.toLocaleString()}`}
+                  placeholder={`Max ${config.maxBatchRecords.toLocaleString()}`}
                   {...field}
                 />
               </FormControl>
@@ -305,9 +305,11 @@ export function StepFile({ form }: StepFileProps) {
 
       <div className='rounded-[6px] bg-neutral-200 px-3 py-2'>
         <p className='text-paragraph-sm text-neutral-1900'>
-          Governed limits (config v2): {MAX_FILE_SIZE_MB} MB per file,{' '}
-          {MAX_BATCH_RECORDS.toLocaleString()} records per batch. Larger
-          datasets must be split into multiple batches.
+          Governed limits (config v{config.version}, effective{' '}
+          {config.effectiveFrom}): {config.maxFileSizeMb} MB per file,{' '}
+          {config.maxBatchRecords.toLocaleString()} records per batch, formats{' '}
+          {config.formats.join(' / ')}. Larger datasets must be split into
+          multiple batches.
         </p>
       </div>
     </div>

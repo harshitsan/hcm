@@ -148,7 +148,7 @@ export function FieldWizard({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? 'Edit User Defined Field' : 'Add New User Defined Field'}
           </SheetTitle>
@@ -156,7 +156,7 @@ export function FieldWizard({
             {WIZARD_STEPS.map((s, i) => (
               <Badge
                 key={s.title}
-                variant={i === step ? 'open' : i < step ? 'qualified' : 'pending'}
+                variant={i === step ? 'open' : i < step ? 'badge_active' : 'pending'}
               >
                 {i + 1}. {s.title}
               </Badge>
@@ -178,7 +178,7 @@ export function FieldWizard({
               {step === 3 && <StepPermissions form={form} />}
             </div>
 
-            <div className='border-grey-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
               <Button type='button' variant='outline' onClick={cancel}>
                 Cancel
               </Button>

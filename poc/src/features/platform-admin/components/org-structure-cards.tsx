@@ -53,7 +53,7 @@ export function OrgStructureCards({ store }: { store: OrgModelStore }) {
         description='Arbitrary nesting depth; moves preserve sub-trees and cycles are rejected'
         className='mb-0'
       >
-        <ul className='border-grey-200 rounded-[6px] border p-3'>
+        <ul className='border-gray-200 rounded-[6px] border p-3'>
           {tree.map(({ dept, depth }) => (
             <li
               key={dept.id}

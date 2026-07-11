@@ -301,7 +301,7 @@ export function ComposeOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? 'Edit announcement' : 'New announcement'}
           </SheetTitle>
@@ -375,7 +375,7 @@ export function ComposeOverlay({
                   <FormItem>
                     <FormLabel>Title</FormLabel>
                     <FormControl>
-                      <Input placeholder='Q3 All-Hands on 10 July' {...field} />
+                      <Input placeholder='e.g. Q3 All-Hands on 10 July' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -402,7 +402,7 @@ export function ComposeOverlay({
 
               {/* ---------- Scheduling ---------- */}
               {isRecurring ? (
-                <div className='border-grey-200 space-y-4 rounded-[6px] border bg-white px-3 py-3'>
+                <div className='border-gray-200 space-y-4 rounded-[6px] border bg-white px-3 py-3'>
                   <p className='text-neutral-1600 text-sm font-medium'>
                     Recurring schedule
                   </p>
@@ -646,7 +646,7 @@ export function ComposeOverlay({
                   )}
                 </div>
               ) : (
-                <div className='border-grey-200 space-y-4 rounded-[6px] border bg-white px-3 py-3'>
+                <div className='border-gray-200 space-y-4 rounded-[6px] border bg-white px-3 py-3'>
                   <p className='text-neutral-1600 text-sm font-medium'>
                     Adhoc schedule
                   </p>
@@ -699,7 +699,7 @@ export function ComposeOverlay({
               )}
 
               {/* ---------- Visibility ---------- */}
-              <div className='border-grey-200 space-y-3 rounded-[6px] border bg-white px-3 py-3'>
+              <div className='border-gray-200 space-y-3 rounded-[6px] border bg-white px-3 py-3'>
                 <FormField
                   control={form.control}
                   name='visibleToAll'
@@ -760,7 +760,7 @@ export function ComposeOverlay({
               </div>
 
               {/* ---------- Notifications ---------- */}
-              <div className='border-grey-200 space-y-3 rounded-[6px] border bg-white px-3 py-3'>
+              <div className='border-gray-200 space-y-3 rounded-[6px] border bg-white px-3 py-3'>
                 <FormField
                   control={form.control}
                   name='notifyByEmail'
@@ -810,7 +810,7 @@ export function ComposeOverlay({
                     <FormItem>
                       <FormLabel>Hyperlink (optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder='https://intranet.aster.dev/…' {...field} />
+                        <Input placeholder='e.g. https://intranet.aster.dev/…' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -860,7 +860,7 @@ export function ComposeOverlay({
                     </div>
                     <FormControl>
                       <Textarea
-                        placeholder={'Dear {{employee}},\nHappy {{event}} on {{date}} from all of us at {{company}}!'}
+                        placeholder={'e.g. Dear {{employee}},\nHappy {{event}} on {{date}} from all of us at {{company}}!'}
                         className='min-h-20 font-mono text-sm'
                         {...field}
                       />
@@ -875,7 +875,7 @@ export function ComposeOverlay({
               />
 
               {isEdit && announcement && announcement.history.length > 0 && (
-                <div className='border-grey-200 rounded-[6px] border bg-white px-3 py-2'>
+                <div className='border-gray-200 rounded-[6px] border bg-white px-3 py-2'>
                   <p className='text-neutral-1600 mb-1 text-sm font-medium'>
                     Change history (bitemporal record)
                   </p>
@@ -893,7 +893,7 @@ export function ComposeOverlay({
               )}
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

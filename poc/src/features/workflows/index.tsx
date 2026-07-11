@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -17,6 +18,7 @@ import {
 } from './components/engine-search'
 import { InstancesTab } from './components/instances-tab'
 import { PlatformTab } from './components/platform-tab'
+import { ReportsTab } from './components/reports-tab'
 import { RoutingTab } from './components/routing-tab'
 import { SlaTab } from './components/sla-tab'
 import { CATEGORY_LABELS } from './data/approver-groups'
@@ -42,11 +44,12 @@ interface TabDef {
 }
 
 /**
- * One mental model, four tabs — no concept appears twice:
+ * One mental model — no concept appears twice:
  *   Requests      RUN      — approver inbox + running requests
  *   Configure     GOVERN   — THE artifact catalog (every configuration lives
  *                            or is being absorbed here; scope matrix, versions)
  *   Build         AUTHOR   — the canvas designer; publishes into Configure
+ *   Reports       MEASURE  — cycle times, SLA breaches, volume by module
  *   Classic admin LEGACY   — the remaining pre-catalog screens, grouped and
  *                            explicitly marked as being absorbed
  * "Find any setting…" searches every surface and jumps to the right place.
@@ -81,6 +84,11 @@ const TABS: TabDef[] = [
       'Portfolio Admin',
       'Platform Admin',
     ],
+  },
+  {
+    value: 'reports',
+    label: 'Reports',
+    roles: ['Company Admin', 'Group Company Admin', 'Portfolio Admin'],
   },
   {
     value: 'admin',
@@ -228,8 +236,15 @@ export function Workflows() {
     setCatalogSearch('')
   }, [role])
 
+  const changeTab = (value: string) => {
+    // Stale feedback (e.g. a lingering publish toast) must not survive a
+    // surface switch — each tab's toasts describe that tab only.
+    toast.dismiss()
+    setTopTab(value)
+  }
+
   const navigate = (target: SearchTarget) => {
-    setTopTab(target.top)
+    changeTab(target.top)
     if (target.catalogQuery !== undefined) setCatalogSearch(target.catalogQuery)
   }
 
@@ -415,7 +430,7 @@ export function Workflows() {
           ) : (
             <Tabs
               value={topTab ?? visibleTabs[0]?.value}
-              onValueChange={setTopTab}
+              onValueChange={changeTab}
               key={role}
             >
               <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
@@ -462,6 +477,10 @@ export function Workflows() {
                 />
               </TabsContent>
 
+              <TabsContent value='reports'>
+                <ReportsTab store={instances} companies={companies} />
+              </TabsContent>
+
               <TabsContent value='admin'>
                 <p className='text-neutral-1000 mb-3 text-sm'>
                   Classic configuration screens, kept while they are absorbed
@@ -469,28 +488,52 @@ export function Workflows() {
                   the catalog. Use "Find any setting…" above to jump straight
                   to anything.
                 </p>
+                {/* Anchored section nav — the long stacked page is jumpable. */}
+                <nav
+                  aria-label='Classic admin sections'
+                  className='bg-neutral-200 sticky top-0 z-10 mb-4 flex flex-wrap items-center gap-2 py-2'
+                >
+                  <span className='text-neutral-1000 text-xs font-medium'>
+                    Jump to:
+                  </span>
+                  {visibleAdminTabs.map((t) => (
+                    <button
+                      key={t.value}
+                      type='button'
+                      onClick={() =>
+                        document
+                          .getElementById(`admin-${t.value}`)
+                          ?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                          })
+                      }
+                      className='text-neutral-1400 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs transition-colors hover:bg-blue-50 hover:text-blue-700'
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </nav>
                 <div className='flex flex-col gap-6'>
                   {visibleAdminTabs.some((t) => t.value === 'configuration') && (
-                    <section>
-                      <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
+                    <section id='admin-configuration' className='scroll-mt-14'>
+                      <h3 className='text-paragraph-md text-neutral-1400 font-semibold'>
                         Configuration hub
                       </h3>
-                      <div className='space-y-6'>
-                        <AdminSection
-                          title='Configuration hub'
-                          caption='Every HRMS setup area in one place (CFG-01), organization settings — localization & head office (CFG-02) — and integrations & alerts (CFG-08).'
-                        >
-                          <ConfigurationHubTab
-                            store={configuration}
-                            canConfigure={canConfigureHub}
-                          />
-                        </AdminSection>
-                      </div>
+                      <p className='text-neutral-1000 mb-3 text-xs'>
+                        Every HRMS setup area in one place — organization
+                        settings, localization &amp; head office, and
+                        integrations &amp; alerts.
+                      </p>
+                      <ConfigurationHubTab
+                        store={configuration}
+                        canConfigure={canConfigureHub}
+                      />
                     </section>
                   )}
 
                   {visibleAdminTabs.some((t) => t.value === 'flows') && (
-                    <section>
+                    <section id='admin-flows' className='scroll-mt-14'>
                       <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
                         Approval workflows &amp; routing
                       </h3>
@@ -523,7 +566,7 @@ export function Workflows() {
                   )}
 
                   {visibleAdminTabs.some((t) => t.value === 'approvers') && (
-                    <section>
+                    <section id='admin-approvers' className='scroll-mt-14'>
                       <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
                         Approver chains &amp; SLAs
                       </h3>
@@ -550,7 +593,7 @@ export function Workflows() {
                   )}
 
                   {visibleAdminTabs.some((t) => t.value === 'settings') && (
-                    <section>
+                    <section id='admin-settings' className='scroll-mt-14'>
                       <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>
                         Settings &amp; history
                       </h3>

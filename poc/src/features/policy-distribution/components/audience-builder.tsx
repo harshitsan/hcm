@@ -122,7 +122,7 @@ export function AudienceBuilder({ value, onChange }: AudienceBuilderProps) {
       </div>
 
       {/* Recipient preview — de-duplicated before sending */}
-      <div className='border-grey-200 rounded-[6px] border bg-white p-3'>
+      <div className='border-gray-200 rounded-[6px] border bg-white p-3'>
         <div className='mb-2 flex items-center justify-between'>
           <span className='text-neutral-1600 text-sm font-medium'>
             Recipient preview (de-duplicated)

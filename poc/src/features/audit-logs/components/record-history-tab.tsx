@@ -141,7 +141,7 @@ export function RecordHistoryTab({ entries, allowed }: RecordHistoryTabProps) {
         showEntityFilter={false}
       />
 
-      <Card className='border-grey-200 w-full border bg-white'>
+      <Card className='border-gray-200 w-full border bg-white'>
         <CardHeader className='flex flex-wrap items-center justify-between px-4 pt-4 pb-0'>
           <CardTitle className='text-paragraph-sm text-neutral-1600 font-medium'>
             Chronological change history ({history.length}{' '}
@@ -157,7 +157,7 @@ export function RecordHistoryTab({ entries, allowed }: RecordHistoryTabProps) {
               No history entries match the current filters.
             </p>
           ) : (
-            <ol className='border-grey-200 ms-2 space-y-5 border-s ps-5'>
+            <ol className='border-gray-200 ms-2 space-y-5 border-s ps-5'>
               {history.map((entry) => (
                 <li key={entry.id} className='relative'>
                   <span className='bg-blue-1400 absolute -start-[26px] top-1.5 h-2.5 w-2.5 rounded-full' />

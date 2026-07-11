@@ -73,14 +73,14 @@ export function PolicyPreviewDialog({
         )}
 
         <div className='space-y-3'>
-          <div className='border-grey-200 rounded-[6px] border p-3'>
+          <div className='border-gray-200 rounded-[6px] border p-3'>
             <p className='text-neutral-1600 mb-1 text-sm font-medium'>Policy content</p>
             <p className='text-paragraph-sm text-neutral-1900 whitespace-pre-wrap'>
               {shown.content}
             </p>
           </div>
 
-          <div className='border-grey-200 rounded-[6px] border p-3'>
+          <div className='border-gray-200 rounded-[6px] border p-3'>
             <p className='text-neutral-1600 mb-1 text-sm font-medium'>Applicability</p>
             <p className='text-paragraph-sm text-neutral-1000'>
               {scopeSummary(policy.scope)}
@@ -88,7 +88,7 @@ export function PolicyPreviewDialog({
             {policy.scope.excludedPositionLevels.length > 0 && (
               <div className='mt-2 flex flex-wrap gap-1'>
                 {policy.scope.excludedPositionLevels.map((level) => (
-                  <Badge key={level} variant='disqualified'>
+                  <Badge key={level} variant='dropped'>
                     Excludes {level}
                   </Badge>
                 ))}
@@ -102,7 +102,7 @@ export function PolicyPreviewDialog({
           </div>
 
           {shown.attachment ? (
-            <div className='border-grey-200 flex items-center justify-between rounded-[6px] border p-3'>
+            <div className='border-gray-200 flex items-center justify-between rounded-[6px] border p-3'>
               <div className='flex items-center gap-2'>
                 <FilePdf size={20} className='text-red-1400' />
                 <div className='flex flex-col'>

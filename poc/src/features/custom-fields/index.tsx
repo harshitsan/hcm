@@ -7,7 +7,7 @@ import { EngineArtifactsPanel } from '@/features/workflows/components/engine-art
 import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { DefinitionsTab } from './components/definitions-tab'
 import { FieldsSummary } from './components/fields-summary'
-import { GovernanceTab } from './components/governance-tab'
+import { GovernanceTab, HistoryTab } from './components/governance-tab'
 import { IntegrationTab } from './components/integration-tab'
 import { RecordsTab } from './components/records-tab'
 import { useFieldDefinitions } from './hooks/use-custom-fields'
@@ -19,6 +19,13 @@ const ADMIN_ROLES = [
   'Portfolio Admin',
   'Group Company Admin',
   'Company Admin',
+]
+
+/** Roles that see the oversight/tenant-isolation Governance sub-tab. */
+const GOVERNANCE_ROLES = [
+  'Platform Admin',
+  'Portfolio Admin',
+  'Group Company Admin',
 ]
 
 /**
@@ -33,12 +40,24 @@ export function CustomFields() {
   const conditionsStore = useWorkflowConditions()
 
   const isAdmin = ADMIN_ROLES.includes(role)
-  const [tab, setTab] = useState(() => takeRequestedTab('/custom-fields') ?? (isAdmin ? 'admin' : 'records'))
+  const canGovern = GOVERNANCE_ROLES.includes(role)
+
+  // One-shot cross-module deep-link: 'admin' targets the engine catalog.
+  const [requested] = useState(() => takeRequestedTab('/custom-fields'))
+  const [tab, setTab] = useState(requested ?? (isAdmin ? 'admin' : 'records'))
+  const [adminTab, setAdminTab] = useState(
+    requested === 'admin' ? 'engine' : 'fields'
+  )
 
   // Employees have no admin surface; snap to their tabs.
   useEffect(() => {
     if (!isAdmin && tab === 'admin') setTab('records')
   }, [isAdmin, tab])
+
+  // Governance sub-tab is oversight-only; snap Company Admins off it.
+  useEffect(() => {
+    if (!canGovern && adminTab === 'governance') setAdminTab('fields')
+  }, [canGovern, adminTab])
 
   return (
     <>
@@ -61,31 +80,47 @@ export function CustomFields() {
             <TabsContent value='integration'>
               <IntegrationTab
                 fields={fieldStore.fields}
-                records={recordStore.records}
+                recordsStore={recordStore}
                 conditionsStore={conditionsStore}
               />
             </TabsContent>
 
             {isAdmin && (
               <TabsContent value='admin'>
-                <div className='flex flex-col gap-8'>
-                  <section>
-                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Engine Features</h3>
-                    <EngineArtifactsPanel module='Custom Fields' />
-                  </section>
-                  <section>
-                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Manage Fields</h3>
+                {/* Progressive disclosure: the former single-scroll admin
+                    stack is split into sub-tabs (UX #16 / worklist #43). */}
+                <Tabs value={adminTab} onValueChange={setAdminTab}>
+                  <TabsList className='mb-2 flex-wrap'>
+                    <TabsTrigger value='fields'>Manage Fields</TabsTrigger>
+                    <TabsTrigger value='history'>History</TabsTrigger>
+                    {canGovern && (
+                      <TabsTrigger value='governance'>Governance</TabsTrigger>
+                    )}
+                    <TabsTrigger value='engine'>Engine Features</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value='fields'>
                     <DefinitionsTab store={fieldStore} />
-                  </section>
-                  <section>
-                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>History</h3>
-                    <GovernanceTab
+                  </TabsContent>
+
+                  <TabsContent value='history'>
+                    <HistoryTab
                       fields={fieldStore.fields}
                       versions={fieldStore.versions}
                       valueHistory={recordStore.valueHistory}
                     />
-                  </section>
-                </div>
+                  </TabsContent>
+
+                  {canGovern && (
+                    <TabsContent value='governance'>
+                      <GovernanceTab fields={fieldStore.fields} />
+                    </TabsContent>
+                  )}
+
+                  <TabsContent value='engine'>
+                    <EngineArtifactsPanel module='Custom Fields' />
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
             )}
           </Tabs>

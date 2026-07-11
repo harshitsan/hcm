@@ -25,7 +25,7 @@ export function WageTypeBadge({ wageType }: { wageType: WageType }) {
 /** Portal user vs non-user employee marker (POS-11/17). */
 export function EmployeeTypeBadge({ type }: { type: EmployeeType }) {
   return type === 'user' ? (
-    <Badge variant='booked'>User</Badge>
+    <Badge variant='open'>User</Badge>
   ) : (
     <Badge variant='overdue'>Non-User</Badge>
   )

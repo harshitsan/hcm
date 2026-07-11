@@ -241,7 +241,7 @@ export function GroupFormOverlay({
   return (
     <Sheet open={open} onOpenChange={(o) => (o ? onOpenChange(o) : handleCancel())}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? 'Edit group' : isClone ? 'Clone group' : 'New group'}
           </SheetTitle>
@@ -394,7 +394,7 @@ export function GroupFormOverlay({
                 control={form.control}
                 name='requiresApproval'
                 render={({ field }) => (
-                  <FormItem className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
+                  <FormItem className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
                     <div>
                       <FormLabel>Approval-controlled membership</FormLabel>
                       <p className='text-paragraph-sm text-neutral-1000'>
@@ -410,7 +410,7 @@ export function GroupFormOverlay({
               />
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button type='button' variant='outline' onClick={handleCancel}>
                 Cancel
               </Button>

@@ -46,14 +46,14 @@ export function AssetHistoryOverlay({ open, onOpenChange, asset }: AssetHistoryO
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             History — {asset.assetTag} · {asset.name}
           </SheetTitle>
         </SheetHeader>
 
         <div className='flex-1 space-y-4 overflow-y-auto px-5 py-5'>
-          <div className='border-grey-200 rounded-[6px] border bg-white p-3'>
+          <div className='border-gray-200 rounded-[6px] border bg-white p-3'>
             <div className='mb-2 flex items-end gap-3'>
               <div className='flex flex-col gap-1'>
                 <Label htmlFor='asof-date' className='text-paragraph-sm'>
@@ -80,7 +80,7 @@ export function AssetHistoryOverlay({ open, onOpenChange, asset }: AssetHistoryO
 
           <div className='space-y-2'>
             {[...asset.history].reverse().map((entry) => (
-              <div key={entry.id} className='border-grey-200 rounded-[6px] border bg-white p-3'>
+              <div key={entry.id} className='border-gray-200 rounded-[6px] border bg-white p-3'>
                 <div className='mb-1 flex flex-wrap items-center gap-1.5'>
                   <span className='text-neutral-1600 text-sm font-medium'>{entry.event}</span>
                   {entry.priorState && <AssetStateBadge state={entry.priorState} />}

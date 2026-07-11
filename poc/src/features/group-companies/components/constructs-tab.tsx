@@ -13,6 +13,7 @@ import {
 } from '../data/group-companies'
 import { type GroupCompaniesStore } from '../hooks/use-group-companies'
 import { ScenarioBadges } from './group-badges'
+import { GroupProfileSheet } from './group-profile-sheet'
 import { buildGroupColumns } from './groups-table-columns'
 import { MembersPanel } from './members-panel'
 import { NewGroupOverlay } from './new-group-overlay'
@@ -35,6 +36,8 @@ export function ConstructsTab({ store }: ConstructsTabProps) {
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<GroupCompany | null>(null)
+  const [profileGroupId, setProfileGroupId] = useState<string | null>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
 
   const columns = useMemo(() => buildGroupColumns(store.companies), [store.companies])
   const selected = selectedRows[0]
@@ -48,7 +51,7 @@ export function ConstructsTab({ store }: ConstructsTabProps) {
 
   const handleNew = () => {
     if (role !== 'Platform Admin') {
-      toast.error('AUTH_001 — only a Platform Admin can create group-company structures (§7.1)')
+      toast.error('Not allowed — only a Platform Admin can create group-company structures')
       return
     }
     setEditingGroup(null)
@@ -58,7 +61,7 @@ export function ConstructsTab({ store }: ConstructsTabProps) {
   const handleEdit = () => {
     if (!liveSelected) return
     if (!canManage(liveSelected)) {
-      toast.error(`AUTH_001 — ${liveSelected.code} can only be managed by its Group Company Admin (${liveSelected.administratorName}) or a Platform Admin`)
+      toast.error(`Not allowed — ${liveSelected.code} can only be managed by its Group Company Admin (${liveSelected.administratorName}) or a Platform Admin`)
       return
     }
     setEditingGroup(liveSelected)
@@ -103,6 +106,10 @@ export function ConstructsTab({ store }: ConstructsTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(rows) => setSelectedRows(rows)}
+        onRowClick={(row) => {
+          setProfileGroupId(row.id)
+          setProfileOpen(true)
+        }}
       />
 
       {liveSelected ? (
@@ -113,8 +120,9 @@ export function ConstructsTab({ store }: ConstructsTabProps) {
         />
       ) : (
         <p className='text-paragraph-sm text-neutral-1000 mt-3'>
-          Select a construct to view its effective-dated membership, history and
-          as-of queries. Companies not added to any construct remain isolated.
+          Click a row for its read-only profile, or tick a construct to manage
+          its effective-dated membership, history and as-of queries. Companies
+          not added to any construct remain isolated.
         </p>
       )}
 
@@ -155,14 +163,21 @@ export function ConstructsTab({ store }: ConstructsTabProps) {
               )
             })}
             <p className='text-paragraph-sm text-neutral-1000'>
-              Constructs are governed at the portfolio level: creation stays
-              with Platform Admins (§7.1), while shared-scenario authorizations
-              are managed as versioned configuration in the Sharing & Roles tab.
-              Every construct change is auditable.
+              Group structures are managed at the portfolio level: only
+              Platform Admins can create them, while sharing permissions are
+              managed in the Sharing & Roles tab. Every change is recorded in
+              the audit trail.
             </p>
           </CardContent>
         </Card>
       )}
+
+      <GroupProfileSheet
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        group={store.groups.find((g) => g.id === profileGroupId) ?? null}
+        store={store}
+      />
 
       <NewGroupOverlay
         open={overlayOpen}

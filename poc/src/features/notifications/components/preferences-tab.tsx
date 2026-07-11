@@ -87,7 +87,7 @@ export function PreferencesTab({
               {CHANNELS.map((c) => (
                 <div
                   key={c}
-                  className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-1.5'
+                  className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-1.5'
                 >
                   <div className='flex items-center gap-2'>
                     <p className='text-neutral-1600 text-sm'>
@@ -117,7 +117,7 @@ export function PreferencesTab({
               {EVENT_TYPES.filter((e) => e.id !== 'digest').map((e) => (
                 <div
                   key={e.id}
-                  className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-1.5'
+                  className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-1.5'
                 >
                   <div className='flex items-center gap-2'>
                     <p className='text-neutral-1600 text-sm'>{e.label}</p>
@@ -149,7 +149,7 @@ export function PreferencesTab({
               {FREQUENCIES.map((f) => (
                 <label
                   key={f.value}
-                  className='border-grey-200 flex cursor-pointer items-center gap-3 rounded-[6px] border px-3 py-1.5'
+                  className='border-gray-200 flex cursor-pointer items-center gap-3 rounded-[6px] border px-3 py-1.5'
                 >
                   <RadioGroupItem value={f.value} id={`freq-${f.value}`} />
                   <div>

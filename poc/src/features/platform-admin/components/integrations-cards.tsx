@@ -327,7 +327,7 @@ export function IntegrationsCards({ store }: { store: GovernedConfigStore }) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Subscribed events</FormLabel>
-                    <div className='border-grey-200 grid gap-2 rounded-[6px] border p-3'>
+                    <div className='border-gray-200 grid gap-2 rounded-[6px] border p-3'>
                       {WEBHOOK_EVENTS.map((event) => (
                         <label key={event} className='flex items-center gap-2 text-sm'>
                           <Checkbox

@@ -197,14 +197,15 @@ export function MassUpdateDialog({
 
   const canApply =
     selectedEmployees.length > 0 &&
-    (isValueDriven ? Boolean(value) : applicableFields.length > 0)
+    value.trim() !== '' &&
+    (isValueDriven || applicableFields.length > 0)
 
   const submit = () => {
     if (!canApply) return
     onApply(
       selectedEmployees,
       fn,
-      value,
+      value.trim(),
       isValueDriven ? undefined : applicableFields
     )
     close()

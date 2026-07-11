@@ -265,19 +265,19 @@ export function ComplianceTab({
                   <>
                     <th className='px-2 font-medium'>Days present</th>
                     <th className='px-2 font-medium'>Leave days</th>
-                    <th className='px-2 font-medium'>LOP days</th>
+                    <th className='px-2 font-medium'>Loss of Pay days</th>
                   </>
                 )}
                 {register === 'leave' && (
                   <>
                     <th className='px-2 font-medium'>Leave availed</th>
-                    <th className='px-2 font-medium'>LOP (unpaid)</th>
+                    <th className='px-2 font-medium'>Loss of Pay (unpaid)</th>
                   </>
                 )}
                 {register === 'wage' && (
                   <>
                     <th className='px-2 font-medium'>Monthly wage</th>
-                    <th className='px-2 font-medium'>LOP deduction</th>
+                    <th className='px-2 font-medium'>Loss of Pay deduction</th>
                     <th className='px-2 font-medium'>Net payable</th>
                   </>
                 )}

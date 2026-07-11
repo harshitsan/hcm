@@ -3,7 +3,6 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { ArrowUpDown } from 'lucide-react'
 import { ArrowRight, FunnelSimple } from 'phosphor-react'
 import { toast } from 'sonner'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -13,41 +12,31 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
-import { type Employee } from '../data/directory'
+import { type Employee, type EmploymentStatus } from '../data/directory'
 import {
-  seedWorklistEntries,
+  NEXT_WORKLIST_STATUS,
   type FeedbackWorklistEntry,
-  type WorklistCategory,
-  type WorklistStatus,
 } from '../data/feedback-worklist'
+import { SELF_EMPLOYEE_ID, SELF_EMPLOYEE_NAME } from '../data/timeline'
 import { type DirectoryStore } from '../hooks/use-directory'
+import {
+  advanceFeedbackEntry,
+  useFeedbackWorklist,
+} from '../hooks/use-feedback-worklist'
 import { EmploymentStatusBadge } from './directory-badges'
+import {
+  AnonymousBadge,
+  WorklistCategoryBadge,
+  WorklistStatusBadge,
+} from './feedback-badges'
 
 type EmployeeStatusFilter = 'all' | 'active' | 'inactive'
 
-const CATEGORY_VARIANT: Record<
-  WorklistCategory,
-  'dropped' | 'open' | 'secondary'
-> = {
-  Grievance: 'dropped',
-  Feedback: 'open',
-  Suggestion: 'secondary',
-}
-
-const STATUS_VARIANT: Record<
-  WorklistStatus,
-  'pending' | 'overdue' | 'badge_active' | 'badge_inactive'
-> = {
-  Submitted: 'pending',
-  'Under Review': 'overdue',
-  Resolved: 'badge_active',
-  Closed: 'badge_inactive',
-}
-
-const NEXT_STATUS: Partial<Record<WorklistStatus, WorklistStatus>> = {
-  Submitted: 'Under Review',
-  'Under Review': 'Resolved',
-  Resolved: 'Closed',
+/** Resolved submitter identity for one worklist row. */
+interface Submitter {
+  name: string
+  department: string
+  employmentStatus: EmploymentStatus
 }
 
 /** An employee counts as Active unless the record is deactivated. */
@@ -69,51 +58,92 @@ function sortableHeader(label: string) {
 }
 
 /**
- * HR-admin feedback / grievance worklist (EFG-05): every entry resolves its
- * submitter against the directory, so the queue can be narrowed to Active or
- * Inactive employees and to a specific "Raised by" submitter. Entries carry a
- * simple review status flow so triage is demonstrable end to end.
+ * HR-admin feedback / grievance worklist (EFG-05): entries come from the
+ * shared module store — the same queue the employee "My Feedback" tab
+ * submits into — and resolve their submitter against the directory, so the
+ * queue can be narrowed to Active or Inactive employees and to a specific
+ * "Raised by" submitter. Entries carry a simple review status flow so triage
+ * is demonstrable end to end; anonymous submissions withhold the identity.
  */
 export function FeedbackWorklistTab({ store }: { store: DirectoryStore }) {
-  const [entries, setEntries] = useState<FeedbackWorklistEntry[]>(
-    seedWorklistEntries
-  )
+  const entries = useFeedbackWorklist()
   const [employeeStatus, setEmployeeStatus] =
     useState<EmployeeStatusFilter>('all')
   const [raisedBy, setRaisedBy] = useState('all')
 
-  // Submitters that actually raised something, resolved from the directory.
+  /**
+   * Resolves a submitter: directory employees by id, the signed-in mock
+   * employee via `SELF_EMPLOYEE_ID`, and anonymous entries as undefined.
+   */
+  const resolveSubmitter = useCallback(
+    (entry: FeedbackWorklistEntry): Submitter | undefined => {
+      if (entry.anonymous) return undefined
+      if (entry.raisedById === SELF_EMPLOYEE_ID) {
+        return {
+          name: SELF_EMPLOYEE_NAME,
+          department: 'Self-service',
+          employmentStatus: 'active',
+        }
+      }
+      const employee = store.employeeById.get(entry.raisedById)
+      if (!employee) return undefined
+      return {
+        name: employee.name,
+        department: employee.department,
+        employmentStatus: employee.employmentStatus,
+      }
+    },
+    [store.employeeById]
+  )
+
+  // Submitters that actually raised something (anonymous entries excluded).
   const submitters = useMemo(() => {
-    const ids = [...new Set(entries.map((e) => e.raisedById))]
+    const ids = [
+      ...new Set(entries.filter((e) => !e.anonymous).map((e) => e.raisedById)),
+    ]
     return ids
-      .map((id) => store.employeeById.get(id))
-      .filter((e): e is Employee => e !== undefined)
+      .map((id) => {
+        if (id === SELF_EMPLOYEE_ID) {
+          return { id, name: SELF_EMPLOYEE_NAME, inactive: false }
+        }
+        const employee = store.employeeById.get(id)
+        if (!employee) return null
+        return {
+          id,
+          name: employee.name,
+          inactive: employee.employmentStatus === 'inactive',
+        }
+      })
+      .filter((s): s is { id: string; name: string; inactive: boolean } =>
+        s !== null
+      )
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [entries, store.employeeById])
 
   const filtered = useMemo(
     () =>
       entries.filter((entry) => {
-        const submitter = store.employeeById.get(entry.raisedById)
-        if (employeeStatus === 'active' && !isActiveSubmitter(submitter)) {
-          return false
+        // Anonymous submitters are always current employees; the self
+        // persona is active by definition.
+        const active = entry.anonymous
+          ? true
+          : entry.raisedById === SELF_EMPLOYEE_ID
+            ? true
+            : isActiveSubmitter(store.employeeById.get(entry.raisedById))
+        if (employeeStatus === 'active' && !active) return false
+        if (employeeStatus === 'inactive' && active) return false
+        if (raisedBy !== 'all') {
+          if (entry.anonymous) return false
+          if (entry.raisedById !== raisedBy) return false
         }
-        if (employeeStatus === 'inactive' && isActiveSubmitter(submitter)) {
-          return false
-        }
-        if (raisedBy !== 'all' && entry.raisedById !== raisedBy) return false
         return true
       }),
     [entries, employeeStatus, raisedBy, store.employeeById]
   )
 
   const advance = useCallback((entry: FeedbackWorklistEntry) => {
-    const next = NEXT_STATUS[entry.status]
-    if (!next) return
-    setEntries((prev) =>
-      prev.map((e) => (e.id === entry.id ? { ...e, status: next } : e))
-    )
-    toast.success(`${entry.code} moved to ${next}`)
+    const updated = advanceFeedbackEntry(entry.id)
+    if (updated) toast.success(`${entry.code} moved to ${updated.status}`)
   }, [])
 
   const columns = useMemo<ColumnDef<FeedbackWorklistEntry>[]>(
@@ -131,7 +161,17 @@ export function FeedbackWorklistTab({ store }: { store: DirectoryStore }) {
         accessorKey: 'raisedById',
         header: sortableHeader('Raised by'),
         cell: ({ row }) => {
-          const submitter = store.employeeById.get(row.original.raisedById)
+          if (row.original.anonymous) {
+            return (
+              <div className='flex min-w-[180px] items-center gap-2'>
+                <AnonymousBadge />
+                <span className='text-neutral-1000 text-xs'>
+                  Identity withheld
+                </span>
+              </div>
+            )
+          }
+          const submitter = resolveSubmitter(row.original)
           if (!submitter) {
             return <span className='text-neutral-1000 text-sm'>Unknown</span>
           }
@@ -152,16 +192,21 @@ export function FeedbackWorklistTab({ store }: { store: DirectoryStore }) {
         accessorKey: 'category',
         header: sortableHeader('Category'),
         cell: ({ row }) => (
-          <Badge variant={CATEGORY_VARIANT[row.original.category]}>
-            {row.original.category}
-          </Badge>
+          <WorklistCategoryBadge category={row.original.category} />
         ),
       },
       {
         accessorKey: 'subject',
         header: 'Subject',
         cell: ({ row }) => (
-          <span className='text-sm'>{row.original.subject}</span>
+          <div className='min-w-[220px]'>
+            <p className='text-sm'>{row.original.subject}</p>
+            {row.original.description && (
+              <p className='text-paragraph-sm text-neutral-1000 max-w-[380px] truncate'>
+                {row.original.description}
+              </p>
+            )}
+          </div>
         ),
       },
       {
@@ -176,17 +221,13 @@ export function FeedbackWorklistTab({ store }: { store: DirectoryStore }) {
       {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => (
-          <Badge variant={STATUS_VARIANT[row.original.status]}>
-            {row.original.status}
-          </Badge>
-        ),
+        cell: ({ row }) => <WorklistStatusBadge status={row.original.status} />,
       },
       {
         id: 'actions',
         header: '',
         cell: ({ row }) => {
-          const next = NEXT_STATUS[row.original.status]
+          const next = NEXT_WORKLIST_STATUS[row.original.status]
           return (
             <Button
               variant='outline'
@@ -208,13 +249,16 @@ export function FeedbackWorklistTab({ store }: { store: DirectoryStore }) {
         enableSorting: false,
       },
     ],
-    [store.employeeById, advance]
+    [resolveSubmitter, advance]
   )
 
   const inactiveCount = useMemo(
     () =>
       entries.filter(
-        (e) => !isActiveSubmitter(store.employeeById.get(e.raisedById))
+        (e) =>
+          !e.anonymous &&
+          e.raisedById !== SELF_EMPLOYEE_ID &&
+          !isActiveSubmitter(store.employeeById.get(e.raisedById))
       ).length,
     [entries, store.employeeById]
   )
@@ -222,11 +266,12 @@ export function FeedbackWorklistTab({ store }: { store: DirectoryStore }) {
   return (
     <div className='w-full'>
       <p className='text-blue-1400 bg-blue-150 mb-3 rounded-md px-3 py-2 text-xs'>
-        Feedback and grievances raised by employees, resolved against the
-        directory. Narrow the queue to Active or Inactive submitters — exited
-        employees ({inactiveCount} entr{inactiveCount === 1 ? 'y' : 'ies'} in
-        queue) often have pending settlement grievances — or pick a specific
-        submitter.
+        Feedback and grievances raised by employees (via the self-service My
+        Feedback form), resolved against the directory. Narrow the queue to
+        Active or Inactive submitters — exited employees ({inactiveCount} entr
+        {inactiveCount === 1 ? 'y' : 'ies'} in queue) often have pending
+        settlement grievances — or pick a specific submitter. Anonymous
+        entries keep the submitter's identity withheld.
       </p>
 
       {/* EFG-05 — Active/Inactive-employee and Raised-by filters. */}
@@ -257,7 +302,7 @@ export function FeedbackWorklistTab({ store }: { store: DirectoryStore }) {
             {submitters.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}
-                {s.employmentStatus === 'inactive' ? ' (inactive)' : ''}
+                {s.inactive ? ' (inactive)' : ''}
               </SelectItem>
             ))}
           </SelectContent>

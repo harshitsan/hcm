@@ -124,7 +124,7 @@ export function ApplicabilityTab({ store }: { store: PoliciesStore }) {
           return (
             <div
               key={policy.id}
-              className='border-grey-200 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border bg-white px-3 py-2'
+              className='border-gray-200 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border bg-white px-3 py-2'
             >
               <div className='flex min-w-0 flex-col'>
                 <span className='text-neutral-1600 text-sm font-medium'>

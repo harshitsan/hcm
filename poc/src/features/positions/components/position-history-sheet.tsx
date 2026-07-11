@@ -51,7 +51,7 @@ export function PositionHistorySheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             History — {position?.id ?? ''}
           </SheetTitle>
@@ -73,7 +73,7 @@ export function PositionHistorySheet({
                 No definition changes recorded yet.
               </p>
             ) : (
-              <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+              <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
                 {defRows.map((h) => (
                   <div key={h.id} className='flex flex-col gap-1 px-3 py-2'>
                     <span className='text-neutral-1600 text-sm font-medium'>
@@ -100,7 +100,7 @@ export function PositionHistorySheet({
                 No employee has held this position yet.
               </p>
             ) : (
-              <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+              <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
                 {assignRows.map((h) => (
                   <div key={h.id} className='flex flex-col gap-1 px-3 py-2'>
                     <span className='text-neutral-1600 text-sm font-medium'>

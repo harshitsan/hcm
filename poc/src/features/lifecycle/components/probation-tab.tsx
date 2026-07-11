@@ -27,6 +27,7 @@ import {
 } from '../data/probation'
 import { DEPARTMENTS, PERSONAS } from '../data/shared'
 import { type ProbationStore } from '../hooks/use-probation'
+import { ClassChangeList } from './class-change-list'
 import {
   peerReviewColumns,
   periodicReviewColumns,
@@ -48,7 +49,7 @@ interface ProbationTabProps {
   decisionTable: ProbationDecisionTable
 }
 
-type ReviewSection = 'confirmation' | 'peer' | 'periodic'
+type ReviewSection = 'confirmation' | 'peer' | 'periodic' | 'class-change'
 
 /** Confirmation review dashboard + peer & periodic review grids. */
 export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
@@ -136,6 +137,7 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
     { value: 'confirmation', label: 'Confirmation Review' },
     { value: 'peer', label: 'Peer Review' },
     { value: 'periodic', label: 'Periodic Review' },
+    { value: 'class-change', label: 'Class Change' },
   ]
 
   return (
@@ -414,6 +416,10 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
             }}
           />
         </>
+      )}
+
+      {section === 'class-change' && (
+        <ClassChangeList cases={store.cases} onSelect={setSelectedId} />
       )}
 
       <ProbationDetailSheet

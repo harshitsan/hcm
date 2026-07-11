@@ -63,7 +63,7 @@ export function ConfigTab({ settings, onRunSchedulingEngine }: ConfigTabProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-3 px-4'>
-          <div className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
+          <div className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
             <div>
               <Label htmlFor='module-toggle' className='text-sm font-medium'>
                 Announcements module enabled
@@ -166,7 +166,7 @@ export function ConfigTab({ settings, onRunSchedulingEngine }: ConfigTabProps) {
         </CardHeader>
         <CardContent className='px-4'>
           <div className='grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3'>
-            <div className='border-grey-200 rounded-[6px] border px-3 py-2'>
+            <div className='border-gray-200 rounded-[6px] border px-3 py-2'>
               <div className='mb-1 flex items-center gap-2'>
                 <CalendarClock className='text-blue-1400 size-4' />
                 <p className='text-neutral-1600 text-sm font-medium'>
@@ -183,7 +183,7 @@ export function ConfigTab({ settings, onRunSchedulingEngine }: ConfigTabProps) {
             {ENGINE_PANELS.map((panel) => (
               <div
                 key={panel.title}
-                className='border-grey-200 rounded-[6px] border px-3 py-2'
+                className='border-gray-200 rounded-[6px] border px-3 py-2'
               >
                 <div className='mb-1 flex items-center gap-2'>
                   <panel.icon className='text-blue-1400 size-4' />

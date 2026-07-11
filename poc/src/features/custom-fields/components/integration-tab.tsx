@@ -20,6 +20,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  UploadModal,
+  type UploadErrorDetail,
+  type UploadResult,
+} from '@/components/common/upload-modal'
 import { RoleGate, useRole } from '@/context/role-context'
 import {
   SUPPORTED_ENTITIES,
@@ -27,18 +32,92 @@ import {
   type SupportedEntity,
 } from '../data/custom-fields'
 import {
+  applyMask,
   formatFieldValue,
   resolveFieldAccess,
   validateFieldValue,
 } from '../data/field-engine'
-import { type EntityRecord } from '../data/records'
+import { type EntityRecord, type FieldValue } from '../data/records'
+import { type EntityRecordsStore } from '../hooks/use-entity-records'
 import { type WorkflowConditionsStore } from '../hooks/use-workflow-conditions'
 import { WorkflowConditionsPanel } from './workflow-conditions-panel'
 
 interface IntegrationTabProps {
   fields: FieldDefinition[]
-  records: EntityRecord[]
+  recordsStore: EntityRecordsStore
   conditionsStore: WorkflowConditionsStore
+}
+
+const todayIso = () => new Date().toISOString().slice(0, 10)
+
+/** A plausible, type-correct raw value for a staged import cell. */
+function sampleImportValue(def: FieldDefinition): FieldValue {
+  switch (def.type) {
+    case 'number':
+      return '7'
+    case 'decimal':
+      return '12.5'
+    case 'currency':
+      return '2600'
+    case 'percentage':
+      return '18'
+    case 'boolean':
+    case 'checkbox':
+      return true
+    case 'date':
+    case 'date-time':
+      return todayIso()
+    case 'single-select':
+    case 'radio':
+    case 'lookup':
+      return def.options[0] ?? 'Assembly'
+    case 'multi-select':
+      return def.options.slice(0, 2)
+    case 'email':
+      return 'import.batch@example.com'
+    case 'phone':
+      return '+91 98220 55667'
+    case 'url':
+      return 'https://example.com/imported'
+    case 'file':
+      return 'imported-attachment.pdf'
+    default:
+      return 'Imported via CSV'
+  }
+}
+
+/**
+ * A deliberately bad raw value for the staged batch so the dry-run has
+ * something to reject; null when the type has no invalid representation.
+ */
+function invalidImportValue(def: FieldDefinition): FieldValue | null {
+  switch (def.type) {
+    case 'number':
+      return 'twelve'
+    case 'decimal':
+    case 'currency':
+      return '12,000'
+    case 'percentage':
+      return '140'
+    case 'email':
+      return 'not-an-email'
+    case 'phone':
+      return 'call me'
+    case 'url':
+      return 'example dot com'
+    case 'date':
+    case 'date-time':
+      return 'not-a-date'
+    case 'single-select':
+    case 'radio':
+      return 'Not a configured option'
+    case 'multi-select':
+      return ['Not a configured option']
+    case 'checkbox':
+      return def.required ? false : null
+    default:
+      return def.regex ? '!!' : def.required ? '' : null
+  }
 }
 
 /**
@@ -47,14 +126,16 @@ interface IntegrationTabProps {
  */
 export function IntegrationTab({
   fields,
-  records,
+  recordsStore,
   conditionsStore,
 }: IntegrationTabProps) {
   const { role } = useRole()
+  const records = recordsStore.records
   const [entity, setEntity] = useState<SupportedEntity>('Employees')
   const [filterFieldId, setFilterFieldId] = useState<string>('all')
   const [filterText, setFilterText] = useState('')
   const [apiRecordId, setApiRecordId] = useState('rec-self')
+  const [importOpen, setImportOpen] = useState(false)
 
   // Column visibility follows the permission matrix for the active role.
   const gridFields = useMemo(
@@ -109,6 +190,131 @@ export function IntegrationTab({
     )
   }
 
+  /**
+   * Import framework flow (staging → validate → dry-run → commit): rows are
+   * staged out of the uploaded file (deterministic mock batch — no backend),
+   * every cell is validated with the SAME field-engine rules the forms use
+   * (type, required, options, mask, regex), and only rows that pass the
+   * dry-run commit — each change versioned into the bitemporal history.
+   */
+  const handleImport = async (file: File): Promise<UploadResult> => {
+    const entityFields = fields
+      .filter((f) => f.entity === entity)
+      .sort((a, b) => a.order - b.order)
+    const targets = records.filter((r) => r.entity === entity)
+
+    if (!entityFields.length || !targets.length) {
+      return {
+        state: 'failed',
+        successCount: 0,
+        failedCount: 1,
+        errors: [
+          {
+            row: 2,
+            fieldName: 'File',
+            reason: !entityFields.length
+              ? `No custom fields are configured for ${entity} — add definitions before importing`
+              : `No ${entity} records exist to import values into`,
+          },
+        ],
+      }
+    }
+
+    // Staging: parse the batch — up to 3 columns (field defs) per row.
+    const columns = entityFields.slice(0, 3)
+    const goodValue = (def: FieldDefinition): FieldValue | null => {
+      // Prefer a value already valid on another record; else a typed sample.
+      const donor = targets.find((r) => {
+        const v = r.values[def.id]
+        return v !== undefined && v !== null && v !== ''
+      })
+      const raw = donor?.values[def.id] ?? sampleImportValue(def)
+      const shaped =
+        typeof raw === 'string' && def.mask ? applyMask(def.mask, raw) : raw
+      return validateFieldValue(def, shaped) === null ? shaped : null
+    }
+    const cellsFor = (bad: FieldDefinition | null) =>
+      columns.flatMap((def) => {
+        if (bad && def.id === bad.id) {
+          const raw = invalidImportValue(def)
+          return raw === null ? [] : [{ def, raw }]
+        }
+        const raw = goodValue(def)
+        return raw === null ? [] : [{ def, raw }]
+      })
+    // One column carries a bad value in row 3 so the dry-run rejects it.
+    const badColumn =
+      columns.find((def) => {
+        const raw = invalidImportValue(def)
+        return raw !== null && validateFieldValue(def, raw) !== null
+      }) ?? null
+
+    const staged: {
+      row: number
+      record: EntityRecord | null
+      recordName: string
+      cells: { def: FieldDefinition; raw: FieldValue }[]
+    }[] = [
+      { row: 2, record: targets[0], recordName: targets[0].name, cells: cellsFor(null) },
+      {
+        row: 3,
+        record: targets[1] ?? targets[0],
+        recordName: (targets[1] ?? targets[0]).name,
+        cells: cellsFor(badColumn),
+      },
+      { row: 4, record: null, recordName: 'Priya Nair', cells: [] },
+      {
+        row: 5,
+        record: targets[2] ?? targets[0],
+        recordName: (targets[2] ?? targets[0]).name,
+        cells: cellsFor(null),
+      },
+    ]
+
+    // Validate + dry-run: simulate the round-trip before committing.
+    await new Promise((resolve) => setTimeout(resolve, 900))
+    const errors: UploadErrorDetail[] = []
+    const commits: { recordId: string; updates: Record<string, FieldValue> }[] = []
+    for (const row of staged) {
+      if (!row.record) {
+        errors.push({
+          row: row.row,
+          fieldName: 'Record',
+          reason: `Unknown ${entity} record "${row.recordName}" — no matching host record`,
+        })
+        continue
+      }
+      const rowErrors: UploadErrorDetail[] = []
+      const updates: Record<string, FieldValue> = {}
+      for (const { def, raw } of row.cells) {
+        const shaped =
+          typeof raw === 'string' && def.mask ? applyMask(def.mask, raw) : raw
+        const err = validateFieldValue(def, shaped)
+        if (err) rowErrors.push({ row: row.row, fieldName: def.name, reason: err })
+        else updates[def.id] = shaped
+      }
+      if (rowErrors.length) errors.push(...rowErrors)
+      else commits.push({ recordId: row.record.id, updates })
+    }
+
+    // Commit: only rows that passed the dry-run land, versioned as changes.
+    const versioned = recordsStore.importRecordValues(
+      commits,
+      entityFields,
+      role
+    )
+    const failedRows = new Set(errors.map((e) => e.row)).size
+    toast.success(
+      `${file.name}: ${staged.length} rows staged — dry-run passed ${commits.length}, rejected ${failedRows}; ${versioned} value change${versioned === 1 ? '' : 's'} versioned`
+    )
+    return {
+      state: errors.length ? (commits.length ? 'partial' : 'failed') : 'success',
+      successCount: commits.length,
+      failedCount: failedRows,
+      errors,
+    }
+  }
+
   const apiRecord = records.find((r) => r.id === apiRecordId) ?? null
   const apiPayload = useMemo(() => {
     if (!apiRecord) return '{}'
@@ -142,11 +348,7 @@ export function IntegrationTab({
               variant='outline'
               size='sm'
               className='gap-1'
-              onClick={() =>
-                toast.info(
-                  'Import accepts custom columns — type, required, mask, and regex rules are enforced on load'
-                )
-              }
+              onClick={() => setImportOpen(true)}
             >
               <UploadSimple size={14} weight='bold' />
               Import
@@ -294,6 +496,13 @@ export function IntegrationTab({
           </CardContent>
         </Card>
       </RoleGate>
+
+      <UploadModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title={`Import ${entity} custom field values (CSV / XLS)`}
+        onUpload={handleImport}
+      />
     </div>
   )
 }

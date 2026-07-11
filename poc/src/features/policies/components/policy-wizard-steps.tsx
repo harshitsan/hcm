@@ -99,7 +99,7 @@ export function DetailsStep({ form }: StepProps) {
           <FormItem>
             <FormLabel>Edition / version name</FormLabel>
             <FormControl>
-              <Input placeholder='Employee Manual 2026' {...field} />
+              <Input placeholder='e.g. Employee Manual 2026' {...field} />
             </FormControl>
             <FormMessage />
           </FormItem>

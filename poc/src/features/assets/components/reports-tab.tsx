@@ -141,7 +141,7 @@ export function ReportsTab({ assetsStore, reqStore, config }: ReportsTabProps) {
 
   return (
     <div className='w-full space-y-3'>
-      <div className='border-grey-200 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
+      <div className='border-gray-200 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
         <div className='flex flex-col gap-1'>
           <Label className='text-paragraph-sm'>Report</Label>
           <Select value={report} onValueChange={(v) => setReport(v as ReportId)}>
@@ -271,7 +271,7 @@ export function ReportsTab({ assetsStore, reqStore, config }: ReportsTabProps) {
         </div>
       </div>
 
-      <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
+      <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
         {report === 'assignment' && (
           <Table>
             <TableHeader>
@@ -307,7 +307,7 @@ export function ReportsTab({ assetsStore, reqStore, config }: ReportsTabProps) {
 
         {report === 'inventory' && (
           <div>
-            <div className='border-grey-200 flex flex-wrap gap-2 border-b p-3'>
+            <div className='border-gray-200 flex flex-wrap gap-2 border-b p-3'>
               {categoryRollup.map(([category, agg]) => (
                 <Badge key={category} variant='open'>
                   {category}: {agg.count} · {formatInr(agg.value)}

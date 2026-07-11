@@ -6,11 +6,11 @@ import {
 
 const actionBadge: Record<
   AuditActionType,
-  { label: string; variant: 'qualified' | 'open' | 'disqualified' | 'overdue' }
+  { label: string; variant: 'badge_active' | 'open' | 'dropped' | 'overdue' }
 > = {
-  create: { label: 'Create', variant: 'qualified' },
+  create: { label: 'Create', variant: 'badge_active' },
   update: { label: 'Update', variant: 'open' },
-  delete: { label: 'Delete', variant: 'disqualified' },
+  delete: { label: 'Delete', variant: 'dropped' },
   'status-change': { label: 'Status change', variant: 'overdue' },
 }
 

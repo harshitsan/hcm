@@ -22,6 +22,13 @@ export const seedMethodConfigs: AuthMethodConfig[] = [
   { method: 'google', enabled: false, connectionUrl: null, lastValidated: null },
 ]
 
+/**
+ * Companies that require multi-factor authentication at sign-in (BRD Phase I
+ * 6.12.5). Toggled per company from the Admin tab; the sign-in simulator
+ * forces enrollment on first MFA sign-in and a code challenge afterwards.
+ */
+export const seedMfaCompanyIds: string[] = ['co-04']
+
 export interface PasswordPolicyVersion {
   version: number
   minLength: number

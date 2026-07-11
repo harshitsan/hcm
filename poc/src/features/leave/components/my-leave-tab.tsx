@@ -19,6 +19,7 @@ import { type BalancesStore } from '../hooks/use-balances'
 import { useLeaveDocuments } from '../hooks/use-leave-documents'
 import { type LeaveRequestsStore } from '../hooks/use-leave-requests'
 import { ApplyLeaveOverlay } from './apply-leave-overlay'
+import { EncashmentRequestDialog } from './encashment-request-dialog'
 import { UploadDocumentDialog } from './upload-document-dialog'
 import { LeaveSummaryCards } from './leave-summary-cards'
 import { RequestDetailSheet } from './request-detail-sheet'
@@ -33,6 +34,11 @@ interface MyLeaveTabProps {
   fmlaReasons: FmlaReason[]
   /** Read-only mode for the Employee (Non-User) view (LVE-29). */
   readOnly?: boolean
+  /**
+   * True when payout is enabled AND employees may raise payout requests
+   * (Time Off Management global settings → Payout).
+   */
+  payoutRequestsEnabled?: boolean
 }
 
 /**
@@ -47,8 +53,10 @@ export function MyLeaveTab({
   leaveTypes,
   fmlaReasons,
   readOnly = false,
+  payoutRequestsEnabled = false,
 }: MyLeaveTabProps) {
   const [applyOpen, setApplyOpen] = useState(false)
+  const [encashOpen, setEncashOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [year, setYear] = useState('2026')
   // PTO #29–#31: post-submission document submissions (this tab is the only consumer).
@@ -68,6 +76,9 @@ export function MyLeaveTab({
   const myBalances = balances.balances.filter((b) => b.employeeId === employeeId)
   const myCredits = balances.compOffCredits.filter(
     (c) => c.employeeId === employeeId
+  )
+  const myEncashments = balances.encashments.filter(
+    (e) => e.employeeId === employeeId
   )
   const selected = requests.requests.find((r) => r.id === selectedId) ?? null
 
@@ -165,8 +176,8 @@ export function MyLeaveTab({
                 <th className='px-2 font-medium'>Tentative</th>
                 <th className='px-2 font-medium'>Scheduled</th>
                 <th className='px-2 font-medium'>Pending approval</th>
-                <th className='px-2 font-medium'>LOP pending</th>
-                <th className='px-2 font-medium'>LOP approved</th>
+                <th className='px-2 font-medium'>Loss of Pay pending</th>
+                <th className='px-2 font-medium'>Loss of Pay approved</th>
                 <th className='px-2 font-medium'>Cancelled</th>
                 <th className='px-2 font-medium'>Remaining</th>
               </tr>
@@ -200,14 +211,25 @@ export function MyLeaveTab({
           My Requests ({myRequests.length})
         </h2>
         {!readOnly && (
-          <Button
-            variant='red'
-            onClick={() => setApplyOpen(true)}
-            className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
-          >
-            <Plus size={10} weight='bold' />
-            Apply Time Off
-          </Button>
+          <div className='flex items-center gap-2'>
+            {payoutRequestsEnabled && (
+              <Button
+                variant='outline'
+                className='h-7'
+                onClick={() => setEncashOpen(true)}
+              >
+                Request encashment
+              </Button>
+            )}
+            <Button
+              variant='red'
+              onClick={() => setApplyOpen(true)}
+              className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
+            >
+              <Plus size={10} weight='bold' />
+              Apply Time Off
+            </Button>
+          </div>
         )}
       </div>
       <DataTable
@@ -308,6 +330,36 @@ export function MyLeaveTab({
         </div>
       </div>
 
+      {/* Encashment (payout) requests raised by this employee */}
+      {payoutRequestsEnabled && myEncashments.length > 0 && (
+        <div className='mt-4 rounded-[8px] border border-gray-200 bg-white p-4'>
+          <h2 className='text-neutral-1600 text-paragraph-md mb-2 font-medium'>
+            My Encashment Requests
+          </h2>
+          <div className='space-y-2'>
+            {myEncashments.map((e) => (
+              <div
+                key={e.id}
+                className='flex items-center justify-between rounded-[6px] border border-gray-200 px-3 py-2 text-sm'
+              >
+                <div>
+                  <div className='font-medium'>
+                    {e.units} {e.unit} · {e.typeName}
+                  </div>
+                  <div className='text-neutral-1000 text-xs'>
+                    Requested {fmtDate(e.requestedOn)} — {e.reason}
+                    {e.decidedBy &&
+                      ` · decided by ${e.decidedBy} on ${fmtDate(e.decidedOn)}`}
+                    {e.decisionNote && ` · “${e.decisionNote}”`}
+                  </div>
+                </div>
+                <StatusBadge status={e.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <ApplyLeaveOverlay
         open={applyOpen}
         onOpenChange={setApplyOpen}
@@ -318,6 +370,13 @@ export function MyLeaveTab({
         hasOverlap={requests.hasOverlap}
         onSubmit={requests.submit}
         onBehalfOf={null}
+      />
+      <EncashmentRequestDialog
+        open={encashOpen}
+        onOpenChange={setEncashOpen}
+        employeeId={employeeId}
+        leaveTypes={leaveTypes}
+        balances={balances}
       />
       {docTarget && (
         <UploadDocumentDialog

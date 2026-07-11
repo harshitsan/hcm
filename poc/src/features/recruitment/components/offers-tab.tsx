@@ -289,7 +289,10 @@ export function OffersTab({
         </div>
       )}
 
-      <div className='rounded-[8px] border border-gray-200 bg-white'>
+      {/* overflow-x-auto keeps the wide table inside the card frame; the
+          Actions cell is width-capped so buttons wrap instead of spilling
+          into the page gutter */}
+      <div className='overflow-x-auto rounded-[8px] border border-gray-200 bg-white'>
         <Table>
           <TableHeader>
             <TableRow>
@@ -301,7 +304,7 @@ export function OffersTab({
               <TableHead>Approvals</TableHead>
               <TableHead>Deadline</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className='text-right'>Actions</TableHead>
+              <TableHead className='w-[240px] text-right'>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -359,8 +362,8 @@ export function OffersTab({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className='text-right'>
-                    <div className='flex flex-wrap justify-end gap-1'>
+                  <TableCell className='max-w-[240px] text-right'>
+                    <div className='ml-auto flex max-w-[240px] flex-wrap justify-end gap-1'>
                       {isAdmin && o.status === 'pending-approval' && (
                         <Button
                           variant='outline'

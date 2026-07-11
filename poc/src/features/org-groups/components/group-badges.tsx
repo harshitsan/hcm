@@ -29,7 +29,7 @@ export function StatusBadge({ status }: { status: GroupStatus }) {
 
 export function TypeBadge({ type }: { type: GroupType }) {
   return type === 'dynamic' ? (
-    <Badge variant='booked'>Dynamic (rule)</Badge>
+    <Badge variant='open'>Dynamic (rule)</Badge>
   ) : (
     <Badge variant='pending'>Static (manual)</Badge>
   )
@@ -45,18 +45,18 @@ const CATEGORY_LABELS: Record<GroupCategory, string> = {
 export function CategoryBadge({ category }: { category: GroupCategory }) {
   const variant =
     category === 'benefit-cohort'
-      ? 'qualified'
+      ? 'badge_active'
       : category === 'payroll-cohort'
         ? 'overdue'
         : category === 'security'
-          ? 'disqualified'
+          ? 'dropped'
           : 'pending'
   return <Badge variant={variant}>{CATEGORY_LABELS[category]}</Badge>
 }
 
 export function SourceBadge({ source }: { source: MembershipSource }) {
   return source === 'rule' ? (
-    <Badge variant='booked'>Rule-derived</Badge>
+    <Badge variant='open'>Rule-derived</Badge>
   ) : (
     <Badge variant='pending'>Manual</Badge>
   )

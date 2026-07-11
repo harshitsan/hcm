@@ -31,7 +31,7 @@ export function OperatingModelBadge({ model }: { model: OperatingModel }) {
       ? 'pending'
       : model === 'Group Company'
         ? 'open'
-        : 'qualified'
+        : 'badge_active'
   return <Badge variant={variant}>{model}</Badge>
 }
 

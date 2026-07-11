@@ -75,7 +75,7 @@ export function MembershipsOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             Company memberships — {user.name}
           </SheetTitle>
@@ -148,7 +148,7 @@ export function MembershipsOverlay({
           )}
         </div>
 
-        <div className='border-grey-200 flex justify-end border-t px-5 py-4'>
+        <div className='border-gray-200 flex justify-end border-t px-5 py-4'>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
             Close
           </Button>

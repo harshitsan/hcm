@@ -132,6 +132,38 @@ export function RequisitionsTab({
         </div>
 
         <div className='flex flex-wrap items-center gap-2'>
+          <RoleGate roles={['Company Admin', 'Group Company Admin']}>
+            <Button
+              variant='outline'
+              className='h-7 gap-1'
+              onClick={() => setBulkOpen(true)}
+            >
+              <Plus size={10} weight='bold' />
+              Create Bulk Requisition
+            </Button>
+            <Button
+              variant='red'
+              onClick={() => {
+                setEditing(null)
+                setOverlayOpen(true)
+              }}
+              className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
+            >
+              <Plus size={10} weight='bold' />
+              New Requisition
+            </Button>
+          </RoleGate>
+        </div>
+      </div>
+
+      {/* Row actions appear only once a requisition is selected — the
+          applicable ones stay enabled based on the selected row's status */}
+      {selected.length > 0 ? (
+        <div className='mb-3 flex flex-wrap items-center gap-2 rounded-[8px] border border-gray-200 bg-white px-3 py-2'>
+          <span className='text-sm font-medium'>
+            {selected.length} selected
+            {selected.length > 1 && ' — actions apply to one requisition at a time'}
+          </span>
           <Button
             variant='outline'
             className='h-7'
@@ -239,28 +271,17 @@ export function RequisitionsTab({
             >
               <PencilSimple size={16} weight='fill' />
             </Button>
-            <Button
-              variant='outline'
-              className='h-7 gap-1'
-              onClick={() => setBulkOpen(true)}
-            >
-              <Plus size={10} weight='bold' />
-              Create Bulk Requisition
-            </Button>
-            <Button
-              variant='red'
-              onClick={() => {
-                setEditing(null)
-                setOverlayOpen(true)
-              }}
-              className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
-            >
-              <Plus size={10} weight='bold' />
-              New Requisition
-            </Button>
           </RoleGate>
+          <Button variant='outline' className='h-7 ml-auto' onClick={clear}>
+            Clear selection
+          </Button>
         </div>
-      </div>
+      ) : (
+        <p className='text-paragraph-sm text-neutral-1000 mb-3'>
+          Select a requisition to see its actions (submit, approve, assign,
+          withdraw, history…).
+        </p>
+      )}
 
       <DataTable
         columns={requisitionColumns}
@@ -269,6 +290,14 @@ export function RequisitionsTab({
         resetSelectionKey={resetKey}
         onSelectionChange={setSelected}
       />
+      {/* Count cue — the table body scrolls, so make X-of-Y explicit */}
+      <p className='text-paragraph-sm text-neutral-1000 mt-2'>
+        Showing {rows.length} of {store.requisitions.length} requisitions
+        {statusFilter !== 'all' || hiringAsFilter !== 'all'
+          ? ' (filters applied)'
+          : ''}
+        {rows.length > 8 ? ' — scroll within the table to view all rows' : ''}
+      </p>
 
       <RequisitionOverlay
         open={overlayOpen}

@@ -132,7 +132,8 @@ export const documentsTableColumns: ColumnDef<HrDocument>[] = [
       <div className='text-sm'>
         <span>{dateFmt.format(new Date(row.original.generatedOn))}</span>
         <span className='text-neutral-1000 block text-xs'>
-          {row.original.trigger} · {row.original.event}
+          {row.original.trigger === 'auto' ? 'Automatic' : 'Manual'} ·{' '}
+          {row.original.event}
         </span>
       </div>
     ),
@@ -166,7 +167,7 @@ export const documentsTableColumns: ColumnDef<HrDocument>[] = [
       const doc = row.original
       return (
         <Badge variant='pending'>
-          v{doc.versions.length} · tpl v{doc.templateVersion}
+          Version {doc.versions.length} · template v{doc.templateVersion}
         </Badge>
       )
     },

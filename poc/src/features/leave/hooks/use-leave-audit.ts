@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import { shortId } from '../data/shared'
 
 /**
@@ -96,6 +97,22 @@ export function useLeaveAudit() {
         { ...input, id: shortId('aud'), at: new Date().toISOString() },
         ...prev,
       ])
+      // Mirror into the central platform trail so the action shows up on
+      // /audit-logs immediately (worklist #26).
+      publishAuditEvent({
+        module: 'Leave Management',
+        action: input.action,
+        actor: input.actor,
+        actorRole: input.actorRole,
+        recordName: input.target,
+        changes: [
+          {
+            field: input.action,
+            previousValue: input.before || null,
+            newValue: input.after || '—',
+          },
+        ],
+      })
     },
     []
   )

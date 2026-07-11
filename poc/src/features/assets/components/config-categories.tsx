@@ -156,7 +156,7 @@ export function ConfigCategories({ config, assets }: ConfigCategoriesProps) {
         </Button>
       </div>
 
-      <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
+      <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
         <Table>
           <TableHeader>
             <TableRow>
@@ -210,7 +210,7 @@ export function ConfigCategories({ config, assets }: ConfigCategoriesProps) {
             )}
           </TableBody>
         </Table>
-        <div className='border-grey-200 flex items-center justify-between border-t px-3 py-2'>
+        <div className='border-gray-200 flex items-center justify-between border-t px-3 py-2'>
           <span className='text-paragraph-sm text-neutral-1000'>
             {filtered.length === 0
               ? '0 categories'

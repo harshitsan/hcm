@@ -91,7 +91,7 @@ export function PayGradesPanel({ companyId, orgConfig }: PayGradesPanelProps) {
 
   return (
     <div className='space-y-4'>
-      <div className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
+      <div className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
         <div>
           <p className='text-neutral-1600 text-sm font-medium'>
             Do you support position level paygrade?
@@ -120,7 +120,7 @@ export function PayGradesPanel({ companyId, orgConfig }: PayGradesPanelProps) {
               New pay grade
             </Button>
           </div>
-          <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+          <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
             {grades.map((g) => (
               <div key={g.id} className='flex items-center justify-between px-3 py-2'>
                 <div className='flex min-w-0 flex-col'>

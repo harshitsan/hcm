@@ -8,10 +8,10 @@ import {
 
 const scopeVariant: Record<
   FieldScope,
-  'open' | 'qualified' | 'pending'
+  'open' | 'badge_active' | 'pending'
 > = {
   Platform: 'open',
-  Group: 'qualified',
+  Group: 'badge_active',
   Company: 'pending',
 }
 

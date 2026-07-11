@@ -43,7 +43,7 @@ export function MyGroupsTab({ store }: MyGroupsTabProps) {
         <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
           My group memberships — {self?.name} ({self?.code})
         </h3>
-        <div className='border-grey-200 mb-2 flex items-start gap-2 rounded-[6px] border bg-white px-3 py-2'>
+        <div className='border-gray-200 mb-2 flex items-start gap-2 rounded-[6px] border bg-white px-3 py-2'>
           <Info className='text-blue-1400 mt-0.5 size-4 shrink-0' />
           <p className='text-paragraph-sm text-neutral-1000'>
             {isNonUser
@@ -64,7 +64,7 @@ export function MyGroupsTab({ store }: MyGroupsTabProps) {
               return (
                 <div
                   key={m.id}
-                  className='border-grey-200 rounded-[6px] border bg-white px-3 py-2'
+                  className='border-gray-200 rounded-[6px] border bg-white px-3 py-2'
                 >
                   <div className='flex flex-wrap items-center gap-2'>
                     <span className='text-neutral-1600 text-sm font-medium'>
@@ -102,7 +102,7 @@ export function MyGroupsTab({ store }: MyGroupsTabProps) {
             {notifications.map((n) => (
               <div
                 key={n.id}
-                className='border-grey-200 rounded-[6px] border bg-white px-3 py-2'
+                className='border-gray-200 rounded-[6px] border bg-white px-3 py-2'
               >
                 <p className='text-neutral-1900 text-sm'>{n.text}</p>
                 <p className='text-neutral-1000 text-xs'>{n.at}</p>

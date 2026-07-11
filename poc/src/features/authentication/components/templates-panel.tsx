@@ -49,7 +49,7 @@ export function TemplatesPanel({ config }: TemplatesPanelProps) {
                 <span className='text-neutral-1900 text-sm font-medium'>
                   {t.name}
                 </span>
-                <Badge variant={t.customized ? 'qualified' : 'pending'}>
+                <Badge variant={t.customized ? 'badge_active' : 'pending'}>
                   {t.customized ? 'Tenant customized' : 'Platform default'}
                 </Badge>
               </div>

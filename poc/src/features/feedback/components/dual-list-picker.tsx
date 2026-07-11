@@ -22,8 +22,8 @@ function RoleList({
   onToggle: (role: string) => void
 }) {
   return (
-    <div className='border-grey-200 min-h-36 flex-1 rounded-[6px] border bg-white'>
-      <p className='border-grey-200 text-neutral-1000 border-b px-2 py-1 text-xs font-medium'>
+    <div className='border-gray-200 min-h-36 flex-1 rounded-[6px] border bg-white'>
+      <p className='border-gray-200 text-neutral-1000 border-b px-2 py-1 text-xs font-medium'>
         {title} ({roles.length})
       </p>
       <ul className='max-h-40 overflow-y-auto p-1'>

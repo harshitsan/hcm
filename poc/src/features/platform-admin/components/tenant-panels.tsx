@@ -116,7 +116,7 @@ export function PortfoliosCard({ store }: { store: TenantsStore }) {
         })}
       />
       <RoleGate roles={['Portfolio Admin']}>
-        <div className='border-grey-200 mt-3 flex flex-wrap items-center gap-2 rounded-[6px] border p-3'>
+        <div className='border-gray-200 mt-3 flex flex-wrap items-center gap-2 rounded-[6px] border p-3'>
           <span className='text-paragraph-sm text-neutral-1000'>
             Portfolio HR operations (assigned companies only):
           </span>

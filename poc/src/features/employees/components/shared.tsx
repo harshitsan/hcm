@@ -16,8 +16,8 @@ type BadgeVariant =
   | 'completed'
   | 'dropped'
   | 'overdue'
-  | 'qualified'
-  | 'disqualified'
+  | 'badge_active'
+  | 'dropped'
 
 /** Maps workflow status labels onto the design-system badge variants. */
 const STATUS_VARIANTS: Record<string, BadgeVariant> = {
@@ -27,7 +27,7 @@ const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   Active: 'badge_active',
   Transferred: 'open',
   'Notice Period': 'overdue',
-  Suspended: 'disqualified',
+  Suspended: 'dropped',
   Exited: 'badge_inactive',
   // generic workflow statuses
   'Pending initiation': 'pending',
@@ -37,8 +37,8 @@ const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   'Pending for Submission': 'pending',
   Submitted: 'open',
   'Pending approval': 'overdue',
-  Approved: 'qualified',
-  Rejected: 'disqualified',
+  Approved: 'badge_active',
+  Rejected: 'dropped',
   Cancelled: 'badge_inactive',
   Withdrawn: 'badge_inactive',
   'Need clarification': 'overdue',
@@ -47,15 +47,15 @@ const STATUS_VARIANTS: Record<string, BadgeVariant> = {
   'Closed FFS': 'completed',
   'Letter generated': 'completed',
   Pending: 'pending',
-  Acknowledged: 'qualified',
-  Expired: 'disqualified',
+  Acknowledged: 'badge_active',
+  Expired: 'dropped',
   // delegation / eligibility / config
   Scheduled: 'open',
   Ended: 'badge_inactive',
-  Eligible: 'qualified',
+  Eligible: 'badge_active',
   'Not eligible': 'badge_inactive',
   'Pending evaluation': 'pending',
-  Published: 'qualified',
+  Published: 'badge_active',
   Draft: 'pending',
 }
 

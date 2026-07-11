@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { UploadModal } from '@/components/common/upload-modal'
 import { LOCATIONS } from '../data/shared'
 import { type AttendanceStore } from '../hooks/use-attendance'
 import { type AttendanceConfigStore } from '../hooks/use-attendance-config'
@@ -40,7 +41,7 @@ export function CaptureTab({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [deviceOpen, setDeviceOpen] = useState(false)
   const [modeOpen, setModeOpen] = useState(false)
-  const [fileName, setFileName] = useState('july-attendance.xlsx')
+  const [importOpen, setImportOpen] = useState(false)
   const [devName, setDevName] = useState('')
   const [devLocation, setDevLocation] = useState<string>('Hyderabad')
   const [devArea, setDevArea] = useState('')
@@ -103,26 +104,19 @@ export function CaptureTab({
         </div>
         <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
           <h3 className='text-sm font-medium'>CSV / XLS file import</h3>
-          <div className='mt-2 flex items-center gap-2'>
-            <Input
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              className='h-8'
-            />
-            <Button
-              variant='outline'
-              className='h-8 gap-1'
-              disabled={!/\.(csv|xls|xlsx)$/i.test(fileName)}
-              onClick={() => attendance.importFile(fileName)}
-            >
-              <FileArrowUp size={14} weight='bold' />
-              Import
-            </Button>
-          </div>
-          <p className='text-paragraph-sm text-neutral-1000 pt-2'>
-            Imports report a success/failure summary; invalid rows are rejected
-            with clear errors and valid rows still land, tagged “import”.
+          <p className='text-paragraph-sm text-neutral-1000 pt-1'>
+            Files are staged, validated and dry-run before valid rows commit;
+            rejected rows report row-level errors and committed rows land
+            tagged “import”.
           </p>
+          <Button
+            variant='outline'
+            className='mt-3 h-7 gap-1'
+            onClick={() => setImportOpen(true)}
+          >
+            <FileArrowUp size={14} weight='bold' />
+            Import File
+          </Button>
         </div>
       </div>
 
@@ -237,6 +231,12 @@ export function CaptureTab({
 
       <ManualSheetOverlay open={sheetOpen} onOpenChange={setSheetOpen} attendance={attendance} />
       <TrackingModeDialog open={modeOpen} onOpenChange={setModeOpen} config={config} />
+      <UploadModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title='Import attendance (CSV / XLS)'
+        onUpload={attendance.importFile}
+      />
 
       <Dialog open={deviceOpen} onOpenChange={setDeviceOpen}>
         <DialogContent className='sm:max-w-[420px]'>
@@ -246,7 +246,7 @@ export function CaptureTab({
           <div className='space-y-3'>
             <div className='flex flex-col gap-1'>
               <Label className='text-xs'>Device name</Label>
-              <Input value={devName} onChange={(e) => setDevName(e.target.value)} placeholder='PUN-Gate-1' />
+              <Input value={devName} onChange={(e) => setDevName(e.target.value)} placeholder='e.g. PUN-Gate-1' />
             </div>
             <div className='grid grid-cols-2 gap-3'>
               <div className='flex flex-col gap-1'>
@@ -303,7 +303,7 @@ export function CaptureTab({
                 type='email'
                 value={devEmail}
                 onChange={(e) => setDevEmail(e.target.value)}
-                placeholder='facilities@satellitehr.in'
+                placeholder='e.g. facilities@satellitehr.in'
               />
             </div>
           </div>

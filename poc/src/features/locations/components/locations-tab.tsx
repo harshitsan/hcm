@@ -25,6 +25,7 @@ import { CURRENT_COMPANY_ID, JURISDICTIONS } from '../data/locations'
 import type { LocationsStore, LocationDraft } from '../hooks/use-locations'
 import type { OrganizationStore } from '../hooks/use-organization'
 import type { Ownership } from './location-badges'
+import { DetailSheet } from '@/components/module-page'
 import { LocationOverlay } from './location-overlay'
 import { locationsTableColumns, type LocationRow } from './locations-table-columns'
 import { LocationsSummary } from './locations-summary'
@@ -55,6 +56,7 @@ export function LocationsTab({ store, org }: LocationsTabProps) {
   const [jurisdictionFilter, setJurisdictionFilter] = useState('all')
   const [ownershipFilter, setOwnershipFilter] = useState('all')
   const [page, setPage] = useState(0)
+  const [detailRow, setDetailRow] = useState<LocationRow | null>(null)
 
   const jurisdictionById = useMemo(
     () => new Map(JURISDICTIONS.map((j) => [j.id, j])),
@@ -241,6 +243,43 @@ export function LocationsTab({ store, org }: LocationsTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(r) => setSelectedRows(r)}
+        onRowClick={(row) => setDetailRow(row)}
+      />
+
+      <DetailSheet
+        open={detailRow !== null}
+        onOpenChange={(o) => !o && setDetailRow(null)}
+        title={detailRow?.name ?? ''}
+        description={detailRow?.acronym}
+        sections={
+          detailRow
+            ? [
+                {
+                  title: 'Location',
+                  fields: [
+                    { label: 'Status', value: detailRow.status === 'active' ? 'Active' : 'Inactive' },
+                    { label: 'Owner', value: detailRow.ownerName },
+                    { label: 'Jurisdiction', value: `${detailRow.jurisdictionName} (${detailRow.jurisdictionCountry})` },
+                    { label: 'Timezone', value: detailRow.timezone },
+                    { label: 'Shared with', value: detailRow.sharedWith || '—' },
+                    { label: 'Created on', value: detailRow.createdOn },
+                  ],
+                },
+                {
+                  title: 'Address & network',
+                  fields: [
+                    {
+                      label: 'Address',
+                      value: [detailRow.address1, detailRow.address2, detailRow.city, detailRow.state, detailRow.country, detailRow.pinCode]
+                        .filter(Boolean)
+                        .join(', '),
+                    },
+                    { label: 'IP address / range', value: detailRow.ipAddress || '—' },
+                  ],
+                },
+              ]
+            : []
+        }
       />
 
       <div className='mt-2 flex items-center justify-between'>

@@ -70,6 +70,13 @@ export const TARGET_MODULES = [
   'Roles & Security',
   'Authentication',
   'Platform Admin',
+  'Group Companies',
+  'Portfolios',
+  'Jurisdictions',
+  'Directory & Org Chart',
+  'Policy Distribution',
+  'Audit & Logging',
+  'Reports & Analytics',
 ] as const
 
 export type TargetModule = (typeof TARGET_MODULES)[number]
@@ -971,6 +978,132 @@ export const seedArtifacts: SeedArtifact[] = [
     history: [
       { at: '2026-01-08 10:00', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
       { at: '2026-05-20 15:40', actor: 'Devika Rao', event: 'Edited — v2 (no-dues clause updated)' },
+    ],
+  },
+
+  // ── Modules brought into the config model (worklist #24) ─────────────────
+  {
+    id: 'bl-30',
+    name: 'Group Code Generation',
+    type: 'setting',
+    targetModule: 'Group Companies',
+    description:
+      'Format of auto-generated group codes assigned when a company group is saved.',
+    version: 1,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: { kind: 'setting', key: 'groupCompanies.codeFormat', value: 'GROUP-YYYY-NNN' },
+    updatedBy: 'Platform Ops',
+    updatedAt: '2026-05-11',
+    history: [
+      { at: '2026-05-11 09:00', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+    ],
+  },
+  {
+    id: 'bl-31',
+    name: 'Portfolio Context Access',
+    type: 'decision-rule',
+    targetModule: 'Portfolios',
+    description:
+      'Denies a company-context switch when the admin has no active grant for that company.',
+    version: 2,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: {
+      kind: 'decision-rule',
+      conditions: [{ attribute: 'activeGrant', operator: '=', value: 'No' }],
+      outcome: 'Block',
+    },
+    updatedBy: 'Platform Ops',
+    updatedAt: '2026-04-02',
+    history: [
+      { at: '2026-02-14 10:30', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+      { at: '2026-04-02 12:05', actor: 'Platform Ops', event: 'Edited — v2 (denials audited)' },
+    ],
+  },
+  {
+    id: 'bl-32',
+    name: 'Jurisdiction Assignment Rules',
+    type: 'setting',
+    targetModule: 'Jurisdictions',
+    description:
+      'Which organizational levels a statutory jurisdiction may be assigned to.',
+    version: 1,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: { kind: 'setting', key: 'jurisdictions.assignableLevels', value: 'Company, Location' },
+    updatedBy: 'Platform Ops',
+    updatedAt: '2026-03-20',
+    history: [
+      { at: '2026-03-20 11:00', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+    ],
+  },
+  {
+    id: 'bl-33',
+    name: 'Directory Visibility',
+    type: 'setting',
+    targetModule: 'Directory & Org Chart',
+    description:
+      'Fields every employee can see about colleagues in the people directory and org chart.',
+    version: 2,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: { kind: 'setting', key: 'directory.visibleFields', value: 'Name, Position, Department, Location, Work email' },
+    updatedBy: 'Sunita Patil',
+    updatedAt: '2026-05-02',
+    history: [
+      { at: '2026-01-19 09:15', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+      { at: '2026-05-02 14:25', actor: 'Sunita Patil', event: 'Edited — v2 (work email added)' },
+    ],
+  },
+  {
+    id: 'bl-34',
+    name: 'Acknowledgement Reminder Cadence',
+    type: 'setting',
+    targetModule: 'Policy Distribution',
+    description:
+      'How often employees are reminded about unacknowledged policy distributions before escalation.',
+    version: 1,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: { kind: 'setting', key: 'policyDistribution.reminderDays', value: '3' },
+    updatedBy: 'Sunita Patil',
+    updatedAt: '2026-04-27',
+    history: [
+      { at: '2026-04-27 16:10', actor: 'Sunita Patil', event: 'Created v1 — enabled at Company' },
+    ],
+  },
+  {
+    id: 'bl-35',
+    name: 'Audit Retention Policy',
+    type: 'setting',
+    targetModule: 'Audit & Logging',
+    description:
+      'Active window and total retention applied by the archival sweep on the audit trail.',
+    version: 3,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: { kind: 'setting', key: 'auditLogs.retention', value: 'Active 24 months · total 7 years' },
+    updatedBy: 'Platform Ops',
+    updatedAt: '2026-06-01',
+    history: [
+      { at: '2025-11-03 10:00', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
+      { at: '2026-02-12 09:30', actor: 'Platform Ops', event: 'Edited — v2 (active window 18 → 24 months)' },
+      { at: '2026-06-01 11:45', actor: 'Platform Ops', event: 'Edited — v3 (total retention 5 → 7 years)' },
+    ],
+  },
+  {
+    id: 'bl-36',
+    name: 'Report Data Scope',
+    type: 'decision-rule',
+    targetModule: 'Reports & Analytics',
+    description:
+      'Restricts every report run to companies the requesting admin holds an active grant for.',
+    version: 1,
+    scopes: { platform: true, portfolio: true, group: true, company: true },
+    definition: {
+      kind: 'decision-rule',
+      conditions: [{ attribute: 'companyGrant', operator: '=', value: 'Active' }],
+      outcome: 'Approve route',
+    },
+    updatedBy: 'Platform Ops',
+    updatedAt: '2026-05-15',
+    history: [
+      { at: '2026-05-15 13:20', actor: 'Platform Ops', event: 'Created v1 — enabled at Platform' },
     ],
   },
 ]

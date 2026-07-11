@@ -89,10 +89,47 @@ export function DistributionDetailOverlay({
   const delivered = all.length - failed
   const unsent = d.sentAt === null && d.status !== 'Cancelled'
 
+  /** Real CSV export of the (filtered) recipient grid. */
+  const exportGrid = () => {
+    const header = [
+      'Employee',
+      'Company',
+      'Department',
+      'Status',
+      'Due date',
+      'Acknowledged at',
+      'Acknowledged by',
+      'Reminders sent',
+      'Escalated',
+    ]
+    const clean = (v: string) => v.replaceAll(',', ';')
+    const lines = rows.map((a) =>
+      [
+        clean(a.employeeName),
+        clean(a.company),
+        clean(a.department),
+        a.status,
+        a.dueDate ?? '',
+        a.acknowledgedAt ?? '',
+        clean(a.acknowledgedBy ?? ''),
+        String(a.remindersSent.length),
+        a.escalated ? 'Yes' : 'No',
+      ].join(',')
+    )
+    const csv = [header.join(','), ...lines].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${d.policyTitle.toLowerCase().replaceAll(/\s+/g, '-')}-${d.policyVersion}-recipients.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success(`Exported ${rows.length} recipient row(s)`)
+  }
+
   return (
     <Sheet open onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[760px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md flex items-center gap-2 font-semibold'>
             {d.policyTitle} · {d.policyVersion}
             <CriticalityBadge level={d.criticality} />
@@ -132,7 +169,7 @@ export function DistributionDetailOverlay({
           </div>
 
           {d.isBulk && d.sentAt && (
-            <div className='border-grey-200 text-paragraph-sm rounded-[6px] border bg-white px-3 py-2'>
+            <div className='border-gray-200 text-paragraph-sm rounded-[6px] border bg-white px-3 py-2'>
               <span className='text-neutral-1600 font-medium'>
                 Bulk run summary:
               </span>{' '}
@@ -182,12 +219,8 @@ export function DistributionDetailOverlay({
                   Retry {failed} failed
                 </Button>
               )}
-              <Button
-                size='sm'
-                variant='outline'
-                onClick={() => toast.info('Export isn’t available in this demo')}
-              >
-                Export grid
+              <Button size='sm' variant='outline' onClick={exportGrid}>
+                Export grid (CSV)
               </Button>
               {d.sentAt && d.ackType !== 'Read-Only' && (
                 <div className='ml-auto flex items-center gap-2'>
@@ -246,7 +279,7 @@ export function DistributionDetailOverlay({
             </span>
           </div>
 
-          <div className='border-grey-200 rounded-[6px] border bg-white'>
+          <div className='border-gray-200 rounded-[6px] border bg-white'>
             <Table>
               <TableHeader>
                 <TableRow>

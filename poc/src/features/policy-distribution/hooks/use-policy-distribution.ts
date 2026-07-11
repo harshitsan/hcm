@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { type UploadResult } from '@/components/common/upload-modal'
 import { seedEmployees, type Employee } from '../data/employees'
 import { bumpVersion, seedPolicies, type AckType } from '../data/policies'
 import {
@@ -148,7 +149,9 @@ export function usePolicyDistribution() {
           : draft.method === 'Scheduled'
             ? 'Scheduled'
             : 'Armed',
-        isBulk: isManual && recipients.length >= 8,
+        // Bulk runs come exclusively through the sanctioned Import
+        // framework — see importBulkDistribution below.
+        isBulk: false,
         createdBy,
         createdAt: now,
         sentAt: isManual ? now : null,
@@ -162,9 +165,7 @@ export function usePolicyDistribution() {
         addAudit({
           effectiveAt: now,
           actor: createdBy,
-          action: dist.isBulk
-            ? 'Bulk distribution completed'
-            : 'Distribution sent',
+          action: 'Distribution sent',
           employeeName: `— (${recipients.length} recipients)`,
           policyTitle: dist.policyTitle,
           policyVersion: dist.policyVersion,
@@ -190,6 +191,115 @@ export function usePolicyDistribution() {
         })
       }
       return dist
+    },
+    [addAudit]
+  )
+
+  /**
+   * Bulk distribution through the sanctioned Import framework
+   * (UploadModal): the uploaded recipient file is staged, every staged row
+   * is validated against the employee directory, the dry-run reports
+   * row-level errors, and only clean rows commit as a bulk distribution
+   * with timestamped per-recipient assignments.
+   */
+  const importBulkDistribution = useCallback(
+    async (file: File, actor: string): Promise<UploadResult> => {
+      const policy = seedPolicies.find((p) => p.id === 'pol-06')
+      if (!policy) return { state: 'failed', failedCount: 0 }
+      // Staging: recipient rows parsed out of the uploaded file (mock batch
+      // — the POC has no backend, so the staged content is deterministic).
+      const staged: {
+        row: number
+        employeeId: string
+        error?: { fieldName: string; reason: string }
+      }[] = [
+        { row: 2, employeeId: 'emp-102' },
+        { row: 3, employeeId: 'emp-103' },
+        {
+          row: 4,
+          employeeId: 'EMP-9999',
+          error: {
+            fieldName: 'Employee ID',
+            reason:
+              'Unknown employee ID "EMP-9999" — no matching directory record',
+          },
+        },
+        { row: 5, employeeId: 'emp-104' },
+        { row: 6, employeeId: 'emp-107' },
+        {
+          row: 7,
+          employeeId: 'emp-102',
+          error: {
+            fieldName: 'Employee ID',
+            reason:
+              'Duplicate of row 2 — one active assignment per employee + policy version',
+          },
+        },
+        { row: 8, employeeId: 'emp-113' },
+      ]
+
+      // Validate + dry-run: simulate the round-trip before committing.
+      await new Promise((resolve) => setTimeout(resolve, 900))
+      const failed = staged.filter((r) => r.error)
+      const valid = staged.filter((r) => !r.error)
+      const recipients = valid
+        .map((r) => seedEmployees.find((e) => e.id === r.employeeId))
+        .filter((e): e is Employee => Boolean(e))
+
+      // Commit: only rows that passed the dry-run land as assignments.
+      const now = new Date().toISOString()
+      const dist: Distribution = {
+        id: shortId('dist'),
+        policyId: policy.id,
+        policyTitle: policy.title,
+        policyVersion: policy.version,
+        ackType: 'Required',
+        criticality: policy.criticality,
+        audience: {
+          logic: 'OR',
+          criteria: [
+            { field: 'employee', values: recipients.map((e) => e.id) },
+          ],
+        },
+        audienceSummary: `Bulk import — ${file.name} (${recipients.length} recipients)`,
+        method: 'Manual',
+        scheduledFor: null,
+        eventTrigger: null,
+        dueDateRule: { type: 'Relative', relativeDays: 14 },
+        status: 'Sent',
+        isBulk: true,
+        createdBy: actor,
+        createdAt: now,
+        sentAt: now,
+      }
+      setDistributions((prev) => [dist, ...prev])
+      setAssignments((prev) => [
+        ...buildAssignments(dist, recipients, prev, now),
+        ...prev,
+      ])
+      addAudit({
+        effectiveAt: now,
+        actor,
+        action: 'Bulk distribution completed',
+        employeeName: `— (${recipients.length} recipients)`,
+        policyTitle: dist.policyTitle,
+        policyVersion: dist.policyVersion,
+        company: 'Per scope',
+        detail: `${file.name}: ${staged.length} rows staged — dry-run passed ${valid.length}, rejected ${failed.length}; each committed assignment timestamped.`,
+      })
+      toast.success(
+        `${file.name}: ${staged.length} rows staged — ${valid.length} committed, ${failed.length} rejected in dry-run`
+      )
+      return {
+        state: failed.length > 0 ? 'partial' : 'success',
+        successCount: valid.length,
+        failedCount: failed.length,
+        errors: failed.map((r) => ({
+          row: r.row,
+          fieldName: r.error!.fieldName,
+          reason: r.error!.reason,
+        })),
+      }
     },
     [addAudit]
   )
@@ -542,6 +652,7 @@ export function usePolicyDistribution() {
     assignments,
     auditEvents,
     createDistribution,
+    importBulkDistribution,
     updateDistribution,
     cancelDistribution,
     sendScheduledNow,

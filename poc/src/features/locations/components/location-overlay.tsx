@@ -62,9 +62,14 @@ export function LocationOverlay({
     // jurisdiction (LOC-01); an empty value blocks the save.
     jurisdictionId: z.string().min(1, 'Select exactly one jurisdiction'),
     timezone: z.string().min(1, 'Timezone is required'),
+    // Optional (worklist #28): HR admins can leave this blank; format is only
+    // checked when a value is entered, with plain-language copy.
     ipAddress: z
       .string()
-      .regex(IP_PATTERN, 'Enter an IPv4 address or CIDR range (e.g. 10.10.1.0/24)'),
+      .refine((v) => v === '' || IP_PATTERN.test(v), {
+        message:
+          "This doesn't look like a network address. Ask IT for the office network address, or leave it blank.",
+      }),
     address1: z.string().min(3, 'Address is required'),
     address2: z.string(),
     city: z.string().min(2, 'City is required'),
@@ -154,7 +159,7 @@ export function LocationOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? 'Edit location' : 'New location'}
           </SheetTitle>
@@ -227,12 +232,12 @@ export function LocationOverlay({
 
               {textField(
                 'ipAddress',
-                'IP address / range',
+                'Office network address (optional)',
                 '10.10.1.0/24',
-                'Used for network-based site presence validation'
+                'Lets the system detect when someone is on the office network. Not sure what to enter? Ask IT, or leave it blank.'
               )}
 
-              <div className='border-grey-200 border-t pt-4'>
+              <div className='border-gray-200 border-t pt-4'>
                 <p className='text-paragraph-sm text-neutral-1600 mb-3 font-semibold'>
                   Postal address
                 </p>
@@ -278,7 +283,7 @@ export function LocationOverlay({
               />
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

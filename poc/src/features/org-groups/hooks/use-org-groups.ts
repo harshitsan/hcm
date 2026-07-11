@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { type UploadResult } from '@/components/common/upload-modal'
 import {
   seedAuditEvents,
   seedGroups,
@@ -501,37 +502,73 @@ export function useOrgGroups() {
     [groups, memberships, logAudit]
   )
 
+  /**
+   * GRP-17 — membership file import through the sanctioned UploadModal
+   * framework: the uploaded file is staged, every staged row is validated
+   * against the directory and current membership, the dry-run reports
+   * row-level errors, and only clean rows commit as effective-dated
+   * memberships.
+   */
   const importMemberships = useCallback(
-    (groupId: string, actor: string) => {
+    async (groupId: string, file: File, actor: string): Promise<UploadResult> => {
       const group = groups.find((g) => g.id === groupId)
-      if (!group) return { added: 0, skipped: 0, errors: 0 }
+      if (!group) return { state: 'failed', failedCount: 0 }
       const today = todayIso()
       const current = new Set(
         memberships
           .filter((m) => m.groupId === groupId && isEffectiveOn(m, today))
           .map((m) => m.memberId)
       )
-      let added = 0
-      let skipped = 0
-      let errors = 0
-      const rows: GroupMembership[] = []
-      IMPORT_FILE_ROWS.forEach((row) => {
-        if (!row.memberId) return void errors++
-        if (current.has(row.memberId)) return void skipped++
-        rows.push({
-          id: nextId('ms'),
-          groupId,
-          memberId: row.memberId,
-          source: 'manual',
-          effectiveFrom: today,
-          effectiveTo: null,
-          addedBy: `${actor} (file import)`,
-        })
-        added++
-      })
-      setMemberships((prev) => [...rows, ...prev])
-      logAudit(groupId, actor, 'Bulk import', `${added} added, ${skipped} duplicates skipped, ${errors} unmatched/out-of-scope rows rejected`)
-      return { added, skipped, errors }
+      // Staging: rows parsed out of the uploaded file (mock batch — the POC
+      // has no backend, so the staged content is deterministic).
+      const staged = IMPORT_FILE_ROWS.map((row, i) => ({ ...row, row: i + 2 }))
+
+      // Validate + dry-run: simulate the round-trip before committing.
+      await new Promise((resolve) => setTimeout(resolve, 900))
+      const failed = staged
+        .filter((r) => !r.memberId || current.has(r.memberId))
+        .map((r) => ({
+          row: r.row,
+          fieldName: 'Employee code',
+          reason: !r.memberId
+            ? `"${r.raw}" — no matching in-scope directory record`
+            : `"${r.raw}" — already an active member of this group (duplicate rejected)`,
+        }))
+      const valid = staged.filter(
+        (r) => r.memberId && !current.has(r.memberId)
+      )
+
+      // Commit: only rows that passed the dry-run land as memberships.
+      const committed = valid.map<GroupMembership>((r) => ({
+        id: nextId('ms'),
+        groupId,
+        memberId: r.memberId!,
+        source: 'manual',
+        effectiveFrom: today,
+        effectiveTo: null,
+        addedBy: `${actor} (file import)`,
+      }))
+      setMemberships((prev) => [...committed, ...prev])
+      logAudit(
+        groupId,
+        actor,
+        'Bulk import',
+        `${file.name}: ${staged.length} rows staged — dry-run passed ${valid.length}, rejected ${failed.length} (unmatched/out-of-scope/duplicate); ${committed.length} committed effective ${today}`
+      )
+      toast.success(
+        `${file.name}: ${staged.length} rows staged — dry-run passed ${valid.length}, rejected ${failed.length}; ${committed.length} member${committed.length === 1 ? '' : 's'} added to “${group.name}”`
+      )
+      return {
+        state:
+          committed.length === 0
+            ? 'failed'
+            : failed.length > 0
+              ? 'partial'
+              : 'success',
+        successCount: committed.length,
+        failedCount: failed.length,
+        errors: failed,
+      }
     },
     [groups, memberships, logAudit]
   )

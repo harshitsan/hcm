@@ -31,7 +31,7 @@ export function TaxFeeFields({ form }: TaxFeeFieldsProps) {
   const taxFeeArray = useFieldArray({ control: form.control, name: 'taxFees' })
 
   return (
-    <div className='border-grey-200 space-y-3 border-t pt-4'>
+    <div className='border-gray-200 space-y-3 border-t pt-4'>
       <div className='flex items-center justify-between'>
         <p className='text-neutral-1600 text-sm font-medium'>
           Tax & fee applicability (optional)

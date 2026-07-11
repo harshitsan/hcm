@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react'
-import { Eye, Lightning, PencilSimple, Plus, Timer, XCircle } from 'phosphor-react'
+import {
+  Eye,
+  Lightning,
+  PencilSimple,
+  Plus,
+  Timer,
+  UploadSimple,
+  XCircle,
+} from 'phosphor-react'
 import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import {
@@ -22,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DataTable } from '@/components/common/data-table/table'
+import { UploadModal } from '@/components/common/upload-modal'
 import { seedEmployees } from '../data/employees'
 import { LIFECYCLE_EVENTS, type Distribution } from '../data/distributions'
 import { type PolicyConfigStore } from '../hooks/use-policy-config'
@@ -57,6 +66,7 @@ export function DistributionsTab({ store, config }: DistributionsTabProps) {
   const [editing, setEditing] = useState<Distribution | null>(null)
   const [detail, setDetail] = useState<Distribution | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   const rows = useMemo<DistributionRow[]>(
     () =>
@@ -136,6 +146,15 @@ export function DistributionsTab({ store, config }: DistributionsTabProps) {
             title='Run SLA sweep — reminders, overdue marking, escalations'
           >
             <Timer size={16} weight='bold' />
+          </Button>
+          <Button
+            variant='icon2'
+            onClick={() => setImportOpen(true)}
+            className='text-neutral-1900 h-7 w-7'
+            aria-label='Bulk distribution import'
+            title='Bulk distribution — import recipient file (CSV / XLS)'
+          >
+            <UploadSimple size={16} weight='bold' />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -228,6 +247,14 @@ export function DistributionsTab({ store, config }: DistributionsTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(selection) => setSelectedRows(selection)}
+        onRowClick={(row) => setDetail(row)}
+      />
+
+      <UploadModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title='Bulk distribution (CSV / XLS)'
+        onUpload={(file) => store.importBulkDistribution(file, actorLabel)}
       />
 
       <NewDistributionOverlay

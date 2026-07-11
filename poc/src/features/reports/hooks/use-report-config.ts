@@ -4,12 +4,9 @@ import { type Role } from '@/context/role-context'
 import { seedFieldCatalog, type AdhocFieldKey } from '../data/builder'
 import { seedTemplates, type TemplateVersion } from '../data/compliance'
 import { type DashboardLayout } from '../data/dashboards'
-import {
-  seedAccessGrants,
-  seedRoleDashboards,
-  type AccessGrant,
-} from '../data/governance'
+import { seedRoleDashboards, type AccessGrant } from '../data/governance'
 import { seedReportCatalog } from '../data/report-catalog'
+import { updateGrantStatus, useGrants } from './use-grants'
 
 const TODAY = '2026-07-02'
 
@@ -22,7 +19,9 @@ export function useReportConfig() {
   const [reports, setReports] = useState(seedReportCatalog)
   const [fields, setFields] = useState(seedFieldCatalog)
   const [roleDashboards, setRoleDashboards] = useState(seedRoleDashboards)
-  const [grants, setGrants] = useState<AccessGrant[]>(seedAccessGrants)
+  // Live module-level RLS grant table — actual report scoping reads this
+  // same store, so revoke/restore here changes what runs return (RPT-20).
+  const grants = useGrants()
   const [templates, setTemplates] = useState<TemplateVersion[]>(seedTemplates)
 
   /** Enable/disable a standard report in the tenant catalog (RPT-22). */
@@ -73,11 +72,11 @@ export function useReportConfig() {
   /** Revoke or restore an RLS company-access grant (RPT-20). */
   const setGrantStatus = useCallback(
     (id: string, status: AccessGrant['status']) => {
-      setGrants((prev) => prev.map((g) => (g.id === id ? { ...g, status } : g)))
+      updateGrantStatus(id, status)
       toast.success(
         status === 'revoked'
           ? 'Grant revoked — subsequent report runs exclude these rows'
-          : 'Grant restored'
+          : 'Grant restored — its companies are back in scope for report runs'
       )
     },
     []

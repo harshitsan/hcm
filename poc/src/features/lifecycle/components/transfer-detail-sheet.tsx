@@ -37,7 +37,7 @@ export function TransferDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md flex items-center gap-2 font-semibold'>
             {t.employeeName} · {t.type}
             <StatusBadge status={t.status} />

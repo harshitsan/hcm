@@ -219,7 +219,9 @@ export function useAnnouncements() {
   }, [])
 
   const runAction = useCallback(
-    (id: string, action: WorkflowAction) => {
+    (id: string, action: WorkflowAction, comment?: string) => {
+      /** Decision comment is retained on the bitemporal history line (ANN-16). */
+      const note = comment?.trim() ? ` — “${comment.trim()}”` : ''
       setAnnouncements((prev) =>
         prev.map((a) => {
           if (a.id !== id) return a
@@ -228,38 +230,38 @@ export function useAnnouncements() {
               toast.success(`“${a.title}” submitted for approval`)
               return withHistory(
                 { ...a, status: 'Pending approval', pendingWith: 'Meera Iyer' },
-                `Submitted for approval by ${CURRENT_ADMIN}`
+                `Submitted for approval by ${CURRENT_ADMIN}${note}`
               )
             case 'approve':
               toast.success(`“${a.title}” approved — eligible for publishing`)
               return withHistory(
                 { ...a, status: 'Approved', pendingWith: null },
-                `Approved by ${CURRENT_ADMIN}`
+                `Approved by ${CURRENT_ADMIN}${note}`
               )
             case 'reject':
               toast.warning(`“${a.title}” rejected`)
               return withHistory(
                 { ...a, status: 'Rejected', pendingWith: null },
-                `Rejected by ${CURRENT_ADMIN}`
+                `Rejected by ${CURRENT_ADMIN}${note}`
               )
             case 'withdraw':
               toast.success(`“${a.title}” withdrawn from the approval queue`)
               return withHistory(
                 { ...a, status: 'Withdrawn', pendingWith: null },
-                `Withdrawn by ${CURRENT_ADMIN}`
+                `Withdrawn by ${CURRENT_ADMIN}${note}`
               )
             case 'hold':
               toast.success(`“${a.title}” placed On Hold`)
               return withHistory(
                 { ...a, prevStatus: a.status, status: 'On Hold', pendingWith: null },
-                `Placed On Hold by ${CURRENT_ADMIN}`
+                `Placed On Hold by ${CURRENT_ADMIN}${note}`
               )
             case 'resume': {
               const restored: AnnouncementStatus = a.prevStatus ?? 'Draft'
               toast.success(`“${a.title}” resumed to ${restored}`)
               return withHistory(
                 { ...a, status: restored, prevStatus: null },
-                `Resumed to ${restored} by ${CURRENT_ADMIN}`
+                `Resumed to ${restored} by ${CURRENT_ADMIN}${note}`
               )
             }
             case 'publish': {
@@ -267,21 +269,27 @@ export function useAnnouncements() {
                 toast.success(`“${a.title}” scheduled to go live on ${a.startDate}`)
                 return withHistory(
                   { ...a, status: 'Scheduled' },
-                  `Scheduled for ${a.startDate} by ${CURRENT_ADMIN}`
+                  `Scheduled for ${a.startDate} by ${CURRENT_ADMIN}${note}`
                 )
               }
               toast.success(`“${a.title}” is now live for its targeted audience`)
               if (a.notifyByEmail) recordNotification(a)
-              return withHistory({ ...a, status: 'Published' }, `Published by ${CURRENT_ADMIN}`)
+              return withHistory(
+                { ...a, status: 'Published' },
+                `Published by ${CURRENT_ADMIN}${note}`
+              )
             }
             case 'unpublish':
               toast.success(`“${a.title}” unpublished — removed from audience visibility`)
-              return withHistory({ ...a, status: 'Unpublished' }, `Unpublished by ${CURRENT_ADMIN}`)
+              return withHistory(
+                { ...a, status: 'Unpublished' },
+                `Unpublished by ${CURRENT_ADMIN}${note}`
+              )
             case 'cancelSchedule':
               toast.success(`Schedule cancelled — “${a.title}” will not auto-publish`)
               return withHistory(
                 { ...a, status: 'Approved' },
-                `Schedule cancelled by ${CURRENT_ADMIN}`
+                `Schedule cancelled by ${CURRENT_ADMIN}${note}`
               )
             default:
               return a

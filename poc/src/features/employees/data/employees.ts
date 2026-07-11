@@ -247,6 +247,12 @@ export interface Employee {
   dependants: Dependant[]
   lifeEvents: LifeEvent[]
   lifecycleEvents: LifecycleEvent[]
+  /**
+   * Sub-record fields written by mass update (EMP-43) that have no dedicated
+   * column on the core record (address / agreements / skills / feedback…) —
+   * keyed by the catalog field label. Shown on the record detail sheet.
+   */
+  bulkFieldValues?: Record<string, string>
 }
 
 /** The employee record behind the "Employee (User)" self-service views. */

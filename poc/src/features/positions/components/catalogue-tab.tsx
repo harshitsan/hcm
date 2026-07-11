@@ -195,6 +195,7 @@ export function CatalogueTab({
         data={paged}
         variant='no-status'
         resetSelectionKey={`${companyId}-${departmentFilter}-${safePage}`}
+        onRowClick={(row) => setHistoryTarget(row)}
       />
 
       {/* Paged browsing for large catalogues (POS-23). */}

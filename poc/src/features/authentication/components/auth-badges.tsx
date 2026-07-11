@@ -25,7 +25,15 @@ const statusLabel: Record<AuthUserStatus, string> = {
   suspended: 'Suspended',
 }
 
-export function UserStatusBadge({ status }: { status: AuthUserStatus }) {
+export function UserStatusBadge({
+  status,
+  locked = false,
+}: {
+  status: AuthUserStatus
+  /** Lockout overrides the stored status until an admin/reset clears it. */
+  locked?: boolean
+}) {
+  if (locked) return <Badge variant='dropped'>Locked</Badge>
   return <Badge variant={statusVariant[status]}>{statusLabel[status]}</Badge>
 }
 
@@ -53,7 +61,10 @@ export function OutcomeBadge({ outcome }: { outcome: AuditOutcome }) {
 }
 
 export function EventTypeBadge({ eventType }: { eventType: AuthEventType }) {
-  const failure = eventType === 'login-failure' || eventType === 'sso-rejected'
+  const failure =
+    eventType === 'login-failure' ||
+    eventType === 'sso-rejected' ||
+    eventType === 'account-locked'
   return (
     <Badge variant={failure ? 'dropped' : 'open'}>
       {AUTH_EVENT_LABELS[eventType]}
@@ -63,7 +74,7 @@ export function EventTypeBadge({ eventType }: { eventType: AuthEventType }) {
 
 export function LinkageBadge({ linked }: { linked: boolean }) {
   return (
-    <Badge variant={linked ? 'qualified' : 'pending'}>
+    <Badge variant={linked ? 'badge_active' : 'pending'}>
       {linked ? 'Employee linked' : 'No workforce record'}
     </Badge>
   )

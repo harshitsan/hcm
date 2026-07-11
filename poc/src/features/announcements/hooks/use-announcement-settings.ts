@@ -3,10 +3,13 @@ import { toast } from 'sonner'
 import {
   seedConfigVersions,
   seedImages,
+  seedThoughts,
   type AnnouncementImage,
   type ConfigVersion,
+  type ThoughtOfTheDay,
 } from '../data/announcements'
 import {
+  CURRENT_ADMIN,
   seedCoordinators,
   seedOrgConfig,
   type AnnouncementCoordinator,
@@ -17,6 +20,7 @@ import { todayIso } from '../utils/audience'
 
 export type ImageDraft = Omit<AnnouncementImage, 'id' | 'updatedAt'>
 export type CoordinatorDraft = Omit<AnnouncementCoordinator, 'id'>
+export type ThoughtDraft = Pick<ThoughtOfTheDay, 'date' | 'text'>
 
 /**
  * In-memory settings store: the milestone image library (ANN-32/33), the
@@ -29,6 +33,30 @@ export function useAnnouncementSettings() {
   const [configVersions, setConfigVersions] = useState<ConfigVersion[]>(seedConfigVersions)
   const [orgConfig, setOrgConfig] = useState<OrgConfig>(seedOrgConfig)
   const [coordinators, setCoordinators] = useState<AnnouncementCoordinator[]>(seedCoordinators)
+  const [thoughts, setThoughts] = useState<ThoughtOfTheDay[]>(seedThoughts)
+
+  /** Add (or replace) the thought of the day for a date — feeds kx-084's surface. */
+  const saveThought = useCallback((draft: ThoughtDraft) => {
+    const thought: ThoughtOfTheDay = {
+      ...draft,
+      id: `tod-${crypto.randomUUID().slice(0, 8)}`,
+      author: CURRENT_ADMIN,
+    }
+    setThoughts((prev) => {
+      const replacing = prev.some((t) => t.date === draft.date)
+      toast.success(
+        replacing
+          ? `Thought of the day for ${draft.date} replaced`
+          : `Thought of the day for ${draft.date} saved`
+      )
+      return [thought, ...prev.filter((t) => t.date !== draft.date)]
+    })
+  }, [])
+
+  const deleteThought = useCallback((id: string) => {
+    setThoughts((prev) => prev.filter((t) => t.id !== id))
+    toast.success('Thought of the day removed')
+  }, [])
 
   /** Assign the Announcement Coordinator/Reviewer role to an employee. */
   const addCoordinator = useCallback((draft: CoordinatorDraft) => {
@@ -111,6 +139,9 @@ export function useAnnouncementSettings() {
     coordinators,
     addCoordinator,
     removeCoordinator,
+    thoughts,
+    saveThought,
+    deleteThought,
     images,
     addImage,
     updateImage,

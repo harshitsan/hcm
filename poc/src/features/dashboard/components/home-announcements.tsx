@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Megaphone, Pencil, Pin, PinOff, Plus, Trash2 } from 'lucide-react'
+import { ArrowRight, Megaphone, PencilSimple, PushPin, PushPinSlash, Plus, Trash } from 'phosphor-react'
 import { z } from 'zod'
 import { canAccess } from '@/config/module-access'
 import { RoleGate, useRole, type Role } from '@/context/role-context'
@@ -183,7 +183,7 @@ export function HomeAnnouncements() {
               }}
               className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
             >
-              <Plus className='size-3' />
+              <Plus size={12} weight='bold' />
               New announcement
             </Button>
           </RoleGate>
@@ -192,7 +192,7 @@ export function HomeAnnouncements() {
               to='/announcements'
               className='text-paragraph-sm text-blue-1200 flex items-center gap-1 font-medium hover:underline'
             >
-              Open module <ArrowRight className='size-3.5' />
+              Open module <ArrowRight size={14} />
             </Link>
           )}
         </div>
@@ -200,7 +200,7 @@ export function HomeAnnouncements() {
 
       {feed.length === 0 ? (
         <Card className='flex flex-row items-center gap-3 p-4'>
-          <Megaphone className='text-neutral-800 size-5 shrink-0' />
+          <Megaphone size={20} className='text-neutral-800 shrink-0' />
           <p className='text-paragraph-md text-neutral-1000'>
             {categoryFilter === 'all'
               ? 'No announcements right now — company updates will appear here.'
@@ -214,7 +214,7 @@ export function HomeAnnouncements() {
               <div className='flex items-start justify-between gap-2'>
                 <div className='flex min-w-0 items-center gap-2'>
                   {a.pinned && (
-                    <Pin className='text-orange-1200 size-4 shrink-0' />
+                    <PushPin size={16} weight='fill' className='text-orange-1200 shrink-0' />
                   )}
                   <span className='text-paragraph-md text-neutral-1600 truncate font-medium'>
                     {a.title}
@@ -232,9 +232,9 @@ export function HomeAnnouncements() {
                         onClick={() => store.togglePinned(a.id)}
                       >
                         {a.pinned ? (
-                          <PinOff className='size-3.5' />
+                          <PushPinSlash size={14} />
                         ) : (
-                          <Pin className='size-3.5' />
+                          <PushPin size={14} />
                         )}
                       </Button>
                       <Button
@@ -246,7 +246,7 @@ export function HomeAnnouncements() {
                           setDialogOpen(true)
                         }}
                       >
-                        <Pencil className='size-3.5' />
+                        <PencilSimple size={14} />
                       </Button>
                       <Button
                         variant='icon2'
@@ -254,7 +254,7 @@ export function HomeAnnouncements() {
                         aria-label='Delete announcement'
                         onClick={() => setConfirmDelete(a)}
                       >
-                        <Trash2 className='size-3.5' />
+                        <Trash size={14} />
                       </Button>
                     </>
                   )}

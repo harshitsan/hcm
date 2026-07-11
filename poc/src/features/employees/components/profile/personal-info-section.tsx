@@ -134,7 +134,7 @@ export function PersonalInfoSection({
               <span className='flex items-center gap-2'>
                 <span className='font-medium'>{l.language}</span>
                 {l.canRead && <Badge variant='open'>Read</Badge>}
-                {l.canWrite && <Badge variant='qualified'>Write</Badge>}
+                {l.canWrite && <Badge variant='badge_active'>Write</Badge>}
                 {l.canSpeak && <Badge variant='completed'>Speak</Badge>}
               </span>
               <Button

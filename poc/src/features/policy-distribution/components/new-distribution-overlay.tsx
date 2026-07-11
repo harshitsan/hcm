@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -160,6 +160,26 @@ export function NewDistributionOverlay({
   const ackType = form.watch('ackType')
   const method = form.watch('method')
   const dueRuleType = form.watch('dueRuleType')
+  const policyId = form.watch('policyId')
+
+  // Guard against distributing to an empty audience: the submit button
+  // stays disabled until a policy is picked and the recipient preview
+  // resolves at least one recipient (event triggers resolve at event time).
+  const recipientCount = useMemo(
+    () => resolveAudience(audience).length,
+    [audience]
+  )
+  const needsRecipients = method !== 'Event-triggered'
+  const missingPolicy = !policyId
+  const missingRecipients = needsRecipients && recipientCount === 0
+  const submitDisabled = missingPolicy || missingRecipients
+  const disabledHint = missingPolicy
+    ? missingRecipients
+      ? 'Select a policy and an audience with at least 1 recipient first.'
+      : 'Select a policy first.'
+    : missingRecipients
+      ? 'The audience resolves 0 recipients — adjust the criteria first.'
+      : null
 
   function handleSubmit(values: FormValues) {
     const recipients = resolveAudience(audience)
@@ -201,7 +221,7 @@ export function NewDistributionOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[640px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? 'Edit distribution' : 'New distribution'}
           </SheetTitle>
@@ -461,7 +481,12 @@ export function NewDistributionOverlay({
               )}
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+              {disabledHint && (
+                <p className='text-paragraph-sm text-neutral-1000 mr-auto'>
+                  {disabledHint}
+                </p>
+              )}
               <Button
                 type='button'
                 variant='outline'
@@ -469,7 +494,7 @@ export function NewDistributionOverlay({
               >
                 Cancel
               </Button>
-              <Button type='submit'>
+              <Button type='submit' disabled={submitDisabled}>
                 {isEdit
                   ? 'Save changes'
                   : method === 'Manual'

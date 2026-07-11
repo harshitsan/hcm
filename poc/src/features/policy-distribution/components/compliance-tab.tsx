@@ -83,6 +83,47 @@ export function ComplianceTab({ store }: { store: PolicyDistributionStore }) {
     [active, filter]
   )
 
+  /** Real CSV export of the per-employee report (Blob download pattern). */
+  const handleExport = () => {
+    const header = [
+      'Employee',
+      'Company',
+      'Department',
+      'Policy',
+      'Version',
+      'Status',
+      'Due date',
+      'Acknowledged at',
+      'Acknowledged by',
+      'Reminders sent',
+    ]
+    const clean = (v: string) => v.replaceAll(',', ';')
+    const lines = reportRows.map((a) =>
+      [
+        clean(a.employeeName),
+        clean(a.company),
+        clean(a.department),
+        clean(a.policyTitle),
+        a.policyVersion,
+        a.status,
+        a.dueDate ?? '',
+        a.acknowledgedAt ?? '',
+        clean(a.acknowledgedBy ?? ''),
+        String(a.remindersSent.length),
+      ].join(',')
+    )
+    const csv = [header.join(','), ...lines].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `policy-compliance-${filter}-report.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    toast.success(
+      `Exported ${reportRows.length} row(s) — ${filter === 'all' ? 'all statuses' : `${filter} report`}`
+    )
+  }
+
   const cards = [
     { label: 'Overall compliance', value: `${totals.compliance}%` },
     { label: 'Acknowledged', value: String(totals.acknowledged) },
@@ -115,7 +156,7 @@ export function ComplianceTab({ store }: { store: PolicyDistributionStore }) {
         <h3 className='text-neutral-1600 text-sm font-semibold'>
           Acknowledgment status per policy
         </h3>
-        <div className='border-grey-200 rounded-[6px] border bg-white'>
+        <div className='border-gray-200 rounded-[6px] border bg-white'>
           <Table>
             <TableHeader>
               <TableRow>
@@ -174,16 +215,12 @@ export function ComplianceTab({ store }: { store: PolicyDistributionStore }) {
                 <SelectItem value='overdue'>Overdue report</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              size='sm'
-              variant='outline'
-              onClick={() => toast.info('Export isn’t available in this demo')}
-            >
-              Export
+            <Button size='sm' variant='outline' onClick={handleExport}>
+              Export CSV
             </Button>
           </div>
         </div>
-        <div className='border-grey-200 max-h-[360px] overflow-y-auto rounded-[6px] border bg-white'>
+        <div className='border-gray-200 max-h-[360px] overflow-y-auto rounded-[6px] border bg-white'>
           <Table>
             <TableHeader>
               <TableRow>

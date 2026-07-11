@@ -57,7 +57,7 @@ export function OrgGroups() {
 
   return (
     <>
-      <CommonHeader title='Groups' className='bg-blue-150' />
+      <CommonHeader title='Work Groups' className='bg-blue-150' />
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
           {!isEmployee && (

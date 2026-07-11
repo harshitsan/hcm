@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
@@ -8,7 +8,7 @@ import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import { Form } from '@/components/ui/form'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { COMPANIES, entityById, functionById, type Tier } from '../data/catalog'
-import { type FunctionToggle } from '../data/config'
+import { type ConfigVersion, type FunctionToggle } from '../data/config'
 import { type MappingTemplate } from '../data/mappings'
 import { simulateValidation, type ImportDraft } from '../hooks/use-data-jobs'
 import { type MappingDraft } from '../hooks/use-mappings'
@@ -17,8 +17,8 @@ import { defaultColumnMap, missingRequiredFields } from './wizard/mapping-utils'
 import {
   STEP_FIELDS,
   WIZARD_STEPS,
+  buildWizardSchema,
   wizardDefaults,
-  wizardSchema,
   type WizardValues,
 } from './wizard/schema'
 import { StepFile } from './wizard/step-file'
@@ -30,6 +30,8 @@ import { StepRouting } from './wizard/step-routing'
 interface ImportWizardProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Latest published config version — governs formats and limits (DM-17). */
+  currentConfig: ConfigVersion
   functionToggles: FunctionToggle[]
   tierMap: Record<string, Tier>
   mappings: MappingTemplate[]
@@ -44,6 +46,7 @@ interface ImportWizardProps {
 export function ImportWizard({
   open,
   onOpenChange,
+  currentConfig,
   functionToggles,
   tierMap,
   mappings,
@@ -55,8 +58,18 @@ export function ImportWizard({
   const [columnMap, setColumnMap] = useState<Record<string, string>>({})
   const [preview, setPreview] = useState<ValidationPreview | null>(null)
 
+  // Validation always reads the latest published config version, even if a
+  // new version is published while this wizard stays mounted (DM-17).
+  const configRef = useRef(currentConfig)
+  configRef.current = currentConfig
+
   const form = useForm<WizardValues>({
-    resolver: zodResolver(wizardSchema),
+    resolver: (values, context, options) =>
+      zodResolver(buildWizardSchema(configRef.current))(
+        values,
+        context,
+        options
+      ),
     defaultValues: wizardDefaults,
     mode: 'onChange',
   })
@@ -191,7 +204,7 @@ export function ImportWizard({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[640px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             New import — step {step + 1} of {WIZARD_STEPS.length}:{' '}
             {WIZARD_STEPS[step]}
@@ -222,7 +235,7 @@ export function ImportWizard({
                   mappings={mappings}
                 />
               )}
-              {step === 1 && <StepFile form={form} />}
+              {step === 1 && <StepFile form={form} config={currentConfig} />}
               {step === 2 && <StepOptions form={form} importFn={importFn} />}
               {step === 3 && importFn && (
                 <StepMapping
@@ -245,7 +258,7 @@ export function ImportWizard({
               )}
             </div>
 
-            <div className='border-grey-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

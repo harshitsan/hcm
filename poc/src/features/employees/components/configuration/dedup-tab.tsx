@@ -142,7 +142,7 @@ export function DedupTab({ store }: { store: ConfigurationStore }) {
             <TableRow>
               <TableCell>ID matches a record in the same company</TableCell>
               <TableCell>
-                <Badge variant='disqualified'>Same-company duplicate</Badge>
+                <Badge variant='dropped'>Same-company duplicate</Badge>
               </TableCell>
               <TableCell className='text-neutral-1000'>
                 Flag the conflicting field, block save until resolved
@@ -151,7 +151,7 @@ export function DedupTab({ store }: { store: ConfigurationStore }) {
             <TableRow>
               <TableCell>ID matches a record in another company</TableCell>
               <TableCell>
-                <Badge variant='qualified'>Separate-company record</Badge>
+                <Badge variant='badge_active'>Separate-company record</Badge>
               </TableCell>
               <TableCell className='text-neutral-1000'>
                 Allow — independent record per company (FR 6.9.1)
@@ -223,12 +223,12 @@ export function DedupTab({ store }: { store: ConfigurationStore }) {
               <Badge variant='pending'>No collision — save allowed</Badge>
             )}
             {result.kind === 'same-company' && (
-              <Badge variant='disqualified'>
+              <Badge variant='dropped'>
                 Blocked: same-company duplicate of {result.existing}
               </Badge>
             )}
             {result.kind === 'separate-company' && (
-              <Badge variant='qualified'>
+              <Badge variant='badge_active'>
                 Allowed: valid separate-company record ({result.existing})
               </Badge>
             )}

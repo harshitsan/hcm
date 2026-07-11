@@ -102,11 +102,17 @@ export function PortfoliosTab({ store }: PortfoliosTabProps) {
           Portfolios ({store.portfolios.length})
         </h2>
         <div className='flex items-center gap-3'>
+          {selectedRows.length > 0 && (
+            <span className='text-neutral-1000 text-xs'>
+              {selectedRows.length} selected
+            </span>
+          )}
           <Button
             variant='icon2'
             onClick={() => setApiOpen(true)}
             className='text-neutral-1900 h-7 w-7'
             aria-label='API reference'
+            title='API reference'
           >
             <Code size={16} weight='bold' />
           </Button>
@@ -120,6 +126,7 @@ export function PortfoliosTab({ store }: PortfoliosTabProps) {
             className='text-neutral-1900 h-7 w-7'
             disabled={!selected}
             aria-label='View details'
+            title='View details for the selected portfolio'
           >
             <Eye size={16} weight='bold' />
           </Button>
@@ -133,6 +140,7 @@ export function PortfoliosTab({ store }: PortfoliosTabProps) {
             className='text-neutral-1900 h-7 w-7'
             disabled={!canEditSelected}
             aria-label='Edit'
+            title='Edit the selected portfolio'
           >
             <PencilSimple size={16} weight='fill' />
           </Button>
@@ -161,7 +169,7 @@ export function PortfoliosTab({ store }: PortfoliosTabProps) {
               className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
             >
               <Plus size={10} weight='bold' />
-              Create Portfolio
+              New Portfolio
             </Button>
           </RoleGate>
         </div>
@@ -173,6 +181,10 @@ export function PortfoliosTab({ store }: PortfoliosTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(r) => setSelectedRows(r)}
+        onRowClick={(row) => {
+          setViewOnly(true)
+          setManaging(row.portfolio)
+        }}
       />
 
       <PortfolioOverlay

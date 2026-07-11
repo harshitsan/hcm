@@ -71,7 +71,7 @@ export function ConfigReceiversStep({ store, onNext }: ConfigReceiversStepProps)
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-4 px-4'>
-          <div className='border-grey-200 flex items-center justify-between gap-4 rounded-[6px] border px-3 py-2'>
+          <div className='border-gray-200 flex items-center justify-between gap-4 rounded-[6px] border px-3 py-2'>
             <div>
               <Label className='text-sm font-medium'>
                 Do you support anonymous feedback/grievances?

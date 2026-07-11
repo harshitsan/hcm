@@ -7,9 +7,9 @@ import {
 } from '../data/group-companies'
 import { type ReferenceStatus } from '../data/sharing'
 
-const typeVariant: Record<GroupType, 'open' | 'qualified' | 'overdue'> = {
+const typeVariant: Record<GroupType, 'open' | 'badge_active' | 'overdue'> = {
   Holding: 'open',
-  Sister: 'qualified',
+  Sister: 'badge_active',
   JointVenture: 'overdue',
 }
 
@@ -84,10 +84,10 @@ export function ScenarioBadges({ group }: { group: GroupCompany }) {
   )
 }
 
-const refVariant: Record<ReferenceStatus, 'open' | 'qualified' | 'disqualified' | 'pending'> = {
+const refVariant: Record<ReferenceStatus, 'open' | 'badge_active' | 'dropped' | 'pending'> = {
   Pending: 'open',
-  Approved: 'qualified',
-  Denied: 'disqualified',
+  Approved: 'badge_active',
+  Denied: 'dropped',
   Removed: 'pending',
 }
 

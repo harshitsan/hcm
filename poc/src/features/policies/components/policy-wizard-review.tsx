@@ -35,7 +35,7 @@ export function ExclusionsStep({ form }: StepProps) {
           </FormItem>
         )}
       />
-      <div className='border-grey-200 rounded-[6px] border bg-neutral-100 p-3'>
+      <div className='border-gray-200 rounded-[6px] border bg-neutral-100 p-3'>
         <p className='text-neutral-1600 mb-1 text-sm font-medium'>
           Resulting applicability
         </p>
@@ -45,7 +45,7 @@ export function ExclusionsStep({ form }: StepProps) {
         {values.excludedPositionLevels.length > 0 && (
           <div className='mt-2 flex flex-wrap gap-1'>
             {values.excludedPositionLevels.map((level) => (
-              <Badge key={level} variant='disqualified'>
+              <Badge key={level} variant='dropped'>
                 Excludes {level}
               </Badge>
             ))}
@@ -72,7 +72,7 @@ export function DatingStep({
 }: DatingStepProps) {
   return (
     <div className='space-y-4'>
-      <div className='border-grey-200 rounded-[6px] border bg-neutral-100 p-3'>
+      <div className='border-gray-200 rounded-[6px] border bg-neutral-100 p-3'>
         <p className='text-neutral-1600 text-sm font-medium'>
           Creating version v{nextVersionNumber}
         </p>
@@ -187,7 +187,7 @@ export function ReviewStep({ values, attachment, nextVersionNumber }: ReviewStep
         <FileText className='text-neutral-1000 size-4' />
         <PolicyTypeBadge type={values.type} />
       </div>
-      <div className='border-grey-200 divide-grey-200 divide-y rounded-[6px] border'>
+      <div className='border-gray-200 divide-grey-200 divide-y rounded-[6px] border'>
         {rows.map(([label, value]) => (
           <div key={label} className='grid grid-cols-[140px_1fr] gap-2 px-3 py-2'>
             <span className='text-neutral-1000 text-sm'>{label}</span>
@@ -195,7 +195,7 @@ export function ReviewStep({ values, attachment, nextVersionNumber }: ReviewStep
           </div>
         ))}
       </div>
-      <div className='border-grey-200 rounded-[6px] border bg-neutral-100 p-3'>
+      <div className='border-gray-200 rounded-[6px] border bg-neutral-100 p-3'>
         <p className='text-neutral-1600 mb-1 text-sm font-medium'>Content preview</p>
         <p className='text-paragraph-sm text-neutral-1000 whitespace-pre-wrap'>
           {values.content}

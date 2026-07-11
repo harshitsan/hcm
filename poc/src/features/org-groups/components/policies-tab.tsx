@@ -84,7 +84,7 @@ export function PoliciesTab({ store }: PoliciesTabProps) {
           {store.policies.map((policy) => (
             <div
               key={policy.id}
-              className='border-grey-200 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border bg-white px-3 py-2'
+              className='border-gray-200 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border bg-white px-3 py-2'
             >
               <div className='flex min-w-0 flex-col'>
                 <span className='text-neutral-1600 text-sm font-medium'>
@@ -128,7 +128,7 @@ export function PoliciesTab({ store }: PoliciesTabProps) {
         <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
           Rules-engine applicability preview
         </h3>
-        <div className='border-grey-200 rounded-[6px] border bg-white p-3'>
+        <div className='border-gray-200 rounded-[6px] border bg-white p-3'>
           <div className='mb-3 flex flex-wrap items-center gap-2'>
             <Select value={targetGroupId} onValueChange={setTargetGroupId}>
               <SelectTrigger variant='secondary' className='h-7 w-[220px]'>
@@ -205,7 +205,7 @@ export function PoliciesTab({ store }: PoliciesTabProps) {
                     return p ? (
                       <span
                         key={id}
-                        className='border-grey-200 flex items-center gap-1.5 rounded-[6px] border px-2 py-1 text-sm'
+                        className='border-gray-200 flex items-center gap-1.5 rounded-[6px] border px-2 py-1 text-sm'
                       >
                         {p.name}
                         <KindBadge kind={p.kind} />

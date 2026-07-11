@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
+import { DetailSheet } from '@/components/module-page'
 import { useRole } from '@/context/role-context'
 import { CURRENT_COMPANY_ID, type Department } from '../data/departments'
 import { LOCATIONS } from '../data/org-config'
@@ -52,6 +53,7 @@ export function DirectoryTab({ store, config }: DirectoryTabProps) {
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [editingDept, setEditingDept] = useState<Department | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [detailRow, setDetailRow] = useState<DepartmentRow | null>(null)
 
   // Departments are tenant-scoped: only the admin's own company is listed.
   const companyDepartments = useMemo(
@@ -226,6 +228,35 @@ export function DirectoryTab({ store, config }: DirectoryTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(r) => setSelectedRows(r)}
+        onRowClick={(row) => setDetailRow(row)}
+      />
+
+      <DetailSheet
+        open={detailRow !== null}
+        onOpenChange={(o) => !o && setDetailRow(null)}
+        title={detailRow?.name ?? ''}
+        description={detailRow?.acronym}
+        sections={
+          detailRow
+            ? [
+                {
+                  title: 'Department',
+                  fields: [
+                    { label: 'Department ID', value: detailRow.id },
+                    { label: 'Status', value: detailRow.status === 'active' ? 'Active' : 'Inactive' },
+                    { label: 'Parent department', value: detailRow.parentName || '—' },
+                    { label: 'Department head', value: detailRow.headName || '—' },
+                    { label: 'Members', value: detailRow.memberCount },
+                    { label: 'Locations', value: detailRow.locationNames || '—' },
+                  ],
+                },
+                {
+                  title: 'Purpose & scope',
+                  fields: [{ label: 'Description', value: detailRow.description || '—' }],
+                },
+              ]
+            : []
+        }
       />
 
       {/* Pagination (DEPT-25) */}

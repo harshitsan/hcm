@@ -31,11 +31,22 @@ function sortableHeader(label: string) {
   }
 }
 
+/** Inline row decisions on the manager/admin Requests desk. */
+export interface RequestRowActions {
+  onApprove: (request: LeaveRequest) => void
+  onReject: (request: LeaveRequest) => void
+}
+
 /**
  * Shared request grid columns. `showEmployee` is used by manager/admin views;
- * the self-service view hides it.
+ * the self-service view hides it. Pass `actions` to render labeled inline
+ * Approve/Reject buttons (with the pending step's SLA) on pending rows —
+ * the row click still opens the full detail sheet.
  */
-export function requestColumns(showEmployee: boolean): ColumnDef<LeaveRequest>[] {
+export function requestColumns(
+  showEmployee: boolean,
+  actions?: RequestRowActions
+): ColumnDef<LeaveRequest>[] {
   const cols: ColumnDef<LeaveRequest>[] = []
 
   if (showEmployee) {
@@ -153,6 +164,52 @@ export function requestColumns(showEmployee: boolean): ColumnDef<LeaveRequest>[]
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     }
   )
+
+  if (actions) {
+    cols.push({
+      id: 'actions',
+      header: () => <span className='text-sm font-medium'>Actions</span>,
+      cell: ({ row }) => {
+        const r = row.original
+        if (r.status !== 'pending') {
+          return <span className='text-neutral-1000 text-xs'>—</span>
+        }
+        const step = pendingStep(r.steps)
+        return (
+          <div className='flex items-center gap-1.5'>
+            <Button
+              variant='outline'
+              className='h-6 px-2 text-xs'
+              onClick={(e) => {
+                e.stopPropagation()
+                actions.onApprove(r)
+              }}
+            >
+              Approve
+            </Button>
+            <Button
+              variant='outline'
+              className='text-red-1400 h-6 px-2 text-xs'
+              onClick={(e) => {
+                e.stopPropagation()
+                actions.onReject(r)
+              }}
+            >
+              Reject
+            </Button>
+            {step && (
+              <span
+                className={`text-xs whitespace-nowrap ${step.escalated ? 'text-red-1400' : 'text-neutral-1000'}`}
+              >
+                {step.escalated ? 'SLA breached' : `SLA ${step.slaHours}h`}
+              </span>
+            )}
+          </div>
+        )
+      },
+      enableSorting: false,
+    })
+  }
 
   return cols
 }

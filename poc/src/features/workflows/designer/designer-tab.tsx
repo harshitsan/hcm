@@ -56,7 +56,8 @@ export function DesignerTab({
   const library = useStore((s) => s.library)
   const activeSource = useStore((s) => s.activeSource)
   const store = useDesignerStoreApi()
-  const { newDoc, openDoc, loadExternal, linkArtifact } = store.getState()
+  const { newDoc, openDoc, loadExternal, linkArtifact, markPublished } =
+    store.getState()
 
   const [targetModule, setTargetModule] = useState<TargetModule>(() => {
     const m = String(store.getState().doc.trigger.config.module ?? '')
@@ -135,6 +136,9 @@ export function DesignerTab({
         version: artifact.version,
       })
     }
+    // One coherent state signal: publishing clears the Draft badge; the next
+    // canvas edit drops it back to Draft until re-published.
+    markPublished()
   }
 
   return (
@@ -211,10 +215,10 @@ export function DesignerTab({
 
       {activeSource && (
         <p className='text-neutral-1000 mb-2 text-xs'>
-          Loaded from catalog:{' '}
-          <span className='font-medium'>{activeSource.artifactName}</span> v
-          {activeSource.version} — publishing updates the same workflow to v
-          {activeSource.version + 1}.
+          Linked to catalog workflow{' '}
+          <span className='font-medium'>{activeSource.artifactName}</span>{' '}
+          (current version v{activeSource.version}) — publishing again saves
+          your changes as v{activeSource.version + 1}.
         </p>
       )}
 

@@ -2,8 +2,8 @@ import { Badge } from '@/components/ui/badge'
 
 type BadgeVariant =
   | 'pending'
-  | 'qualified'
-  | 'disqualified'
+  | 'badge_active'
+  | 'dropped'
   | 'badge_inactive'
   | 'open'
   | 'completed'
@@ -37,8 +37,8 @@ const WARNING = [
 ]
 
 function statusVariant(status: string): BadgeVariant {
-  if (POSITIVE.includes(status)) return 'qualified'
-  if (NEGATIVE.includes(status)) return 'disqualified'
+  if (POSITIVE.includes(status)) return 'badge_active'
+  if (NEGATIVE.includes(status)) return 'dropped'
   if (NEUTRAL_DONE.includes(status)) return 'completed'
   if (INACTIVE.includes(status)) return 'badge_inactive'
   if (WARNING.includes(status)) return 'overdue'

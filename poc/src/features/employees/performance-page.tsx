@@ -26,6 +26,7 @@ export function EmployeesPerformance() {
       <CommonHeader
         title='Employees — Performance & Requests'
         className='bg-blue-150'
+        backButton
       />
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>

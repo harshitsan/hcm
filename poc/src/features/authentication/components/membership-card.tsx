@@ -113,7 +113,7 @@ export function MembershipCard({
             <span className='text-neutral-1000 text-xs'>Employee link:</span>
             {linkedEmployee ? (
               <>
-                <Badge variant='qualified'>
+                <Badge variant='badge_active'>
                   {linkedEmployee.name} · {linkedEmployee.title}
                 </Badge>
                 {canManage && (

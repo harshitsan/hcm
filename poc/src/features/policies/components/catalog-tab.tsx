@@ -194,11 +194,17 @@ export function CatalogTab({ store }: { store: PoliciesStore }) {
           Policy Documents ({filtered.length})
         </h2>
         <div className='flex items-center gap-3'>
+          {selectedRows.length > 0 && (
+            <span className='text-neutral-1000 text-xs'>
+              {selectedRows.length} selected
+            </span>
+          )}
           <Button
             variant='icon2'
             onClick={store.refresh}
             className='text-neutral-1900 h-7 w-7'
             aria-label='Refresh'
+            title='Refresh list'
           >
             <ArrowsClockwise size={16} weight='bold' />
           </Button>
@@ -208,6 +214,7 @@ export function CatalogTab({ store }: { store: PoliciesStore }) {
             className='text-neutral-1900 h-7 w-7'
             disabled={selectedRows.length !== 1}
             aria-label='Preview'
+            title='Preview the selected policy'
           >
             <Eye size={16} weight='bold' />
           </Button>
@@ -217,6 +224,7 @@ export function CatalogTab({ store }: { store: PoliciesStore }) {
             className='text-neutral-1900 h-7 w-7'
             disabled={selectedRows.length !== 1}
             aria-label='Version history'
+            title='Version history of the selected policy'
           >
             <ClockCounterClockwise size={16} weight='bold' />
           </Button>
@@ -226,6 +234,7 @@ export function CatalogTab({ store }: { store: PoliciesStore }) {
             className='text-neutral-1900 h-7 w-7'
             disabled={selectedRows.length !== 1}
             aria-label='New version'
+            title='Draft a new version of the selected policy'
           >
             <GitBranch size={16} weight='bold' />
           </Button>
@@ -242,6 +251,7 @@ export function CatalogTab({ store }: { store: PoliciesStore }) {
               selectedRows.every((r) => r.policy.retired)
             }
             aria-label='Retire'
+            title='Retire the selected policy'
           >
             <Archive size={16} weight='bold' />
           </Button>
@@ -262,6 +272,7 @@ export function CatalogTab({ store }: { store: PoliciesStore }) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(r) => setSelectedRows(r)}
+        onRowClick={(row) => setPreviewPolicy(row.policy)}
       />
 
       {/* Paginated with a visible total count (POL-28) */}

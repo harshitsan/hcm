@@ -212,7 +212,7 @@ export function AppreciationsTab({ store }: { store: PerformanceStore }) {
                     {a.feedback}
                   </TableCell>
                   <TableCell>
-                    <Badge variant='qualified'>+{a.points}</Badge>
+                    <Badge variant='badge_active'>+{a.points}</Badge>
                   </TableCell>
                   <TableCell className='text-neutral-1000'>{a.date}</TableCell>
                 </TableRow>
@@ -257,7 +257,7 @@ export function AppreciationsTab({ store }: { store: PerformanceStore }) {
                     <span className='text-neutral-1000'>— {c.description}</span>
                   </span>
                   <span className='flex shrink-0 items-center gap-1.5'>
-                    <Badge variant='qualified'>{c.points} pts</Badge>
+                    <Badge variant='badge_active'>{c.points} pts</Badge>
                     <RoleGate roles={['Company Admin']}>
                       <Button
                         variant='outline'

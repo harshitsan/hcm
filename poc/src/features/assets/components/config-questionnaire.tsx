@@ -78,11 +78,11 @@ export function ConfigQuestionnaire({ config }: ConfigQuestionnaireProps) {
         </span>
       </div>
 
-      <div className='border-grey-200 space-y-2 rounded-[6px] border bg-white p-3'>
+      <div className='border-gray-200 space-y-2 rounded-[6px] border bg-white p-3'>
         {fields.map((field) => (
           <div
             key={field.id}
-            className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'
+            className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'
           >
             <div className='flex items-center gap-2'>
               <span className='text-neutral-1600 text-sm font-medium'>{field.label}</span>

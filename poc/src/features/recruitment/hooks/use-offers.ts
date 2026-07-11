@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import type { Application } from '../data/candidates'
 import type { EngineLogEntry, OfferApproverRule } from '../data/config'
+import type { HireResult } from '../data/hire-bridge'
 import {
   seedOffers,
   type ComponentChange,
@@ -20,8 +21,15 @@ interface UseOffersArgs {
     detail: string
   ) => void
   notify: (event: string, recipient: string) => void
-  /** Marks the application hired and the requisition filled on conversion. */
-  onConverted: (applicationId: string, requisitionId: string) => void
+  /**
+   * Conversion handoff: marks the application hired, the requisition filled,
+   * and creates the employee record + onboarding case via the hire bridge.
+   * Returns the created record ids for the success toast / audit log.
+   */
+  onConverted: (
+    offer: Offer,
+    mode: 'employee-user' | 'employee-non-user'
+  ) => HireResult
   onOfferCancelled: (applicationId: string) => void
   onOfferRefused: (applicationId: string) => void
 }
@@ -462,17 +470,21 @@ export function useOffers({
         return false
       }
       patchOffer(id, (o) => ({ ...o, convertedTo: mode }))
-      onConverted(offer.applicationId, offer.requisitionId)
+      const hire = onConverted(offer, mode)
       logEngine(
         'workflow',
         `Candidate converted (${mode})`,
-        `Personal, role, compensation and document data handed off to onboarding without re-entry; requisition ${offer.requisitionId} marked filled${mode === 'employee-non-user' ? '; no login provisioned — can be upgraded later' : ''}`
+        `Employee ${hire.employeeCode} (${hire.employeeId}) created and onboarding case ${hire.onboardingCaseId} started — personal, role, compensation and document data handed off without re-entry; requisition ${offer.requisitionId} marked filled${mode === 'employee-non-user' ? '; no login provisioned — can be upgraded later' : ''}`
       )
       notify('New hire ready for onboarding', 'Onboarding module')
       toast.success(
         mode === 'employee-user'
-          ? `${offer.candidateName} converted — appears in onboarding as a new hire`
-          : `${offer.candidateName} converted as Employee (Non-User) — no login provisioned`
+          ? `${offer.candidateName} converted — employee ${hire.employeeCode} created; onboarding case ${hire.onboardingCaseId} started`
+          : `${offer.candidateName} converted as Employee (Non-User) — employee ${hire.employeeCode} created; no login provisioned`,
+        {
+          description:
+            'The new hire is now visible in Employees and in Lifecycle → Onboarding.',
+        }
       )
       return true
     },

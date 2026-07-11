@@ -101,7 +101,7 @@ export function EmployeeRolePicker({
       )}
 
       {open && (
-        <div className='border-grey-200 mt-2 space-y-3 rounded-[6px] border bg-white p-3'>
+        <div className='border-gray-200 mt-2 space-y-3 rounded-[6px] border bg-white p-3'>
           {!employeesOnly && (
             <RadioGroup
               value={mode}
@@ -160,7 +160,7 @@ export function EmployeeRolePicker({
               </div>
               <div>
                 <Label className='text-xs'>Employees</Label>
-                <ul className='border-grey-200 mt-1 max-h-40 overflow-y-auto rounded-[6px] border p-1'>
+                <ul className='border-gray-200 mt-1 max-h-40 overflow-y-auto rounded-[6px] border p-1'>
                   {matchingEmployees.length === 0 && (
                     <li className='text-neutral-1000 px-2 py-1 text-sm'>
                       No employees match the selected criteria
@@ -191,7 +191,7 @@ export function EmployeeRolePicker({
               <Label className='text-xs'>
                 Applicable roles (all employees holding the role)
               </Label>
-              <ul className='border-grey-200 mt-1 max-h-40 overflow-y-auto rounded-[6px] border p-1'>
+              <ul className='border-gray-200 mt-1 max-h-40 overflow-y-auto rounded-[6px] border p-1'>
                 {ORG_ROLES.map((r) => {
                   const item = `${r}${ROLE_SUFFIX}`
                   return (

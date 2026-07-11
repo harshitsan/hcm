@@ -33,6 +33,10 @@ import {
   useWorkflowFolders,
   type WorkflowFolder,
 } from '@/features/workflows/hooks/use-workflow-folders'
+import {
+  PagerControls,
+  usePager,
+} from '@/features/leave/components/list-controls'
 import { useRole } from '@/context/role-context'
 import { cn } from '@/utils/helpers'
 import { ModuleLink } from '@/features/workflows/components/module-link'
@@ -156,6 +160,10 @@ export function HubCatalog({ store, onNew, onDetails }: HubCatalogProps) {
 
     return [...list].sort((a, b) => a.name.localeCompare(b.name))
   }, [store.artifacts, browseMode, selectedModule, selectedType, selectedFolderItem, query])
+
+  // Card lists paginate (usePager/PagerControls baseline) — "All workflows"
+  // would otherwise render 200+ cards in one endless scroll.
+  const pager = usePager(filteredArtifacts, 25)
 
   function handleDetach(artifact: Artifact, attachment: ArtifactAttachment) {
     store.detach(artifact.id, attachment)
@@ -706,13 +714,17 @@ export function HubCatalog({ store, onNew, onDetails }: HubCatalogProps) {
         </div>
 
         {/* Rows */}
+        <p className='text-neutral-1000 mb-2 text-xs'>
+          Showing {pager.pageItems.length} of {pager.total} workflow
+          {pager.total === 1 ? '' : 's'}
+        </p>
         <div className='rounded-[8px] border border-gray-200 bg-white'>
           {filteredArtifacts.length === 0 && (
             <p className='text-neutral-1000 py-10 text-center text-sm'>
               No workflows match this filter.
             </p>
           )}
-          {filteredArtifacts.map((a, idx) => {
+          {pager.pageItems.map((a, idx) => {
             const effective = myScope
               ? isEffectivelyActive(a.scopes, myScope)
               : isEffectivelyActive(a.scopes, 'company')
@@ -727,7 +739,7 @@ export function HubCatalog({ store, onNew, onDetails }: HubCatalogProps) {
                 onDragEnd={handleDragEnd}
                 className={cn(
                   'flex flex-wrap items-start gap-3 px-4 py-3 cursor-grab active:cursor-grabbing',
-                  idx < filteredArtifacts.length - 1
+                  idx < pager.pageItems.length - 1
                     ? 'border-b border-gray-100'
                     : ''
                 )}
@@ -870,6 +882,14 @@ export function HubCatalog({ store, onNew, onDetails }: HubCatalogProps) {
             )
           })}
         </div>
+
+        <PagerControls
+          page={pager.page}
+          pageCount={pager.pageCount}
+          total={pager.total}
+          onPrev={pager.prev}
+          onNext={pager.next}
+        />
       </div>
 
       {/* Attach dialog */}

@@ -54,7 +54,7 @@ export function ConfigTemplates({ config }: { config: PolicyConfigStore }) {
           return (
             <div
               key={t.id}
-              className='border-grey-200 flex items-center justify-between gap-3 rounded-[6px] border bg-white px-4 py-3'
+              className='border-gray-200 flex items-center justify-between gap-3 rounded-[6px] border bg-white px-4 py-3'
             >
               <div className='min-w-0'>
                 <div className='flex items-center gap-2'>

@@ -16,8 +16,9 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { currentStatusColumns } from './components/current-status-columns'
 import { seedCurrentStatus } from './data/current-status'
-import { ROLE_COMPANY_ACCESS } from './data/governance'
+import { companiesForRole } from './data/governance'
 import { DEPARTMENTS, LOCATIONS } from './data/report-catalog'
+import { useGrants } from './hooks/use-grants'
 
 interface Filters {
   location: string
@@ -40,7 +41,12 @@ const EMPTY: Filters = {
  */
 export function EmployeeCurrentStatus() {
   const { role, hasRole } = useRole()
-  const companies = ROLE_COMPANY_ACCESS[role]
+  // Same live RLS grant scoping as the main reports surface (RPT-20).
+  const grants = useGrants()
+  const companies = useMemo(
+    () => companiesForRole(role, grants),
+    [role, grants]
+  )
 
   const [draft, setDraft] = useState<Filters>(EMPTY)
   const [applied, setApplied] = useState<Filters>(EMPTY)
@@ -170,7 +176,9 @@ export function EmployeeCurrentStatus() {
 
               <p className='text-neutral-1000 mb-2 text-xs'>
                 {rows.length} employee(s) · live status across{' '}
-                {companies.join(', ')}
+                {companies.length > 0
+                  ? companies.join(', ')
+                  : 'no companies (all grants revoked)'}
               </p>
 
               <DataTable

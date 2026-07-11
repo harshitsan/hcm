@@ -8,10 +8,10 @@ import {
 
 const typeVariant: Record<
   JurisdictionType,
-  'open' | 'pending' | 'qualified' | 'overdue'
+  'open' | 'pending' | 'badge_active' | 'overdue'
 > = {
   Country: 'open',
-  State: 'qualified',
+  State: 'badge_active',
   City: 'pending',
   'Other Operational Region': 'overdue',
 }

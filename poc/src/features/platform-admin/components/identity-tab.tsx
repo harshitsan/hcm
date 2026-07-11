@@ -4,6 +4,11 @@ import { RoleGate, useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
+import {
+  type CompanyMembership,
+  type SystemUser,
+} from '../data/identity'
 import { type Tenant } from '../data/tenants'
 import { type IdentityStore } from '../hooks/use-identity'
 import { PersonRecordsCard, RolesCard } from './identity-cards'
@@ -26,11 +31,23 @@ export function IdentityTab({
 }) {
   const { hasRole } = useRole()
   const [overlayOpen, setOverlayOpen] = useState(false)
+  const [revoking, setRevoking] = useState<{
+    user: SystemUser
+    membership: CompanyMembership
+  } | null>(null)
   const activeTenant = tenants.find((t) => t.id === activeCompanyId)
   const tenantCode = (id: string) =>
     tenants.find((t) => t.id === id)?.code ?? id
+  const tenantName = (id: string) =>
+    tenants.find((t) => t.id === id)?.name ?? id
   const roleName = (id: string) =>
     identity.roles.find((r) => r.id === id)?.name ?? id
+
+  const remainingMemberships = revoking
+    ? revoking.user.memberships.filter(
+        (m) => m.tenantId !== revoking.membership.tenantId
+      )
+    : []
 
   return (
     <div className='w-full'>
@@ -120,19 +137,19 @@ export function IdentityTab({
                 </Badge>
               ))}
             </div>,
-            <div key='a' className='flex justify-end'>
+            <div key='a' className='flex flex-wrap justify-end gap-1'>
               {hasRole('Company Admin', 'Platform Admin') &&
-                u.memberships.length > 1 && (
+                u.memberships.length > 1 &&
+                u.memberships.map((m) => (
                   <Button
+                    key={m.tenantId}
                     variant='outline'
                     className='h-7 px-2 text-xs'
-                    onClick={() =>
-                      identity.removeMembership(u.id, u.memberships[0].tenantId)
-                    }
+                    onClick={() => setRevoking({ user: u, membership: m })}
                   >
-                    Revoke first membership
+                    Revoke {tenantCode(m.tenantId)}
                   </Button>
-                )}
+                ))}
             </div>,
           ])}
         />
@@ -179,6 +196,49 @@ export function IdentityTab({
         identity={identity}
         tenants={tenants}
         onSubmit={identity.addUser}
+      />
+
+      {/* Named-consequence confirmation before revoking a membership */}
+      <ConfirmDialog
+        open={revoking !== null}
+        onOpenChange={(open) => {
+          if (!open) setRevoking(null)
+        }}
+        destructive
+        title={`Revoke ${revoking?.user.name ?? 'user'}'s access to ${
+          revoking ? tenantCode(revoking.membership.tenantId) : 'company'
+        }?`}
+        desc={
+          revoking ? (
+            <>
+              This removes <b>{revoking.user.name}</b>&apos;s membership in{' '}
+              <b>{tenantName(revoking.membership.tenantId)}</b> (
+              {tenantCode(revoking.membership.tenantId)}), including the role
+              {revoking.membership.roleIds.length > 1 ? 's' : ''}{' '}
+              <b>{revoking.membership.roleIds.map(roleName).join(', ')}</b>
+              {revoking.membership.personRecordId
+                ? ' and unlinks the mapped person record'
+                : ''}
+              . Their {remainingMemberships.length} other membership
+              {remainingMemberships.length > 1 ? 's' : ''} (
+              {remainingMemberships
+                .map((m) => tenantCode(m.tenantId))
+                .join(', ')}
+              ) stay unaffected — the identity itself is not deleted.
+            </>
+          ) : (
+            ''
+          )
+        }
+        confirmText='Revoke membership'
+        handleConfirm={() => {
+          if (revoking)
+            identity.removeMembership(
+              revoking.user.id,
+              revoking.membership.tenantId
+            )
+          setRevoking(null)
+        }}
       />
     </div>
   )

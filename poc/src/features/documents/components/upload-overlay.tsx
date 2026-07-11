@@ -142,10 +142,19 @@ export function UploadOverlay({
     onOpenChange(false)
   }
 
+  /**
+   * Zod only validates the metadata fields, so on an invalid submit the
+   * missing file — the primary requirement — must be flagged too (its error
+   * otherwise only appears once every other field passes).
+   */
+  function handleInvalid() {
+    if (!isEdit && !file) setFileError('Choose a file to upload')
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[460px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? 'Edit document' : 'Upload document'}
           </SheetTitle>
@@ -153,7 +162,7 @@ export function UploadOverlay({
 
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(handleSubmit)}
+            onSubmit={form.handleSubmit(handleSubmit, handleInvalid)}
             className='flex min-h-0 flex-1 flex-col'
           >
             <div className='flex-1 space-y-4 overflow-y-auto px-5 py-5'>
@@ -195,7 +204,7 @@ export function UploadOverlay({
               />
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

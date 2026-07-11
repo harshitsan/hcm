@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,6 +27,7 @@ interface ContextTabProps {
  */
 export function ContextTab({ context }: ContextTabProps) {
   const { role } = useRole()
+  const navigate = useNavigate()
   const {
     currentCompany,
     authorizedCompanies,
@@ -33,7 +35,6 @@ export function ContextTab({ context }: ContextTabProps) {
     permissions,
     drafts,
     saveDraft,
-    switchCompany,
     lastApiResponse,
   } = context
   const [bookmarkTarget, setBookmarkTarget] = useState(COMPANIES[0].id)
@@ -191,7 +192,12 @@ export function ContextTab({ context }: ContextTabProps) {
             <Button
               size='sm'
               className='h-8'
-              onClick={() => switchCompany(bookmarkTarget, 'url')}
+              onClick={() =>
+                navigate({
+                  to: '/portfolios',
+                  search: { company: bookmarkTarget },
+                })
+              }
             >
               Open bookmarked URL
             </Button>

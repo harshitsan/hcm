@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CaretDown, Eye, EyeSlash, PencilSimple, Plus, Trash } from 'phosphor-react'
+import { Eye, EyeSlash, PencilSimple, Plus, Trash } from 'phosphor-react'
 import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import {
@@ -13,17 +13,11 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { DataTable } from '@/components/common/data-table/table'
 import { type Announcement } from '../data/announcements'
 import { companiesForRole, CURRENT_ADMIN, type OrgConfig } from '../data/org'
 import { type AnnouncementsStore } from '../hooks/use-announcements'
-import { ACTION_LABELS, availableActions } from '../utils/workflow'
+import { AnnouncementDetailSheet } from './announcement-detail-sheet'
 import {
   AnnouncementFiltersBar,
   EMPTY_FILTERS,
@@ -40,10 +34,11 @@ interface ManageTabProps {
 
 /**
  * Admin management surface: paginated list with the Kensium columns (ANN-36),
- * period/status search + reset (ANN-34/35), compose/edit overlay, delete with
- * confirm (ANN-38), hide/unhide (ANN-39), and the full approval workflow
- * (ANN-24..29). Records are tenant-scoped to the caller's authorization
- * boundary, mirroring row-level security (ANN-15).
+ * instant period/status filters (ANN-34/35), compose/edit overlay, delete
+ * with confirm (ANN-38), hide/unhide (ANN-39), and a row-click detail sheet
+ * carrying the history timeline and the full approval workflow with a
+ * mandatory decision comment (ANN-24..29). Records are tenant-scoped to the
+ * caller's authorization boundary, mirroring row-level security (ANN-15).
  */
 export function ManageTab({ store, orgConfig }: ManageTabProps) {
   const { role } = useRole()
@@ -53,6 +48,7 @@ export function ManageTab({ store, orgConfig }: ManageTabProps) {
   const [editing, setEditing] = useState<Announcement | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [filters, setFilters] = useState<AnnouncementFilters>(EMPTY_FILTERS)
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   const scoped = useMemo(() => {
     if (role === 'Platform Admin') return store.announcements
@@ -85,7 +81,9 @@ export function ManageTab({ store, orgConfig }: ManageTabProps) {
   const singleLive = single
     ? (store.announcements.find((a) => a.id === single.id) ?? null)
     : null
-  const workflowActions = singleLive ? availableActions(singleLive, role) : []
+  const detailLive = detailId
+    ? (store.announcements.find((a) => a.id === detailId) ?? null)
+    : null
 
   const handleEdit = () => {
     if (!singleLive) return
@@ -109,41 +107,13 @@ export function ManageTab({ store, orgConfig }: ManageTabProps) {
     <div className='w-full'>
       <AnnouncementsSummary announcements={scoped} />
 
-      <AnnouncementFiltersBar
-        applied={filters}
-        onSearch={setFilters}
-        onReset={() => setFilters(EMPTY_FILTERS)}
-      />
+      <AnnouncementFiltersBar value={filters} onChange={setFilters} />
 
       <div className='mb-3 flex items-center justify-between'>
         <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
           Announcements ({filtered.length})
         </h2>
         <div className='flex items-center gap-3'>
-          {workflowActions.length > 0 && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant='outline' className='h-7 gap-1 rounded-[6px] px-2'>
-                  Workflow
-                  <CaretDown size={12} weight='bold' />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align='end' className='min-w-[190px]'>
-                {workflowActions.map((action) => (
-                  <DropdownMenuItem
-                    key={action}
-                    onClick={() => {
-                      if (!singleLive) return
-                      store.runAction(singleLive.id, action)
-                      clearSelection()
-                    }}
-                  >
-                    {ACTION_LABELS[action]}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
           <Button
             variant='icon2'
             onClick={() => {
@@ -199,6 +169,16 @@ export function ManageTab({ store, orgConfig }: ManageTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(rows) => setSelectedRows(rows)}
+        onRowClick={(row) => setDetailId(row.id)}
+      />
+
+      <AnnouncementDetailSheet
+        open={Boolean(detailLive)}
+        onOpenChange={(open) => {
+          if (!open) setDetailId(null)
+        }}
+        announcement={detailLive}
+        store={store}
       />
 
       <ComposeOverlay

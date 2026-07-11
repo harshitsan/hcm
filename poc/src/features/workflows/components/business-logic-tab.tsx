@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { List, Plus } from 'phosphor-react'
-import { toast } from 'sonner'
 import type { Role } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,8 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { DataTable } from '@/components/common/data-table/table'
 import { LongText } from '@/components/common/long-text'
+import {
+  PagerControls,
+  usePager,
+} from '@/features/leave/components/list-controls'
 import {
   ARTIFACT_TYPES,
   ARTIFACT_TYPE_LABELS,
@@ -113,30 +121,41 @@ const BASE_COLUMNS: ColumnDef<ArtifactRow>[] = [
     ),
     // Layered governance made visible (WFE-47): green = effectively active,
     // grey pill with dot = enabled at this level but blocked upstream.
+    // Each letter badge carries a hover tooltip spelling out its level.
     cell: ({ row }) => (
       <div className='flex gap-1 p-1'>
         {SCOPE_LEVELS.map((level) => {
           const enabled = row.original.scopes[level]
           const effective = isEffectivelyActive(row.original.scopes, level)
           const blocker = blockingLevel(row.original.scopes, level)
-          const title =
+          const explanation =
             enabled && !effective && blocker
-              ? `Enabled at ${SCOPE_LABELS[level]} — blocked because ${SCOPE_LABELS[blocker]} is disabled`
-              : `${SCOPE_LABELS[level]}: ${effective ? 'effectively active' : 'disabled'}`
+              ? `Turned on at ${SCOPE_LABELS[level]}, but not active because ${SCOPE_LABELS[blocker]} has it turned off`
+              : effective
+                ? 'Active at this level'
+                : 'Turned off at this level'
           return (
-            <span key={level} title={title}>
-              <Badge
-                variant={
-                  effective
-                    ? 'badge_active'
-                    : enabled
-                      ? 'pending'
-                      : 'badge_inactive'
-                }
-              >
-                {SCOPE_SHORT[level]}
-              </Badge>
-            </span>
+            <Tooltip key={level}>
+              <TooltipTrigger asChild>
+                <span>
+                  <Badge
+                    variant={
+                      effective
+                        ? 'badge_active'
+                        : enabled
+                          ? 'pending'
+                          : 'badge_inactive'
+                    }
+                  >
+                    {SCOPE_SHORT[level]}
+                  </Badge>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side='top'>
+                <span className='font-medium'>{SCOPE_LABELS[level]}</span> —{' '}
+                {explanation}
+              </TooltipContent>
+            </Tooltip>
           )
         })}
       </div>
@@ -266,6 +285,10 @@ export function BusinessLogicTab({
     [artifacts, myScope]
   )
 
+  // The governance table pages through the catalog instead of rendering all
+  // 200+ rows at once; "Showing X of Y" keeps the header count honest.
+  const pager = usePager(rows, 25)
+
   const detail = artifacts.find((a) => a.id === detailId) ?? null
 
   const openBuilder = () => {
@@ -279,7 +302,11 @@ export function BusinessLogicTab({
 
       <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
         <p className='text-neutral-1000 text-sm'>
-          {`Authored once in the engine → enabled per scope level by each admin → consumed by the target module. Modules consume these workflows — a module's Admin view is this catalog filtered to that module.`}
+          Every workflow is created once here, then turned on or off at each
+          level — Platform, Portfolio, Group company and Company — by the admin
+          who owns that level. The module it targets picks it up automatically;
+          a module&apos;s Admin view is simply this catalog filtered to that
+          module.
         </p>
         <Tabs value={view} onValueChange={(v) => setView(v as 'browse' | 'table')}>
           <TabsList>
@@ -349,11 +376,31 @@ export function BusinessLogicTab({
             )}
           </SectionToolbar>
 
+          <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+            <span className='text-neutral-1000 text-xs'>
+              Showing {pager.pageItems.length} of {pager.total} workflow
+              {pager.total === 1 ? '' : 's'}
+            </span>
+            <span className='text-neutral-1000 text-xs'>
+              Scope levels: P = Platform · PF = Portfolio · G = Group company ·
+              C = Company. Green = active there; grey pill = turned on there
+              but blocked by a level above; muted = turned off.
+            </span>
+          </div>
+
           <DataTable
             columns={columns}
-            data={rows}
+            data={pager.pageItems}
             variant='no-status'
             onRowClick={(row) => openEditor(row.id)}
+          />
+
+          <PagerControls
+            page={pager.page}
+            pageCount={pager.pageCount}
+            total={pager.total}
+            onPrev={pager.prev}
+            onNext={pager.next}
           />
         </>
       )}

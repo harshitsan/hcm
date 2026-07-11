@@ -274,6 +274,7 @@ export function DirectoryTab({ store, config, timeline }: DirectoryTabProps) {
           variant='no-status'
           resetSelectionKey={resetSelectionKey}
           onSelectionChange={(rows) => setSelectedRows(rows)}
+          onRowClick={(row) => setTimelineEmployee(row)}
         />
       )}
       {store.viewMode === 'card' && (

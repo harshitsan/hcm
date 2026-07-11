@@ -168,7 +168,7 @@ export function ArrivalFormDialog({ open, onOpenChange, categories, onSubmit }: 
                   <FormItem>
                     <FormLabel>Invoice number</FormLabel>
                     <FormControl>
-                      <Input placeholder='INV-2110' {...field} />
+                      <Input placeholder='e.g. INV-2110' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -295,7 +295,7 @@ export function OutboundFormDialog({ open, onOpenChange, categories, onSubmit }:
                   <FormItem>
                     <FormLabel>Security pass number</FormLabel>
                     <FormControl>
-                      <Input placeholder='GP-2026-140' {...field} />
+                      <Input placeholder='e.g. GP-2026-140' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

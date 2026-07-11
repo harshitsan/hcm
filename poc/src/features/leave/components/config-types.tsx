@@ -286,8 +286,8 @@ function TypeDetailRow({ t, colSpan }: { t: LeaveType; colSpan: number }) {
             label='Credit basis'
             value={
               t.appliedBasedOnCredit
-                ? 'Based on credit (excess = LOP)'
-                : 'Yearly max cap (excess = LOP)'
+                ? 'Based on credit (excess = Loss of Pay)'
+                : 'Yearly max cap (excess = Loss of Pay)'
             }
           />
           <Fact

@@ -114,7 +114,7 @@ export function SystemUserOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[460px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             New user / membership
           </SheetTitle>
@@ -138,7 +138,7 @@ export function SystemUserOverlay({
                   <FormItem>
                     <FormLabel>Full name</FormLabel>
                     <FormControl>
-                      <Input placeholder='Jordan Avery' {...field} />
+                      <Input placeholder='e.g. Jordan Avery' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -152,7 +152,7 @@ export function SystemUserOverlay({
                   <FormItem>
                     <FormLabel>Email address</FormLabel>
                     <FormControl>
-                      <Input type='email' placeholder='name@company.example' {...field} />
+                      <Input type='email' placeholder='e.g. name@company.example' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -272,7 +272,7 @@ export function SystemUserOverlay({
               />
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

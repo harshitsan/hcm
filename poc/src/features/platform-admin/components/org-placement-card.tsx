@@ -162,7 +162,7 @@ export function OrgPlacementCard({ store }: { store: OrgModelStore }) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Departments (one or more)</FormLabel>
-                  <div className='border-grey-200 grid max-h-40 gap-2 overflow-y-auto rounded-[6px] border p-3'>
+                  <div className='border-gray-200 grid max-h-40 gap-2 overflow-y-auto rounded-[6px] border p-3'>
                     {store.departments.map((d) => (
                       <label key={d.id} className='flex items-center gap-2 text-sm'>
                         <Checkbox
@@ -190,7 +190,7 @@ export function OrgPlacementCard({ store }: { store: OrgModelStore }) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Operating locations (one or more)</FormLabel>
-                  <div className='border-grey-200 grid gap-2 rounded-[6px] border p-3'>
+                  <div className='border-gray-200 grid gap-2 rounded-[6px] border p-3'>
                     {store.locations.map((l) => (
                       <label key={l.id} className='flex items-center gap-2 text-sm'>
                         <Checkbox

@@ -53,7 +53,7 @@ export function GroupsPager({
 /** Guided org-setup strip (GRP-34/35): Save & Next + adjacent screen nav. */
 export function OrgSetupStrip() {
   return (
-    <div className='border-grey-200 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border bg-white px-3 py-2'>
+    <div className='border-gray-200 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-[6px] border bg-white px-3 py-2'>
       <span className='text-paragraph-sm text-neutral-1000'>
         Organization setup — step 3 of 5: <b>Group</b> → Work Area → Role
       </span>

@@ -3,6 +3,14 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Plus, Timer } from 'phosphor-react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
 import { SimpleTable } from '@/components/common/data-table/simple-table'
 import { useFlowRuns, type FlowRun } from '../hooks/use-flow-runs'
@@ -13,7 +21,7 @@ import type { WorkflowDefinition } from '../data/definitions'
 import type { WorkflowInstance } from '../data/instances'
 import { requestModuleTab } from '../data/module-nav'
 import type { RoutingRule } from '../data/routing'
-import { CURRENT_APPROVER } from '../data/shared'
+import { CURRENT_APPROVER, TRANSACTION_TYPES } from '../data/shared'
 import type { InstancesStore } from '../hooks/use-instances'
 import { useInboxRows } from './approval-inbox'
 import { InstanceStatusBadge, SlaBadge } from './badges'
@@ -53,7 +61,7 @@ function instanceColumns(
     {
       accessorKey: 'definitionName',
       header: ({ column }) => (
-        <SortableHeader column={column} label='Definition (bound)' />
+        <SortableHeader column={column} label='Linked workflow' />
       ),
       cell: ({ row }) => (
         <span className='text-neutral-1900 text-sm'>
@@ -139,6 +147,27 @@ export function InstancesTab({
 
   const [startOpen, setStartOpen] = useState(false)
   const [detail, setDetail] = useState<WorkflowInstance | null>(null)
+
+  // Baseline toolbar filters: status / type / company + free-text search.
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [companyFilter, setCompanyFilter] = useState<string>('all')
+
+  const filteredInstances = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return scopedInstances
+      .filter((i) => statusFilter === 'all' || i.status === statusFilter)
+      .filter((i) => typeFilter === 'all' || i.transactionType === typeFilter)
+      .filter((i) => companyFilter === 'all' || i.company === companyFilter)
+      .filter(
+        (i) =>
+          q === '' ||
+          i.title.toLowerCase().includes(q) ||
+          i.requester.toLowerCase().includes(q) ||
+          i.definitionName.toLowerCase().includes(q)
+      )
+  }, [scopedInstances, statusFilter, typeFilter, companyFilter, search])
 
   const summary = useMemo(() => {
     const atRisk = inboxRows.filter((r) => r.task.slaPercent >= 75).length
@@ -249,9 +278,64 @@ export function InstancesTab({
         {' '}— this page tracks how each request moves through its workflow.
       </p>
 
-      <SectionToolbar title={`Workflow instances (${scopedInstances.length})`}>
+      <SectionToolbar
+        title={`Workflow instances (${filteredInstances.length}${
+          filteredInstances.length !== scopedInstances.length
+            ? ` of ${scopedInstances.length}`
+            : ''
+        })`}
+      />
+
+      <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder='Search requests'
+            className='h-7 w-[180px]'
+          />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All statuses</SelectItem>
+              <SelectItem value='in-progress'>In progress</SelectItem>
+              <SelectItem value='approved'>Approved</SelectItem>
+              <SelectItem value='rejected'>Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger variant='secondary' className='h-7 w-[190px]'>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All types</SelectItem>
+              {TRANSACTION_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {t}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {companies.length > 1 && (
+            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+              <SelectTrigger variant='secondary' className='h-7 w-[190px]'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>All companies</SelectItem>
+                {companies.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
         {canAdmin && (
-          <>
+          <div className='flex items-center gap-3'>
             <Button
               variant='outline'
               size='sm'
@@ -269,13 +353,13 @@ export function InstancesTab({
               <Plus size={10} weight='bold' />
               New Request
             </Button>
-          </>
+          </div>
         )}
-      </SectionToolbar>
+      </div>
 
       <DataTable
         columns={instanceCols}
-        data={scopedInstances}
+        data={filteredInstances}
         variant='no-status'
         onRowClick={(row) => setDetail(row)}
       />

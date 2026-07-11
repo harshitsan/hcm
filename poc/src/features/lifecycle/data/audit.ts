@@ -5,6 +5,7 @@ export const LIFECYCLE_MODULES = [
   'Probation',
   'Transfer',
   'Exit',
+  'Layoff',
   'Disciplinary',
   'Performance Review',
   'Orientation',

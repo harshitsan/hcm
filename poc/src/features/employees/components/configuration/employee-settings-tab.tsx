@@ -88,7 +88,7 @@ export function EmployeeSettingsTab({ store }: { store: ConfigurationStore }) {
         <div className='flex items-center justify-between'>
           <p className='text-paragraph-sm text-neutral-1000'>
             Next code preview:{' '}
-            <Badge variant={draft.autoGenerate ? 'qualified' : 'badge_inactive'}>
+            <Badge variant={draft.autoGenerate ? 'badge_active' : 'badge_inactive'}>
               {isValid ? preview : 'Invalid series'}
             </Badge>
             {!draft.autoGenerate && (

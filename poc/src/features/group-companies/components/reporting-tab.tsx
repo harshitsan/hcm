@@ -1,10 +1,19 @@
 import { useState } from 'react'
+import { DownloadSimple } from 'phosphor-react'
 import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { MultiSelectDropdown } from '@/components/ui/multi-select-dropdown'
 import {
   Select,
   SelectContent,
@@ -24,6 +33,11 @@ import { activeMemberships, PERSONAS } from '../data/group-companies'
 import { seedDirectory } from '../data/sharing'
 import { type RecordAudit } from '../hooks/use-audit'
 import { type GroupCompaniesStore } from '../hooks/use-group-companies'
+import {
+  exportConsolidatedReport,
+  exportDirectoryResults,
+  type ExportFormat,
+} from '../utils/export'
 
 interface ReportingTabProps {
   store: GroupCompaniesStore
@@ -50,12 +64,19 @@ export function ReportingTab({ store, record }: ReportingTabProps) {
   const [query, setQuery] = useState('')
   const [searched, setSearched] = useState<{ scope: string; ids: string[]; withheld: number } | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
+  /** Member-company multi-select filter — empty means all members (US-GRV-05/07/18). */
+  const [filterCompanyIds, setFilterCompanyIds] = useState<string[]>([])
 
   const group = store.groups.find((g) => g.id === groupId) ?? store.groups[0]
   if (!group) return null
 
   const members = activeMemberships(group)
   const memberIds = members.map((m) => m.companyId)
+  const filteredMembers =
+    filterCompanyIds.length > 0
+      ? members.filter((m) => filterCompanyIds.includes(m.companyId))
+      : members
+  const filterActive = filterCompanyIds.length > 0
   const myGrants = store.roleGrants.filter(
     (r) => r.groupId === group.id && r.userEmail === persona.email && !r.revoked
   )
@@ -136,14 +157,44 @@ export function ReportingTab({ store, record }: ReportingTabProps) {
   }
 
   const results = searched
-    ? seedDirectory.filter((p) => searched.ids.includes(p.id))
+    ? seedDirectory.filter(
+        (p) =>
+          searched.ids.includes(p.id) &&
+          (!filterActive || filterCompanyIds.includes(p.companyId))
+      )
     : []
+
+  const reportRows = [...filteredMembers].sort((a, b) =>
+    a.companyId === group.parentCompanyId ? -1 : b.companyId === group.parentCompanyId ? 1 : 0
+  )
+
+  const handleReportExport = (format: ExportFormat) => {
+    const fileName = exportConsolidatedReport(group, reportRows, store.companies, format)
+    record({
+      action: 'CONSOLIDATED_REPORT_EXPORTED',
+      category: 'reporting',
+      groupCode: group.code,
+      detail: `Consolidated report exported to ${fileName} — ${reportRows.length} of ${members.length} member companies${filterActive ? ' (member-company filter applied)' : ''}`,
+    })
+    toast.success(`${fileName} exported — ${reportRows.length} member compan${reportRows.length === 1 ? 'y' : 'ies'}, row-level security applied`)
+  }
+
+  const handleDirectoryExport = (format: ExportFormat) => {
+    const fileName = exportDirectoryResults(results, store.companyName, format)
+    record({
+      action: 'DIRECTORY_EXPORTED',
+      category: 'directory',
+      groupCode: permitted ? group.code : null,
+      detail: `Directory results exported to ${fileName} — ${results.length} row(s), RLS-withheld rows excluded${filterActive ? ', member-company filter applied' : ''}`,
+    })
+    toast.success(`${fileName} exported — ${results.length} record(s), RLS-withheld rows excluded`)
+  }
 
   return (
     <div className='w-full space-y-4'>
       <div className='flex flex-wrap items-center gap-3'>
         <span className='text-paragraph-sm text-neutral-1000'>Group construct</span>
-        <Select value={group.id} onValueChange={(v) => { setGroupId(v); setReportOpen(false); setSearched(null) }}>
+        <Select value={group.id} onValueChange={(v) => { setGroupId(v); setReportOpen(false); setSearched(null); setFilterCompanyIds([]) }}>
           <SelectTrigger variant='secondary' className='h-8 w-72'>
             <SelectValue />
           </SelectTrigger>
@@ -155,6 +206,27 @@ export function ReportingTab({ store, record }: ReportingTabProps) {
             ))}
           </SelectContent>
         </Select>
+        <span className='text-paragraph-sm text-neutral-1000'>Member companies</span>
+        <MultiSelectDropdown
+          items={members.map((m) => ({
+            id: m.companyId,
+            label: store.companyName(m.companyId),
+          }))}
+          selectedIds={filterCompanyIds}
+          onSelectionChange={setFilterCompanyIds}
+          placeholder='All member companies'
+          className='h-8 w-56 text-sm'
+        />
+        {filterActive && (
+          <Button
+            variant='outline'
+            size='sm'
+            className='h-8'
+            onClick={() => setFilterCompanyIds([])}
+          >
+            Clear filter
+          </Button>
+        )}
         <Badge variant='open'>
           Acting as {persona.name} ({myGrants.length} group-level role
           {myGrants.length === 1 ? '' : 's'})
@@ -166,7 +238,7 @@ export function ReportingTab({ store, record }: ReportingTabProps) {
           <CardTitle className='text-paragraph-md text-neutral-1600 font-medium'>
             Rules-engine decision — prerequisites evaluated from configuration, not per-feature code
           </CardTitle>
-          <Badge variant={permitted ? 'qualified' : 'disqualified'}>
+          <Badge variant={permitted ? 'badge_active' : 'dropped'}>
             {permitted ? 'PERMIT' : `DENY — ${failing?.label}`}
           </Badge>
         </CardHeader>
@@ -195,16 +267,40 @@ export function ReportingTab({ store, record }: ReportingTabProps) {
           <CardTitle className='text-paragraph-md text-neutral-1600 font-medium'>
             Consolidated group reporting (Group Reporting Viewer role required)
           </CardTitle>
-          <Button size='sm' className='h-8' onClick={runReport}>
-            Run consolidated report
-          </Button>
+          <div className='flex items-center gap-2'>
+            {reportOpen && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant='outline' size='sm' className='h-8 gap-1'>
+                    <DownloadSimple size={13} weight='bold' />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end' className='min-w-[200px]'>
+                  <DropdownMenuLabel className='text-xs'>
+                    Export {reportRows.length} member compan
+                    {reportRows.length === 1 ? 'y' : 'ies'}
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => handleReportExport('xlsx')}>
+                    Excel (.xlsx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleReportExport('csv')}>
+                    CSV (.csv)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <Button size='sm' className='h-8' onClick={runReport}>
+              Run consolidated report
+            </Button>
+          </div>
         </CardHeader>
         {reportOpen && (
           <CardContent className='space-y-3 px-4'>
             <div className='flex flex-wrap gap-2'>
               <Badge variant='open'>
                 Aggregated headcount:{' '}
-                {members
+                {filteredMembers
                   .reduce(
                     (n, m) =>
                       n + (store.companies.find((c) => c.id === m.companyId)?.headcount ?? 0),
@@ -212,8 +308,13 @@ export function ReportingTab({ store, record }: ReportingTabProps) {
                   )
                   .toLocaleString('en-US')}
               </Badge>
-              <Badge variant='qualified'>Row-level security applied</Badge>
+              <Badge variant='badge_active'>Row-level security applied</Badge>
               <Badge variant='pending'>Non-members excluded from aggregates</Badge>
+              {filterActive && (
+                <Badge variant='overdue'>
+                  Filtered to {filteredMembers.length} of {members.length} members
+                </Badge>
+              )}
             </div>
             <Table>
               <TableHeader>
@@ -226,28 +327,31 @@ export function ReportingTab({ store, record }: ReportingTabProps) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[...members]
-                  .sort((a, b) =>
-                    a.companyId === group.parentCompanyId ? -1 : b.companyId === group.parentCompanyId ? 1 : 0
+                {reportRows.map((m) => {
+                  const c = store.companies.find((x) => x.id === m.companyId)
+                  const isParent = m.companyId === group.parentCompanyId
+                  return (
+                    <TableRow key={m.id}>
+                      <TableCell className='text-sm font-medium'>
+                        <span className={isParent ? '' : 'pl-5'}>
+                          {isParent ? '' : '└ '}
+                          {store.companyName(m.companyId)}
+                        </span>
+                      </TableCell>
+                      <TableCell className='text-sm'>{m.relationshipType}</TableCell>
+                      <TableCell className='text-sm'>{c?.headcount.toLocaleString('en-US')}</TableCell>
+                      <TableCell className='text-sm'>{c?.onLeaveToday}</TableCell>
+                      <TableCell className='text-sm'>{c?.attendancePct}%</TableCell>
+                    </TableRow>
                   )
-                  .map((m) => {
-                    const c = store.companies.find((x) => x.id === m.companyId)
-                    const isParent = m.companyId === group.parentCompanyId
-                    return (
-                      <TableRow key={m.id}>
-                        <TableCell className='text-sm font-medium'>
-                          <span className={isParent ? '' : 'pl-5'}>
-                            {isParent ? '' : '└ '}
-                            {store.companyName(m.companyId)}
-                          </span>
-                        </TableCell>
-                        <TableCell className='text-sm'>{m.relationshipType}</TableCell>
-                        <TableCell className='text-sm'>{c?.headcount.toLocaleString('en-US')}</TableCell>
-                        <TableCell className='text-sm'>{c?.onLeaveToday}</TableCell>
-                        <TableCell className='text-sm'>{c?.attendancePct}%</TableCell>
-                      </TableRow>
-                    )
-                  })}
+                })}
+                {reportRows.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={5} className='text-neutral-1000 text-center'>
+                      No member companies match the current filter
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -279,6 +383,33 @@ export function ReportingTab({ store, record }: ReportingTabProps) {
                   <Badge variant='overdue'>
                     {searched.withheld} row{searched.withheld > 1 ? 's' : ''} withheld by row-level security
                   </Badge>
+                )}
+                {filterActive && (
+                  <Badge variant='pending'>
+                    Filtered to {filterCompanyIds.length} member compan
+                    {filterCompanyIds.length === 1 ? 'y' : 'ies'}
+                  </Badge>
+                )}
+                {results.length > 0 && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant='outline' size='sm' className='h-8 gap-1'>
+                        <DownloadSimple size={13} weight='bold' />
+                        Export
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align='end' className='min-w-[200px]'>
+                      <DropdownMenuLabel className='text-xs'>
+                        Export {results.length} result{results.length === 1 ? '' : 's'}
+                      </DropdownMenuLabel>
+                      <DropdownMenuItem onClick={() => handleDirectoryExport('xlsx')}>
+                        Excel (.xlsx)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleDirectoryExport('csv')}>
+                        CSV (.csv)
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 )}
               </>
             )}

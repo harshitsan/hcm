@@ -80,7 +80,7 @@ export function WorkflowsTab({ store }: WorkflowsTabProps) {
         <div key={section.title}>
           <h2 className='text-neutral-1600 text-paragraph-md font-medium'>{section.title}</h2>
           <p className='text-paragraph-sm text-neutral-1000 mb-2'>{section.blurb}</p>
-          <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
+          <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
             <Table>
               <TableHeader>
                 <TableRow>

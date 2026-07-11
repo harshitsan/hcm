@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import { consumeNextEmployeeCode, getEmployeeCodeSeries } from '../data/configuration'
 import {
   companyName,
@@ -35,6 +36,20 @@ export type EmployeeDraft = Omit<
   /** Manual employee code — used only when auto-generation is off. */
   code?: string
 }
+
+/**
+ * Mass-update field-grid labels that map onto a core Employee attribute —
+ * these patch the record directly; unmapped labels land on `bulkFieldValues`.
+ */
+const MASS_FIELD_PATCHES: Record<string, (value: string) => Partial<Employee>> =
+  {
+    'Work email': (value) => ({ email: value }),
+    Department: (value) => ({ departments: [value] }),
+    Position: (value) => ({ position: value }),
+    'Position level': (value) => ({ positionLevel: value }),
+    'Reporting manager': (value) => ({ primaryManager: value }),
+    'Functional manager': (value) => ({ dottedLineManagers: [value] }),
+  }
 
 export type DedupClassification =
   | { kind: 'clear' }
@@ -129,6 +144,20 @@ export function useEmployees() {
       ],
     }
     setEmployees((prev) => [employee, ...prev])
+    // Mirror into the central platform trail (worklist #26).
+    publishAuditEvent({
+      module: 'Employee Management',
+      action: 'Employee record created',
+      actor: 'You',
+      actorRole: 'HR Manager',
+      actionType: 'create',
+      recordId: code,
+      recordName: draft.name,
+      changes: [
+        { field: 'Record', previousValue: null, newValue: 'Created' },
+        { field: 'Company', previousValue: null, newValue: companyName(draft.companyId) },
+      ],
+    })
     toast.success(
       `${draft.name} (${code}) added to ${companyName(draft.companyId)}`
     )
@@ -160,6 +189,7 @@ export function useEmployees() {
 
   const recordLifecycleEvent = useCallback(
     (id: string, type: LifecycleStage, note: string, date: string) => {
+      const target = employees.find((e) => e.id === id)
       setEmployees((prev) =>
         prev.map((e) =>
           e.id === id
@@ -179,9 +209,25 @@ export function useEmployees() {
             : e
         )
       )
+      publishAuditEvent({
+        module: 'Employee Management',
+        action: 'Lifecycle event recorded',
+        actor: 'You',
+        actorRole: 'HR Manager',
+        actionType: 'status-change',
+        recordId: target?.code,
+        recordName: target?.name,
+        changes: [
+          {
+            field: 'Lifecycle stage',
+            previousValue: target?.lifecycleStage ?? null,
+            newValue: type,
+          },
+        ],
+      })
       toast.success(`Lifecycle event recorded — stage set to ${type}`)
     },
-    []
+    [employees]
   )
 
   /** EMP-22/23 — engine stand-in: re-evaluates eligibility & accrues leave. */
@@ -334,7 +380,9 @@ export function useEmployees() {
    * EMP-43 — mass update across many employee records. Legacy single-value
    * functions patch the record attribute directly; the field-grid categories
    * (contact / address / agreements / skills / generalInfo / clientFeedback)
-   * are applied as a mock bulk job against the selected sub-record fields.
+   * patch the matching core-record attribute where one exists and store the
+   * remaining sub-record fields on `bulkFieldValues` (visible on the record
+   * detail sheet).
    */
   const massUpdate = useCallback(
     (ids: string[], fn: MassFunction, value: string, fields?: string[]) => {
@@ -342,11 +390,33 @@ export function useEmployees() {
         setEmployees((prev) =>
           prev.map((e) => (ids.includes(e.id) ? { ...e, [fn]: value } : e))
         )
-        toast.success(`${ids.length} employee record(s) updated`)
+        toast.success(
+          `${MASS_FUNCTION_LABELS[fn]} set to “${value}” on ${ids.length} employee record(s)`
+        )
         return
       }
+      const selected = fields ?? []
+      if (selected.length === 0) return
+      setEmployees((prev) =>
+        prev.map((e) => {
+          if (!ids.includes(e.id)) return e
+          let next: Employee = { ...e }
+          const extras: Record<string, string> = {
+            ...(e.bulkFieldValues ?? {}),
+          }
+          for (const field of selected) {
+            const patch = MASS_FIELD_PATCHES[field]
+            if (patch) {
+              next = { ...next, ...patch(value) }
+            } else {
+              extras[field] = value
+            }
+          }
+          return { ...next, bulkFieldValues: extras }
+        })
+      )
       toast.success(
-        `${MASS_FUNCTION_LABELS[fn]} mass update applied — ${fields?.length ?? 0} field(s) across ${ids.length} employee record(s)`
+        `${MASS_FUNCTION_LABELS[fn]} mass update applied — ${selected.length} field(s) changed on ${ids.length} employee record(s)`
       )
     },
     []
@@ -393,6 +463,23 @@ export function useEmployees() {
    */
   const suspendEmployee = useCallback(
     (id: string, reason: string, from: string, to: string) => {
+      const target = employees.find((e) => e.id === id)
+      publishAuditEvent({
+        module: 'Employee Management',
+        action: 'Suspension initiated',
+        actor: 'You',
+        actorRole: 'HR Manager',
+        actionType: 'status-change',
+        recordId: target?.code,
+        recordName: target?.name,
+        changes: [
+          {
+            field: 'Status',
+            previousValue: target?.lifecycleStage ?? null,
+            newValue: `Suspended (${from} → ${to})`,
+          },
+        ],
+      })
       setEmployees((prev) =>
         prev.map((e) =>
           e.id === id
@@ -415,7 +502,7 @@ export function useEmployees() {
       )
       toast.success(`Suspension initiated — status set to Suspended until ${to}`)
     },
-    []
+    [employees]
   )
 
   return {

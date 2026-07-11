@@ -62,6 +62,12 @@ export type SidebarGroup =
 export interface SubmoduleDef {
   id: string   // Tabs `value` inside the module page, e.g. 'config', 'requests'
   label: string
+  /**
+   * Standalone page route (only for submodules that are full pages rather
+   * than tabs, e.g. /employees/configuration). Routed submodules render as
+   * sidebar sub-links and engine deep-links navigate straight to the route.
+   */
+  route?: string
 }
 
 export interface ModuleFormDef {
@@ -133,7 +139,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     route: '/group-companies',
     icon: Building,
     group: 'Organization',
-    targetModule: undefined,
+    targetModule: 'Group Companies',
     submodules: [
       { id: 'groups', label: 'Groups' },
       { id: 'reporting', label: 'Reporting' },
@@ -149,7 +155,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     route: '/portfolios',
     icon: Briefcase,
     group: 'Organization',
-    targetModule: undefined,
+    targetModule: 'Portfolios',
     submodules: [
       { id: 'portfolios', label: 'Portfolios' },
       { id: 'context', label: 'Context' },
@@ -166,7 +172,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     route: '/jurisdictions',
     icon: Landmark,
     group: 'Organization',
-    targetModule: undefined,
+    targetModule: 'Jurisdictions',
     submodules: [
       { id: 'applicability', label: 'Applicability' },
       { id: 'catalog', label: 'Regions' },
@@ -258,7 +264,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
   },
   {
     id: '/org-groups',
-    name: 'Groups',
+    name: 'Work Groups',
     route: '/org-groups',
     icon: Boxes,
     group: 'Organization',
@@ -287,7 +293,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     route: '/directory',
     icon: BookUser,
     group: 'Organization',
-    targetModule: undefined,
+    targetModule: 'Directory & Org Chart',
     submodules: [
       { id: 'directory', label: 'Directory' },
       { id: 'org-chart', label: 'Org Chart' },
@@ -310,9 +316,25 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     targetModule: 'Employees',
     submodules: [
       { id: 'profile', label: 'My Profile' },
-      { id: 'directory', label: 'Directory' },
+      { id: 'directory', label: 'Employee Records' },
       { id: 'delegations', label: 'Delegations' },
       { id: 'projects', label: 'Projects' },
+      // Full-page suites — routed sidebar sub-links, not tabs on /employees.
+      {
+        id: 'configuration',
+        label: 'Configuration',
+        route: '/employees/configuration',
+      },
+      {
+        id: 'lifecycle',
+        label: 'Onboarding & Exit',
+        route: '/employees/lifecycle',
+      },
+      {
+        id: 'performance',
+        label: 'Performance & Requests',
+        route: '/employees/performance',
+      },
     ],
     entities: ['Employee'],
     events: [
@@ -579,7 +601,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     route: '/policy-distribution',
     icon: FileCheck,
     group: 'Policies & Comms',
-    targetModule: undefined,
+    targetModule: 'Policy Distribution',
     submodules: [
       { id: 'inbox', label: 'Inbox' },
       { id: 'distributions', label: 'Distributions' },
@@ -702,10 +724,11 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     group: 'Platform',
     targetModule: undefined,
     submodules: [
-      { id: 'instances', label: 'Instances' },
-      { id: 'business-logic', label: 'Business Logic' },
-      { id: 'designer', label: 'Designer' },
-      { id: 'admin', label: 'Admin' },
+      { id: 'instances', label: 'Requests' },
+      { id: 'business-logic', label: 'Configure' },
+      { id: 'designer', label: 'Build' },
+      { id: 'reports', label: 'Reports' },
+      { id: 'admin', label: 'Classic admin' },
     ],
     entities: [],
     events: [],
@@ -789,7 +812,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     route: '/reports',
     icon: ChartColumnBig,
     group: 'Platform',
-    targetModule: undefined,
+    targetModule: 'Reports & Analytics',
     submodules: [
       { id: 'dashboards', label: 'Dashboards' },
       { id: 'catalog', label: 'Catalog' },
@@ -860,7 +883,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
     route: '/audit-logs',
     icon: ScrollText,
     group: 'Administration',
-    targetModule: undefined,
+    targetModule: 'Audit & Logging',
     submodules: [
       { id: 'trail', label: 'Trail' },
       { id: 'history', label: 'History' },
@@ -872,7 +895,7 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
   },
   {
     id: '/platform-admin',
-    name: 'Platform Admin',
+    name: 'Platform Administration',
     route: '/platform-admin',
     icon: ServerCog,
     group: 'Administration',

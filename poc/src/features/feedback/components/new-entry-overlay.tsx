@@ -145,7 +145,7 @@ export function NewEntryOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[480px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             New feedback / grievance entry
           </SheetTitle>
@@ -304,7 +304,7 @@ export function NewEntryOverlay({
                   control={form.control}
                   name='anonymous'
                   render={({ field }) => (
-                    <FormItem className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
+                    <FormItem className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'>
                       <div>
                         <FormLabel>Submit anonymously</FormLabel>
                         <p className='text-paragraph-sm text-neutral-1000'>
@@ -387,7 +387,7 @@ export function NewEntryOverlay({
               )}
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

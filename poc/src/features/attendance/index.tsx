@@ -121,7 +121,13 @@ export function TimeAttendance() {
             </TabsList>
 
             <TabsContent value='my'>
-              <MyAttendanceTab attendance={attendance} shifts={shifts} config={config} />
+              <MyAttendanceTab
+                attendance={attendance}
+                shifts={shifts}
+                config={config}
+                requests={requests}
+                payrollCutoffDay={correctionWorkflow?.payrollCutoffDay ?? 25}
+              />
             </TabsContent>
 
             <TabsContent value='my-requests'>
@@ -188,9 +194,14 @@ export function TimeAttendance() {
             </TabsContent>
 
             <TabsContent value='admin'>
-              <EngineArtifactsPanel module='Time & Attendance' />
+              {/* Company/Group admins get the engine catalog via the Engine
+                  features settings group inside ConfigTab; only the Platform
+                  surface still needs the panel here. */}
               {role === 'Platform Admin' ? (
-                <PlatformTab config={config} attendance={attendance} />
+                <>
+                  <EngineArtifactsPanel module='Time & Attendance' />
+                  <PlatformTab config={config} attendance={attendance} />
+                </>
               ) : (
                 <ConfigTab config={config} />
               )}

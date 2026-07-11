@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { UploadModal } from '@/components/common/upload-modal'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
@@ -45,6 +46,7 @@ export function MembersOverlay({
   const [selected, setSelected] = useState<string[]>([])
   const [toAdd, setToAdd] = useState<string[]>([])
   const [transferTarget, setTransferTarget] = useState('')
+  const [importOpen, setImportOpen] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -53,6 +55,7 @@ export function MembersOverlay({
       setSelected([])
       setToAdd([])
       setTransferTarget('')
+      setImportOpen(false)
     }
   }, [open, group?.id])
 
@@ -104,13 +107,6 @@ export function MembersOverlay({
     setTransferTarget('')
   }
 
-  const handleImport = () => {
-    const result = store.importMemberships(group.id, actor)
-    toast.success(
-      `Import complete — ${result.added} added, ${result.skipped} duplicates skipped, ${result.errors} unmatched/out-of-scope rows rejected`
-    )
-  }
-
   const handleExport = () => {
     downloadCsv(
       `${group.acronym || group.id}-members-${asOf}.csv`,
@@ -135,7 +131,7 @@ export function MembersOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             Members — {group.name} ({group.acronym})
           </SheetTitle>
@@ -150,7 +146,7 @@ export function MembersOverlay({
 
         <div className='flex-1 space-y-4 overflow-y-auto px-5 py-4'>
           {/* Effective-dated viewing controls (GRP-13) */}
-          <div className='border-grey-200 flex flex-wrap items-center gap-3 rounded-[6px] border bg-white px-3 py-2'>
+          <div className='border-gray-200 flex flex-wrap items-center gap-3 rounded-[6px] border bg-white px-3 py-2'>
             <label className='text-paragraph-sm text-neutral-1000 flex items-center gap-2'>
               Membership as of
               <Input
@@ -197,7 +193,11 @@ export function MembersOverlay({
               >
                 Transfer
               </Button>
-              <Button variant='outline' className='h-7' onClick={handleImport}>
+              <Button
+                variant='outline'
+                className='h-7'
+                onClick={() => setImportOpen(true)}
+              >
                 Import file
               </Button>
               <Button variant='outline' className='h-7' onClick={handleExport}>
@@ -225,8 +225,8 @@ export function MembersOverlay({
           )}
 
           {/* Membership grid */}
-          <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
-            <div className='text-paragraph-sm text-neutral-1000 border-grey-200 grid grid-cols-[28px_1fr_130px_100px_150px] items-center gap-2 border-b px-3 py-2 font-medium'>
+          <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
+            <div className='text-paragraph-sm text-neutral-1000 border-gray-200 grid grid-cols-[28px_1fr_130px_100px_150px] items-center gap-2 border-b px-3 py-2 font-medium'>
               <span />
               <span>Member</span>
               <span>Kind</span>
@@ -245,7 +245,7 @@ export function MembersOverlay({
                 return (
                   <div
                     key={m.id}
-                    className={`border-grey-200 grid grid-cols-[28px_1fr_130px_100px_150px] items-center gap-2 border-b px-3 py-2 last:border-b-0 ${ended ? 'opacity-60' : ''}`}
+                    className={`border-gray-200 grid grid-cols-[28px_1fr_130px_100px_150px] items-center gap-2 border-b px-3 py-2 last:border-b-0 ${ended ? 'opacity-60' : ''}`}
                   >
                     <Checkbox
                       variant='blue'
@@ -292,7 +292,7 @@ export function MembersOverlay({
                     : `Add selected (${toAdd.length})`}
                 </Button>
               </div>
-              <div className='border-grey-200 max-h-56 space-y-1 overflow-y-auto rounded-[6px] border bg-white p-2'>
+              <div className='border-gray-200 max-h-56 space-y-1 overflow-y-auto rounded-[6px] border bg-white p-2'>
                 {candidates.length === 0 ? (
                   <p className='text-paragraph-sm text-neutral-1000 px-1 py-2'>
                     Everyone is already a member — duplicates are prevented.
@@ -325,6 +325,13 @@ export function MembersOverlay({
             </div>
           )}
         </div>
+
+        <UploadModal
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          title={`Import members — ${group.name} (CSV / XLS)`}
+          onUpload={(file) => store.importMemberships(group.id, file, actor)}
+        />
       </FloatingSheetContent>
     </Sheet>
   )

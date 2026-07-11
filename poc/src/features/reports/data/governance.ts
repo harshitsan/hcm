@@ -3,23 +3,27 @@ import { type DashboardLayout } from './dashboards'
 import { COMPANIES, type Company } from './report-catalog'
 
 /**
- * Company-access scope per canonical role (RPT-12, RPT-17, RPT-18, RPT-20).
- * Stands in for row-level security grants enforced at the data layer.
+ * Company-access scope for a role, derived from the live RLS grant table
+ * (RPT-12, RPT-17, RPT-18, RPT-20). Platform Admin operates the platform
+ * itself and bypasses row-level grants; every other role reports only over
+ * the union of companies on its active grants — so revoking a grant removes
+ * those companies from all subsequent report runs.
  */
-export const ROLE_COMPANY_ACCESS: Record<Role, Company[]> = {
-  'Platform Admin': [...COMPANIES],
-  'Portfolio Admin': [
-    'Aurora Software',
-    'Northwind Retail',
-    'Zenith Manufacturing',
-  ],
-  'Group Company Admin': ['Aurora Software', 'Helios Energy'],
-  'Company Admin': ['Aurora Software'],
-  'Employee (User)': ['Aurora Software'],
-  'Employee (Non-User)': [],
+export function companiesForRole(
+  role: Role,
+  grants: AccessGrant[]
+): Company[] {
+  if (role === 'Platform Admin') return [...COMPANIES]
+  const scoped = new Set<Company>()
+  for (const g of grants) {
+    if (g.role === role && g.status === 'active') {
+      g.companies.forEach((c) => scoped.add(c))
+    }
+  }
+  return COMPANIES.filter((c) => scoped.has(c))
 }
 
-/** RLS grant rows shown on the Platform Admin governance surface (RPT-20). */
+/** RLS grant rows governed on the Platform Admin surface (RPT-20). */
 export interface AccessGrant {
   id: string
   grantee: string

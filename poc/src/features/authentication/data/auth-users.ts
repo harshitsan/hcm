@@ -61,6 +61,12 @@ export interface AuthUser {
   lastLogin: string | null
   /** Null for SSO-only users — no local credential exists (AUTH-11). */
   passwordUpdatedAt: string | null
+  /** Consecutive failed local sign-ins — reset on success/unlock (lockout counter). */
+  failedAttempts: number
+  /** Set when the policy lockoutThreshold is reached; sign-in refused until cleared. */
+  lockedAt: string | null
+  /** True once the user has enrolled an authenticator (TOTP) for MFA. */
+  mfaEnrolled: boolean
   memberships: CompanyMembership[]
 }
 
@@ -72,7 +78,10 @@ export const seedAuthUsers: AuthUser[] = [
     authMethod: 'password',
     status: 'active',
     lastLogin: '2026-06-30T08:42:00Z',
-    passwordUpdatedAt: '2026-04-02',
+    passwordUpdatedAt: '2026-06-20',
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-0101', companyId: 'co-01', roles: ['Company Admin'], employeeId: null, status: 'active', effectiveFrom: '2025-01-10', effectiveTo: null },
       { id: 'm-0102', companyId: 'co-02', roles: ['HR Manager'], employeeId: null, status: 'active', effectiveFrom: '2025-06-01', effectiveTo: null },
@@ -87,6 +96,9 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'active',
     lastLogin: '2026-07-01T14:05:00Z',
     passwordUpdatedAt: null,
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-0201', companyId: 'co-01', roles: ['HR Manager', 'Employee'], employeeId: 'emp-101', status: 'active', effectiveFrom: '2024-11-03', effectiveTo: null },
     ],
@@ -99,6 +111,9 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'active',
     lastLogin: '2026-06-28T06:15:00Z',
     passwordUpdatedAt: null,
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-0301', companyId: 'co-02', roles: ['Employee'], employeeId: 'emp-102', status: 'active', effectiveFrom: '2025-03-17', effectiveTo: null },
     ],
@@ -111,6 +126,10 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'active',
     lastLogin: '2026-07-01T09:58:00Z',
     passwordUpdatedAt: null,
+    failedAttempts: 0,
+    lockedAt: null,
+    // Aurora Software Labs requires MFA — Mei-Ling is already enrolled.
+    mfaEnrolled: true,
     memberships: [
       { id: 'm-0401', companyId: 'co-04', roles: ['Company Admin'], employeeId: null, status: 'active', effectiveFrom: '2024-08-20', effectiveTo: null },
       { id: 'm-0402', companyId: 'co-05', roles: ['Payroll Admin'], employeeId: null, status: 'active', effectiveFrom: '2025-01-05', effectiveTo: null },
@@ -124,6 +143,9 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'active',
     lastLogin: '2026-06-25T11:20:00Z',
     passwordUpdatedAt: '2026-06-01',
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-0501', companyId: 'co-01', roles: ['Payroll Admin', 'Employee'], employeeId: 'emp-103', status: 'active', effectiveFrom: '2025-02-11', effectiveTo: null },
       { id: 'm-0502', companyId: 'co-03', roles: ['Payroll Admin'], employeeId: null, status: 'revoked', effectiveFrom: '2025-02-11', effectiveTo: '2026-03-31' },
@@ -137,6 +159,9 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'active',
     lastLogin: '2026-06-30T16:47:00Z',
     passwordUpdatedAt: null,
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-0601', companyId: 'co-04', roles: ['Employee'], employeeId: 'emp-106', status: 'active', effectiveFrom: '2025-09-01', effectiveTo: null },
     ],
@@ -149,6 +174,10 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'suspended',
     lastLogin: '2026-05-14T10:02:00Z',
     passwordUpdatedAt: '2025-12-19',
+    // 3 consecutive failures on record (see seed audit event evt-9007).
+    failedAttempts: 3,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-0701', companyId: 'co-05', roles: ['Employee'], employeeId: 'emp-108', status: 'active', effectiveFrom: '2025-04-22', effectiveTo: null },
     ],
@@ -161,6 +190,9 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'active',
     lastLogin: '2026-07-01T07:30:00Z',
     passwordUpdatedAt: '2026-05-10',
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     // Platform administrator with no workforce record at all (AUTH-07).
     memberships: [
       { id: 'm-0801', companyId: 'co-01', roles: ['Viewer'], employeeId: null, status: 'active', effectiveFrom: '2024-06-01', effectiveTo: null },
@@ -176,6 +208,9 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'invited',
     lastLogin: null,
     passwordUpdatedAt: null,
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-0901', companyId: 'co-06', roles: ['HR Manager'], employeeId: null, status: 'active', effectiveFrom: '2026-06-20', effectiveTo: null },
     ],
@@ -188,6 +223,9 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'active',
     lastLogin: '2026-06-29T13:11:00Z',
     passwordUpdatedAt: null,
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-1001', companyId: 'co-01', roles: ['Recruiter'], employeeId: null, status: 'active', effectiveFrom: '2025-07-08', effectiveTo: null },
       { id: 'm-1002', companyId: 'co-02', roles: ['Recruiter'], employeeId: null, status: 'active', effectiveFrom: '2025-07-08', effectiveTo: null },
@@ -202,6 +240,9 @@ export const seedAuthUsers: AuthUser[] = [
     status: 'invited',
     lastLogin: null,
     passwordUpdatedAt: null,
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-1101', companyId: 'co-05', roles: ['Viewer'], employeeId: null, status: 'active', effectiveFrom: '2026-06-27', effectiveTo: null },
     ],
@@ -213,7 +254,11 @@ export const seedAuthUsers: AuthUser[] = [
     authMethod: 'password',
     status: 'active',
     lastLogin: '2026-06-26T15:38:00Z',
+    // Stale credential — demonstrates password-expiry enforcement at sign-in.
     passwordUpdatedAt: '2026-02-28',
+    failedAttempts: 0,
+    lockedAt: null,
+    mfaEnrolled: false,
     memberships: [
       { id: 'm-1201', companyId: 'co-06', roles: ['Payroll Admin'], employeeId: null, status: 'active', effectiveFrom: '2025-05-19', effectiveTo: null },
     ],

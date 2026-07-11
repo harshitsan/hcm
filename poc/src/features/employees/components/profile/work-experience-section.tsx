@@ -86,7 +86,7 @@ export function WorkExperienceSection({
         <span className='flex items-center gap-1.5 font-medium'>
           {row.original.employerName}
           {row.original.isCurrentEmployer && (
-            <Badge variant='qualified'>Current</Badge>
+            <Badge variant='badge_active'>Current</Badge>
           )}
         </span>
       ),

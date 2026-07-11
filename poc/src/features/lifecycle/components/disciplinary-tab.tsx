@@ -376,7 +376,7 @@ export function DisciplinaryTab({ store }: DisciplinaryTabProps) {
                   <FormItem>
                     <FormLabel>Employee code</FormLabel>
                     <FormControl>
-                      <Input placeholder='EMP-0000' {...field} />
+                      <Input placeholder='e.g. EMP-0000' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

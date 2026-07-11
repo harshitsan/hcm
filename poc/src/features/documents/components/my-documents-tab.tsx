@@ -115,7 +115,7 @@ export function MyDocumentsTab({
       </div>
 
       {hiddenCount > 0 && (
-        <div className='border-grey-200 mb-3 flex items-center gap-2 rounded-[6px] border bg-white px-3 py-2'>
+        <div className='border-gray-200 mb-3 flex items-center gap-2 rounded-[6px] border bg-white px-3 py-2'>
           <LockSimple size={16} className='text-neutral-1000' />
           <p className='text-paragraph-sm text-neutral-1000'>
             {hiddenCount} {hiddenCount === 1 ? 'document' : 'documents'} on

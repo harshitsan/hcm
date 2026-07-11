@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Search } from 'lucide-react'
+import { CaretDown, CaretRight, MagnifyingGlass } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -95,7 +95,7 @@ export function HierarchyTab({ store }: HierarchyTabProps) {
     return (
       <div key={group.id}>
         <div
-          className='border-grey-200 mb-1 flex flex-wrap items-center gap-2 rounded-[6px] border bg-white px-2 py-1.5'
+          className='border-gray-200 mb-1 flex flex-wrap items-center gap-2 rounded-[6px] border bg-white px-2 py-1.5'
           style={{ marginLeft: level * 24 }}
         >
           <Button
@@ -106,9 +106,9 @@ export function HierarchyTab({ store }: HierarchyTabProps) {
             onClick={() => toggleCollapse(group.id)}
           >
             {isCollapsed ? (
-              <ChevronRight className='size-4' />
+              <CaretRight className='size-4' />
             ) : (
-              <ChevronDown className='size-4' />
+              <CaretDown className='size-4' />
             )}
           </Button>
           <div className='flex min-w-0 flex-1 flex-col'>
@@ -195,7 +195,7 @@ export function HierarchyTab({ store }: HierarchyTabProps) {
     <div className='w-full'>
       <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
         <div className='relative'>
-          <Search className='text-neutral-1000 absolute top-1/2 left-2 size-3.5 -translate-y-1/2' />
+          <MagnifyingGlass className='text-neutral-1000 absolute top-1/2 left-2 size-3.5 -translate-y-1/2' />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -214,7 +214,7 @@ export function HierarchyTab({ store }: HierarchyTabProps) {
       {anyVisible ? (
         roots.map((r) => renderNode(r, 0))
       ) : (
-        <p className='text-paragraph-sm text-neutral-1000 border-grey-200 rounded-[6px] border bg-white px-3 py-6 text-center'>
+        <p className='text-paragraph-sm text-neutral-1000 border-gray-200 rounded-[6px] border bg-white px-3 py-6 text-center'>
           No group matches “{search}”.
         </p>
       )}

@@ -212,7 +212,7 @@ export function WorklistTab({ store, configStore }: WorklistTabProps) {
             className='h-7 gap-1 rounded-[6px] px-2'
           >
             <TimerReset className='size-3.5' />
-            Run SLA engine
+            Check overdue items
           </Button>
           <Button
             variant='icon2'

@@ -41,7 +41,7 @@ export function VersionHistorySheet({ open, onOpenChange, policy }: VersionHisto
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
-          <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+          <SheetHeader className='border-gray-200 border-b px-5 py-4'>
             <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
               {policy.name} — version history
             </SheetTitle>
@@ -58,7 +58,7 @@ export function VersionHistorySheet({ open, onOpenChange, policy }: VersionHisto
                 return (
                   <div
                     key={v.version}
-                    className='border-grey-200 space-y-1.5 rounded-[6px] border p-3'
+                    className='border-gray-200 space-y-1.5 rounded-[6px] border p-3'
                   >
                     <div className='flex items-center justify-between gap-2'>
                       <div className='flex items-center gap-2'>
@@ -102,7 +102,7 @@ export function VersionHistorySheet({ open, onOpenChange, policy }: VersionHisto
                 {configs.map((c) => (
                   <div
                     key={c.version}
-                    className='border-grey-200 rounded-[6px] border p-3'
+                    className='border-gray-200 rounded-[6px] border p-3'
                   >
                     <div className='flex items-center gap-2'>
                       <span className='text-neutral-1600 text-sm font-medium'>

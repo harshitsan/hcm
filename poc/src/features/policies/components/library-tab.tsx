@@ -131,7 +131,7 @@ export function LibraryTab({ store }: { store: PoliciesStore }) {
             return (
               <div
                 key={policy.id}
-                className='border-grey-200 flex flex-col gap-1.5 rounded-[6px] border bg-white p-3'
+                className='border-gray-200 flex flex-col gap-1.5 rounded-[6px] border bg-white p-3'
               >
                 <div className='flex items-center justify-between gap-2'>
                   <div className='flex items-center gap-2'>
@@ -178,7 +178,7 @@ export function LibraryTab({ store }: { store: PoliciesStore }) {
           <div className='space-y-1.5'>
             {excludedForMe.map(({ policy, evaluation }) => (
               <div key={policy.id} className='flex items-center gap-2'>
-                <Badge variant='disqualified'>Excluded</Badge>
+                <Badge variant='dropped'>Excluded</Badge>
                 <span className='text-neutral-1900 text-sm'>{policy.name}</span>
                 <span className='text-paragraph-sm text-neutral-1000'>
                   {evaluation.failReason}
@@ -201,7 +201,7 @@ export function LibraryTab({ store }: { store: PoliciesStore }) {
         ) : (
           <div className='space-y-2'>
             {myNotifications.map((n) => (
-              <div key={n.id} className='border-grey-200 rounded-[6px] border p-2.5'>
+              <div key={n.id} className='border-gray-200 rounded-[6px] border p-2.5'>
                 <p className='text-neutral-1900 text-sm'>{n.message}</p>
                 <p className='text-paragraph-sm text-neutral-1000'>
                   {n.policyName} · sent {formatDate(n.sentOn)}

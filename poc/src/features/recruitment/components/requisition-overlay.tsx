@@ -306,7 +306,7 @@ export function RequisitionOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[520px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? `Edit ${requisition?.id}` : 'New job requisition'}
           </SheetTitle>
@@ -379,7 +379,7 @@ export function RequisitionOverlay({
                   <FormItem>
                     <FormLabel>Position title</FormLabel>
                     <FormControl>
-                      <Input placeholder='Senior Backend Engineer' {...field} />
+                      <Input placeholder='e.g. Senior Backend Engineer' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1020,7 +1020,7 @@ export function RequisitionOverlay({
               )}
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

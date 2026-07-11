@@ -88,7 +88,7 @@ export function CertificatesTab({ masters }: CertificatesTabProps) {
       </div>
 
       {total === 0 ? (
-        <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+        <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
           <Medal size={32} className='text-neutral-1000' />
           <p className='text-neutral-1600 text-paragraph-md font-medium'>
             No records to display
@@ -131,7 +131,7 @@ export function CertificatesTab({ masters }: CertificatesTabProps) {
               ))}
             </TableBody>
           </Table>
-          <div className='border-grey-200 border-t px-3 py-2'>
+          <div className='border-gray-200 border-t px-3 py-2'>
             <span className='text-paragraph-sm text-neutral-1000'>
               Displaying items 1 - {total} of {total}
             </span>

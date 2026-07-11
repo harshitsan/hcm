@@ -11,7 +11,13 @@ import { type AuditEventDraft } from './use-auth-audit'
 
 export type AuthUserDraft = Omit<
   AuthUser,
-  'id' | 'lastLogin' | 'passwordUpdatedAt' | 'memberships'
+  | 'id'
+  | 'lastLogin'
+  | 'passwordUpdatedAt'
+  | 'failedAttempts'
+  | 'lockedAt'
+  | 'mfaEnrolled'
+  | 'memberships'
 > & {
   /** Initial company membership for the new identity. */
   companyId: string
@@ -58,6 +64,9 @@ export function useAuthUsers(logEvent: (draft: AuditEventDraft) => void) {
         status: draft.status,
         lastLogin: null,
         passwordUpdatedAt: null,
+        failedAttempts: 0,
+        lockedAt: null,
+        mfaEnrolled: false,
         memberships: [membership],
       }
       setUsers((prev) => [user, ...prev])
@@ -80,6 +89,92 @@ export function useAuthUsers(logEvent: (draft: AuditEventDraft) => void) {
     },
     [logEvent]
   )
+
+  /**
+   * Count a consecutive failed local sign-in; when the policy
+   * lockoutThreshold is reached the account is locked and audited.
+   */
+  const recordLoginFailure = useCallback(
+    (userId: string, threshold: number, policyVersion: number) => {
+      const user = users.find((u) => u.id === userId)
+      if (!user) return { attempts: 0, locked: false }
+      const attempts = user.failedAttempts + 1
+      const locked = user.lockedAt === null && attempts >= threshold
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? {
+                ...u,
+                failedAttempts: attempts,
+                lockedAt: locked ? new Date().toISOString() : u.lockedAt,
+              }
+            : u
+        )
+      )
+      if (locked) {
+        logEvent({
+          actor: user.email,
+          eventType: 'account-locked',
+          method: 'password',
+          outcome: 'failure',
+          detail: `User locked out after ${attempts} consecutive failed sign-in attempts (policy v${policyVersion} lockout threshold: ${threshold}). Unlock requires an administrator or a completed password reset.`,
+        })
+      }
+      return { attempts, locked }
+    },
+    [users, logEvent]
+  )
+
+  /** Successful sign-in resets the failure counter and stamps last login. */
+  const recordLoginSuccess = useCallback((userId: string) => {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId
+          ? { ...u, failedAttempts: 0, lastLogin: new Date().toISOString() }
+          : u
+      )
+    )
+  }, [])
+
+  /** Administrative unlock — clears the lock and the failure counter. */
+  const unlockUser = useCallback(
+    (userId: string, actor: string) => {
+      const user = users.find((u) => u.id === userId)
+      if (!user || user.lockedAt === null) return
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId ? { ...u, lockedAt: null, failedAttempts: 0 } : u
+        )
+      )
+      logEvent({
+        actor,
+        eventType: 'account-unlocked',
+        method: 'password',
+        outcome: 'info',
+        detail: `${user.email} unlocked by an administrator; failed-attempt counter reset to 0.`,
+      })
+      toast.success(`${user.name} unlocked`)
+    },
+    [users, logEvent]
+  )
+
+  /** Marks the authenticator as enrolled — the sign-in flow audits it. */
+  const setMfaEnrolled = useCallback((userId: string) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, mfaEnrolled: true } : u))
+    )
+  }, [])
+
+  /** Completed self-service reset: fresh credential clears expiry + lockout. */
+  const completePasswordReset = useCallback((userId: string) => {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId
+          ? { ...u, passwordUpdatedAt: today(), failedAttempts: 0, lockedAt: null }
+          : u
+      )
+    )
+  }, [])
 
   const updateUser = useCallback(
     (id: string, patch: Partial<Pick<AuthUser, 'name' | 'email' | 'authMethod' | 'status'>>) => {
@@ -245,6 +340,11 @@ export function useAuthUsers(logEvent: (draft: AuditEventDraft) => void) {
     emailTaken,
     addUser,
     updateUser,
+    recordLoginFailure,
+    recordLoginSuccess,
+    unlockUser,
+    setMfaEnrolled,
+    completePasswordReset,
     addMembership,
     setMembershipRoles,
     revokeMembership,

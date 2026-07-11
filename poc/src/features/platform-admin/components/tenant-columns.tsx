@@ -132,6 +132,34 @@ export function buildTenantColumns(
       size: 90,
     },
     {
+      id: 'plan',
+      accessorFn: (t) => t.subscription.tier,
+      header: sortableHeader('Plan'),
+      cell: ({ row, column }) => {
+        const { subscription, employees } = row.original
+        const label =
+          subscription.tier[0].toUpperCase() + subscription.tier.slice(1)
+        return (
+          <HighlightedCell value={label} columnId={column.id}>
+            <div className='flex min-w-0 flex-col'>
+              <span className='text-neutral-1900 text-sm'>{label}</span>
+              <span
+                className={`text-paragraph-sm ${
+                  employees >= subscription.employeeLimit
+                    ? 'text-red-600'
+                    : 'text-neutral-1000'
+                }`}
+              >
+                {employees.toLocaleString('en-US')} /{' '}
+                {subscription.employeeLimit.toLocaleString('en-US')} seats
+              </span>
+            </div>
+          </HighlightedCell>
+        )
+      },
+      size: 120,
+    },
+    {
       accessorKey: 'status',
       meta: { requiresWholeWordMatch: true },
       header: sortableHeader('Status'),

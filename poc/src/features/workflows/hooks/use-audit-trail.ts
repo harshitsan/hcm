@@ -1,4 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import {
   seedAuditEvents,
   type AuditCategory,
@@ -53,6 +54,19 @@ export function useAuditTrail() {
     }
     auditEvents = [event, ...auditEvents]
     auditListeners.forEach((l) => l())
+    // Mirror into the central platform trail so workflow actions show up on
+    // /audit-logs immediately (worklist #26).
+    publishAuditEvent({
+      module: 'Workflow Engine',
+      action: input.summary,
+      actor: input.actor,
+      actorRole: input.actorRole,
+      recordId: input.refId,
+      recordName: input.summary,
+      changes: [
+        { field: input.category, previousValue: null, newValue: input.detail },
+      ],
+    })
   }, [])
 
   return { events, append }

@@ -231,7 +231,7 @@ export function DocumentsStep({ org, onNext, onBack, isLast }: DocumentsStepProp
                   <FormItem>
                     <FormLabel>Document number</FormLabel>
                     <FormControl>
-                      <Input placeholder='AAECO4821F' {...field} />
+                      <Input placeholder='e.g. AAECO4821F' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

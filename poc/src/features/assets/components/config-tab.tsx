@@ -99,7 +99,7 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
 
         {isCompanyAdmin && (
           <TabsContent value='general' className='space-y-4'>
-            <div className='border-grey-200 flex flex-wrap items-center gap-2 rounded-[6px] border bg-white px-3 py-2.5'>
+            <div className='border-gray-200 flex flex-wrap items-center gap-2 rounded-[6px] border bg-white px-3 py-2.5'>
               {SETUP_STEPS.map((s, i) => (
                 <div key={s.step} className='flex items-center gap-2'>
                   {i > 0 && <span className='text-neutral-1000 text-paragraph-sm'>—</span>}
@@ -139,7 +139,7 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
             </div>
 
             {setupStep === 1 && (
-            <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
+            <div className='border-gray-200 rounded-[6px] border bg-white p-4'>
               <h3 className='text-neutral-1600 mb-1 text-sm font-medium'>
                 Asset tracking setup
               </h3>
@@ -183,7 +183,7 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
             )}
 
             {setupStep === 2 && (
-            <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
+            <div className='border-gray-200 rounded-[6px] border bg-white p-4'>
               <div className='mb-2 flex items-center gap-2'>
                 <h3 className='text-neutral-1600 text-sm font-medium'>
                   Acknowledgement & overdue policy
@@ -276,7 +276,7 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
             )}
 
             {setupStep === 3 && (
-            <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
+            <div className='border-gray-200 rounded-[6px] border bg-white p-4'>
               <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
                 Approval routing (requisitions · arrivals · outbound)
               </h3>
@@ -358,7 +358,7 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
         )}
 
         <TabsContent value='governance' className='space-y-4'>
-          <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
+          <div className='border-gray-200 rounded-[6px] border bg-white p-4'>
             <h3 className='text-neutral-1600 mb-1 text-sm font-medium'>
               Lifecycle transition decision table
             </h3>
@@ -394,7 +394,7 @@ export function ConfigTab({ config, assets }: ConfigTabProps) {
           </div>
 
           {isPlatformAdmin && (
-            <div className='border-grey-200 rounded-[6px] border bg-white p-4'>
+            <div className='border-gray-200 rounded-[6px] border bg-white p-4'>
               <h3 className='text-neutral-1600 mb-1 text-sm font-medium'>
                 Tenant isolation & identity uniqueness (Platform Admin)
               </h3>

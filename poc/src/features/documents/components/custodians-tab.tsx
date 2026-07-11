@@ -267,7 +267,7 @@ export function CustodiansTab({ masters }: CustodiansTabProps) {
             {coverageGaps.map((gap) => (
               <div
                 key={gap.company}
-                className='border-grey-200 rounded-[6px] border px-3 py-2'
+                className='border-gray-200 rounded-[6px] border px-3 py-2'
               >
                 <p className='text-neutral-1600 mb-1 text-sm font-medium'>
                   {gap.company} — {gap.covered} of{' '}

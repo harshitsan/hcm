@@ -156,7 +156,7 @@ export const policiesTableColumns: ColumnDef<PolicyRow>[] = [
       return (
         <div className='flex flex-wrap gap-1'>
           {levels.map((level) => (
-            <Badge key={level} variant='disqualified'>
+            <Badge key={level} variant='dropped'>
               {level.split(' — ')[0]}
             </Badge>
           ))}

@@ -68,7 +68,7 @@ export function DeliveryModelsCard({
           {eventDelivery.map((e) => (
             <div
               key={e.eventType}
-              className='border-grey-200 flex items-center justify-between gap-3 rounded-[6px] border px-3 py-1.5'
+              className='border-gray-200 flex items-center justify-between gap-3 rounded-[6px] border px-3 py-1.5'
             >
               <div className='flex items-center gap-2'>
                 <p className='text-neutral-1600 text-sm font-medium'>
@@ -93,7 +93,7 @@ export function DeliveryModelsCard({
           ))}
         </div>
 
-        <div className='border-grey-200 rounded-[6px] border px-3 py-2'>
+        <div className='border-gray-200 rounded-[6px] border px-3 py-2'>
           <div className='mb-2 flex items-center justify-between'>
             <p className='text-neutral-1600 text-sm font-medium'>
               Digest schedule
@@ -257,7 +257,7 @@ export function EnginePanels() {
       {ENGINE_PANELS.map((panel) => (
         <div
           key={panel.title}
-          className='border-grey-200 rounded-[6px] border bg-white px-3 py-2'
+          className='border-gray-200 rounded-[6px] border bg-white px-3 py-2'
         >
           <div className='mb-1 flex items-center gap-2'>
             <panel.icon className='text-blue-1400 size-4' />

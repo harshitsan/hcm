@@ -7,12 +7,15 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { takeRequestedTab } from '@/features/workflows/data/module-nav'
+import { CompanyContextCard } from './components/company-context-card'
 import { ConfigTab } from './components/config-tab'
 import { GovernanceTab } from './components/governance-tab'
 import { IdentityTab } from './components/identity-tab'
 import { OperationsTab } from './components/operations-tab'
 import { SecurityTab } from './components/security-tab'
 import { SummaryCards } from './components/shared'
+import { StructuresTab } from './components/structures-tab'
+import { PlatformLogCard } from './components/tenant-panels'
 import { TenantsTab } from './components/tenants-tab'
 import { useGovernance } from './hooks/use-governance'
 import { useGovernedConfig } from './hooks/use-governed-config'
@@ -23,6 +26,7 @@ import { useTenants } from './hooks/use-tenants'
 
 const TAB_LABELS: Record<string, string> = {
   tenants: 'Tenants & companies',
+  structures: 'Portfolios & groups',
   identity: 'Users & access',
   operations: 'Operations',
   settings: 'Settings',
@@ -87,6 +91,9 @@ export function PlatformAdmin() {
         <div className='w-full'>
           <SummaryCards title='Platform Summary' items={summaryItems} />
 
+          {/* Company context switcher surfaced at the top, above the tabs */}
+          <CompanyContextCard store={tenants} />
+
           <Tabs value={tab} onValueChange={setTab} className='w-full'>
             <TabsList className='mb-3 flex-wrap bg-transparent p-0'>
               {Object.entries(TAB_LABELS).map(([value, label]) => (
@@ -99,6 +106,9 @@ export function PlatformAdmin() {
             <TabsContent value='tenants'>
               <TenantsTab store={tenants} />
             </TabsContent>
+            <TabsContent value='structures'>
+              <StructuresTab store={tenants} />
+            </TabsContent>
             <TabsContent value='identity'>
               <IdentityTab
                 identity={identity}
@@ -107,6 +117,7 @@ export function PlatformAdmin() {
               />
             </TabsContent>
             <TabsContent value='operations'>
+              <PlatformLogCard store={tenants} />
               <OperationsTab store={operations} />
             </TabsContent>
             <TabsContent value='settings'>

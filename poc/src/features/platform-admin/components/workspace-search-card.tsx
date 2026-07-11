@@ -63,7 +63,7 @@ export function WorkspaceSearchCard({ store }: { store: WorkspaceStore }) {
           <button
             key={r.id}
             type='button'
-            className='border-grey-200 hover:bg-neutral-200 flex items-center gap-1.5 rounded-[6px] border px-2 py-1 text-sm'
+            className='border-gray-200 hover:bg-neutral-200 flex items-center gap-1.5 rounded-[6px] border px-2 py-1 text-sm'
             onClick={() => store.viewRecord(r)}
           >
             <ToneBadge tone={kindTone[r.kind] ?? 'grey'}>{r.kind}</ToneBadge>

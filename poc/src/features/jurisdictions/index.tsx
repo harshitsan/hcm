@@ -12,6 +12,7 @@ import { RulePacksTab } from './components/rule-packs-tab'
 import { useAssignments } from './hooks/use-assignments'
 import { useJurisdictions } from './hooks/use-jurisdictions'
 import { useRulePacks } from './hooks/use-rule-packs'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 
 const ADMIN_ROLES = [
   'Platform Admin',
@@ -94,6 +95,7 @@ export function Jurisdictions() {
             {isAdmin && (
               <TabsContent value='admin'>
                 <div className='flex flex-col gap-6'>
+                  <EngineArtifactsPanel module='Jurisdictions' />
                   <section>
                     <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Policies</h3>
                     <PoliciesTab

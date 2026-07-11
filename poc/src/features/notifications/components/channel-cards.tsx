@@ -48,7 +48,7 @@ export function ChannelsCard({
           return (
             <div
               key={c.channel}
-              className='border-grey-200 flex items-center justify-between gap-3 rounded-[6px] border px-3 py-2'
+              className='border-gray-200 flex items-center justify-between gap-3 rounded-[6px] border px-3 py-2'
             >
               <div>
                 <div className='flex items-center gap-2'>
@@ -125,7 +125,7 @@ export function ConnectorsCard({
         {connectors.map((c) => (
           <div
             key={c.id}
-            className='border-grey-200 flex items-center justify-between gap-3 rounded-[6px] border px-3 py-2'
+            className='border-gray-200 flex items-center justify-between gap-3 rounded-[6px] border px-3 py-2'
           >
             <div>
               <div className='flex items-center gap-2'>

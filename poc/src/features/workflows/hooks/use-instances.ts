@@ -345,6 +345,63 @@ export function useInstances({
   )
 
   /**
+   * Delegates one pending task to an explicitly chosen approver (WFE-13,
+   * BRD 6.4.3) — unlike escalateTask, the target is picked by the delegator,
+   * not derived from the stage's escalation strategy.
+   */
+  const delegateTask = useCallback(
+    (taskId: string, target: string) => {
+      const task = tasks.find((t) => t.id === taskId)
+      if (!task || task.status !== 'pending') return
+      if (!target || target === task.approver) return
+      const instance = instances.find((i) => i.id === task.instanceId)
+      if (!instance) return
+      const stage = instance.stages.find((s) => s.id === task.stageId)
+      if (!stage) return
+
+      const inst: WorkflowInstance = {
+        ...instance,
+        stages: instance.stages.map((s) =>
+          s.id !== stage.id
+            ? s
+            : {
+                ...s,
+                approvals: [
+                  ...s.approvals.map((a) =>
+                    a.approver === task.approver && a.decision === 'pending'
+                      ? { ...a, decision: 'closed' as const }
+                      : a
+                  ),
+                  { approver: target, decision: 'pending' as const },
+                ],
+              }
+        ),
+      }
+      const replacement = makeTask(inst, stage, target, 'delegated', task.approver)
+      setState({
+        instances: instances.map((i) => (i.id === inst.id ? inst : i)),
+        tasks: [
+          replacement,
+          ...tasks.map((t) =>
+            t.id === taskId ? { ...t, status: 'escalated' as const } : t
+          ),
+        ],
+      })
+      append({
+        actor,
+        actorRole,
+        company: inst.company,
+        category: 'reassignment',
+        summary: `Delegated ${task.approver} → ${target}`,
+        detail: `Delegate chosen by ${actor} (${actorRole}). Instance ${inst.id} · stage "${stage.name}". ${target} notified with full request context.`,
+        refId: inst.id,
+      })
+      toast.success(`Task delegated to ${target}`)
+    },
+    [instances, tasks, append, actor, actorRole]
+  )
+
+  /**
    * Simulates the business-hours SLA clock advancing 25% (WFE-09..11):
    * reminders fire crossing 50/75, escalation fires crossing 100.
    */
@@ -520,6 +577,7 @@ export function useInstances({
     slaForInstance,
     decide,
     escalateTask,
+    delegateTask,
     tickSla,
     sendReminder,
     startInstance,

@@ -1,13 +1,13 @@
 import {
+  ArrowsClockwise,
   Copy,
-  Download,
+  DownloadSimple,
   GitMerge,
+  MagnifyingGlass,
   Plus,
   Power,
-  RefreshCw,
-  Search,
-  Trash2,
-} from 'lucide-react'
+  Trash,
+} from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -60,7 +60,7 @@ export function GroupsListToolbar({
     <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
       <div className='flex items-center gap-2'>
         <div className='relative'>
-          <Search className='text-neutral-1000 absolute top-1/2 left-2 size-3.5 -translate-y-1/2' />
+          <MagnifyingGlass size={14} className='text-neutral-1000 absolute top-1/2 left-2 -translate-y-1/2' />
           <Input
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -91,7 +91,7 @@ export function GroupsListToolbar({
           title='Refresh list'
           onClick={onRefresh}
         >
-          <RefreshCw className='size-4' />
+          <ArrowsClockwise size={16} />
         </Button>
         <Button
           variant='icon2'
@@ -100,7 +100,7 @@ export function GroupsListToolbar({
           title='Export group list (CSV)'
           onClick={onExport}
         >
-          <Download className='size-4' />
+          <DownloadSimple size={16} />
         </Button>
         <Button
           variant='icon2'
@@ -110,7 +110,7 @@ export function GroupsListToolbar({
           disabled={!hasSingleSelection}
           onClick={onClone}
         >
-          <Copy className='size-4' />
+          <Copy size={16} />
         </Button>
         <Button
           variant='icon2'
@@ -120,7 +120,7 @@ export function GroupsListToolbar({
           disabled={!hasSingleSelection}
           onClick={onToggleStatus}
         >
-          <Power className='size-4' />
+          <Power size={16} />
         </Button>
         <Button
           variant='icon2'
@@ -130,7 +130,7 @@ export function GroupsListToolbar({
           disabled={!canMergeSelection}
           onClick={onMerge}
         >
-          <GitMerge className='size-4' />
+          <GitMerge size={16} />
         </Button>
         <Button
           variant='icon2'
@@ -140,7 +140,7 @@ export function GroupsListToolbar({
           disabled={!hasSelection}
           onClick={onDelete}
         >
-          <Trash2 className='size-4' />
+          <Trash size={16} />
         </Button>
         {canCreate && (
           <Button
@@ -148,8 +148,8 @@ export function GroupsListToolbar({
             onClick={onNew}
             className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
           >
-            <Plus className='size-3' />
-            New Group
+            <Plus size={10} weight='bold' />
+            New Work Group
           </Button>
         )}
       </div>

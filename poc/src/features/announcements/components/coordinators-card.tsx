@@ -159,7 +159,7 @@ export function CoordinatorsCard({ settings, orgConfig }: CoordinatorsCardProps)
                 </Badge>
               ))}
               {c.departments.map((dept) => (
-                <Badge key={`dept-${dept}`} variant='booked'>
+                <Badge key={`dept-${dept}`} variant='open'>
                   {dept}
                 </Badge>
               ))}

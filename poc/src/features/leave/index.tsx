@@ -3,7 +3,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole, type Role } from '@/context/role-context'
-import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AuditTab } from './components/audit-tab'
 import { CompanyCalendarTab } from './components/company-calendar-tab'
@@ -190,6 +189,10 @@ export function LeaveManagement() {
                   balances={balances}
                   leaveTypes={config.orderedTypes}
                   fmlaReasons={settings.fmlaReasons}
+                  payoutRequestsEnabled={
+                    globalSettings.settings.payoutEnabled &&
+                    globalSettings.settings.allowEmployeePayoutRequest
+                  }
                 />
               </TabsContent>
 
@@ -247,7 +250,8 @@ export function LeaveManagement() {
               </TabsContent>
 
               <TabsContent value='admin'>
-                <EngineArtifactsPanel module='Leave Management' />
+                {/* EngineArtifactsPanel renders once, inside the Engine
+                    features settings group (settings-groups.tsx). */}
                 <div className='flex flex-col gap-6'>
                   {visibleAdminTabs.some((t) => t.value === 'config') && (
                     <section>
@@ -256,6 +260,7 @@ export function LeaveManagement() {
                         config={config}
                         settings={settings}
                         globalSettings={globalSettings}
+                        balances={balances}
                       />
                     </section>
                   )}

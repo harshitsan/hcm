@@ -97,7 +97,7 @@ export function SeriesPanel({ companyId, orgConfig }: SeriesPanelProps) {
         </div>
       </div>
 
-      <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+      <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
         {rows.map((s) => (
           <div key={s.id} className='flex items-center justify-between px-3 py-2'>
             <div className='flex min-w-0 flex-col gap-0.5'>

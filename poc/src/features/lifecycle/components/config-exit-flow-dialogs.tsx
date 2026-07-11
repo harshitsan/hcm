@@ -186,7 +186,7 @@ export function ExitApproverGroupDialog({
             <Input
               value={approvers}
               onChange={(e) => setApprovers(e.target.value)}
-              placeholder='Vikram Shah, Anita Desai'
+              placeholder='e.g. Vikram Shah, Anita Desai'
             />
           </div>
         </div>

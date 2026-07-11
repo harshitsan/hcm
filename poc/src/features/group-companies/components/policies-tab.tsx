@@ -227,7 +227,7 @@ export function PoliciesTab({ store, policies }: PoliciesTabProps) {
                         <TableCell className='text-sm'>{inst.adoptedOn}</TableCell>
                         <TableCell>
                           {inst.locallyEdited ? (
-                            <Badge variant='qualified'>Locally edited</Badge>
+                            <Badge variant='badge_active'>Locally edited</Badge>
                           ) : (
                             <Badge variant='pending'>Unmodified</Badge>
                           )}

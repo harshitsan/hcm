@@ -6,7 +6,7 @@ import { HighlightedCell } from '@/components/common/data-table/highlighted-cell
 import { SearchableHeader } from '@/components/common/data-table/searchable-header'
 import { LongText } from '@/components/common/long-text'
 import { type AttendanceRecord } from '../data/attendance'
-import { employeeById, employeeName, fmtDate, fmtHours } from '../data/shared'
+import { employeeById, employeeName, fmtBreaks, fmtDate, fmtHours } from '../data/shared'
 import { DuplicateBadge, OtBadge, SourceBadge, StatusBadge } from './badges'
 
 const EXCEPTION_LABEL: Record<string, string> = {
@@ -134,7 +134,7 @@ export const attendanceColumns: ColumnDef<AttendanceRecord>[] = [
     header: () => <span className='text-xs font-medium'>Breaks</span>,
     cell: ({ row }) => (
       <span className='text-sm'>
-        {row.original.breaksCount} · {row.original.breakMinutes}m
+        {fmtBreaks(row.original.breaksCount, row.original.breakMinutes)}
       </span>
     ),
   },

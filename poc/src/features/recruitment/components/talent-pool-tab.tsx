@@ -103,6 +103,28 @@ export function TalentPoolTab({
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
 
+  const appsFor = (candidateId: string) =>
+    store.applications.filter((a) => a.candidateId === candidateId)
+
+  /** Kensium Talent Pool list column — derived from the pipeline. */
+  const interviewStatus = (c: Candidate) => {
+    const apps = appsFor(c.id)
+    if (apps.some((a) => a.interviews.some((iv) => iv.status === 'scheduled')))
+      return 'Scheduled'
+    if (apps.some((a) => a.interviews.some((iv) => iv.status === 'completed')))
+      return 'Completed'
+    return apps.length > 0 ? 'Not scheduled' : '—'
+  }
+
+  /** Kensium Talent Pool list column — last outreach to the candidate. */
+  const communicationStatus = (c: Candidate) => {
+    const apps = appsFor(c.id)
+    if (apps.some((a) => a.interviews.some((iv) => iv.emailCandidate)))
+      return 'Invite emailed'
+    if (apps.length > 0) return 'In process'
+    return c.reviewStatus === 'reviewed' ? 'Profile reviewed' : 'Not contacted'
+  }
+
   const resetFilters = () => {
     setReview('all')
     setSearch('')
@@ -217,17 +239,20 @@ export function TalentPoolTab({
         </div>
       )}
 
-      <div className='rounded-[8px] border border-gray-200 bg-white'>
+      <div className='overflow-x-auto rounded-[8px] border border-gray-200 bg-white'>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className='w-[40px]' />
               <TableHead>Candidate</TableHead>
+              <TableHead>Contact number</TableHead>
               <TableHead>Current role</TableHead>
               <TableHead>Skills</TableHead>
               <TableHead>Source</TableHead>
               <TableHead>Folders</TableHead>
               <TableHead>Linked requisition</TableHead>
+              <TableHead>Interview status</TableHead>
+              <TableHead>Communication status</TableHead>
               <TableHead>Resume</TableHead>
               <TableHead>Review</TableHead>
             </TableRow>
@@ -246,9 +271,12 @@ export function TalentPoolTab({
                   <div className='flex flex-col'>
                     <span className='text-neutral-1600 font-medium'>{c.name}</span>
                     <span className='text-paragraph-sm text-neutral-1000'>
-                      {c.email} · {c.phone}
+                      {c.email}
                     </span>
                   </div>
+                </TableCell>
+                <TableCell className='text-sm whitespace-nowrap'>
+                  {c.phone || '—'}
                 </TableCell>
                 <TableCell className='text-sm'>{c.currentRole}</TableCell>
                 <TableCell>
@@ -266,6 +294,10 @@ export function TalentPoolTab({
                 </TableCell>
                 <TableCell className='text-sm'>
                   {c.linkedRequisitionId ?? '—'}
+                </TableCell>
+                <TableCell className='text-sm'>{interviewStatus(c)}</TableCell>
+                <TableCell className='text-sm'>
+                  {communicationStatus(c)}
                 </TableCell>
                 <TableCell className='text-paragraph-sm text-blue-1400'>
                   {c.resume}
@@ -299,7 +331,7 @@ export function TalentPoolTab({
             ))}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className='text-neutral-1000 text-center'>
+                <TableCell colSpan={12} className='text-neutral-1000 text-center'>
                   No candidates match the applied filters
                 </TableCell>
               </TableRow>

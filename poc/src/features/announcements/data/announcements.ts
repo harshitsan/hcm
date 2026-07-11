@@ -614,6 +614,41 @@ export const seedAnnouncements: Announcement[] = [
   }),
 ]
 
+/**
+ * Daily "Thought of the day" entry surfaced on the employee feed — the UI
+ * counterpart of engine artifact kx-084 (Kensium: Organization > Add a new
+ * thought of the day). One entry per date; the latest entry on or before
+ * today is shown while the artifact is enabled.
+ */
+export interface ThoughtOfTheDay {
+  id: string
+  /** The date this thought is published for (yyyy-mm-dd). */
+  date: string
+  text: string
+  author: string
+}
+
+export const seedThoughts: ThoughtOfTheDay[] = [
+  {
+    id: 'tod-01',
+    date: '2026-07-09',
+    text: 'Small daily improvements are the key to staggering long-term results.',
+    author: 'Priya Sharma',
+  },
+  {
+    id: 'tod-02',
+    date: '2026-07-08',
+    text: 'The best way to predict the future is to create it.',
+    author: 'Meera Iyer',
+  },
+  {
+    id: 'tod-03',
+    date: '2026-07-07',
+    text: 'Alone we can do so little; together we can do so much.',
+    author: 'Priya Sharma',
+  },
+]
+
 /** Event-based image repository entry (PDF: Announcement images). */
 export interface AnnouncementImage {
   id: string

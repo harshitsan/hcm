@@ -258,7 +258,7 @@ export function SurveyApproversStep({
             </div>
             <div>
               <Label className='text-sm'>Approvers for this location</Label>
-              <div className='border-grey-200 mt-1 space-y-2 rounded-[6px] border px-3 py-2'>
+              <div className='border-gray-200 mt-1 space-y-2 rounded-[6px] border px-3 py-2'>
                 {SURVEY_APPROVER_CATALOG.map((name) => (
                   <div key={name} className='flex items-center gap-2'>
                     <Checkbox

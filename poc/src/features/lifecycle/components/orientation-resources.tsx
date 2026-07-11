@@ -344,7 +344,7 @@ export function PhysicalResourcesStep({ store }: { store: OrientationStore }) {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder='name@company.com' {...field} />
+                        <Input placeholder='e.g. name@company.com' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

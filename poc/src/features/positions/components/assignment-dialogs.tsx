@@ -205,7 +205,7 @@ export function EmployeeHistoryDialog({
             No position assignments recorded yet.
           </p>
         ) : (
-          <div className='divide-grey-200 border-grey-200 max-h-[320px] divide-y overflow-y-auto rounded-[6px] border'>
+          <div className='divide-grey-200 border-gray-200 max-h-[320px] divide-y overflow-y-auto rounded-[6px] border'>
             {rows.map((h) => (
               <div key={h.id} className='flex flex-col gap-1 px-3 py-2'>
                 <span className='text-neutral-1600 text-sm font-medium'>

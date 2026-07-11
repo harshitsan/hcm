@@ -156,7 +156,7 @@ export function ApplicationDetailSheet({
   return (
     <Sheet open={Boolean(app)} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 overflow-y-auto p-0 sm:max-w-[620px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {app.candidateName} — {app.requisitionTitle}
           </SheetTitle>
@@ -562,7 +562,7 @@ export function ApplicationDetailSheet({
                   <p className='mb-1 text-sm font-medium'>Contact email</p>
                   <Input
                     type='email'
-                    placeholder='referee@company.com'
+                    placeholder='e.g. referee@company.com'
                     value={refEmail}
                     onChange={(e) => setRefEmail(e.target.value)}
                   />
@@ -570,7 +570,7 @@ export function ApplicationDetailSheet({
                 <div>
                   <p className='mb-1 text-sm font-medium'>Contact phone</p>
                   <Input
-                    placeholder='+91 98xxx xxxxx'
+                    placeholder='e.g. +91 98xxx xxxxx'
                     value={refPhone}
                     onChange={(e) => setRefPhone(e.target.value)}
                   />
@@ -657,7 +657,7 @@ export function ApplicationDetailSheet({
                 <div>
                   <p className='mb-1 text-sm font-medium'>Upload document</p>
                   <Input
-                    placeholder='signed-reference.pdf'
+                    placeholder='e.g. signed-reference.pdf'
                     value={refDoc}
                     onChange={(e) => setRefDoc(e.target.value)}
                   />

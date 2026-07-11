@@ -161,7 +161,7 @@ export function SkillsSection({ store }: { store: ProfileExtrasStore }) {
               <Badge variant='overdue'>Expiring soon</Badge>
             )}
             {expiry === 'expired' && (
-              <Badge variant='disqualified'>Expired</Badge>
+              <Badge variant='dropped'>Expired</Badge>
             )}
           </span>
         ) : (

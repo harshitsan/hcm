@@ -527,7 +527,7 @@ export function ConfigProbation({ config }: { config: LifecycleConfigStore }) {
               <Input
                 value={groupApprovers}
                 onChange={(e) => setGroupApprovers(e.target.value)}
-                placeholder='Vikram Shah, Anita Desai'
+                placeholder='e.g. Vikram Shah, Anita Desai'
               />
             </div>
           </div>

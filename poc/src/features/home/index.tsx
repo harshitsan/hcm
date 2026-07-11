@@ -23,7 +23,7 @@ const currencyFmt = new Intl.NumberFormat('en-US', {
 function PortfolioTable() {
   return (
     <Card className='gap-0 overflow-hidden py-0'>
-      <div className='border-grey-200 border-b px-5 py-4'>
+      <div className='border-gray-200 border-b px-5 py-4'>
         <h3 className='text-paragraph-md text-neutral-1600 font-semibold'>
           Portfolio by community
         </h3>
@@ -34,7 +34,7 @@ function PortfolioTable() {
       <div className='overflow-x-auto'>
         <table className='w-full text-sm'>
           <thead>
-            <tr className='text-paragraph-sm text-neutral-1100 border-grey-200 border-b text-left'>
+            <tr className='text-paragraph-sm text-neutral-1100 border-gray-200 border-b text-left'>
               <th className='px-5 py-2.5 font-medium'>Community</th>
               <th className='px-5 py-2.5 text-right font-medium'>Units</th>
               <th className='px-5 py-2.5 font-medium'>Occupancy</th>
@@ -47,7 +47,7 @@ function PortfolioTable() {
             {properties.map((p) => (
               <tr
                 key={p.name}
-                className='border-grey-200 hover:bg-neutral-150 border-b last:border-0'
+                className='border-gray-200 hover:bg-neutral-150 border-b last:border-0'
               >
                 <td className='text-neutral-1600 px-5 py-3 font-medium'>
                   {p.name}

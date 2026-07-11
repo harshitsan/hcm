@@ -54,7 +54,7 @@ export function MyPositionTab({
             </CardTitle>
           </CardHeader>
           <CardContent className='px-4'>
-            <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+            <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
               {nonUsers.map((e) => {
                 const position = positions.find((p) => p.id === e.positionId)
                 const dept = departments.find(
@@ -172,7 +172,7 @@ export function MyPositionTab({
               No assignments recorded yet.
             </p>
           ) : (
-            <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+            <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
               {history.map((h) => (
                 <div key={h.id} className='flex flex-col gap-0.5 px-3 py-2'>
                   <span className='text-neutral-1600 text-sm font-medium'>

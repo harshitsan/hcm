@@ -99,7 +99,7 @@ export function LocationsTab({ store, locations }: LocationsTabProps) {
                 <Badge variant={loc.shared ? 'completed' : 'pending'}>
                   {loc.shared ? 'Shared with group' : 'Not shared'}
                 </Badge>
-                <Badge variant={sharingEnabled ? 'qualified' : 'badge_inactive'}>
+                <Badge variant={sharingEnabled ? 'badge_active' : 'badge_inactive'}>
                   {group?.code} · locations {sharingEnabled ? 'authorized' : 'not authorized'}
                 </Badge>
               </div>

@@ -134,7 +134,7 @@ export function ImagesTab({ settings }: ImagesTabProps) {
         </div>
       </div>
 
-      <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
+      <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
         <Table>
           <TableHeader>
             <TableRow>
@@ -166,7 +166,7 @@ export function ImagesTab({ settings }: ImagesTabProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant={img.eventType === 'Date of Birth' ? 'open' : 'booked'}>
+                  <Badge variant={img.eventType === 'Date of Birth' ? 'open' : 'open'}>
                     {img.eventType}
                   </Badge>
                 </TableCell>

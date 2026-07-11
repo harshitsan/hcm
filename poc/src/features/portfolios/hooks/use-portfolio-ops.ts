@@ -1,5 +1,9 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import {
+  type UploadErrorDetail,
+  type UploadResult,
+} from '@/components/common/upload-modal'
 import { COMPANY_BY_ID, companyName } from '../data/portfolios'
 import { type RecordEventFn } from './use-portfolio-audit'
 
@@ -11,6 +15,26 @@ export interface ImportRun {
   rowsSkipped: number
   timestamp: string
 }
+
+/** Deterministic dry-run rejections surfaced row-by-row in the UploadModal. */
+const IMPORT_ERROR_TEMPLATES: Omit<UploadErrorDetail, 'row'>[] = [
+  {
+    fieldName: 'Email',
+    reason: 'Duplicate email — an active employee record already uses it',
+  },
+  {
+    fieldName: 'Company code',
+    reason: 'Row belongs to another company — import is scoped to one company (PORT-21)',
+  },
+  {
+    fieldName: 'Joining date',
+    reason: 'Invalid date format — expected YYYY-MM-DD',
+  },
+  {
+    fieldName: 'Department',
+    reason: 'Unknown department code — no match in the target company',
+  },
+]
 
 export interface DeploymentResult {
   companyId: string
@@ -54,33 +78,61 @@ export function usePortfolioOps(record: RecordEventFn) {
     []
   )
 
-  /** Bulk employee import scoped to a single company (PORT-21). */
-  const runImport = useCallback(
-    (companyId: string, fileName: string) => {
+  /**
+   * Bulk employee import scoped to a single company (PORT-21), run through
+   * the sanctioned UploadModal framework: the uploaded file is staged, every
+   * staged row is validated, the dry-run reports row-level errors and only
+   * clean rows commit — the run is audited either way.
+   */
+  const importEmployees = useCallback(
+    async (companyId: string, file: File): Promise<UploadResult> => {
       const company = COMPANY_BY_ID[companyId]
-      const file = fileName.trim()
-      if (!company || !file) return
-      // Deterministic mock outcome derived from the company size.
-      const rowsProcessed = Math.max(12, Math.floor(company.headcount / 7))
-      const rowsSkipped = rowsProcessed % 5
+      if (!company) {
+        toast.error('Select a target company before importing')
+        return { state: 'failed', progress: 0 }
+      }
+      // Staging: rows parsed out of the uploaded file (mock batch — the POC
+      // has no backend, so the staged content is deterministic per company).
+      const rowsStaged = Math.max(12, Math.floor(company.headcount / 7))
+      const rejected: UploadErrorDetail[] = IMPORT_ERROR_TEMPLATES.slice(
+        0,
+        rowsStaged % 5
+      ).map((template, i) => ({ row: 3 + i * 4, ...template }))
+
+      // Validate + dry-run: simulate the round-trip before committing.
+      await new Promise((resolve) => setTimeout(resolve, 900))
+      const rowsCommitted = rowsStaged - rejected.length
+
       const run: ImportRun = {
         id: shortId('imp'),
         companyId,
-        fileName: file,
-        rowsProcessed,
-        rowsSkipped,
+        fileName: file.name,
+        rowsProcessed: rowsCommitted,
+        rowsSkipped: rejected.length,
         timestamp: stamp(),
       }
       setImports((prev) => [run, ...prev])
       record({
         eventType: 'BULK_IMPORT',
         companiesAffected: [company.name],
-        parameters: `${file} — ${rowsProcessed} rows processed, ${rowsSkipped} skipped (scoped to ${company.name})`,
-        status: 'success',
+        parameters: `${file.name} — ${rowsStaged} rows staged, dry-run committed ${rowsCommitted}, rejected ${rejected.length} (scoped to ${company.name})`,
+        status: rejected.length === 0 ? 'success' : 'failure',
       })
-      toast.success(
-        `Import processed for ${company.name} — ${rowsProcessed} rows`
-      )
+      if (rejected.length === 0) {
+        toast.success(
+          `Import committed for ${company.name} — ${rowsCommitted} rows`
+        )
+      } else {
+        toast.warning(
+          `${file.name}: ${rowsStaged} rows staged — dry-run committed ${rowsCommitted}, rejected ${rejected.length} with row-level errors`
+        )
+      }
+      return {
+        state: rejected.length === 0 ? 'success' : 'partial',
+        successCount: rowsCommitted,
+        failedCount: rejected.length,
+        errors: rejected,
+      }
     },
     [record]
   )
@@ -180,7 +232,7 @@ export function usePortfolioOps(record: RecordEventFn) {
     imports,
     deployments,
     announcements,
-    runImport,
+    importEmployees,
     deployPolicy,
     publishAnnouncement,
     exportReport,

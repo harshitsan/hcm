@@ -15,7 +15,7 @@ export function AccessDeniedPanel({
   description,
 }: AccessDeniedPanelProps) {
   return (
-    <Card className='border-grey-200 w-full border bg-white'>
+    <Card className='border-gray-200 w-full border bg-white'>
       <CardContent className='flex flex-col items-center gap-3 px-6 py-12 text-center'>
         <div className='bg-red-1300 flex h-12 w-12 items-center justify-center rounded-full'>
           <ShieldOff className='text-red-1400 h-6 w-6' />

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useRole } from '@/context/role-context'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
@@ -15,6 +16,7 @@ import { useCompanyContext } from './hooks/use-company-context'
 import { usePortfolioAudit } from './hooks/use-portfolio-audit'
 import { usePortfolioOps } from './hooks/use-portfolio-ops'
 import { usePortfolios } from './hooks/use-portfolios'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 
 const ADMIN_ROLES = [
   'Platform Admin',
@@ -38,8 +40,49 @@ export function Portfolios() {
 
   const audit = usePortfolioAudit(persona.email, role)
   const store = usePortfolios(audit.record, persona.email)
-  const context = useCompanyContext(audit.record, persona, role)
+  const baseContext = useCompanyContext(audit.record, persona, role)
   const ops = usePortfolioOps(audit.record)
+
+  const search = useSearch({ from: '/_authenticated/portfolios/' })
+  const navigate = useNavigate()
+  const currentCompanyId = baseContext.currentCompany?.id
+  const { switchCompany } = baseContext
+
+  // ?company= is the source of truth (PORT-FR-006 / PORT-17): a bookmarked
+  // URL switches context on load; a denied/unknown target keeps the active
+  // context and the URL falls back to it so the address stays bookmarkable.
+  useEffect(() => {
+    if (!currentCompanyId) return
+    if (search.company === currentCompanyId) return
+    if (search.company && switchCompany(search.company, 'url')) return
+    navigate({
+      to: '/portfolios',
+      search: { company: currentCompanyId },
+      replace: true,
+    })
+  }, [search.company, currentCompanyId, switchCompany, navigate])
+
+  // In-app switches (header selector, retry flows) also update the URL so
+  // the current context is always shareable as a bookmark.
+  const switchCompanyAndSyncUrl = useCallback(
+    (targetCompanyId: string, via: 'selector' | 'url') => {
+      const switched = switchCompany(targetCompanyId, via)
+      if (switched) {
+        navigate({
+          to: '/portfolios',
+          search: { company: targetCompanyId },
+          replace: true,
+        })
+      }
+      return switched
+    },
+    [switchCompany, navigate]
+  )
+
+  const context = useMemo(
+    () => ({ ...baseContext, switchCompany: switchCompanyAndSyncUrl }),
+    [baseContext, switchCompanyAndSyncUrl]
+  )
 
   const isAdmin = (ADMIN_ROLES as readonly string[]).includes(role)
   const canOperate = (OPS_ROLES as readonly string[]).includes(role)
@@ -106,6 +149,7 @@ export function Portfolios() {
                 </TabsContent>
                 <TabsContent value='admin'>
                   <div className='flex flex-col gap-6'>
+                    <EngineArtifactsPanel module='Portfolios' />
                     <section>
                       <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Bulk changes</h3>
                       <OperationsTab store={store} ops={ops} />

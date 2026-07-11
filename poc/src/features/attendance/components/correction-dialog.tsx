@@ -53,6 +53,14 @@ const correctionSchema = z
 
 type CorrectionValues = z.infer<typeof correctionSchema>
 
+/** Pre-filled values when the dialog is opened from a flagged attendance row. */
+export interface CorrectionPrefill {
+  date?: string
+  kind?: CorrectionKind
+  requestedIn?: string
+  requestedOut?: string
+}
+
 interface CorrectionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -62,6 +70,8 @@ interface CorrectionDialogProps {
   /** After the payroll cut-off day a second-level approval applies (TNA-43). */
   afterPayrollCutoff: boolean
   onSubmit: (draft: CorrectionDraft) => void
+  /** Keep referentially stable (useMemo) — the form resets when it changes. */
+  prefill?: CorrectionPrefill
 }
 
 /** Attendance exception correction request form (TNA-11). */
@@ -72,6 +82,7 @@ export function CorrectionDialog({
   requestedBy,
   afterPayrollCutoff,
   onSubmit,
+  prefill,
 }: CorrectionDialogProps) {
   const form = useForm<CorrectionValues>({
     resolver: zodResolver(correctionSchema),
@@ -85,8 +96,15 @@ export function CorrectionDialog({
   })
 
   useEffect(() => {
-    if (open) form.reset()
-  }, [open, form])
+    if (open)
+      form.reset({
+        date: prefill?.date ?? '2026-07-01',
+        kind: prefill?.kind ?? 'missed-punch',
+        requestedIn: prefill?.requestedIn ?? '09:00',
+        requestedOut: prefill?.requestedOut ?? '18:00',
+        justification: '',
+      })
+  }, [open, form, prefill])
 
   function handleSubmit(values: CorrectionValues) {
     onSubmit({

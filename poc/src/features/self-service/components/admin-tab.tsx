@@ -51,10 +51,18 @@ const udfSchema = z.object({
   minLength: z.number().min(0).max(50),
 })
 
-const NON_USERS = [
-  { name: 'Ramesh Gowda', designation: 'Facility technician', since: '2024-03-11' },
-  { name: 'Lakshmi Devi', designation: 'Cafeteria staff', since: '2023-08-02' },
-  { name: 'Suresh Babu', designation: 'Field surveyor', since: '2025-01-19' },
+interface NonUserRow {
+  name: string
+  designation: string
+  since: string
+  /** Set when an admin provisions portal access (ESS-10). */
+  converted: boolean
+}
+
+const SEED_NON_USERS: NonUserRow[] = [
+  { name: 'Ramesh Gowda', designation: 'Facility technician', since: '2024-03-11', converted: false },
+  { name: 'Lakshmi Devi', designation: 'Cafeteria staff', since: '2023-08-02', converted: false },
+  { name: 'Suresh Babu', designation: 'Field surveyor', since: '2025-01-19', converted: false },
 ]
 
 interface AdminTabProps {
@@ -69,6 +77,17 @@ interface AdminTabProps {
  */
 export function AdminTab({ profile, portal }: AdminTabProps) {
   const [udfOpen, setUdfOpen] = useState(false)
+  const [nonUsers, setNonUsers] = useState<NonUserRow[]>(SEED_NON_USERS)
+
+  /** Provision role/policy-scoped portal access for a non-user (ESS-10). */
+  const convertToUser = (name: string) => {
+    setNonUsers((prev) =>
+      prev.map((p) => (p.name === name ? { ...p, converted: true } : p))
+    )
+    toast.success(
+      `${name} converted to a user — role/policy-scoped self-service access provisioned`
+    )
+  }
 
   const form = useForm<z.infer<typeof udfSchema>>({
     resolver: zodResolver(udfSchema),
@@ -169,7 +188,7 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
             className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
           >
             <Plus size={10} weight='bold' />
-            Add UDF
+            Add custom field
           </Button>
         </div>
         <div className='rounded-md border bg-white'>
@@ -190,7 +209,7 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
                   <TableCell className='font-medium'>
                     <span className='flex items-center gap-2'>
                       {field.label}
-                      {field.isUdf && <Badge variant='open'>UDF</Badge>}
+                      {field.isUdf && <Badge variant='open'>Custom field</Badge>}
                     </span>
                   </TableCell>
                   <TableCell>{field.section}</TableCell>
@@ -242,7 +261,7 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
           role/policy-controlled access like any other user.
         </p>
         <div className='space-y-2'>
-          {NON_USERS.map((person) => (
+          {nonUsers.map((person) => (
             <div
               key={person.name}
               className='flex items-center justify-between rounded-[6px] border border-gray-200 bg-white px-4 py-2'
@@ -250,22 +269,27 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
               <div>
                 <p className='text-sm font-medium'>{person.name}</p>
                 <p className='text-paragraph-sm text-neutral-1000'>
-                  {person.designation} · non-user since {formatDate(person.since)}
+                  {person.designation} ·{' '}
+                  {person.converted
+                    ? 'portal user'
+                    : `non-user since ${formatDate(person.since)}`}
                 </p>
               </div>
               <div className='flex items-center gap-3'>
-                <Badge variant='badge_inactive'>No portal login</Badge>
-                <Button
-                  variant='outline'
-                  className='h-7 rounded-[6px] px-2'
-                  onClick={() =>
-                    toast.success(
-                      `${person.name} converted to a user — role/policy-scoped self-service access provisioned`
-                    )
-                  }
-                >
-                  Convert to user
-                </Button>
+                {person.converted ? (
+                  <Badge variant='badge_active'>Portal access provisioned</Badge>
+                ) : (
+                  <>
+                    <Badge variant='badge_inactive'>No portal login</Badge>
+                    <Button
+                      variant='outline'
+                      className='h-7 rounded-[6px] px-2'
+                      onClick={() => convertToUser(person.name)}
+                    >
+                      Convert to user
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           ))}
@@ -309,11 +333,11 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
                 </p>
                 <p>
                   Cross-tenant / cross-employee requests:{' '}
-                  <Badge variant='disqualified'>Denied at persistence layer</Badge>
+                  <Badge variant='dropped'>Denied at persistence layer</Badge>
                 </p>
                 <p>
                   Access logging: attributed to tenant + employee{' '}
-                  <Badge variant='qualified'>Enabled</Badge>
+                  <Badge variant='badge_active'>Enabled</Badge>
                 </p>
               </div>
             </div>

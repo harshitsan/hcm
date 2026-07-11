@@ -76,11 +76,10 @@ export function NavGroup({ title, items }: NavGroupProps) {
   // Ungrouped items (e.g. Dashboard) render as plain rows without a label.
   if (!title) return <SidebarGroup className='pb-0'>{rows}</SidebarGroup>
 
-  const containsActive = items.some((item) => checkIsActive(href, item, true))
-
   return (
     <Collapsible
-      defaultOpen={containsActive}
+      // All groups start expanded so first-time users see every module.
+      defaultOpen
       className='group/nav-group'
       asChild
     >

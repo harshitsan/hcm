@@ -102,7 +102,7 @@ export function GovernanceTab({ store }: { store: FeedbackConfigStore }) {
           {COMPANIES.map((c) => (
             <div
               key={c.name}
-              className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-2'
+              className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-2'
             >
               <div>
                 <Label className='text-sm font-medium'>{c.name}</Label>
@@ -141,7 +141,7 @@ export function GovernanceTab({ store }: { store: FeedbackConfigStore }) {
         <CardContent className='px-4'>
           <div className='grid grid-cols-1 gap-3 md:grid-cols-3'>
             {DATA_MODEL_PANELS.map((panel) => (
-              <div key={panel.title} className='border-grey-200 rounded-[6px] border px-3 py-2'>
+              <div key={panel.title} className='border-gray-200 rounded-[6px] border px-3 py-2'>
                 <div className='mb-1 flex items-center gap-2'>
                   <panel.icon className='text-blue-1400 size-4' />
                   <p className='text-neutral-1600 text-sm font-medium'>{panel.title}</p>

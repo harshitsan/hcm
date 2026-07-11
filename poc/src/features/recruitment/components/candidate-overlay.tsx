@@ -225,7 +225,7 @@ export function CandidateOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[460px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {mode === 'shortlist'
               ? `Shortlist candidate — ${candidate?.name ?? ''}`
@@ -245,7 +245,7 @@ export function CandidateOverlay({
                   <FormItem>
                     <FormLabel>Full name</FormLabel>
                     <FormControl>
-                      <Input placeholder='Asha Pillai' {...field} />
+                      <Input placeholder='e.g. Asha Pillai' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -259,7 +259,7 @@ export function CandidateOverlay({
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type='email' placeholder='asha@mail.com' {...field} />
+                        <Input type='email' placeholder='e.g. asha@mail.com' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -272,7 +272,7 @@ export function CandidateOverlay({
                     <FormItem>
                       <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <Input placeholder='+91 98xxx xxxxx' {...field} />
+                        <Input placeholder='e.g. +91 98xxx xxxxx' {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -353,7 +353,7 @@ export function CandidateOverlay({
                   <FormItem>
                     <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <Input placeholder='HSR Layout, Bengaluru' {...field} />
+                      <Input placeholder='e.g. HSR Layout, Bengaluru' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -366,7 +366,7 @@ export function CandidateOverlay({
                   <FormItem>
                     <FormLabel>Current role</FormLabel>
                     <FormControl>
-                      <Input placeholder='Backend Engineer @ Acme' {...field} />
+                      <Input placeholder='e.g. Backend Engineer @ Acme' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -514,7 +514,7 @@ export function CandidateOverlay({
                   <FormItem>
                     <FormLabel>Resume file</FormLabel>
                     <FormControl>
-                      <Input placeholder='asha-pillai-resume.pdf' {...field} />
+                      <Input placeholder='e.g. asha-pillai-resume.pdf' {...field} />
                     </FormControl>
                     <p className='text-paragraph-sm text-neutral-1000'>
                       Re-uploading overwrites the resume stored on the profile.
@@ -613,7 +613,7 @@ export function CandidateOverlay({
                 />
               )}
             </div>
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button
                 type='button'
                 variant='outline'

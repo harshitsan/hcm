@@ -15,6 +15,7 @@ import { useAudit } from './hooks/use-audit'
 import { useGroupCompanies } from './hooks/use-group-companies'
 import { usePolicyTemplates } from './hooks/use-policy-templates'
 import { useSharedLocations } from './hooks/use-shared-locations'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 
 /**
  * SatelliteHR POC — Group Companies module (FR 6.3 / GROUP-FR-001…006,
@@ -68,6 +69,7 @@ export function GroupCompanies() {
             </TabsContent>
             <TabsContent value='admin'>
               <div className='flex flex-col gap-6'>
+                <EngineArtifactsPanel module='Group Companies' />
                 <section>
                   <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Sharing & Roles</h3>
                   <SharingTab store={store} auditEntries={audit.entries} />

@@ -89,7 +89,7 @@ export function MovementsTab({ movements, assetsStore, config }: MovementsTabPro
 
   return (
     <div className='w-full'>
-      <div className='border-grey-200 mb-3 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
+      <div className='border-gray-200 mb-3 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
         <div className='flex flex-col gap-1'>
           <Label className='text-paragraph-sm'>Status</Label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -190,7 +190,7 @@ export function MovementsTab({ movements, assetsStore, config }: MovementsTabPro
         </div>
 
         <TabsContent value='arrivals'>
-          <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
+          <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -262,7 +262,7 @@ export function MovementsTab({ movements, assetsStore, config }: MovementsTabPro
         </TabsContent>
 
         <TabsContent value='outbound'>
-          <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
+          <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
             <Table>
               <TableHeader>
                 <TableRow>

@@ -61,7 +61,7 @@ export function StepLegalDetails({
         control={control}
         name='registrationNumber'
         label='Registration number *'
-        placeholder='29AABCM9012D1Z4'
+        placeholder='e.g. 29AABCM9012D1Z4'
         hint='GST numbers must be exactly 15 characters. Duplicates within a jurisdiction are rejected with COMP_006.'
       />
       <WizardTextField
@@ -87,13 +87,13 @@ export function StepContactInfo({
         name='primaryEmail'
         label='Primary contact email *'
         type='email'
-        placeholder='ops@acme.example'
+        placeholder='e.g. ops@acme.example'
       />
       <WizardTextField
         control={control}
         name='primaryPhone'
         label='Primary phone'
-        placeholder='+91 80 0000 0000'
+        placeholder='e.g. +91 80 0000 0000'
       />
       <WizardTextField
         control={control}

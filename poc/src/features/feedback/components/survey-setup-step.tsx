@@ -45,7 +45,7 @@ export function SurveySetupStep({ store, onNext }: SurveySetupStepProps) {
           </p>
         </CardHeader>
         <CardContent className='space-y-4 px-4'>
-          <div className='border-grey-200 flex items-center justify-between rounded-[6px] border px-3 py-3'>
+          <div className='border-gray-200 flex items-center justify-between rounded-[6px] border px-3 py-3'>
             <div>
               <Label className='text-sm font-medium'>Enable Survey Module?</Label>
               <p className='text-paragraph-sm text-neutral-1000'>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Plus, ShieldWarning, UserPlus } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -8,15 +9,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { DataTable } from '@/components/common/data-table/table'
+import { selectColumn } from '@/features/workflows/components/table-helpers'
 import { type FmlaReason } from '../data/config'
 import { type LeaveType } from '../data/leave-types'
-import { type LeaveRequest } from '../data/requests'
-import { DEPARTMENTS, EMPLOYEES, employeeById } from '../data/shared'
+import { pendingStep, type LeaveRequest } from '../data/requests'
+import {
+  DEPARTMENTS,
+  EMPLOYEES,
+  EMPLOYEE_CLASSES,
+  employeeById,
+  rangesOverlap,
+  todayISO,
+} from '../data/shared'
 import { type BalancesStore } from '../hooks/use-balances'
 import { type LeaveRequestsStore } from '../hooks/use-leave-requests'
 import { ApplyLeaveOverlay } from './apply-leave-overlay'
 import { AssignLeaveDialog } from './assign-leave-dialog'
+import { EncashmentPanel } from './encashment-panel'
 import { LeaveSummaryCards } from './leave-summary-cards'
 import { OverrideDialog } from './override-dialog'
 import { RequestDetailSheet } from './request-detail-sheet'
@@ -30,22 +42,14 @@ interface RequestsTabProps {
   actor: string
 }
 
-const MONTH_FMT = new Intl.DateTimeFormat('en-GB', {
-  month: 'short',
-  year: 'numeric',
-})
-
-function monthLabel(m: string) {
-  return MONTH_FMT.format(new Date(`${m}-01`))
-}
-
 /**
  * Manager / HR Admin request desk per the PDF's Employee Time Off Requests
- * screen: active/inactive toggle, period + status (default Pending) +
- * department filters, Assign Time Off, record-on-behalf for Employee
- * (Non-User) staff (LVE-17/29) and administrative overrides (LVE-07).
- * Approve / Reject / Need clarification / Cancel / View run from the
- * row's detail sheet.
+ * screen: active/inactive toggle, date-range + status (default Pending) +
+ * employee-class + department filters with a one-click reset (EOHR-01/05,
+ * ETOR-01/02), Assign Time Off, record-on-behalf for Employee (Non-User)
+ * staff (LVE-17/29) and administrative overrides (LVE-07). Approve / Reject
+ * run inline from the row (with SLA indicator) or in bulk via row selection;
+ * Need clarification / Cancel / View run from the row's detail sheet.
  */
 export function RequestsTab({
   requests,
@@ -57,7 +61,11 @@ export function RequestsTab({
   const [deptFilter, setDeptFilter] = useState('all')
   // Per the PDF the grid defaults to "Pending Approval".
   const [statusFilter, setStatusFilter] = useState('pending')
-  const [periodFilter, setPeriodFilter] = useState('all')
+  // ETOR-01: filter by employee class (Regular / Probationary / …).
+  const [classFilter, setClassFilter] = useState('all')
+  // EOHR-01: From / To date range instead of a single month picker.
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
   // ETOR-05: toggle which employees' requests appear — active, inactive or all.
   const [empStatus, setEmpStatus] = useState('active')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -65,32 +73,81 @@ export function RequestsTab({
   const [recordOpen, setRecordOpen] = useState(false)
   const [overrideOpen, setOverrideOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
+  // Mass approval: checkbox selection + a reset key bumped after bulk acts.
+  const [selectedRows, setSelectedRows] = useState<LeaveRequest[]>([])
+  const [selectionKey, setSelectionKey] = useState(0)
+  // One reject dialog serves both the inline row action and bulk rejects.
+  const [rejectTargets, setRejectTargets] = useState<LeaveRequest[]>([])
+  const [rejectReason, setRejectReason] = useState('')
 
-  // Months covered by any request, for the period filter.
-  const months = useMemo(() => {
-    const set = new Set<string>()
-    for (const r of requests.requests) {
-      set.add(r.from.slice(0, 7))
-      set.add(r.to.slice(0, 7))
+  const filtersDirty =
+    deptFilter !== 'all' ||
+    statusFilter !== 'pending' ||
+    classFilter !== 'all' ||
+    fromDate !== '' ||
+    toDate !== '' ||
+    empStatus !== 'active'
+
+  const resetFilters = () => {
+    setDeptFilter('all')
+    setStatusFilter('pending')
+    setClassFilter('all')
+    setFromDate('')
+    setToDate('')
+    setEmpStatus('active')
+  }
+
+  const data = useMemo(() => {
+    // ETOR-02: virtual statuses beyond the raw request status.
+    const statusMatch = (r: LeaveRequest) => {
+      switch (statusFilter) {
+        case 'all':
+          return true
+        case 'pending-with-me': {
+          const step = pendingStep(r.steps)
+          return (
+            r.status === 'pending' &&
+            step !== undefined &&
+            step.approver.includes(actor)
+          )
+        }
+        case 'taken':
+          return r.status === 'approved' && r.from <= todayISO()
+        case 'tentative':
+          return (
+            r.tentative && (r.status === 'pending' || r.status === 'approved')
+          )
+        default:
+          return r.status === statusFilter
+      }
     }
-    return [...set].sort()
-  }, [requests.requests])
-
-  const data = useMemo(
-    () =>
-      requests.requests.filter(
-        (r) =>
-          (deptFilter === 'all' || r.department === deptFilter) &&
-          (statusFilter === 'all' || r.status === statusFilter) &&
-          (periodFilter === 'all' ||
-            (r.from.slice(0, 7) <= periodFilter &&
-              periodFilter <= r.to.slice(0, 7))) &&
-          (empStatus === 'all' ||
-            (employeeById(r.employeeId)?.active ?? true) ===
-              (empStatus === 'active'))
-      ),
-    [deptFilter, empStatus, periodFilter, requests.requests, statusFilter]
-  )
+    return requests.requests.filter(
+      (r) =>
+        (deptFilter === 'all' || r.department === deptFilter) &&
+        statusMatch(r) &&
+        (classFilter === 'all' ||
+          employeeById(r.employeeId)?.employeeClass === classFilter) &&
+        ((fromDate === '' && toDate === '') ||
+          rangesOverlap(
+            r.from,
+            r.to,
+            fromDate || '0000-01-01',
+            toDate || '9999-12-31'
+          )) &&
+        (empStatus === 'all' ||
+          (employeeById(r.employeeId)?.active ?? true) ===
+            (empStatus === 'active'))
+    )
+  }, [
+    actor,
+    classFilter,
+    deptFilter,
+    empStatus,
+    fromDate,
+    requests.requests,
+    statusFilter,
+    toDate,
+  ])
 
   const cards = [
     { label: 'Total requests', value: requests.requests.length },
@@ -111,13 +168,48 @@ export function RequestsTab({
       ).length,
     },
     {
-      label: 'With LOP portion',
+      label: 'With Loss of Pay portion',
       value: requests.requests.filter((r) => r.lopAmount > 0).length,
     },
   ]
 
   const selected = requests.requests.find((r) => r.id === selectedId) ?? null
-  const columns = useMemo(() => requestColumns(true), [])
+  const selectedPending = selectedRows.filter((r) => r.status === 'pending')
+
+  const clearSelection = () => {
+    setSelectedRows([])
+    setSelectionKey((k) => k + 1)
+  }
+
+  const approveMany = (targets: LeaveRequest[]) => {
+    for (const r of targets) {
+      requests.approve(r.id, false)
+    }
+    clearSelection()
+  }
+
+  const rejectMany = () => {
+    const reason = rejectReason.trim()
+    if (!reason) return
+    for (const r of rejectTargets) {
+      requests.reject(r.id, reason, null)
+    }
+    setRejectTargets([])
+    setRejectReason('')
+    clearSelection()
+  }
+
+  const columns = useMemo(
+    () => [
+      selectColumn<LeaveRequest>(),
+      ...requestColumns(true, {
+        onApprove: (r) => requests.approve(r.id, false),
+        onReject: (r) => setRejectTargets([r]),
+      }),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [requests.approve]
+  )
   const nonUsers = EMPLOYEES.filter((e) => !e.selfService && e.active)
 
   return (
@@ -129,6 +221,11 @@ export function RequestsTab({
           All Requests ({data.length})
         </h2>
         <div className='flex flex-wrap items-center gap-2'>
+          {filtersDirty && (
+            <Button variant='outline' className='h-7' onClick={resetFilters}>
+              Reset filters
+            </Button>
+          )}
           <Select value={empStatus} onValueChange={setEmpStatus}>
             <SelectTrigger variant='secondary' className='h-7 w-[160px]'>
               <SelectValue />
@@ -139,32 +236,50 @@ export function RequestsTab({
               <SelectItem value='all'>All employees</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={periodFilter} onValueChange={setPeriodFilter}>
-            <SelectTrigger variant='secondary' className='h-7 w-[130px]'>
-              <SelectValue placeholder='Period' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='all'>All periods</SelectItem>
-              {months.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {monthLabel(m)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* EOHR-01: From / To range filter (matches overlap with the range) */}
+          <Input
+            type='date'
+            aria-label='From date'
+            value={fromDate}
+            onChange={(e) => setFromDate(e.target.value)}
+            className='h-7 w-[140px]'
+          />
+          <Input
+            type='date'
+            aria-label='To date'
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            className='h-7 w-[140px]'
+          />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger variant='secondary' className='h-7 w-[180px]'>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value='pending'>Pending approval</SelectItem>
+              <SelectItem value='pending-with-me'>Pending with me</SelectItem>
               <SelectItem value='needs-clarification'>Needs clarification</SelectItem>
               <SelectItem value='approved'>Approved</SelectItem>
+              <SelectItem value='taken'>Taken</SelectItem>
+              <SelectItem value='tentative'>Tentative</SelectItem>
               <SelectItem value='rejected'>Rejected</SelectItem>
               <SelectItem value='cancellation-requested'>Cancellation requested</SelectItem>
               <SelectItem value='cancelled'>Cancelled</SelectItem>
               <SelectItem value='withdrawn'>Withdrawn</SelectItem>
               <SelectItem value='all'>All statuses</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={classFilter} onValueChange={setClassFilter}>
+            <SelectTrigger variant='secondary' className='h-7 w-[150px]'>
+              <SelectValue placeholder='Employee class' />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value='all'>All classes</SelectItem>
+              {EMPLOYEE_CLASSES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={deptFilter} onValueChange={setDeptFilter}>
@@ -208,24 +323,67 @@ export function RequestsTab({
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant='red'
-            disabled={!recordFor}
-            onClick={() => setRecordOpen(true)}
-            className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
+          <span
+            title={
+              recordFor
+                ? undefined
+                : 'Pick a non-user employee first — leave is recorded on their behalf'
+            }
           >
-            <Plus size={10} weight='bold' />
-            Record Leave
-          </Button>
+            <Button
+              variant='red'
+              disabled={!recordFor}
+              onClick={() => setRecordOpen(true)}
+              className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
+            >
+              <Plus size={10} weight='bold' />
+              Record Leave
+            </Button>
+          </span>
         </div>
       </div>
+
+      {/* Mass approval bar — appears once rows are checked. */}
+      {selectedRows.length > 0 && (
+        <div className='mb-3 flex flex-wrap items-center gap-2 rounded-[8px] border border-gray-200 bg-white px-3 py-2'>
+          <span className='text-neutral-1000 text-sm'>
+            {selectedRows.length} selected ({selectedPending.length} pending)
+          </span>
+          <Button
+            variant='outline'
+            className='h-7'
+            disabled={selectedPending.length === 0}
+            onClick={() => approveMany(selectedPending)}
+          >
+            Approve Selected ({selectedPending.length})
+          </Button>
+          <Button
+            variant='outline'
+            className='text-red-1400 h-7'
+            disabled={selectedPending.length === 0}
+            onClick={() => setRejectTargets(selectedPending)}
+          >
+            Reject Selected ({selectedPending.length})
+          </Button>
+          <Button variant='ghost' className='h-7' onClick={clearSelection}>
+            Clear
+          </Button>
+        </div>
+      )}
 
       <DataTable
         columns={columns}
         data={data}
         variant='no-status'
         onRowClick={(row: LeaveRequest) => setSelectedId(row.id)}
+        onSelectionChange={setSelectedRows}
+        resetSelectionKey={selectionKey}
       />
+
+      {/* Encashment (payout) requests awaiting the Time Off Admin's decision. */}
+      <div className='mt-6'>
+        <EncashmentPanel balances={balances} />
+      </div>
 
       {recordFor && (
         <ApplyLeaveOverlay
@@ -268,6 +426,37 @@ export function RequestsTab({
         isOwner={false}
         isAdmin
       />
+      {/* Shared reject dialog — a reason is mandatory (LVE-13). */}
+      <ConfirmDialog
+        open={rejectTargets.length > 0}
+        onOpenChange={(o) => {
+          if (!o) {
+            setRejectTargets([])
+            setRejectReason('')
+          }
+        }}
+        title={
+          rejectTargets.length > 1
+            ? `Reject ${rejectTargets.length} requests?`
+            : `Reject ${rejectTargets[0]?.employeeName ?? ''}'s request?`
+        }
+        desc='The applicants are notified and any deducted balance is restored. A reason is required.'
+        confirmText={
+          rejectTargets.length > 1
+            ? `Reject ${rejectTargets.length} requests`
+            : 'Reject request'
+        }
+        destructive
+        disabled={rejectReason.trim().length === 0}
+        handleConfirm={rejectMany}
+      >
+        <Textarea
+          placeholder='Reason for rejection (required)'
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          className='min-h-[70px]'
+        />
+      </ConfirmDialog>
     </div>
   )
 }

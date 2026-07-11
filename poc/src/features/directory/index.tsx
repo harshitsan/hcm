@@ -7,6 +7,7 @@ import { DirectorySummary } from './components/directory-summary'
 import { DirectoryTab } from './components/directory-tab'
 import { FeedbackWorklistTab } from './components/feedback-worklist-tab'
 import { GovernanceTab } from './components/governance-tab'
+import { MyFeedbackTab } from './components/my-feedback-tab'
 import { OrgChartTab } from './components/org-chart-tab'
 import { PrivacyConfigTab } from './components/privacy-config-tab'
 import { TimelineSettingsCard } from './components/timeline-settings-card'
@@ -15,6 +16,7 @@ import { useDirectory } from './hooks/use-directory'
 import { useDirectoryConfig } from './hooks/use-directory-config'
 import { useTimeline } from './hooks/use-timeline'
 import { scopedCompanies } from './utils/org'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 
 interface TabDef {
   value: string
@@ -36,6 +38,9 @@ export function DirectoryOrgChart() {
   const isCompanyAdmin = role === 'Company Admin'
   const isPlatformAdmin = role === 'Platform Admin'
   const showAdmin = isCompanyAdmin || isPlatformAdmin
+  // Kensium "Organization / My Feedback - Grievance" parity: the signed-in
+  // employee submits and tracks their own feedback / grievances.
+  const showMyFeedback = role === 'Employee (User)'
 
   const tabs = useMemo<TabDef[]>(() => {
     const list: TabDef[] = [
@@ -43,12 +48,15 @@ export function DirectoryOrgChart() {
       { value: 'org-chart', label: 'Org Chart' },
       { value: 'vacancies', label: 'Vacancies' },
     ]
+    if (showMyFeedback) {
+      list.push({ value: 'my-feedback', label: 'My Feedback' })
+    }
     if (showAdmin) {
       list.push({ value: 'feedback', label: 'Feedback & Grievance' })
       list.push({ value: 'admin', label: 'Admin' })
     }
     return list
-  }, [showAdmin])
+  }, [showAdmin, showMyFeedback])
 
   const companies = useMemo(() => scopedCompanies(role), [role])
   const scopedEmployees = useMemo(() => {
@@ -89,6 +97,11 @@ export function DirectoryOrgChart() {
             <TabsContent value='vacancies'>
               <VacanciesTab />
             </TabsContent>
+            {showMyFeedback && (
+              <TabsContent value='my-feedback'>
+                <MyFeedbackTab />
+              </TabsContent>
+            )}
             {showAdmin && (
               <TabsContent value='feedback'>
                 <FeedbackWorklistTab store={store} />
@@ -97,6 +110,7 @@ export function DirectoryOrgChart() {
             {showAdmin && (
               <TabsContent value='admin'>
                 <div className='flex flex-col gap-6'>
+                  <EngineArtifactsPanel module='Directory & Org Chart' />
                   <section>
                     <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Privacy & fields</h3>
                     <PrivacyConfigTab config={config} />

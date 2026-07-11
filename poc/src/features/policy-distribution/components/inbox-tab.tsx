@@ -17,6 +17,18 @@ const dateFmt = new Intl.DateTimeFormat('en-GB', {
   year: 'numeric',
 })
 
+/** Plain-language deadline copy, e.g. "Due in 3 days (08 Jul 2026)". */
+function dueCopy(dueDate: string): string {
+  const days = Math.ceil(
+    (new Date(`${dueDate}T23:59:59`).getTime() - Date.now()) / 86_400_000
+  )
+  const date = dateFmt.format(new Date(dueDate))
+  if (days < 0)
+    return `Overdue — was due ${date}, please acknowledge as soon as possible`
+  if (days === 0) return `Due today (${date})`
+  return `Due in ${days} day${days === 1 ? '' : 's'} (${date})`
+}
+
 interface InboxTabProps {
   store: PolicyDistributionStore
   config: PolicyConfigStore
@@ -36,7 +48,7 @@ function InboxRow({
   return (
     <div
       className={`flex items-center justify-between gap-3 rounded-[6px] border bg-white px-4 py-3 ${
-        a.status === 'Overdue' ? 'border-red-1400/40' : 'border-grey-200'
+        a.status === 'Overdue' ? 'border-red-1400/40' : 'border-gray-200'
       }`}
     >
       <div className='flex min-w-0 items-center gap-3'>
@@ -54,19 +66,21 @@ function InboxRow({
                   a.status === 'Overdue' ? 'text-red-1400' : 'text-neutral-1000'
                 }`}
               >
-                Due {dateFmt.format(new Date(a.dueDate))}
+                {dueCopy(a.dueDate)}
               </span>
             )}
             {a.remindersSent.length > 0 && !acted && (
               <span className='text-paragraph-sm text-neutral-1000 flex items-center gap-1'>
                 <BellRinging size={12} />
-                Reminders at {a.remindersSent.join('%, ')}% SLA
+                {a.remindersSent.length} reminder
+                {a.remindersSent.length === 1 ? '' : 's'} sent
               </span>
             )}
-            {a.taskStatus !== 'None' && (
-              <Badge variant={a.taskStatus === 'Completed' ? 'completed' : 'open'}>
-                Checklist task {a.taskStatus.toLowerCase()}
-              </Badge>
+            {a.taskStatus === 'Open' && !acted && (
+              <Badge variant='open'>To do — review and acknowledge</Badge>
+            )}
+            {a.taskStatus === 'Completed' && (
+              <Badge variant='completed'>Done — no action needed</Badge>
             )}
           </div>
         </div>
@@ -106,7 +120,7 @@ export function InboxTab({ store, config }: InboxTabProps) {
 
   if (role === 'Employee (Non-User)') {
     return (
-      <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+      <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
         <UserCircleMinus size={32} className='text-neutral-1000' />
         <p className='text-neutral-1600 text-paragraph-md font-medium'>
           No self-service access

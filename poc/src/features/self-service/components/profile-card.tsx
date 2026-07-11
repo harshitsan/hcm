@@ -61,7 +61,7 @@ export function ProfileCard({ store, canManage }: ProfileCardProps) {
                     )}
                   </span>
                   <div className='flex shrink-0 items-center gap-1'>
-                    {field.isUdf && <Badge variant='open'>UDF</Badge>}
+                    {field.isUdf && <Badge variant='open'>Custom field</Badge>}
                     {field.mode === 'view-only' && (
                       <Badge variant='badge_inactive'>View only</Badge>
                     )}
@@ -99,8 +99,8 @@ export function ProfileCard({ store, canManage }: ProfileCardProps) {
         </CardTitle>
         {hiddenCount > 0 && (
           <span className='text-paragraph-sm text-neutral-1000'>
-            {hiddenCount} field{hiddenCount === 1 ? '' : 's'} outside your
-            authorized scope {hiddenCount === 1 ? 'is' : 'are'} not shown
+            {hiddenCount} field{hiddenCount === 1 ? '' : 's'} you don't have
+            permission to see {hiddenCount === 1 ? 'is' : 'are'} hidden
           </span>
         )}
       </CardHeader>

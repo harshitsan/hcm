@@ -29,7 +29,7 @@ export function ConfigDecisionTable({ config }: { config: PolicyConfigStore }) {
         The rules engine evaluates these rows to decide which events force
         re-acknowledgment, for which policies and which employees.
       </p>
-      <div className='border-grey-200 rounded-[6px] border bg-white'>
+      <div className='border-gray-200 rounded-[6px] border bg-white'>
         <Table>
           <TableHeader>
             <TableRow>

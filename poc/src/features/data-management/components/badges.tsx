@@ -5,17 +5,17 @@ import { type JobStatus, type RecordOutcome } from '../data/jobs'
 type BadgeVariant =
   | 'pending'
   | 'open'
-  | 'overlay_open'
+  | 'open'
   | 'completed'
   | 'dropped'
   | 'overdue'
-  | 'qualified'
+  | 'badge_active'
   | 'badge_inactive'
 
 const statusVariant: Record<JobStatus, BadgeVariant> = {
   Submitted: 'pending',
   Validating: 'open',
-  'In-progress': 'overlay_open',
+  'In-progress': 'open',
   Completed: 'completed',
   Failed: 'dropped',
   'Partially completed': 'overdue',
@@ -39,7 +39,7 @@ export function JobStatusBadge({
 const tierVariant: Record<Tier, BadgeVariant> = {
   Foundation: 'pending',
   Organizational: 'open',
-  Workforce: 'qualified',
+  Workforce: 'badge_active',
   Transactional: 'overdue',
 }
 

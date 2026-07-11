@@ -19,7 +19,7 @@ import { valueAsOf } from '../data/field-engine'
 import { type ValueHistoryEntry } from '../data/records'
 import { PortfolioOversightPanel, TenantIsolationPanel } from './oversight-panels'
 
-interface GovernanceTabProps {
+interface HistoryTabProps {
   fields: FieldDefinition[]
   versions: FieldVersionEntry[]
   valueHistory: ValueHistoryEntry[]
@@ -28,14 +28,10 @@ interface GovernanceTabProps {
 const today = () => new Date().toISOString().slice(0, 10)
 
 /**
- * Governance & history: versioned definitions (L2), bitemporal value history
- * with as-of queries (L1), portfolio/group oversight, and tenant isolation.
+ * History: versioned definitions (L2) and bitemporal value history with
+ * as-of queries (L1).
  */
-export function GovernanceTab({
-  fields,
-  versions,
-  valueHistory,
-}: GovernanceTabProps) {
+export function HistoryTab({ fields, versions, valueHistory }: HistoryTabProps) {
   const [asOf, setAsOf] = useState(today())
 
   /** Distinct (record, field) pairs that have history, resolved as-of. */
@@ -121,7 +117,7 @@ export function GovernanceTab({
       <Card className='gap-3 py-4'>
         <CardHeader className='flex flex-row items-center justify-between'>
           <CardTitle className='text-paragraph-md'>
-            Custom value history (bitemporal — corrections never destroy
+            Custom value history (every correction is kept — changes never destroy
             earlier versions)
           </CardTitle>
           <div className='flex items-center gap-2'>
@@ -187,6 +183,17 @@ export function GovernanceTab({
         </CardContent>
       </Card>
 
+    </div>
+  )
+}
+
+/**
+ * Governance: portfolio/group oversight of applied definitions and
+ * platform-level tenant isolation — each panel keeps its existing gating.
+ */
+export function GovernanceTab({ fields }: { fields: FieldDefinition[] }) {
+  return (
+    <div className='space-y-4'>
       <RoleGate
         roles={['Portfolio Admin', 'Platform Admin', 'Group Company Admin']}
       >

@@ -37,7 +37,7 @@ export function AuditTrail({ events }: { events: AuditEvent[] }) {
           Tenant-scoped · bitemporal (valid + record time) · retained 7 years
         </span>
       </div>
-      <div className='border-grey-200 max-h-[420px] overflow-y-auto rounded-[6px] border bg-white'>
+      <div className='border-gray-200 max-h-[420px] overflow-y-auto rounded-[6px] border bg-white'>
         <Table>
           <TableHeader>
             <TableRow>

@@ -54,7 +54,7 @@ export function GovernanceTab({
   return (
     <div className='grid w-full gap-4 lg:grid-cols-2'>
       {/* Mandatory audit entity + field scope */}
-      <Card className='border-grey-200 border bg-white'>
+      <Card className='border-gray-200 border bg-white'>
         <CardHeader className='px-4 pt-4 pb-0'>
           <CardTitle className='text-paragraph-sm text-neutral-1600 font-medium'>
             Audit scope — mandatory entities &amp; tracked fields
@@ -64,14 +64,14 @@ export function GovernanceTab({
           {scopeEntities.map((cfg) => (
             <div
               key={cfg.entity}
-              className='border-grey-200 rounded-[6px] border p-3'
+              className='border-gray-200 rounded-[6px] border p-3'
             >
               <div className='mb-2 flex flex-wrap items-center gap-2'>
                 <span className='text-neutral-1600 text-sm font-semibold'>
                   {cfg.entity}
                 </span>
                 {cfg.mandatory && (
-                  <Badge variant='disqualified'>Mandatory</Badge>
+                  <Badge variant='dropped'>Mandatory</Badge>
                 )}
                 <span className='text-neutral-1000 ms-auto text-xs'>
                   v{cfg.version} · effective{' '}
@@ -113,7 +113,7 @@ export function GovernanceTab({
       </Card>
 
       {/* Role-based audit access permissions */}
-      <Card className='border-grey-200 border bg-white'>
+      <Card className='border-gray-200 border bg-white'>
         <CardHeader className='flex flex-wrap items-center justify-between px-4 pt-4 pb-0'>
           <CardTitle className='text-paragraph-sm text-neutral-1600 font-medium'>
             Audit access permissions (per-tenant governed config)

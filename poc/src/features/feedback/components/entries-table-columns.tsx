@@ -98,7 +98,7 @@ const entryColumn: ColumnDef<FeedbackEntry> = {
             {entry.subject}
           </LongText>
           <span className='text-paragraph-sm text-neutral-1000 truncate'>
-            {entry.id} · schema v{entry.schemaVersion}
+            {entry.id} · form v{entry.schemaVersion}
           </span>
         </div>
       </HighlightedCell>

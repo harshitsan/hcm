@@ -125,7 +125,7 @@ export function StepOptions({ form, importFn }: StepOptionsProps) {
         render={({ field }) => (
           <FormItem className='flex items-center justify-between rounded-[6px] border border-gray-200 px-3 py-2.5'>
             <div>
-              <FormLabel>Preserve effective dates (bitemporal)</FormLabel>
+              <FormLabel>Preserve effective dates (keeps full change history)</FormLabel>
               <p className='text-paragraph-sm text-neutral-1000'>
                 Historical rows keep their stated effective dates; later
                 corrections version the record instead of overwriting the past.

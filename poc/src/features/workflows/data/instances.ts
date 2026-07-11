@@ -65,6 +65,7 @@ export type TaskVia =
   | 'role'
   | 'time-reassignment'
   | 'multi-level'
+  | 'delegated'
 
 export const TASK_VIA_LABELS: Record<TaskVia, string> = {
   normal: 'Direct assignment',
@@ -72,6 +73,7 @@ export const TASK_VIA_LABELS: Record<TaskVia, string> = {
   role: 'Role escalation',
   'time-reassignment': 'Time-based reassignment',
   'multi-level': 'Multi-level escalation',
+  delegated: 'Delegated',
 }
 
 export type TaskStatus =

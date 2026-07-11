@@ -117,7 +117,7 @@ export function EmployeeDetailSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[620px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md flex flex-wrap items-center gap-2 font-semibold'>
             {employee.name}
             <span className='text-neutral-1000 text-sm font-normal'>
@@ -128,7 +128,7 @@ export function EmployeeDetailSheet({
           <div className='flex flex-wrap items-center gap-1.5 pt-1'>
             <Badge variant='open'>{companyName(employee.companyId)}</Badge>
             <Badge variant='pending'>{companyGroup(employee.companyId)}</Badge>
-            <Badge variant={employee.hasUserAccount ? 'qualified' : 'badge_inactive'}>
+            <Badge variant={employee.hasUserAccount ? 'badge_active' : 'badge_inactive'}>
               {employee.hasUserAccount ? 'User account linked' : 'No user account'}
             </Badge>
           </div>
@@ -272,6 +272,19 @@ export function EmployeeDetailSheet({
                   {e.date} — {e.details}
                 </p>
               ))}
+              {employee.bulkFieldValues &&
+                Object.keys(employee.bulkFieldValues).length > 0 && (
+                  <>
+                    <SectionTitle>Sub-record fields (mass update)</SectionTitle>
+                    <div className='grid grid-cols-2 gap-4'>
+                      {Object.entries(employee.bulkFieldValues).map(
+                        ([field, value]) => (
+                          <InfoField key={field} label={field} value={value} />
+                        )
+                      )}
+                    </div>
+                  </>
+                )}
             </TabsContent>
 
             <TabsContent value='reporting' className='space-y-4'>

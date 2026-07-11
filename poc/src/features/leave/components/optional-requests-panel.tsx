@@ -94,6 +94,28 @@ export function OptionalRequestsPanel({
           Employee Optional Holiday Requests ({rows.length})
         </h2>
         <div className='flex flex-wrap items-center justify-end gap-2'>
+          {/* EOHR-05: one-click reset back to the default filter state */}
+          {(statusFilter !== 'pending' ||
+            classFilter !== 'all' ||
+            deptFilter !== 'all' ||
+            fromDate !== '' ||
+            toDate !== '' ||
+            includeInactive) && (
+            <Button
+              variant='outline'
+              className='h-7'
+              onClick={() => {
+                setStatusFilter('pending')
+                setClassFilter('all')
+                setDeptFilter('all')
+                setFromDate('')
+                setToDate('')
+                setIncludeInactive(false)
+              }}
+            >
+              Reset filters
+            </Button>
+          )}
           <Button
             variant='outline'
             onClick={() => setBulkOpen(true)}

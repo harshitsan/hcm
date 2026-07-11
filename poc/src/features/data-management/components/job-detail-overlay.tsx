@@ -14,6 +14,7 @@ import {
 import { type Tier } from '../data/catalog'
 import { type DataJob } from '../data/jobs'
 import { JobStatusBadge, OutcomeBadge, TierBadge } from './badges'
+import { downloadErrorReportCsv } from './error-report'
 import { ADMIN_ROLES } from './scope'
 
 const dateTimeFmt = new Intl.DateTimeFormat('en-GB', {
@@ -71,7 +72,7 @@ export function JobDetailOverlay({
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[640px]'>
         {job && (
           <>
-            <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+            <SheetHeader className='border-gray-200 border-b px-5 py-4'>
               <SheetTitle className='text-neutral-1600 text-paragraph-md flex items-center gap-2 font-semibold'>
                 {job.id} — {job.fileName}
                 <JobStatusBadge
@@ -173,7 +174,7 @@ export function JobDetailOverlay({
               )}
             </div>
 
-            <div className='border-grey-200 flex flex-wrap items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex flex-wrap items-center justify-end gap-3 border-t px-5 py-4'>
               {terminal && job.kind === 'export' && (
                 <Button
                   variant='outline'
@@ -189,11 +190,7 @@ export function JobDetailOverlay({
               {terminal && hasFailures && (
                 <Button
                   variant='outline'
-                  onClick={() =>
-                    toast.success(
-                      `Record-level error report for ${job.id} downloaded (CSV)`
-                    )
-                  }
+                  onClick={() => downloadErrorReportCsv(job)}
                 >
                   Download error report
                 </Button>

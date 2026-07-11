@@ -55,6 +55,8 @@ interface PasswordResetDialogProps {
   /** Current effective password policy (AUTH-17). */
   policy: PasswordPolicyVersion
   logEvent: (draft: AuditEventDraft) => void
+  /** Stamps the new credential date and clears any lockout on the account. */
+  onResetComplete: (userId: string) => void
 }
 
 /**
@@ -68,6 +70,7 @@ export function PasswordResetDialog({
   users,
   policy,
   logEvent,
+  onResetComplete,
 }: PasswordResetDialogProps) {
   const [email, setEmail] = useState('')
   const [step, setStep] = useState<'request' | 'set' | 'sso'>('request')
@@ -116,12 +119,16 @@ export function PasswordResetDialog({
   }
 
   const completeReset = () => {
+    const user = users.find(
+      (u) => u.email.toLowerCase() === email.trim().toLowerCase()
+    )
+    if (user) onResetComplete(user.id)
     logEvent({
       actor: email.trim(),
       eventType: 'password-reset-complete',
       method: 'password',
       outcome: 'success',
-      detail: `New password accepted under policy v${policy.version} and stored hashed — never in plain text.`,
+      detail: `New password accepted under policy v${policy.version} and stored hashed — never in plain text. Failed-attempt counter reset; any lockout cleared.`,
     })
     logEvent({
       actor: 'system',
@@ -156,7 +163,7 @@ export function PasswordResetDialog({
           <>
             <Input
               type='email'
-              placeholder='name@company.example'
+              placeholder='e.g. name@company.example'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />

@@ -322,7 +322,7 @@ export function ConfigApprovers({ settings }: { settings: LeaveSettingsStore }) 
         <div className='space-y-5'>
           <MappingTable
             title='Time Off Approvers'
-            hint='paid leave routes to the approver; LOP portions to the LOP approver'
+            hint='paid leave routes to the approver; Loss of Pay portions to the Loss of Pay approver'
             kind='timeoff'
             rows={settings.timeOffApprovers}
             withLop

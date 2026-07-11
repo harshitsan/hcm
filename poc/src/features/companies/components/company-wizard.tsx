@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -112,9 +111,12 @@ export function CompanyWizard({
   }
 
   const saveDraft = async () => {
+    // Inline field error from the schema is the single source of validation
+    // feedback here; toasts are reserved for success/system messages.
     const valid = await form.trigger(['legalName'])
     if (!valid) {
-      toast.error('A legal name (3-100 characters) is required to save a draft')
+      // Ensure the field with the error is on screen.
+      setStep(0)
       return
     }
     if (onSubmit(form.getValues(), true)) onOpenChange(false)
@@ -127,7 +129,7 @@ export function CompanyWizard({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
-          <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+          <SheetHeader className='border-gray-200 border-b px-5 py-4'>
             <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
               Create Company — Step {step + 1} of 6: {WIZARD_STEPS[step]}
             </SheetTitle>
@@ -167,7 +169,7 @@ export function CompanyWizard({
                 )}
               </div>
 
-              <div className='border-grey-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
+              <div className='border-gray-200 flex items-center justify-between gap-3 border-t px-5 py-4'>
                 <Button type='button' variant='outline' onClick={saveDraft}>
                   Save as Draft
                 </Button>

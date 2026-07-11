@@ -4,7 +4,12 @@
  * Each entry is raised by a directory employee (`raisedById` references the
  * canonical directory seed), so the worklist can be narrowed by the
  * submitter's employment status (Active / Inactive) and by submitter.
+ * Entries submitted by the signed-in mock employee use `SELF_EMPLOYEE_ID`
+ * (see ../data/timeline.ts) so the self-service "My Feedback" list and the
+ * admin worklist share one queue.
  */
+
+import { SELF_EMPLOYEE_ID } from './timeline'
 
 export const WORKLIST_CATEGORIES = [
   'Grievance',
@@ -21,19 +26,57 @@ export const WORKLIST_STATUSES = [
 ] as const
 export type WorklistStatus = (typeof WORKLIST_STATUSES)[number]
 
+/** Triage flow used by both the admin worklist and My Feedback status list. */
+export const NEXT_WORKLIST_STATUS: Partial<
+  Record<WorklistStatus, WorklistStatus>
+> = {
+  Submitted: 'Under Review',
+  'Under Review': 'Resolved',
+  Resolved: 'Closed',
+}
+
 export interface FeedbackWorklistEntry {
   id: string
   /** Human-readable reference number. */
   code: string
-  /** Directory employee id of the submitter. */
+  /**
+   * Directory employee id of the submitter, or `SELF_EMPLOYEE_ID` for
+   * entries filed by the signed-in mock employee through self-service.
+   */
   raisedById: string
   category: WorklistCategory
   subject: string
+  /** Free-text detail captured by the self-service form. */
+  description?: string
+  /** Identity withheld from the admin worklist when true. */
+  anonymous?: boolean
   submittedOn: string
   status: WorklistStatus
 }
 
 export const seedWorklistEntries: FeedbackWorklistEntry[] = [
+  {
+    id: 'fbw-self-01',
+    code: 'EFG-1044',
+    raisedById: SELF_EMPLOYEE_ID,
+    category: 'Grievance',
+    subject: 'Cab drop point changed without prior notice',
+    description:
+      'The evening cab drop point moved from Gate 2 to Gate 4 this week with no announcement — the extra walk is unsafe after the late shift.',
+    submittedOn: '2026-06-24',
+    status: 'Under Review',
+  },
+  {
+    id: 'fbw-self-02',
+    code: 'EFG-1033',
+    raisedById: SELF_EMPLOYEE_ID,
+    category: 'Feedback',
+    subject: 'Quarterly town hall Q&A format works well',
+    description:
+      'The anonymous upvoted Q&A in the last town hall surfaced the questions people actually cared about. Please keep it.',
+    submittedOn: '2026-05-26',
+    status: 'Resolved',
+  },
   {
     id: 'fbw-01',
     code: 'EFG-1042',

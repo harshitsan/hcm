@@ -182,7 +182,7 @@ export function RequestDetailSheet({
   return (
     <Sheet open={open} onOpenChange={(o) => (o ? onOpenChange(o) : close())}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md flex flex-wrap items-center gap-2 font-semibold'>
             {r.typeName} · {r.employeeName}
             <StatusBadge status={r.status} />
@@ -649,7 +649,7 @@ export function RequestDetailSheet({
           )}
         </div>
 
-        <div className='border-grey-200 flex flex-wrap items-center justify-end gap-2 border-t px-5 py-4'>
+        <div className='border-gray-200 flex flex-wrap items-center justify-end gap-2 border-t px-5 py-4'>
           {canApprove && r.status === 'pending' && step && (
             <Button size='sm' variant='outline' onClick={() => store.escalate(r.id)}>
               Escalate (SLA)

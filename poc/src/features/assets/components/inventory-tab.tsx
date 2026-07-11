@@ -138,7 +138,7 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
     <div className='w-full'>
       <SummaryCards title='Inventory Summary' items={summary} />
 
-      <div className='border-grey-200 mb-3 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
+      <div className='border-gray-200 mb-3 flex flex-wrap items-end gap-3 rounded-[6px] border bg-white px-3 py-2.5'>
         <div className='flex flex-col gap-1'>
           <Label className='text-paragraph-sm'>Category</Label>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -284,6 +284,7 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
               disabled={!singleLive}
               onClick={() => setHistoryOpen(true)}
               aria-label='History'
+              title='Assignment history for this asset'
             >
               <ClockCounterClockwise size={16} weight='bold' />
             </Button>
@@ -296,6 +297,7 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
                 setFormOpen(true)
               }}
               aria-label='Edit'
+              title='Edit this asset'
             >
               <PencilSimple size={16} weight='fill' />
             </Button>

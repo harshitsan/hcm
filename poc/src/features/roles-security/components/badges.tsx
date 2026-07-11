@@ -6,7 +6,7 @@ type SecurityBadgeVariant =
   | 'open'
   | 'pending'
   | 'completed'
-  | 'disqualified'
+  | 'dropped'
   | 'overdue'
 
 const VARIANTS: Record<string, SecurityBadgeVariant> = {
@@ -19,14 +19,14 @@ const VARIANTS: Record<string, SecurityBadgeVariant> = {
   Draft: 'pending',
   Pending: 'open',
   Approved: 'completed',
-  Rejected: 'disqualified',
+  Rejected: 'dropped',
   Enabled: 'badge_active',
   Disabled: 'badge_inactive',
   Admin: 'overdue',
   Visible: 'completed',
-  Hidden: 'disqualified',
+  Hidden: 'dropped',
   Allowed: 'completed',
-  Denied: 'disqualified',
+  Denied: 'dropped',
   Impersonation: 'overdue',
   'Context Switch': 'open',
   Delegation: 'pending',

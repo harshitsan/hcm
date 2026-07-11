@@ -37,7 +37,7 @@ export function ReceiptStatusBadge({ status }: { status: ReceiptStatus }) {
 /** Physical original vs digital-copy flag on a custodian receipt. */
 export function PhysicalCopyBadge({ hasPhysicalCopy }: { hasPhysicalCopy: boolean }) {
   return (
-    <Badge variant={hasPhysicalCopy ? 'booked' : 'pending'}>
+    <Badge variant={hasPhysicalCopy ? 'open' : 'pending'}>
       {hasPhysicalCopy ? 'Physical copy' : 'Digital only'}
     </Badge>
   )

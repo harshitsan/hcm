@@ -80,7 +80,7 @@ export function ConfigTab({ config }: { config: PolicyConfigStore }) {
           {config.integrations.map((i) => (
             <div
               key={i.id}
-              className='border-grey-200 flex items-center justify-between gap-3 rounded-[6px] border bg-white px-4 py-3'
+              className='border-gray-200 flex items-center justify-between gap-3 rounded-[6px] border bg-white px-4 py-3'
             >
               <div className='min-w-0'>
                 <div className='flex items-center gap-2'>
@@ -118,7 +118,7 @@ export function ConfigTab({ config }: { config: PolicyConfigStore }) {
           {DATA_MODEL_FACTS.map((f) => (
             <div
               key={f.title}
-              className='border-grey-200 rounded-[6px] border bg-white px-4 py-3'
+              className='border-gray-200 rounded-[6px] border bg-white px-4 py-3'
             >
               <p className='text-neutral-1600 flex items-center gap-1.5 text-sm font-medium'>
                 <LockKey size={14} className='text-neutral-1000 shrink-0' />

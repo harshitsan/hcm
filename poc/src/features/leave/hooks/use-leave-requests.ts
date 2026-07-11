@@ -226,12 +226,15 @@ export function useLeaveRequests({
       `${steps[0].approver} (approver)${peers.length ? `, ${peers.join(', ')} (peers)` : ''}`,
       `Leave ${assignedBy ? 'assigned' : 'submitted'}: ${emp.name} — ${type.name}, ${draft.from} to ${draft.to}. Status: Pending.${draft.peerMessage ? ` Message to peers: “${draft.peerMessage}”` : ''}`
     )
+    // Plain-language confirmation naming the actual first approver from the
+    // routing chain (no engine jargon).
+    const firstApprover = steps[0].approver
     toast.success(
       assignedBy
-        ? `Time off assigned to ${emp.name} — follows the normal approval workflow`
+        ? `Time off assigned to ${emp.name} — pending with ${firstApprover}`
         : draft.onBehalfOf
-          ? `Leave recorded on behalf of ${emp.name} and routed for approval`
-          : 'Leave request submitted and routed for approval'
+          ? `Leave recorded for ${emp.name} — pending with ${firstApprover}`
+          : `Request submitted — pending with ${firstApprover}`
     )
   }
 

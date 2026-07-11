@@ -103,7 +103,7 @@ export function NewRequisitionDialog({
             </Select>
           </div>
           {selected && (
-            <div className='border-grey-200 space-y-1 rounded-[6px] border px-3 py-2'>
+            <div className='border-gray-200 space-y-1 rounded-[6px] border px-3 py-2'>
               <p className='text-paragraph-sm text-neutral-1600 font-medium'>
                 Resolved governed definition
               </p>

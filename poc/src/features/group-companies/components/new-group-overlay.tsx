@@ -132,7 +132,7 @@ export function NewGroupOverlay({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[500px]'>
-        <SheetHeader className='border-grey-200 border-b px-5 py-4'>
+        <SheetHeader className='border-gray-200 border-b px-5 py-4'>
           <SheetTitle className='text-neutral-1600 text-paragraph-md font-semibold'>
             {isEdit ? `Edit ${group?.code}` : 'New group-company structure'}
           </SheetTitle>
@@ -295,7 +295,7 @@ export function NewGroupOverlay({
               />
             </div>
 
-            <div className='border-grey-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
+            <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
               <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>

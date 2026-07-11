@@ -161,7 +161,7 @@ export function ConfigTab({ store, settings }: ConfigTabProps) {
                 Generated notifications ({store.notifications.length})
               </p>
               {store.notifications.length === 0 ? (
-                <div className='border-grey-200 flex items-center gap-2 rounded-[6px] border px-3 py-3'>
+                <div className='border-gray-200 flex items-center gap-2 rounded-[6px] border px-3 py-3'>
                   <BellRinging size={16} className='text-neutral-1000' />
                   <p className='text-paragraph-sm text-neutral-1000'>
                     No notifications yet — run the engine to evaluate documents
@@ -173,7 +173,7 @@ export function ConfigTab({ store, settings }: ConfigTabProps) {
                   {store.notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className='border-grey-200 rounded-[6px] border px-3 py-2'
+                      className='border-gray-200 rounded-[6px] border px-3 py-2'
                     >
                       <div className='mb-1 flex items-center gap-2'>
                         <Badge

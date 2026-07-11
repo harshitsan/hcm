@@ -282,7 +282,7 @@ function CompensationSection({
               <TableRow key={s.id}>
                 <TableCell className='font-medium'>{s.name}</TableCell>
                 <TableCell>
-                  <Badge variant={s.classSpecific ? 'qualified' : 'pending'}>
+                  <Badge variant={s.classSpecific ? 'badge_active' : 'pending'}>
                     {s.classSpecific ? 'Class-specific' : 'All classes'}
                   </Badge>
                 </TableCell>
@@ -556,7 +556,7 @@ function ExpenseHeadSection({ store }: { store: ConfigurationStore }) {
               <TableRow key={h.id}>
                 <TableCell className='font-medium'>{h.name}</TableCell>
                 <TableCell>
-                  <Badge variant={h.category === 'Earning' ? 'qualified' : 'overdue'}>
+                  <Badge variant={h.category === 'Earning' ? 'badge_active' : 'overdue'}>
                     {h.category}
                   </Badge>
                 </TableCell>
@@ -797,7 +797,7 @@ function ClientMasterSection({ store }: { store: ConfigurationStore }) {
                   {c.createdOn}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={c.billable ? 'qualified' : 'badge_inactive'}>
+                  <Badge variant={c.billable ? 'badge_active' : 'badge_inactive'}>
                     {c.billable ? 'Billable' : 'Non-billable'}
                   </Badge>
                 </TableCell>
@@ -870,7 +870,7 @@ function ClientMasterSection({ store }: { store: ConfigurationStore }) {
                 type='email'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder='billing@client.example'
+                placeholder='e.g. billing@client.example'
               />
             </div>
             <div className='space-y-1'>

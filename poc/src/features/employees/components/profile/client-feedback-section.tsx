@@ -36,10 +36,10 @@ import { SectionTitle } from '../shared'
 
 const FEEDBACK_BADGES: Record<
   FeedbackType,
-  'qualified' | 'disqualified' | 'pending'
+  'badge_active' | 'dropped' | 'pending'
 > = {
-  Positive: 'qualified',
-  Negative: 'disqualified',
+  Positive: 'badge_active',
+  Negative: 'dropped',
   Neutral: 'pending',
 }
 

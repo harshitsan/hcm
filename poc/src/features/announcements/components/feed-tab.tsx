@@ -71,7 +71,7 @@ export function FeedTab({ store, images }: FeedTabProps) {
 
   if (isNonUser) {
     return (
-      <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+      <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
         <Lock className='text-neutral-1000 size-8' />
         <p className='text-neutral-1600 text-paragraph-md font-medium'>
           No system access
@@ -133,7 +133,7 @@ export function FeedTab({ store, images }: FeedTabProps) {
       </div>
 
       {visible.length === 0 ? (
-        <div className='border-grey-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
+        <div className='border-gray-200 flex flex-col items-center gap-2 rounded-[6px] border bg-white px-6 py-12 text-center'>
           <Bell className='text-neutral-1000 size-8' />
           <p className='text-neutral-1600 text-paragraph-md font-medium'>
             No announcements available
@@ -179,7 +179,7 @@ export function FeedTab({ store, images }: FeedTabProps) {
                       {a.kind === 'Vacancy' && (
                         <Badge variant='overdue'>Vacancy</Badge>
                       )}
-                      {a.kind === 'Event' && <Badge variant='booked'>Event</Badge>}
+                      {a.kind === 'Event' && <Badge variant='open'>Event</Badge>}
                       {a.eventBasis !== 'None' && (
                         <Badge variant='completed'>{a.eventBasis}</Badge>
                       )}
@@ -197,7 +197,7 @@ export function FeedTab({ store, images }: FeedTabProps) {
                 </button>
 
                 {expanded && (
-                  <div className='border-grey-200 space-y-3 border-t px-4 py-3'>
+                  <div className='border-gray-200 space-y-3 border-t px-4 py-3'>
                     <p className='text-paragraph-sm text-neutral-1000'>
                       Published {dateFmt.format(new Date(a.startDate))} by{' '}
                       {a.creator} · Audience:{' '}
@@ -292,7 +292,7 @@ export function FeedTab({ store, images }: FeedTabProps) {
                     </div>
 
                     {/* Comment on employee timelines from the announcement window (PDF #5) */}
-                    <div className='border-grey-200 rounded-[6px] border px-3 py-2'>
+                    <div className='border-gray-200 rounded-[6px] border px-3 py-2'>
                       <p className='text-neutral-1600 mb-1.5 text-sm font-medium'>
                         Timeline comments ({a.comments.length})
                       </p>

@@ -1,4 +1,9 @@
-import { type Company, type ReportCategory } from './report-catalog'
+import {
+  seedReportCatalog,
+  type Company,
+  type ReportCategory,
+  type ReportDef,
+} from './report-catalog'
 
 /** The signed-in person used for Employee (User) self-service scoping. */
 export const SELF_EMPLOYEE = 'Ananya Rao'
@@ -43,8 +48,8 @@ const row = (
   date,
 })
 
-/** Sample dataset per catalog category, spanning all four companies. */
-export const categoryRows: Record<ReportCategory, ReportRow[]> = {
+/** Base sample dataset per catalog category, spanning all four companies. */
+const categoryRows: Record<ReportCategory, ReportRow[]> = {
   'Employee Management': [
     row(
       'em-1',
@@ -663,4 +668,55 @@ export const categoryRows: Record<ReportCategory, ReportRow[]> = {
       '2026-04-22'
     ),
   ],
+}
+
+/** Shift an ISO date back by `days` (deterministic per-report variation). */
+function shiftDate(iso: string, days: number): string {
+  if (days === 0) return iso
+  const d = new Date(`${iso}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - days)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * Deterministic per-report output rows: each report draws from its
+ * category's base dataset with a seeded variation keyed by the report's
+ * ordinal within its category — rotated row order, a slightly different
+ * row subset, and per-report record dates — so no two reports in the same
+ * category render identical data.
+ *
+ * The subset never drops the signed-in employee's rows (self-service runs,
+ * RPT-15) and never drops the last remaining row of a company (RLS-scoped
+ * runs, RPT-12/17/18 always have in-scope data to show).
+ */
+export function reportRows(report: ReportDef): ReportRow[] {
+  const pool = categoryRows[report.category]
+  const peers = seedReportCatalog.filter((r) => r.category === report.category)
+  const ordinal = Math.max(
+    0,
+    peers.findIndex((r) => r.id === report.id)
+  )
+
+  // Rotate the base rows so each report leads with a different record.
+  const offset = ordinal % pool.length
+  let rows = [...pool.slice(offset), ...pool.slice(0, offset)]
+
+  // Reports beyond one full rotation also drop row(s) so the sets differ.
+  let toDrop = Math.min(Math.floor(ordinal / pool.length), pool.length - 2)
+  for (let i = rows.length - 1; i >= 0 && toDrop > 0; i--) {
+    const candidate = rows[i]
+    if (candidate.employee === SELF_EMPLOYEE) continue
+    if (rows.filter((r) => r.company === candidate.company).length <= 1) {
+      continue
+    }
+    rows = [...rows.slice(0, i), ...rows.slice(i + 1)]
+    toDrop--
+  }
+
+  // Per-report row ids (stable React keys) and per-report record dates.
+  return rows.map((r) => ({
+    ...r,
+    id: `${report.id}-${r.id}`,
+    date: shiftDate(r.date, ordinal),
+  }))
 }

@@ -8,7 +8,7 @@ type BadgeVariant =
   | 'badge_active'
   | 'badge_inactive'
   | 'open'
-  | 'booked'
+  | 'open'
   | 'pending'
   | 'overdue'
   | 'completed'
@@ -18,7 +18,7 @@ const statusVariants: Record<AnnouncementStatus, BadgeVariant> = {
   'Draft': 'pending',
   'Pending approval': 'overdue',
   'Approved': 'open',
-  'Scheduled': 'booked',
+  'Scheduled': 'open',
   'Published': 'badge_active',
   'Unpublished': 'badge_inactive',
   'Recently Completed': 'completed',
@@ -36,6 +36,6 @@ export function StatusBadge({ status }: { status: AnnouncementStatus }) {
 /** Adhoc vs Recurring classification badge (ANN-30). */
 export function TypeBadge({ type }: { type: AnnouncementType }) {
   return (
-    <Badge variant={type === 'Recurring' ? 'booked' : 'pending'}>{type}</Badge>
+    <Badge variant={type === 'Recurring' ? 'open' : 'pending'}>{type}</Badge>
   )
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { DownloadSimple } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,6 +21,7 @@ import { seedLeaveTypes, type LeaveType } from '../data/leave-types'
 import { DEPARTMENTS, EMPLOYEES, fmtDate, todayISO } from '../data/shared'
 import { type BalancesStore } from '../hooks/use-balances'
 import { type LeaveRequestsStore } from '../hooks/use-leave-requests'
+import { exportCsv } from '../utils/export-csv'
 import { StatusBadge } from './badges'
 
 export interface EmployeeSummaryTabProps {
@@ -84,6 +86,55 @@ export function EmployeeSummaryTab({
         ),
     [balancesStore.balances, department, empStatus, employeeFilter, typeById]
   )
+
+  const filtersDirty =
+    empStatus !== 'active' ||
+    year !== '2026' ||
+    department !== 'all' ||
+    employeeFilter !== 'all'
+
+  const resetFilters = () => {
+    setEmpStatus('active')
+    setYear('2026')
+    setDepartment('all')
+    setEmployeeFilter('all')
+  }
+
+  /** ETOS export: real CSV download of the visible summary rows. */
+  const handleExport = () => {
+    exportCsv(
+      `employee-timeoff-summary-${year}.csv`,
+      [
+        'Employee Code',
+        'Employee Name',
+        'Department',
+        'Time Off Type',
+        'Unit',
+        'Taken',
+        'Scheduled',
+        'Balance',
+        'Pending Approvals',
+        'Pending Loss of Pay',
+        'Approved Loss of Pay',
+      ],
+      rows.map(({ balance: b, employee: e, type: t }) => [
+        e!.code,
+        e!.name,
+        e!.department,
+        t?.name ?? b.typeId,
+        t?.unit ?? 'days',
+        b.taken,
+        b.scheduled,
+        remaining(b),
+        b.pendingApproval,
+        b.lopPending,
+        b.lopApproved,
+      ])
+    )
+    toast.success(
+      `Exported ${rows.length} summary rows to employee-timeoff-summary-${year}.csv`
+    )
+  }
 
   const today = todayISO()
   const [takenEmployeeId, takenTypeId] = takenKey?.split('::') ?? [null, null]
@@ -157,6 +208,15 @@ export function EmployeeSummaryTab({
               ))}
             </SelectContent>
           </Select>
+          {filtersDirty && (
+            <Button variant='outline' className='h-7' onClick={resetFilters}>
+              Reset filters
+            </Button>
+          )}
+          <Button variant='outline' className='h-7 gap-1' onClick={handleExport}>
+            <DownloadSimple size={14} weight='bold' />
+            Export
+          </Button>
           <Button
             variant='outline'
             className='h-7'
@@ -183,8 +243,8 @@ export function EmployeeSummaryTab({
               <th className='px-2 font-medium'>Scheduled</th>
               <th className='px-2 font-medium'>Balance</th>
               <th className='px-2 font-medium'>Pending Approvals</th>
-              <th className='px-2 font-medium'>Pending LOP</th>
-              <th className='px-2 font-medium'>Approved LOP</th>
+              <th className='px-2 font-medium'>Pending Loss of Pay</th>
+              <th className='px-2 font-medium'>Approved Loss of Pay</th>
             </tr>
           </thead>
           <tbody>

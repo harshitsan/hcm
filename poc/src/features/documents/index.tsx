@@ -126,6 +126,7 @@ export function Documents() {
                   store={store}
                   settings={settings}
                   documentTypes={masters.documentTypes}
+                  receipts={receipts.receipts}
                 />
               </TabsContent>
             )}

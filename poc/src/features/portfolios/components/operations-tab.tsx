@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRole } from '@/context/role-context'
+import { UploadModal } from '@/components/common/upload-modal'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -71,7 +72,7 @@ export function OperationsTab({ store, ops }: OperationsTabProps) {
   )
 
   const [importCompanyId, setImportCompanyId] = useState('')
-  const [importFile, setImportFile] = useState('employee_import_july.xlsx')
+  const [importOpen, setImportOpen] = useState(false)
   const [policy, setPolicy] = useState<string>(STANDARD_POLICIES[0])
   const [policyCompanyIds, setPolicyCompanyIds] = useState<string[]>([])
 
@@ -141,6 +142,11 @@ export function OperationsTab({ store, ops }: OperationsTabProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-3 px-4'>
+          <p className='text-paragraph-sm text-neutral-1000'>
+            Uploaded files are staged, every row is validated and the dry-run
+            reports row-level errors — only clean rows commit to the target
+            company. Every run lands on the audit trail.
+          </p>
           <div className='flex flex-wrap items-center gap-3'>
             <Select value={importCompanyId} onValueChange={setImportCompanyId}>
               <SelectTrigger variant='secondary' className='h-8 w-64'>
@@ -154,19 +160,13 @@ export function OperationsTab({ store, ops }: OperationsTabProps) {
                 ))}
               </SelectContent>
             </Select>
-            <Input
-              value={importFile}
-              onChange={(e) => setImportFile(e.target.value)}
-              placeholder='import_file.xlsx'
-              className='h-8 w-64'
-            />
             <Button
               size='sm'
               className='h-8'
-              disabled={!importCompanyId || !importFile.trim()}
-              onClick={() => ops.runImport(importCompanyId, importFile)}
+              disabled={!importCompanyId}
+              onClick={() => setImportOpen(true)}
             >
-              Run import
+              Import file
             </Button>
           </div>
           {ops.imports.length > 0 && (
@@ -180,14 +180,16 @@ export function OperationsTab({ store, ops }: OperationsTabProps) {
                     <span className='font-medium'>
                       {companyName(run.companyId)}
                     </span>{' '}
-                    · {run.fileName} — {run.rowsProcessed} rows processed,{' '}
-                    {run.rowsSkipped} skipped
+                    · {run.fileName} — {run.rowsProcessed} rows committed,{' '}
+                    {run.rowsSkipped} rejected by dry-run
                   </span>
                   <span className='flex items-center gap-2'>
                     <span className='text-paragraph-sm text-neutral-1000'>
                       {run.timestamp}
                     </span>
-                    <OutcomeBadge status='success' />
+                    <OutcomeBadge
+                      status={run.rowsSkipped === 0 ? 'success' : 'failure'}
+                    />
                   </span>
                 </div>
               ))}
@@ -341,6 +343,17 @@ export function OperationsTab({ store, ops }: OperationsTabProps) {
           )}
         </CardContent>
       </Card>
+
+      <UploadModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        title={
+          importCompanyId
+            ? `Bulk employee import — ${companyName(importCompanyId)}`
+            : 'Bulk employee import'
+        }
+        onUpload={(file) => ops.importEmployees(importCompanyId, file)}
+      />
     </div>
   )
 }

@@ -111,12 +111,12 @@ export function ProjectRolesPanel({ companyId, orgConfig }: ProjectRolesPanelPro
       </div>
 
       {rows.length === 0 ? (
-        <p className='text-paragraph-sm text-neutral-1000 border-grey-200 rounded-[6px] border px-3 py-4 text-center'>
+        <p className='text-paragraph-sm text-neutral-1000 border-gray-200 rounded-[6px] border px-3 py-4 text-center'>
           No project roles match “{applied}”. Reset the filter to see the full
           list.
         </p>
       ) : (
-        <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+        <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
           {rows.map((r) => (
             <div key={r.id} className='flex items-center justify-between gap-2 px-3 py-2'>
               <div className='flex min-w-0 flex-col gap-1'>
@@ -199,7 +199,7 @@ export function ProjectRolesPanel({ companyId, orgConfig }: ProjectRolesPanelPro
             </div>
             <div className='space-y-1.5'>
               <Label>Applicable project types</Label>
-              <div className='border-grey-200 space-y-2 rounded-[6px] border px-3 py-2'>
+              <div className='border-gray-200 space-y-2 rounded-[6px] border px-3 py-2'>
                 {companyTypes.map((t) => (
                   <label key={t.id} className='flex items-center gap-2'>
                     <Checkbox

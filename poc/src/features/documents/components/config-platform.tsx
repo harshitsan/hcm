@@ -140,7 +140,7 @@ export function ConfigPlatform({ settings }: ConfigPlatformProps) {
         </CardHeader>
         <CardContent className='space-y-3 px-4'>
           <div className='grid grid-cols-1 gap-3 md:grid-cols-3'>
-            <div className='border-grey-200 rounded-[6px] border px-3 py-2'>
+            <div className='border-gray-200 rounded-[6px] border px-3 py-2'>
               <div className='mb-1 flex items-center gap-2'>
                 <LockKey size={16} className='text-blue-1400' />
                 <p className='text-neutral-1600 text-sm font-medium'>
@@ -153,7 +153,7 @@ export function ConfigPlatform({ settings }: ConfigPlatformProps) {
                 tenant.
               </p>
             </div>
-            <div className='border-grey-200 rounded-[6px] border px-3 py-2'>
+            <div className='border-gray-200 rounded-[6px] border px-3 py-2'>
               <div className='mb-1 flex items-center gap-2'>
                 <Database size={16} className='text-blue-1400' />
                 <p className='text-neutral-1600 text-sm font-medium'>
@@ -166,7 +166,7 @@ export function ConfigPlatform({ settings }: ConfigPlatformProps) {
                 entities — no cross-tenant leakage.
               </p>
             </div>
-            <div className='border-grey-200 rounded-[6px] border px-3 py-2'>
+            <div className='border-gray-200 rounded-[6px] border px-3 py-2'>
               <div className='mb-1 flex items-center gap-2'>
                 <ShieldCheck size={16} className='text-blue-1400' />
                 <p className='text-neutral-1600 text-sm font-medium'>

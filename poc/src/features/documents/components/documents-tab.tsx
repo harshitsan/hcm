@@ -28,8 +28,10 @@ import {
 } from '../data/documents'
 import { type DocumentType } from '../data/masters'
 import { companiesForRole, CURRENT_ADMIN } from '../data/org'
+import { type DocumentReceipt } from '../data/receipts'
 import { type DocumentsStore } from '../hooks/use-documents'
 import { type DocumentSettingsStore } from '../hooks/use-document-settings'
+import { DocumentDetailSheet } from './document-detail-sheet'
 import { documentsTableColumns, type DocumentRow } from './documents-table-columns'
 import { DocumentsSummary } from './documents-summary'
 import { UploadOverlay } from './upload-overlay'
@@ -38,6 +40,8 @@ interface DocumentsTabProps {
   store: DocumentsStore
   settings: DocumentSettingsStore
   documentTypes: DocumentType[]
+  /** Custodian receipts — surfaced as custody history in the detail sheet. */
+  receipts: DocumentReceipt[]
 }
 
 const EXPIRY_FILTERS: { value: ExpiryStatus | 'All'; label: string }[] = [
@@ -58,12 +62,14 @@ export function DocumentsTab({
   store,
   settings,
   documentTypes,
+  receipts,
 }: DocumentsTabProps) {
   const { role } = useRole()
   const [selectedRows, setSelectedRows] = useState<DocumentRow[]>([])
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [category, setCategory] = useState('All')
   const [entityType, setEntityType] = useState('All')
@@ -97,6 +103,9 @@ export function DocumentsTab({
   const single = selectedRows.length === 1 ? selectedRows[0] : null
   const editingDoc = editingId
     ? (store.documents.find((d) => d.id === editingId) ?? null)
+    : null
+  const detailDoc = detailId
+    ? (rows.find((d) => d.id === detailId) ?? null)
     : null
 
   const handleDownload = () => {
@@ -242,6 +251,16 @@ export function DocumentsTab({
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(selected) => setSelectedRows(selected)}
+        onRowClick={(row) => setDetailId(row.id)}
+      />
+
+      <DocumentDetailSheet
+        document={detailDoc}
+        onOpenChange={(open) => {
+          if (!open) setDetailId(null)
+        }}
+        settings={settings}
+        receipts={receipts}
       />
 
       <UploadOverlay

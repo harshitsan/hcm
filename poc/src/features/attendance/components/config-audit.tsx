@@ -316,7 +316,7 @@ export function ConfigAudit({
               <Input
                 value={gPanel}
                 onChange={(e) => setGPanel(e.target.value)}
-                placeholder='BLR Audit Panel'
+                placeholder='e.g. BLR Audit Panel'
               />
             </Field>
             <Field label='Description'>

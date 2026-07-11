@@ -154,18 +154,29 @@ export const userTableColumns: ColumnDef<AuthUser>[] = [
     },
   },
   {
-    accessorKey: 'status',
+    // Lockout overrides the stored status until it is cleared (policy
+    // lockoutThreshold enforcement — see use-login-session.ts).
+    accessorFn: (user) => (user.lockedAt ? 'locked' : user.status),
     id: 'status',
     size: 50,
     meta: { requiresWholeWordMatch: true },
     header: sortableHeader('Status'),
-    cell: ({ row, column }) => (
-      <div className='p-1.5'>
-        <HighlightedCell value={row.original.status} columnId={column.id}>
-          <UserStatusBadge status={row.original.status} />
-        </HighlightedCell>
-      </div>
-    ),
+    cell: ({ row, column }) => {
+      const user = row.original
+      return (
+        <div className='p-1.5'>
+          <HighlightedCell
+            value={user.lockedAt ? 'locked' : user.status}
+            columnId={column.id}
+          >
+            <UserStatusBadge
+              status={user.status}
+              locked={user.lockedAt !== null}
+            />
+          </HighlightedCell>
+        </div>
+      )
+    },
   },
   {
     accessorKey: 'lastLogin',

@@ -10,6 +10,7 @@ import { ConfigTab } from './components/config-tab'
 import { DisciplinaryTab } from './components/disciplinary-tab'
 import { ExitsTab } from './components/exits-tab'
 import { KnowledgeTransferTab } from './components/kt-tasks-tab'
+import { LayoffsTab } from './components/layoffs-tab'
 import { LifecycleSummary } from './components/lifecycle-summary'
 import { MyLifecycleTab } from './components/my-lifecycle-tab'
 import { OnboardingTab } from './components/onboarding-tab'
@@ -24,6 +25,7 @@ import { PERSONAS } from './data/shared'
 import { useDisciplinary } from './hooks/use-disciplinary'
 import { useExits } from './hooks/use-exits'
 import { useKnowledgeTransfer } from './hooks/use-knowledge-transfer'
+import { useLayoffs } from './hooks/use-layoffs'
 import { useLifecycleConfig } from './hooks/use-lifecycle-config'
 import { useLifecycleLog, type LogInput } from './hooks/use-lifecycle-log'
 import { useOnboarding } from './hooks/use-onboarding'
@@ -101,6 +103,24 @@ export function Lifecycle() {
         raisedBy: 'Admin (proxy)',
       }),
   })
+  const layoffs = useLayoffs({
+    log,
+    notify,
+    layoffConfig: config.exitTypes.items.find((t) => t.name === 'Layoff'),
+    // Recording exits on an approved batch opens a Layoff exit case per
+    // employee — clearance/finalization continue on the Exits tab.
+    onExit: (emp, batch) =>
+      exits.addExit({
+        employeeName: emp.name,
+        employeeCode: emp.code,
+        department: emp.department,
+        location: emp.location,
+        positionLevel: emp.positionLevel,
+        exitType: 'Layoff',
+        reason: `Layoff batch ${batch.name} (${batch.id}): ${batch.reason}`,
+        raisedBy: 'Admin (proxy)',
+      }),
+  })
   const orientation = useOrientation({ log, notify })
   const knowledgeTransfer = useKnowledgeTransfer({ log })
   const performance = usePerformanceReview({ log })
@@ -137,6 +157,8 @@ export function Lifecycle() {
       list.push(
         { value: 'transfers', label: 'Transfers' },
         { value: 'exits', label: 'Exits' },
+        { value: 'layoffs', label: 'Layoffs' },
+        { value: 'kt', label: 'Knowledge Transfer' },
         { value: 'reassignment', label: 'Reassignment' },
         { value: 'disciplinary', label: 'Disciplinary' },
         { value: 'admin', label: 'Admin' },
@@ -194,7 +216,7 @@ export function Lifecycle() {
           {!isEmployee && <LifecycleSummary items={summaryItems} />}
 
           <Tabs key={role} defaultValue={takeRequestedTab('/lifecycle') ?? tabs[0].value} className='w-full'>
-            <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
+            <TabsList className='mb-2 flex-wrap bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger key={tab.value} variant='primary' value={tab.value}>
                   {tab.label}
@@ -221,20 +243,21 @@ export function Lifecycle() {
                   </TabsContent>
                 )}
 
+                {/* Exits shows only exit cases — KT tasks live on their own tab */}
                 <TabsContent value='exits'>
-                  <div className='flex flex-col gap-6'>
-                    <ExitsTab
-                      store={exits}
-                      exitTypes={config.exitTypes.items}
-                      exitManagementEnabled={config.settings.exitManagementEnabled}
-                    />
-                    <div>
-                      <p className='text-paragraph-sm text-neutral-1000 mb-3 font-medium'>
-                        Knowledge Transfer Tasks
-                      </p>
-                      <KnowledgeTransferTab store={knowledgeTransfer} />
-                    </div>
-                  </div>
+                  <ExitsTab
+                    store={exits}
+                    exitTypes={config.exitTypes.items}
+                    exitManagementEnabled={config.settings.exitManagementEnabled}
+                  />
+                </TabsContent>
+
+                <TabsContent value='layoffs'>
+                  <LayoffsTab store={layoffs} />
+                </TabsContent>
+
+                <TabsContent value='kt'>
+                  <KnowledgeTransferTab store={knowledgeTransfer} />
                 </TabsContent>
 
                 <TabsContent value='reassignment'>

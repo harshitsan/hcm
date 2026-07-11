@@ -13,11 +13,12 @@ import { NonUserPanel } from './components/non-user-panel'
 import { ReportsSummary } from './components/reports-summary'
 import { ScheduleOverlay } from './components/schedule-overlay'
 import { SchedulesTab } from './components/schedules-tab'
-import { ROLE_COMPANY_ACCESS } from './data/governance'
+import { companiesForRole } from './data/governance'
 import { useCompliance } from './hooks/use-compliance'
 import { useReportConfig } from './hooks/use-report-config'
 import { useSavedViews } from './hooks/use-saved-views'
 import { useSchedules } from './hooks/use-schedules'
+import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 
 /** Named persona acting for each canonical role. */
 const ACTORS: Record<Role, string> = {
@@ -109,9 +110,11 @@ export function ReportsAnalytics() {
   const compliance = useCompliance()
   const views = useSavedViews()
 
-  // RLS-style scoping: every tab reports over these companies only
+  // RLS scoping from the live grant table: every tab reports over these
+  // companies only, so revoking a grant in Access & Settings visibly
+  // removes that company's rows from the next run
   // (RPT-12, RPT-17, RPT-18, RPT-20).
-  const companies = ROLE_COMPANY_ACCESS[role]
+  const companies = companiesForRole(role, config.grants)
   const scopeLabel =
     companies.length === 0 ? 'No direct access' : companies.join(', ')
   const actor = ACTORS[role]
@@ -204,6 +207,7 @@ export function ReportsAnalytics() {
 
             <TabsContent value='admin'>
               <div className='flex flex-col gap-8'>
+                <EngineArtifactsPanel module='Reports & Analytics' />
                 {visibleAdminTabs.some((t) => t.value === 'schedules') && (
                   <section>
                     <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Scheduled Emails</h3>

@@ -77,7 +77,7 @@ export function AudiencePicker({ value, onChange, orgConfig, error }: AudiencePi
 
       {error && <p className='text-destructive text-sm'>{error}</p>}
 
-      <div className='border-grey-200 flex items-start gap-2 rounded-[6px] border bg-white px-3 py-2'>
+      <div className='border-gray-200 flex items-start gap-2 rounded-[6px] border bg-white px-3 py-2'>
         <UsersRound className='text-blue-1400 mt-0.5 size-4 shrink-0' />
         <div className='text-paragraph-sm text-neutral-1600'>
           <span className='font-medium'>

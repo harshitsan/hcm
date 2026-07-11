@@ -35,7 +35,7 @@ export function GovernanceTab({ store }: GovernanceTabProps) {
   return (
     <div className='w-full space-y-4'>
       {/* Tenant isolation guarantees (GRP-14) */}
-      <div className='border-grey-200 flex items-start gap-2 rounded-[6px] border bg-white px-3 py-2'>
+      <div className='border-gray-200 flex items-start gap-2 rounded-[6px] border bg-white px-3 py-2'>
         <ShieldCheck className='text-blue-1400 mt-0.5 size-4 shrink-0' />
         <p className='text-paragraph-sm text-neutral-1000'>
           Group data is tenant-scoped at the persistence layer: row-level
@@ -53,8 +53,8 @@ export function GovernanceTab({ store }: GovernanceTabProps) {
         <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
           Group scope and usage across the portfolio
         </h3>
-        <div className='border-grey-200 overflow-hidden rounded-[6px] border bg-white'>
-          <div className='text-paragraph-sm text-neutral-1000 border-grey-200 grid grid-cols-[1fr_120px_90px_80px_1fr] items-center gap-2 border-b px-3 py-2 font-medium'>
+        <div className='border-gray-200 overflow-hidden rounded-[6px] border bg-white'>
+          <div className='text-paragraph-sm text-neutral-1000 border-gray-200 grid grid-cols-[1fr_120px_90px_80px_1fr] items-center gap-2 border-b px-3 py-2 font-medium'>
             <span>Group</span>
             <span>Scope</span>
             <span>Status</span>
@@ -66,7 +66,7 @@ export function GovernanceTab({ store }: GovernanceTabProps) {
             return (
               <div
                 key={g.id}
-                className='border-grey-200 grid grid-cols-[1fr_120px_90px_80px_1fr] items-center gap-2 border-b px-3 py-2 last:border-b-0'
+                className='border-gray-200 grid grid-cols-[1fr_120px_90px_80px_1fr] items-center gap-2 border-b px-3 py-2 last:border-b-0'
               >
                 <div className='flex min-w-0 flex-col'>
                   <span className='text-neutral-1600 truncate text-sm font-medium'>
@@ -108,7 +108,7 @@ export function GovernanceTab({ store }: GovernanceTabProps) {
             {store.versions.map((v) => (
               <div
                 key={v.id}
-                className='border-grey-200 rounded-[6px] border bg-white px-3 py-2'
+                className='border-gray-200 rounded-[6px] border bg-white px-3 py-2'
               >
                 <span className='text-neutral-1600 text-sm font-medium'>
                   {groupById.get(v.groupId)?.name ?? v.groupId} — v{v.version}
@@ -159,7 +159,7 @@ export function GovernanceTab({ store }: GovernanceTabProps) {
               audits.map((a) => (
                 <div
                   key={a.id}
-                  className='border-grey-200 rounded-[6px] border bg-white px-3 py-2'
+                  className='border-gray-200 rounded-[6px] border bg-white px-3 py-2'
                 >
                   <span className='text-neutral-1600 text-sm font-medium'>
                     {a.action} — {groupById.get(a.groupId)?.name ?? a.groupId}

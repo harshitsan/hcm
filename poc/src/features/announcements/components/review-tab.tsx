@@ -206,7 +206,7 @@ export function ReviewTab({ store, orgConfig }: ReviewTabProps) {
                     {dateFmt.format(new Date(n.at))}
                   </TableCell>
                   <TableCell>
-                    <Badge variant='booked'>{n.channel}</Badge>
+                    <Badge variant='open'>{n.channel}</Badge>
                   </TableCell>
                   <TableCell className='text-neutral-1900 text-sm'>{n.to}</TableCell>
                   <TableCell className='text-neutral-1600 text-sm font-medium'>

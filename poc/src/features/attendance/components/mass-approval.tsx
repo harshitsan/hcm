@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DEPARTMENTS, employeeById, employeeName, fmtHours } from '../data/shared'
+import { DEPARTMENTS, employeeById, employeeName, fmtBreaks, fmtHours } from '../data/shared'
 import { type AttendanceStore } from '../hooks/use-attendance'
 import { StatusBadge } from './badges'
 
@@ -130,9 +130,7 @@ export function MassApproval({ attendance }: { attendance: AttendanceStore }) {
                   {r.punchIn} → {r.punchOut ?? '—'}
                 </td>
                 <td className='px-2 capitalize'>{r.workCategory.replace(/-/g, ' ')}</td>
-                <td className='px-2'>
-                  {r.breaksCount} · {r.breakMinutes}m
-                </td>
+                <td className='px-2'>{fmtBreaks(r.breaksCount, r.breakMinutes)}</td>
                 <td className='px-2'>{fmtHours(r.workedHours)}</td>
                 <td className='px-2 font-medium'>{fmtHours(r.effectiveHours)}</td>
                 <td className='px-2'>

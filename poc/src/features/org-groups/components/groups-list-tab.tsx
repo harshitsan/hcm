@@ -209,6 +209,7 @@ export function GroupsListTab({ store }: GroupsListTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={setSelectedRows}
+        onRowClick={(row) => setViewing(row)}
       />
 
       <GroupsPager

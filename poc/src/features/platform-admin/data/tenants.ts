@@ -8,6 +8,64 @@
 export const TENANT_STATUSES = ['active', 'suspended', 'onboarding'] as const
 export type TenantStatus = (typeof TENANT_STATUSES)[number]
 
+/** Commercial subscription tiers (US-PA-42..44). */
+export const SUBSCRIPTION_TIERS = ['starter', 'professional', 'enterprise'] as const
+export type SubscriptionTier = (typeof SUBSCRIPTION_TIERS)[number]
+
+/** Modules a tenant can be entitled to. Core HR is always included. */
+export const PLATFORM_MODULES = [
+  'Core HR',
+  'Leave',
+  'Attendance',
+  'Recruitment',
+  'Assets',
+  'Documents',
+  'Workflows',
+  'Reports',
+] as const
+export type PlatformModule = (typeof PLATFORM_MODULES)[number]
+
+export interface TenantSubscription {
+  tier: SubscriptionTier
+  /** Hard cap — hires beyond this are blocked until an upgrade (US-PA-43). */
+  employeeLimit: number
+  /** Entitled modules; unsubscribed modules are denied (US-PA-44). */
+  modules: PlatformModule[]
+}
+
+/** Defaults applied when a tier is selected during provisioning/changes. */
+export const TIER_DEFAULTS: Record<SubscriptionTier, TenantSubscription> = {
+  starter: {
+    tier: 'starter',
+    employeeLimit: 100,
+    modules: ['Core HR', 'Leave', 'Attendance'],
+  },
+  professional: {
+    tier: 'professional',
+    employeeLimit: 750,
+    modules: ['Core HR', 'Leave', 'Attendance', 'Recruitment', 'Documents', 'Reports'],
+  },
+  enterprise: {
+    tier: 'enterprise',
+    employeeLimit: 5000,
+    modules: [...PLATFORM_MODULES],
+  },
+}
+
+/** Approvers authorized to countersign a tenant suspension (US-PA-07). */
+export const SUSPENSION_APPROVERS = [
+  'Meera Iyer — Platform Operations',
+  'Daniel Kim — Compliance Office',
+  'Priya Nair — Customer Success Lead',
+] as const
+
+/** Mandatory reason + second-admin approval recorded on suspension. */
+export interface TenantSuspension {
+  reason: string
+  approvedBy: string
+  at: string
+}
+
 export interface Jurisdiction {
   id: string
   code: string
@@ -46,6 +104,10 @@ export interface Tenant {
   createdAt: string
   /** Whether the signed-in admin may switch into this company (SYS-04/40). */
   authorized: boolean
+  /** Commercial subscription — tier, employee cap, module entitlements. */
+  subscription: TenantSubscription
+  /** Present only while suspended — mandatory reason + approver (US-PA-07). */
+  suspension: TenantSuspension | null
 }
 
 export const SHARING_STATUSES = ['pending', 'approved', 'denied'] as const
@@ -110,18 +172,18 @@ export const seedGroups: CompanyGroup[] = [
 ]
 
 export const seedTenants: Tenant[] = [
-  { id: 'co-01', name: 'Aster Software Pvt Ltd', code: 'ASTER-IN', jurisdictionIds: ['jur-in-ka', 'jur-in-mh'], portfolioId: null, groupId: 'grp-01', status: 'active', employees: 640, createdAt: '2025-02-11', authorized: true },
-  { id: 'co-02', name: 'Aster Analytics LLC', code: 'ASTER-US', jurisdictionIds: ['jur-us-ca'], portfolioId: null, groupId: 'grp-01', status: 'active', employees: 85, createdAt: '2025-03-02', authorized: true },
-  { id: 'co-03', name: 'Meridian Textiles Ltd', code: 'MERIDIAN', jurisdictionIds: ['jur-in-tn'], portfolioId: 'pf-01', groupId: null, status: 'active', employees: 910, createdAt: '2025-01-20', authorized: true },
-  { id: 'co-04', name: 'BlueFern Logistics', code: 'BLUEFERN', jurisdictionIds: ['jur-in-mh'], portfolioId: 'pf-01', groupId: null, status: 'active', employees: 415, createdAt: '2025-04-08', authorized: true },
-  { id: 'co-05', name: 'Cobalt Micro Devices', code: 'COBALT', jurisdictionIds: ['jur-in-ka', 'jur-in-ts'], portfolioId: 'pf-01', groupId: null, status: 'suspended', employees: 132, createdAt: '2025-05-19', authorized: true },
-  { id: 'co-06', name: 'Harbor & Vale Consulting', code: 'HARVALE', jurisdictionIds: ['jur-uk'], portfolioId: 'pf-02', groupId: null, status: 'active', employees: 58, createdAt: '2025-06-30', authorized: false },
-  { id: 'co-07', name: 'Suryodaya Foods', code: 'SURYA', jurisdictionIds: ['jur-in-ts'], portfolioId: null, groupId: null, status: 'active', employees: 267, createdAt: '2025-07-14', authorized: true },
-  { id: 'co-08', name: 'Quill & Crest Media', code: 'QUILL', jurisdictionIds: ['jur-in-ka'], portfolioId: null, groupId: 'grp-02', status: 'active', employees: 74, createdAt: '2025-08-22', authorized: false },
-  { id: 'co-09', name: 'Verdant Energy Systems', code: 'VERDANT', jurisdictionIds: ['jur-in-mh', 'jur-in-ka'], portfolioId: null, groupId: 'grp-02', status: 'active', employees: 388, createdAt: '2025-09-05', authorized: true },
-  { id: 'co-10', name: 'Lattice Robotics', code: 'LATTICE', jurisdictionIds: ['jur-in-ka'], portfolioId: null, groupId: null, status: 'onboarding', employees: 12, createdAt: '2026-05-28', authorized: true },
-  { id: 'co-11', name: 'Palmgrove Hospitality', code: 'PALM', jurisdictionIds: ['jur-in-tn'], portfolioId: 'pf-02', groupId: null, status: 'active', employees: 540, createdAt: '2025-10-12', authorized: false },
-  { id: 'co-12', name: 'Nimbus Health Tech', code: 'NIMBUS', jurisdictionIds: ['jur-in-ts', 'jur-sg'], portfolioId: null, groupId: null, status: 'onboarding', employees: 30, createdAt: '2026-06-15', authorized: true },
+  { id: 'co-01', name: 'Aster Software Pvt Ltd', code: 'ASTER-IN', jurisdictionIds: ['jur-in-ka', 'jur-in-mh'], portfolioId: null, groupId: 'grp-01', status: 'active', employees: 640, createdAt: '2025-02-11', authorized: true, subscription: { tier: 'professional', employeeLimit: 750, modules: ['Core HR', 'Leave', 'Attendance', 'Recruitment', 'Documents', 'Reports'] }, suspension: null },
+  { id: 'co-02', name: 'Aster Analytics LLC', code: 'ASTER-US', jurisdictionIds: ['jur-us-ca'], portfolioId: null, groupId: 'grp-01', status: 'active', employees: 98, createdAt: '2025-03-02', authorized: true, subscription: { tier: 'starter', employeeLimit: 100, modules: ['Core HR', 'Leave', 'Attendance'] }, suspension: null },
+  { id: 'co-03', name: 'Meridian Textiles Ltd', code: 'MERIDIAN', jurisdictionIds: ['jur-in-tn'], portfolioId: 'pf-01', groupId: null, status: 'active', employees: 910, createdAt: '2025-01-20', authorized: true, subscription: { tier: 'enterprise', employeeLimit: 5000, modules: [...PLATFORM_MODULES] }, suspension: null },
+  { id: 'co-04', name: 'BlueFern Logistics', code: 'BLUEFERN', jurisdictionIds: ['jur-in-mh'], portfolioId: 'pf-01', groupId: null, status: 'active', employees: 415, createdAt: '2025-04-08', authorized: true, subscription: { tier: 'professional', employeeLimit: 750, modules: ['Core HR', 'Leave', 'Attendance', 'Recruitment', 'Documents', 'Reports'] }, suspension: null },
+  { id: 'co-05', name: 'Cobalt Micro Devices', code: 'COBALT', jurisdictionIds: ['jur-in-ka', 'jur-in-ts'], portfolioId: 'pf-01', groupId: null, status: 'suspended', employees: 132, createdAt: '2025-05-19', authorized: true, subscription: { tier: 'professional', employeeLimit: 750, modules: ['Core HR', 'Leave', 'Attendance', 'Documents'] }, suspension: { reason: 'Invoice overdue 60+ days — billing hold pending payment plan', approvedBy: 'Daniel Kim — Compliance Office', at: '2026-06-10 09:12' } },
+  { id: 'co-06', name: 'Harbor & Vale Consulting', code: 'HARVALE', jurisdictionIds: ['jur-uk'], portfolioId: 'pf-02', groupId: null, status: 'active', employees: 58, createdAt: '2025-06-30', authorized: false, subscription: { tier: 'starter', employeeLimit: 100, modules: ['Core HR', 'Leave', 'Attendance'] }, suspension: null },
+  { id: 'co-07', name: 'Suryodaya Foods', code: 'SURYA', jurisdictionIds: ['jur-in-ts'], portfolioId: null, groupId: null, status: 'active', employees: 267, createdAt: '2025-07-14', authorized: true, subscription: { tier: 'professional', employeeLimit: 750, modules: ['Core HR', 'Leave', 'Attendance', 'Recruitment', 'Reports'] }, suspension: null },
+  { id: 'co-08', name: 'Quill & Crest Media', code: 'QUILL', jurisdictionIds: ['jur-in-ka'], portfolioId: null, groupId: 'grp-02', status: 'active', employees: 74, createdAt: '2025-08-22', authorized: false, subscription: { tier: 'starter', employeeLimit: 100, modules: ['Core HR', 'Leave', 'Attendance'] }, suspension: null },
+  { id: 'co-09', name: 'Verdant Energy Systems', code: 'VERDANT', jurisdictionIds: ['jur-in-mh', 'jur-in-ka'], portfolioId: null, groupId: 'grp-02', status: 'active', employees: 388, createdAt: '2025-09-05', authorized: true, subscription: { tier: 'professional', employeeLimit: 750, modules: ['Core HR', 'Leave', 'Attendance', 'Recruitment', 'Documents', 'Reports', 'Workflows'] }, suspension: null },
+  { id: 'co-10', name: 'Lattice Robotics', code: 'LATTICE', jurisdictionIds: ['jur-in-ka'], portfolioId: null, groupId: null, status: 'onboarding', employees: 12, createdAt: '2026-05-28', authorized: true, subscription: { tier: 'starter', employeeLimit: 100, modules: ['Core HR', 'Leave', 'Attendance'] }, suspension: null },
+  { id: 'co-11', name: 'Palmgrove Hospitality', code: 'PALM', jurisdictionIds: ['jur-in-tn'], portfolioId: 'pf-02', groupId: null, status: 'active', employees: 540, createdAt: '2025-10-12', authorized: false, subscription: { tier: 'professional', employeeLimit: 750, modules: ['Core HR', 'Leave', 'Attendance', 'Documents'] }, suspension: null },
+  { id: 'co-12', name: 'Nimbus Health Tech', code: 'NIMBUS', jurisdictionIds: ['jur-in-ts', 'jur-sg'], portfolioId: null, groupId: null, status: 'onboarding', employees: 30, createdAt: '2026-06-15', authorized: true, subscription: { tier: 'starter', employeeLimit: 100, modules: ['Core HR', 'Leave', 'Attendance'] }, suspension: null },
 ]
 
 export const seedSharingRequests: SharingRequest[] = [

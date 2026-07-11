@@ -22,7 +22,7 @@ const ENGINE_PANEL_TAB: Partial<Record<TargetModule, string | null>> = {
   'Asset Management': 'config',
   'Data Management': 'config',
   'Platform Admin': 'settings',
-  Employees: null,
+  'Policy Distribution': 'config',
 }
 
 const DEFAULT_PANEL_TAB = 'admin'
@@ -44,6 +44,12 @@ export function modulePanelPath(
 ): ModulePanelPath | null {
   const def = moduleByTarget(module)
   if (!def) return null
+  // Routed submodules (full pages, e.g. /employees/configuration) navigate
+  // straight to their own route — no tab switch on the parent page.
+  if (submodule) {
+    const sub = def.submodules.find((s) => s.id === submodule)
+    if (sub?.route) return { route: sub.route, tab: null }
+  }
   const tab =
     submodule ??
     (module in ENGINE_PANEL_TAB ? (ENGINE_PANEL_TAB[module] ?? null) : DEFAULT_PANEL_TAB)

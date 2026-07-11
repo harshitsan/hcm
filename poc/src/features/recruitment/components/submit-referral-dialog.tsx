@@ -109,7 +109,7 @@ export function SubmitReferralDialog({
           <div>
             <p className='mb-1 text-sm font-medium'>Candidate name</p>
             <Input
-              placeholder='Asha Pillai'
+              placeholder='e.g. Asha Pillai'
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -119,7 +119,7 @@ export function SubmitReferralDialog({
               <p className='mb-1 text-sm font-medium'>Email</p>
               <Input
                 type='email'
-                placeholder='asha@mail.com'
+                placeholder='e.g. asha@mail.com'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -127,7 +127,7 @@ export function SubmitReferralDialog({
             <div>
               <p className='mb-1 text-sm font-medium'>Phone</p>
               <Input
-                placeholder='+91 98xxx xxxxx'
+                placeholder='e.g. +91 98xxx xxxxx'
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
               />
@@ -137,7 +137,7 @@ export function SubmitReferralDialog({
             <div>
               <p className='mb-1 text-sm font-medium'>Current role</p>
               <Input
-                placeholder='Backend Engineer @ Acme'
+                placeholder='e.g. Backend Engineer @ Acme'
                 value={currentRole}
                 onChange={(e) => setCurrentRole(e.target.value)}
               />
@@ -156,7 +156,7 @@ export function SubmitReferralDialog({
           <div>
             <p className='mb-1 text-sm font-medium'>Resume file</p>
             <Input
-              placeholder='asha-pillai-resume.pdf'
+              placeholder='e.g. asha-pillai-resume.pdf'
               value={resume}
               onChange={(e) => setResume(e.target.value)}
             />

@@ -133,12 +133,12 @@ export function ProjectTypesPanel({ companyId, orgConfig }: ProjectTypesPanelPro
       </div>
 
       {rows.length === 0 ? (
-        <p className='text-paragraph-sm text-neutral-1000 border-grey-200 rounded-[6px] border px-3 py-4 text-center'>
+        <p className='text-paragraph-sm text-neutral-1000 border-gray-200 rounded-[6px] border px-3 py-4 text-center'>
           No project types match “{applied}”. Reset the filter to see the full
           list.
         </p>
       ) : (
-        <div className='divide-grey-200 border-grey-200 divide-y rounded-[6px] border'>
+        <div className='divide-grey-200 border-gray-200 divide-y rounded-[6px] border'>
           {rows.map((t) => (
             <div key={t.id} className='flex items-center justify-between px-3 py-2'>
               <div className='flex min-w-0 flex-col gap-0.5'>

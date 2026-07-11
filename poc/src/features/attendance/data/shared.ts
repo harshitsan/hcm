@@ -106,6 +106,20 @@ export function fmtHours(hours: number) {
   return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
+/** 70 → "1h 10m", 30 → "30m", 120 → "2h". */
+export function fmtMinutes(minutes: number) {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+/** Plain-language breaks summary: (3, 70) → "3 breaks · 1h 10m". */
+export function fmtBreaks(count: number, minutes: number) {
+  if (count === 0) return 'No breaks'
+  return `${count} break${count === 1 ? '' : 's'} · ${fmtMinutes(minutes)}`
+}
+
 export function todayIso() {
   return new Date().toISOString().slice(0, 10)
 }

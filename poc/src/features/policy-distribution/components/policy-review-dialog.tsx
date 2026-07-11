@@ -68,7 +68,7 @@ export function PolicyReviewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className='border-grey-200 max-h-[320px] rounded-[6px] border bg-white p-4'>
+        <ScrollArea className='border-gray-200 max-h-[320px] rounded-[6px] border bg-white p-4'>
           <div className='space-y-3'>
             {policy && (
               <p className='text-paragraph-sm text-neutral-1000'>

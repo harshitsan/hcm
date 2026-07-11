@@ -11,6 +11,7 @@ import type { SettingGroup } from '@/components/common/settings/types'
 import { StatusDonut } from '@/components/common/settings/settings-group-card'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { useEngineArtifactCounts } from '@/features/workflows/hooks/use-engine-artifact-counts'
+import type { BalancesStore } from '../hooks/use-balances'
 import type { GlobalSettingsStore } from '../hooks/use-global-settings'
 import type { LeaveConfigStore } from '../hooks/use-leave-config'
 import type { LeaveSettingsStore } from '../hooks/use-leave-settings'
@@ -24,11 +25,13 @@ import { ConfigShifts } from './config-shifts'
 import { ConfigTimeOffAdmins } from './config-timeoff-admins'
 import { ConfigTypes } from './config-types'
 import { ConfigWorkflows } from './config-workflows'
+import { YearRolloverCard } from './year-rollover-card'
 
 interface Stores {
   config: LeaveConfigStore
   settings: LeaveSettingsStore
   globalSettings: GlobalSettingsStore
+  balances: BalancesStore
 }
 
 /** Engine features group body — needs its own component so it can call hooks. */
@@ -173,7 +176,7 @@ export function useLeaveSettingGroups(stores: Stores): SettingGroup[] {
       id: 'general-rules',
       title: 'General rules',
       description:
-        'Module on/off, employee class accrual start and email/notification templates.',
+        'Module on/off, employee class accrual start, email/notification templates and the year-end rollover.',
       icon: <Gear size={24} />,
       keywords: [
         'enable',
@@ -185,10 +188,16 @@ export function useLeaveSettingGroups(stores: Stores): SettingGroup[] {
         'class',
         'accrual start',
         'defaults',
+        'rollover',
+        'year end',
+        'carry forward',
       ],
       status: [{ label: 'Defaults', tone: 'neutral' }],
       render: () => (
-        <ConfigGeneral settings={settings} onNextStep={() => undefined} />
+        <div className='space-y-6'>
+          <ConfigGeneral settings={settings} onNextStep={() => undefined} />
+          <YearRolloverCard balances={stores.balances} />
+        </div>
       ),
     },
     {
