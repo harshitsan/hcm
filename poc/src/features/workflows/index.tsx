@@ -21,6 +21,7 @@ import { RoutingTab } from './components/routing-tab'
 import { SlaTab } from './components/sla-tab'
 import { CATEGORY_LABELS } from './data/approver-groups'
 import { ARTIFACT_TYPE_LABELS } from './data/business-logic'
+import { takeRequestedTab } from './data/module-nav'
 import { ACTORS, companiesForRole } from './data/shared'
 import { DesignerTab } from './designer/designer-tab'
 import { useApproverGroups } from './hooks/use-approver-groups'
@@ -216,7 +217,10 @@ export function Workflows() {
   )
 
   // Controlled tab state so search results can navigate anywhere directly.
-  const [topTab, setTopTab] = useState<string | null>(null)
+  // Honours one-shot tab requests (e.g. the /engines → Configure redirect).
+  const [topTab, setTopTab] = useState<string | null>(() =>
+    takeRequestedTab('/workflows')
+  )
   const [catalogSearch, setCatalogSearch] = useState('')
 
   useEffect(() => {

@@ -45,7 +45,6 @@ import {
   ScrollText,
   ServerCog,
   ShieldCheck,
-  SlidersHorizontal,
   UserCog,
   UserPlus,
   Workflow,
@@ -696,20 +695,8 @@ export const MODULE_REGISTRY: readonly ModuleDef[] = [
 
   // ─── Platform ──────────────────────────────────────────────────────────────
   {
-    id: '/engines',
-    name: 'Engines Hub',
-    route: '/engines',
-    icon: SlidersHorizontal,
-    group: 'Platform',
-    targetModule: undefined,
-    submodules: [],
-    entities: [],
-    events: [],
-    forms: [],
-  },
-  {
     id: '/workflows',
-    name: 'Workflow Engine',
+    name: 'Workflows',
     route: '/workflows',
     icon: Workflow,
     group: 'Platform',

@@ -102,7 +102,7 @@ export function TopBar({ mode = 'flow' }: { mode?: 'flow' | 'payload' }) {
     a.download = `workflow-${doc.name.replace(/\s+/g, '-').toLowerCase()}.json`
     a.click()
     URL.revokeObjectURL(a.href)
-    toast.success(`"${doc.name}" exported as workflow bundle — import it at the Engines Hub`)
+    toast.success(`"${doc.name}" exported as workflow bundle — import it from the Configure tab`)
   }
 
   return (

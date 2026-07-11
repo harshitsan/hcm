@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { Download, Paperclip, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react'
+import { Download, List, Paperclip, Pencil, Plus, Search, Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -66,10 +66,14 @@ const MODULE_RAIL_ITEMS = MODULE_REGISTRY.filter(
 
 interface HubCatalogProps {
   store: BusinessLogicStore
+  /** When provided, renders a "New workflow" button in the toolbar. */
+  onNew?: () => void
+  /** When provided, each row gets a Details action (scopes, history, delete). */
+  onDetails?: (artifactId: string) => void
 }
 
 /**
- * Engines Hub catalog — three browse modes:
+ * Workflow catalog Browse view (formerly the Engines Hub page) — three modes:
  *  "By module": left rail = registry modules with targetModule, count = attachments.
  *  "By type":   left rail = 8 artifact types.
  *  "Folders":   left rail = folder file-manager with CRUD + drag-and-drop.
@@ -77,10 +81,10 @@ interface HubCatalogProps {
  * Rows reuse the engine-artifacts-panel visual pattern, extended with:
  *  – attachment pills (each with × to detach)
  *  – "Attach…" button (opens AttachDialog)
- *  – "Export" placeholder (disabled, wires in A4)
+ *  – per-row and per-view bundle export, bundle import
  *  – "Move to…" Select (a11y fallback for drag-and-drop)
  */
-export function HubCatalog({ store }: HubCatalogProps) {
+export function HubCatalog({ store, onNew, onDetails }: HubCatalogProps) {
   const { role } = useRole()
   const myScope = ROLE_SCOPE[role]
   const folderStore = useWorkflowFolders()
@@ -688,6 +692,17 @@ export function HubCatalog({ store }: HubCatalogProps) {
             hidden
             onChange={(e) => handleImportFile(e.target.files?.[0])}
           />
+
+          {onNew && (
+            <Button
+              variant='red'
+              onClick={onNew}
+              className='bg-orange-1200 hover:bg-orange-1200 h-8 gap-1! rounded-[6px]! px-2!'
+            >
+              <Plus className='size-3' />
+              New workflow
+            </Button>
+          )}
         </div>
 
         {/* Rows */}
@@ -838,6 +853,18 @@ export function HubCatalog({ store }: HubCatalogProps) {
                     <Download className='size-3' />
                     Export
                   </Button>
+
+                  {onDetails && (
+                    <Button
+                      variant='ghost'
+                      size='icon'
+                      className='h-7 w-7 shrink-0 text-neutral-700 hover:text-neutral-1600'
+                      title='Details (scopes, history, delete)'
+                      onClick={() => onDetails(a.id)}
+                    >
+                      <List className='size-3.5' />
+                    </Button>
+                  )}
                 </div>
               </div>
             )

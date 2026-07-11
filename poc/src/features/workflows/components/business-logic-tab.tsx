@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { List, Plus } from 'phosphor-react'
 import { toast } from 'sonner'
@@ -6,6 +6,7 @@ import type { Role } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ import {
 import type { BusinessLogicStore } from '../hooks/use-business-logic'
 import { ArtifactBuilderSheet } from './artifact-builder-sheet'
 import { ArtifactDetailSheet } from './artifact-detail-sheet'
+import { HubCatalog } from './hub-catalog'
 import { LayerBanner } from './layer-banner'
 import { ModuleLink } from './module-link'
 import { SummaryCards } from './summary-cards'
@@ -186,6 +188,16 @@ export function BusinessLogicTab({
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editing, setEditing] = useState<Artifact | null>(null)
 
+  // Browse (rail + folders + attach, absorbed from the Engines Hub) vs the
+  // governance table (scope matrix, sortable columns).
+  const [view, setView] = useState<'browse' | 'table'>('browse')
+
+  // "Find any setting…" jumps target a specific workflow by name — land those
+  // on the table, where the lifted search prop drives the filter.
+  useEffect(() => {
+    if (search.trim() !== '') setView('table')
+  }, [search])
+
   // Build columns inside the component so the Details action can close over setDetailId.
   const columns = useMemo<ColumnDef<ArtifactRow>[]>(() => [
     ...BASE_COLUMNS,
@@ -256,71 +268,95 @@ export function BusinessLogicTab({
 
   const detail = artifacts.find((a) => a.id === detailId) ?? null
 
+  const openBuilder = () => {
+    setEditing(null)
+    setBuilderOpen(true)
+  }
+
   return (
     <div className='w-full'>
-      {/* Filtering to one module IS the consume layer — that module's config view. */}
-      <LayerBanner active={moduleFilter === 'all' ? 'govern' : 'consume'} />
-
       <SummaryCards title='One engine — every configuration screen' items={summary} />
 
-      <p className='text-neutral-1000 mb-3 text-sm'>
-        {`Authored once in the engine → enabled per scope level by each admin → consumed by the target module. Modules consume these workflows — a module's Admin view is this catalog filtered to that module.`}
-      </p>
+      <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
+        <p className='text-neutral-1000 text-sm'>
+          {`Authored once in the engine → enabled per scope level by each admin → consumed by the target module. Modules consume these workflows — a module's Admin view is this catalog filtered to that module.`}
+        </p>
+        <Tabs value={view} onValueChange={(v) => setView(v as 'browse' | 'table')}>
+          <TabsList>
+            <TabsTrigger value='browse' className='text-xs'>
+              Browse
+            </TabsTrigger>
+            <TabsTrigger value='table' className='text-xs'>
+              Governance table
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-      <SectionToolbar title={`Workflow catalog (${rows.length})`}>
-        <Input
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder='Search workflows'
-          className='h-7 w-[180px]'
+      {view === 'browse' ? (
+        <HubCatalog
+          store={store}
+          onNew={canAuthor ? openBuilder : undefined}
+          onDetails={setDetailId}
         />
-        <Select value={moduleFilter} onValueChange={setModuleFilter}>
-          <SelectTrigger variant='secondary' className='h-7 w-[200px]'>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='all'>All modules</SelectItem>
-            {TARGET_MODULES.map((m) => (
-              <SelectItem key={m} value={m}>
-                {m}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value='all'>All types</SelectItem>
-            {ARTIFACT_TYPES.map((t) => (
-              <SelectItem key={t} value={t}>
-                {ARTIFACT_TYPE_LABELS[t]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {canAuthor && (
-          <Button
-            variant='red'
-            onClick={() => {
-              setEditing(null)
-              setBuilderOpen(true)
-            }}
-            className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
-          >
-            <Plus size={10} weight='bold' />
-            New workflow
-          </Button>
-        )}
-      </SectionToolbar>
+      ) : (
+        <>
+          {/* Filtering to one module IS the consume layer — that module's config view. */}
+          <LayerBanner active={moduleFilter === 'all' ? 'govern' : 'consume'} />
 
-      <DataTable
-        columns={columns}
-        data={rows}
-        variant='no-status'
-        onRowClick={(row) => openEditor(row.id)}
-      />
+          <SectionToolbar title={`Workflow catalog (${rows.length})`}>
+            <Input
+              value={search}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder='Search workflows'
+              className='h-7 w-[180px]'
+            />
+            <Select value={moduleFilter} onValueChange={setModuleFilter}>
+              <SelectTrigger variant='secondary' className='h-7 w-[200px]'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>All modules</SelectItem>
+                {TARGET_MODULES.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value='all'>All types</SelectItem>
+                {ARTIFACT_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {ARTIFACT_TYPE_LABELS[t]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {canAuthor && (
+              <Button
+                variant='red'
+                onClick={openBuilder}
+                className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
+              >
+                <Plus size={10} weight='bold' />
+                New workflow
+              </Button>
+            )}
+          </SectionToolbar>
+
+          <DataTable
+            columns={columns}
+            data={rows}
+            variant='no-status'
+            onRowClick={(row) => openEditor(row.id)}
+          />
+        </>
+      )}
 
       <ArtifactDetailSheet
         artifact={detail}
