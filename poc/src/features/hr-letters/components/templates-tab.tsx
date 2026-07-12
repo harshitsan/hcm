@@ -12,7 +12,23 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { HR_DOC_TYPES, type LetterTemplate } from '../data/hr-letters'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  AGREEMENT_TYPES,
+  EMAIL_DOC_TYPES,
+  HR_DOC_TYPES,
+  OFFER_JOINING_TYPES,
+  TEMPLATE_CATEGORIES,
+  categoryOfDocType,
+  type LetterTemplate,
+  type TemplateCategory,
+} from '../data/hr-letters'
 import {
   type LetterTemplatesStore,
   type TemplateDraft,
@@ -22,17 +38,21 @@ import { TemplatePreviewDialog } from './template-preview-dialog'
 
 const PAGE_SIZE = 5
 
+/** All 18 standard Kensium template types across the four categories. */
+const STANDARD_TYPE_COUNT =
+  HR_DOC_TYPES.length + OFFER_JOINING_TYPES.length + EMAIL_DOC_TYPES.length
+
 interface TemplatesTabProps {
   store: LetterTemplatesStore
 }
 
 /**
- * HR letter/certificate template configuration (HLC-01): each of the eight
- * document types carries its own branded, versioned template. Editing is
- * Company Admin only; Group Company Admin reviews read-only for group
- * governance (HLC-15). View opens the read-only preview (HLC-26). The list
- * toolbar carries refresh (LT-03) and Previous/Next paging with a displayed
- * item range (LT-05).
+ * Template catalog (HLC-01, F8-A): the 18 standard template types grouped by
+ * category — Letters, Certificates, Offers & joining, Email templates — each
+ * with its own branded, versioned template. Editing is Company Admin only;
+ * Group Company Admin reviews read-only for group governance (HLC-15). View
+ * opens the read-only preview (HLC-26). The list toolbar carries refresh
+ * (LT-03) and Previous/Next paging with a displayed item range (LT-05).
  */
 export function TemplatesTab({ store }: TemplatesTabProps) {
   const { role } = useRole()
@@ -42,16 +62,36 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
   const [editing, setEditing] = useState<LetterTemplate | null>(null)
   const [previewing, setPreviewing] = useState<LetterTemplate | null>(null)
   const [page, setPage] = useState(0)
+  const [categoryFilter, setCategoryFilter] = useState<
+    TemplateCategory | 'all'
+  >('all')
 
   const letterTemplates = useMemo(
     () =>
-      store.templates.filter((t) =>
-        (HR_DOC_TYPES as readonly string[]).includes(t.docType)
-      ),
-    [store.templates]
+      store.templates
+        .filter(
+          (t) => !(AGREEMENT_TYPES as readonly string[]).includes(t.docType)
+        )
+        .filter(
+          (t) =>
+            categoryFilter === 'all' ||
+            categoryOfDocType(t.docType) === categoryFilter
+        )
+        .sort(
+          (a, b) =>
+            TEMPLATE_CATEGORIES.indexOf(categoryOfDocType(a.docType)) -
+            TEMPLATE_CATEGORIES.indexOf(categoryOfDocType(b.docType))
+        ),
+    [store.templates, categoryFilter]
   )
 
-  const coveredTypes = new Set(letterTemplates.map((t) => t.docType))
+  const coveredTypes = new Set(
+    store.templates
+      .filter(
+        (t) => !(AGREEMENT_TYPES as readonly string[]).includes(t.docType)
+      )
+      .map((t) => t.docType)
+  )
 
   const total = letterTemplates.length
   const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1)
@@ -73,12 +113,33 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
             Document templates ({letterTemplates.length})
           </h2>
           <p className='text-paragraph-sm text-neutral-1000'>
-            {coveredTypes.size} of {HR_DOC_TYPES.length} standard document
-            types have a configured template. Every save creates a new
-            effective-dated version — generated documents keep referencing the
-            version they were produced under.
+            {coveredTypes.size} of {STANDARD_TYPE_COUNT} standard template
+            types have a configured template, grouped across Letters,
+            Certificates, Offers &amp; joining, and Email templates. Every save
+            creates a new effective-dated version — generated documents keep
+            referencing the version they were produced under.
           </p>
         </div>
+        <div className='flex items-center gap-2'>
+        <Select
+          value={categoryFilter}
+          onValueChange={(value) => {
+            setCategoryFilter(value as TemplateCategory | 'all')
+            setPage(0)
+          }}
+        >
+          <SelectTrigger variant='secondary' className='h-7 w-[170px]'>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>All categories</SelectItem>
+            {TEMPLATE_CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {canEdit && (
           <Button
             variant='red'
@@ -92,6 +153,7 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
             New template
           </Button>
         )}
+        </div>
       </div>
 
       <div className='rounded-[6px] border border-gray-200 bg-white'>
@@ -137,6 +199,7 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
           <TableHeader>
             <TableRow>
               <TableHead>Template</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Document type</TableHead>
               <TableHead>Version</TableHead>
               <TableHead>Workflow</TableHead>
@@ -148,6 +211,9 @@ export function TemplatesTab({ store }: TemplatesTabProps) {
             {pageItems.map((t) => (
               <TableRow key={t.id}>
                 <TableCell className='font-medium'>{t.name}</TableCell>
+                <TableCell>
+                  <Badge variant='pending'>{categoryOfDocType(t.docType)}</Badge>
+                </TableCell>
                 <TableCell>{t.docType}</TableCell>
                 <TableCell>
                   <Badge variant='pending'>

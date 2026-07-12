@@ -78,6 +78,29 @@ export const TENANTS = [
   'Zephyr Logistics',
 ] as const
 
+/**
+ * Compensation-visibility rule (Phase 1): fields holding salary, tax, or
+ * payroll data are never visible to standard employees or people-managers.
+ * View access is granted per field, per role, from the list below only.
+ */
+export const FIELD_SENSITIVITIES = ['none', 'salary', 'tax', 'payroll'] as const
+export type FieldSensitivity = (typeof FIELD_SENSITIVITIES)[number]
+
+export const SENSITIVITY_LABELS: Record<FieldSensitivity, string> = {
+  none: 'None',
+  salary: 'Salary',
+  tax: 'Tax',
+  payroll: 'Payroll',
+}
+
+/** The only roles that may be granted access to sensitive field data. */
+export const SENSITIVE_GRANTABLE_ROLES = [
+  'HR Admin',
+  'Finance & Compliance Viewer',
+  'Platform Admin',
+  'Portfolio Admin',
+] as const
+
 /** Per-audience View/Edit matrix (Kensium: User Defined Fields). */
 export interface FieldPermissions {
   hrView: boolean
@@ -113,6 +136,10 @@ export interface FieldDefinition {
   updatedBy: string
   updatedAt: string
   permissions: FieldPermissions
+  /** Compensation-data category; 'none' for ordinary fields. */
+  sensitivity: FieldSensitivity
+  /** Roles granted view access when sensitivity !== 'none'. */
+  sensitiveGrants: string[]
 }
 
 const HR_ONLY: FieldPermissions = {
@@ -153,6 +180,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-05-12',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -181,6 +210,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-02-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-02-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: ALL_EDIT,
   },
   {
@@ -202,6 +233,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-03-15',
     updatedBy: 'Platform Admin',
     updatedAt: '2026-03-10',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: ALL_EDIT,
   },
   {
@@ -223,6 +256,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-04-02',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -251,6 +286,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Platform Admin',
     updatedAt: '2026-01-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -279,6 +316,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-02-15',
     updatedBy: 'Company Admin',
     updatedAt: '2026-02-15',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -307,6 +346,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-04-01',
     updatedBy: 'Group Company Admin',
     updatedAt: '2026-03-28',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -335,6 +376,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-05-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-05-01',
+    sensitivity: 'salary',
+    sensitiveGrants: ['HR Admin', 'Finance & Compliance Viewer'],
     permissions: HR_ONLY,
   },
   {
@@ -356,6 +399,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-01-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -384,6 +429,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Platform Admin',
     updatedAt: '2026-01-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: ALL_EDIT,
   },
   {
@@ -405,6 +452,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-04-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-03-20',
+    sensitivity: 'salary',
+    sensitiveGrants: ['HR Admin', 'Finance & Compliance Viewer', 'Portfolio Admin'],
     permissions: HR_ONLY,
   },
   {
@@ -426,6 +475,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-01-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -454,6 +505,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-06-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-06-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: ALL_EDIT,
   },
   {
@@ -475,6 +528,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-02-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-02-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -503,6 +558,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-05-15',
     updatedBy: 'Company Admin',
     updatedAt: '2026-05-15',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: HR_ONLY,
   },
   {
@@ -524,6 +581,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Platform Admin',
     updatedAt: '2026-01-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: HR_ONLY,
   },
   {
@@ -545,6 +604,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-03-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-03-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -573,6 +634,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-02-01',
     updatedBy: 'Group Company Admin',
     updatedAt: '2026-02-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -601,6 +664,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-06-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-06-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: ALL_EDIT,
   },
   {
@@ -622,6 +687,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-06-15',
     updatedBy: 'Company Admin',
     updatedAt: '2026-06-15',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: ALL_EDIT,
   },
   // ─── Form-level custom fields ────────────────────────────────────────────────
@@ -644,6 +711,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-01-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: {
       hrView: true,
       hrEdit: true,
@@ -672,6 +741,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-03-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-03-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: ALL_EDIT,
   },
   {
@@ -693,14 +764,9 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-01-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-01-01',
-    permissions: {
-      hrView: true,
-      hrEdit: true,
-      managerView: true,
-      managerEdit: true,
-      employeeView: true,
-      employeeEdit: true,
-    },
+    sensitivity: 'payroll',
+    sensitiveGrants: ['HR Admin', 'Finance & Compliance Viewer'],
+    permissions: HR_ONLY,
   },
   {
     id: 'cf-f04',
@@ -721,6 +787,8 @@ export const seedFieldDefinitions: FieldDefinition[] = [
     effectiveDate: '2026-04-01',
     updatedBy: 'Company Admin',
     updatedAt: '2026-04-01',
+    sensitivity: 'none',
+    sensitiveGrants: [],
     permissions: ALL_EDIT,
   },
 ]

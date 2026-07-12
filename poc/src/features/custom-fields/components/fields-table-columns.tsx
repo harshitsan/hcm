@@ -8,7 +8,13 @@ import { HighlightedCell } from '@/components/common/data-table/highlighted-cell
 import { SearchableHeader } from '@/components/common/data-table/searchable-header'
 import { LongText } from '@/components/common/long-text'
 import { type FieldDefinition } from '../data/custom-fields'
-import { PermissionPills, ScopeBadge, TypeBadge, YesNoBadge } from './field-badges'
+import {
+  PermissionPills,
+  ScopeBadge,
+  SensitivityBadge,
+  TypeBadge,
+  YesNoBadge,
+} from './field-badges'
 
 interface ColumnDeps {
   /** Whether the active role may modify this definition (platform lock). */
@@ -69,10 +75,13 @@ export function getFieldsTableColumns({
                   aria-label='Governed by a higher scope'
                 />
               )}
-              <div className='flex min-w-0 flex-col'>
-                <LongText className='text-neutral-1600 font-medium'>
-                  {field.name}
-                </LongText>
+              <div className='flex min-w-0 flex-col gap-0.5'>
+                <div className='flex min-w-0 items-center gap-1.5'>
+                  <LongText className='text-neutral-1600 font-medium'>
+                    {field.name}
+                  </LongText>
+                  <SensitivityBadge field={field} />
+                </div>
                 <span className='text-paragraph-sm text-neutral-1000 truncate'>
                   {field.description}
                 </span>

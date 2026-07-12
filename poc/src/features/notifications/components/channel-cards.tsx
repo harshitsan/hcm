@@ -4,10 +4,10 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { RoleGate, useRole } from '@/context/role-context'
 import { CHANNEL_LABELS, type Channel } from '../data/notifications'
 import { type ChannelSetting, type Connector } from '../data/settings'
-import { type ConnectorDraft } from '../hooks/use-notification-settings'
 import { ConnectorDialog } from './connector-dialog'
 
 interface ChannelsCardProps {
@@ -18,7 +18,7 @@ interface ChannelsCardProps {
 
 /**
  * Company channel configuration (NTF-01/02/03): email is locked always-on;
- * in-app is optional; Teams/WhatsApp depend on a provisioned connector.
+ * in-app is optional; Teams/WhatsApp depend on a connected connector.
  */
 export function ChannelsCard({
   channels,
@@ -26,7 +26,7 @@ export function ChannelsCard({
   toggleChannel,
 }: ChannelsCardProps) {
   const { hasRole } = useRole()
-  const canToggle = hasRole('Company Admin', 'Group Company Admin')
+  const canToggle = hasRole('Company Admin', 'Group Company Admin', 'Platform Admin')
 
   return (
     <Card className='gap-3 border-none bg-white py-4'>
@@ -36,15 +36,15 @@ export function ChannelsCard({
           Notification channels
         </CardTitle>
         <p className='text-paragraph-sm text-neutral-1000'>
-          Company Admins choose the optional channels; Group Company Admin
-          settings apply group-wide. Email can never be disabled.
+          Admins choose the optional channels; Group Company Admin settings
+          apply group-wide. Email can never be disabled.
         </p>
       </CardHeader>
       <CardContent className='space-y-2 px-4'>
         {channels.map((c) => {
           const connector = connectors.find((k) => k.id === c.channel)
           const connectorBlocked =
-            c.requiresConnector && (!connector || !connector.provisioned)
+            c.requiresConnector && (!connector || !connector.connected)
           return (
             <div
               key={c.channel}
@@ -62,8 +62,10 @@ export function ChannelsCard({
                     </Badge>
                   )}
                   {c.requiresConnector && (
-                    <Badge variant={connectorBlocked ? 'badge_inactive' : 'open'}>
-                      {connectorBlocked ? 'No connector' : 'Connector ready'}
+                    <Badge
+                      variant={connectorBlocked ? 'badge_inactive' : 'badge_active'}
+                    >
+                      {connectorBlocked ? 'Not connected' : 'Connected'}
                     </Badge>
                   )}
                 </div>
@@ -87,38 +89,33 @@ export function ChannelsCard({
 
 interface ConnectorsCardProps {
   connectors: Connector[]
-  saveConnector: (id: Connector['id'], draft: ConnectorDraft) => void
+  connectConnector: (id: Connector['id'], target: string) => void
+  disconnectConnector: (id: Connector['id']) => void
   testConnector: (id: Connector['id']) => void
 }
 
-/** Platform Admin connector provisioning + health (NTF-03, NTF-13). */
+/** Teams / WhatsApp connector management (NTF-03, NTF-13). */
 export function ConnectorsCard({
   connectors,
-  saveConnector,
+  connectConnector,
+  disconnectConnector,
   testConnector,
 }: ConnectorsCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [editing, setEditing] = useState<Connector | null>(null)
-
-  const credentialBadge = (c: Connector) => {
-    if (c.credentialStatus === 'valid')
-      return <Badge variant='badge_active'>Credentials valid</Badge>
-    if (c.credentialStatus === 'invalid')
-      return <Badge variant='dropped'>Invalid credentials</Badge>
-    return <Badge variant='badge_inactive'>Not provisioned</Badge>
-  }
+  const [connecting, setConnecting] = useState<Connector | null>(null)
+  const [disconnecting, setDisconnecting] = useState<Connector | null>(null)
 
   return (
     <Card className='gap-3 border-none bg-white py-4'>
       <CardHeader className='px-4'>
         <CardTitle className='text-paragraph-md text-neutral-1600 flex items-center gap-2 font-medium'>
           <PlugZap className='text-blue-1400 size-4' />
-          Third-party connectors (platform)
+          Third-party connectors
         </CardTitle>
         <p className='text-paragraph-sm text-neutral-1000'>
-          Teams and WhatsApp route through connectors provisioned here. When a
-          connector is unavailable or its credentials are invalid, delivery
-          fails over to email so no notification is lost.
+          Microsoft Teams and WhatsApp route through connectors managed here.
+          When a connector is unavailable, delivery fails over to email so no
+          notification is lost.
         </p>
       </CardHeader>
       <CardContent className='space-y-2 px-4'>
@@ -130,44 +127,60 @@ export function ConnectorsCard({
             <div>
               <div className='flex items-center gap-2'>
                 <p className='text-neutral-1600 text-sm font-medium'>{c.name}</p>
-                {credentialBadge(c)}
+                <Badge variant={c.connected ? 'badge_active' : 'badge_inactive'}>
+                  {c.connected ? 'Connected' : 'Not connected'}
+                </Badge>
                 {c.lastTestResult && (
-                  <Badge variant={c.lastTestResult === 'success' ? 'completed' : 'overdue'}>
+                  <Badge
+                    variant={c.lastTestResult === 'success' ? 'completed' : 'overdue'}
+                  >
                     Last test: {c.lastTestResult}
                   </Badge>
                 )}
               </div>
               <p className='text-paragraph-sm text-neutral-1000'>
-                {c.provisioned
-                  ? c.webhookUrl
-                  : 'Channel remains unavailable to companies until provisioned.'}
+                {c.connected
+                  ? `${c.targetLabel}: ${c.target}`
+                  : 'The channel stays unavailable until this connector is set up.'}
               </p>
             </div>
             <RoleGate
-              roles={['Platform Admin']}
+              roles={['Platform Admin', 'Company Admin']}
               fallback={
                 <span className='text-paragraph-sm text-neutral-1000 shrink-0'>
-                  Managed by Platform Admin
+                  Managed by your admin
                 </span>
               }
             >
               <div className='flex shrink-0 items-center gap-2'>
-                <Button
-                  variant='outline'
-                  className='h-7 rounded-[6px] px-2'
-                  onClick={() => testConnector(c.id)}
-                >
-                  Test delivery
-                </Button>
-                <Button
-                  className='h-7 rounded-[6px] px-2'
-                  onClick={() => {
-                    setEditing(c)
-                    setDialogOpen(true)
-                  }}
-                >
-                  {c.provisioned ? 'Update credentials' : 'Provision'}
-                </Button>
+                {c.connected ? (
+                  <>
+                    <Button
+                      variant='outline'
+                      className='h-7 rounded-[6px] px-2'
+                      onClick={() => testConnector(c.id)}
+                    >
+                      Test delivery
+                    </Button>
+                    <Button
+                      variant='outline'
+                      className='text-red-1400 h-7 rounded-[6px] px-2'
+                      onClick={() => setDisconnecting(c)}
+                    >
+                      Disconnect
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    className='h-7 rounded-[6px] px-2'
+                    onClick={() => {
+                      setConnecting(c)
+                      setDialogOpen(true)
+                    }}
+                  >
+                    Connect
+                  </Button>
+                )}
               </div>
             </RoleGate>
           </div>
@@ -178,10 +191,25 @@ export function ConnectorsCard({
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open)
-          if (!open) setEditing(null)
+          if (!open) setConnecting(null)
         }}
-        connector={editing}
-        onSubmit={saveConnector}
+        connector={connecting}
+        onConnect={connectConnector}
+      />
+
+      <ConfirmDialog
+        open={disconnecting !== null}
+        onOpenChange={(open) => {
+          if (!open) setDisconnecting(null)
+        }}
+        title={`Disconnect ${disconnecting?.name ?? ''}?`}
+        desc={`Messages will stop going out on ${disconnecting?.name ?? 'this channel'} and the channel will be switched off. Anything already queued falls back to email, so nothing is lost.`}
+        confirmText='Disconnect'
+        destructive
+        handleConfirm={() => {
+          if (disconnecting) disconnectConnector(disconnecting.id)
+          setDisconnecting(null)
+        }}
       />
     </Card>
   )

@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react'
-import { ArrowsClockwise, PencilSimple, Plus, Trash } from 'phosphor-react'
+import {
+  ArrowsClockwise,
+  CopySimple,
+  Eye,
+  MagnifyingGlass,
+  PencilSimple,
+  Plus,
+  Trash,
+} from 'phosphor-react'
 import { ArrowUpDown } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -13,16 +21,32 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
 import { useRole } from '@/context/role-context'
-import { type FieldDefinition } from '../data/custom-fields'
+import {
+  FIELD_SCOPES,
+  FIELD_TARGETS,
+  type FieldDefinition,
+  type FieldType,
+} from '../data/custom-fields'
+import { hasStoredData } from '../data/field-engine'
 import {
   type FieldDefinitionsStore,
   type FieldDraft,
 } from '../hooks/use-custom-fields'
+import { FieldDetailSheet } from './field-detail-sheet'
 import { FieldWizard } from './field-wizard'
 import { FieldsOrderDialog } from './fields-order-dialog'
 import { getFieldsTableColumns } from './fields-table-columns'
+import { GuidedMigrationDialog } from './guided-migration-dialog'
 
 interface DefinitionsTabProps {
   store: FieldDefinitionsStore
@@ -39,6 +63,7 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
     fields,
     addField,
     updateField,
+    migrateFieldType,
     deleteField,
     toggleDefault,
     reorderFields,
@@ -49,8 +74,31 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [editingField, setEditingField] = useState<FieldDefinition | null>(null)
+  const [duplicateSource, setDuplicateSource] = useState<FieldDefinition | null>(null)
+  const [detailField, setDetailField] = useState<FieldDefinition | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
   const [orderOpen, setOrderOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /** Type change on a field with data, held until the migration completes. */
+  const [pendingMigration, setPendingMigration] = useState<{
+    field: FieldDefinition
+    draft: FieldDraft
+  } | null>(null)
+
+  // First-class surfacing: name search + entity/scope filters.
+  const [search, setSearch] = useState('')
+  const [entityFilter, setEntityFilter] = useState('all')
+  const [scopeFilter, setScopeFilter] = useState('all')
+
+  const visibleFields = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    return fields.filter(
+      (f) =>
+        (!query || f.name.toLowerCase().includes(query)) &&
+        (entityFilter === 'all' || f.entity === entityFilter) &&
+        (scopeFilter === 'all' || f.scope === scopeFilter)
+    )
+  }, [fields, search, entityFilter, scopeFilter])
 
   const canManage = useMemo(
     () => (field: FieldDefinition) => {
@@ -88,12 +136,33 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
       )
       return
     }
+    setDuplicateSource(null)
     setEditingField(field)
     setWizardOpen(true)
   }
 
+  const handleDuplicate = () => {
+    if (selectedRows.length !== 1) return
+    setEditingField(null)
+    setDuplicateSource(selectedRows[0])
+    setWizardOpen(true)
+  }
+
+  const handleViewDetails = () => {
+    if (selectedRows.length !== 1) return
+    setDetailField(selectedRows[0])
+    setDetailOpen(true)
+  }
+
   const handleSubmit = (draft: FieldDraft) => {
     if (editingField) {
+      // A type change on a field with stored values never applies silently —
+      // it routes through the guided migration flow instead.
+      if (draft.type !== editingField.type && hasStoredData(editingField)) {
+        setPendingMigration({ field: editingField, draft })
+        clearSelection()
+        return
+      }
       updateField(editingField.id, draft, role)
     } else {
       addField(draft, role)
@@ -140,6 +209,16 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
           </Button>
           <Button
             variant='icon2'
+            onClick={handleViewDetails}
+            className='text-neutral-1900 h-7 w-7'
+            disabled={selectedRows.length !== 1}
+            aria-label='View details'
+            title='View details of the selected field'
+          >
+            <Eye size={16} weight='bold' />
+          </Button>
+          <Button
+            variant='icon2'
             onClick={handleEdit}
             className='text-neutral-1900 h-7 w-7'
             disabled={selectedRows.length !== 1}
@@ -147,6 +226,16 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
             title='Edit the selected field'
           >
             <PencilSimple size={16} weight='fill' />
+          </Button>
+          <Button
+            variant='icon2'
+            onClick={handleDuplicate}
+            className='text-neutral-1900 h-7 w-7'
+            disabled={selectedRows.length !== 1}
+            aria-label='Duplicate'
+            title='Duplicate the selected field'
+          >
+            <CopySimple size={16} weight='bold' />
           </Button>
           <Button
             variant='icon2'
@@ -172,9 +261,64 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
         </div>
       </div>
 
+      <div className='mb-3 flex flex-wrap items-center gap-3'>
+        <div className='relative w-full max-w-[260px]'>
+          <MagnifyingGlass
+            size={14}
+            className='text-neutral-1000 absolute top-1/2 left-2.5 -translate-y-1/2'
+          />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder='e.g. Badge ID'
+            aria-label='Search fields by name'
+            className='h-8 pl-8'
+          />
+        </div>
+        <Select value={entityFilter} onValueChange={setEntityFilter}>
+          <SelectTrigger
+            variant='secondary'
+            className='h-8 w-[180px]'
+            aria-label='Filter by entity'
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>All entities</SelectItem>
+            {FIELD_TARGETS.map((e) => (
+              <SelectItem key={e} value={e}>
+                {e}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={scopeFilter} onValueChange={setScopeFilter}>
+          <SelectTrigger
+            variant='secondary'
+            className='h-8 w-[150px]'
+            aria-label='Filter by scope'
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value='all'>All scopes</SelectItem>
+            {FIELD_SCOPES.map((s) => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(search || entityFilter !== 'all' || scopeFilter !== 'all') && (
+          <span className='text-paragraph-sm text-neutral-1000'>
+            {visibleFields.length} of {fields.length} fields
+          </span>
+        )}
+      </div>
+
       <DataTable
         columns={columns}
-        data={fields}
+        data={visibleFields}
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(rows) => setSelectedRows(rows)}
@@ -184,10 +328,43 @@ export function DefinitionsTab({ store }: DefinitionsTabProps) {
         open={wizardOpen}
         onOpenChange={(open) => {
           setWizardOpen(open)
-          if (!open) setEditingField(null)
+          if (!open) {
+            setEditingField(null)
+            setDuplicateSource(null)
+          }
         }}
         field={editingField}
+        duplicateSource={duplicateSource}
+        existingFields={fields}
         onSubmit={handleSubmit}
+      />
+
+      <GuidedMigrationDialog
+        open={pendingMigration !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingMigration(null)
+        }}
+        field={pendingMigration?.field ?? null}
+        nextType={(pendingMigration?.draft.type as FieldType) ?? null}
+        onApply={(_rule, outcome) => {
+          if (!pendingMigration) return
+          migrateFieldType(
+            pendingMigration.field.id,
+            pendingMigration.draft,
+            outcome,
+            role
+          )
+          setPendingMigration(null)
+        }}
+      />
+
+      <FieldDetailSheet
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open)
+          if (!open) setDetailField(null)
+        }}
+        field={detailField}
       />
 
       <FieldsOrderDialog

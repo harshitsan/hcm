@@ -11,6 +11,7 @@ import {
   AckTypeBadge,
   CriticalityBadge,
   DistributionStatusBadge,
+  TriggerBadge,
 } from './status-badges'
 
 /** Per-recipient aggregates computed from the assignments store. */
@@ -145,6 +146,17 @@ export const distributionsTableColumns: ColumnDef<DistributionRow>[] = [
     header: () => <span className='text-sm font-medium'>Ack type</span>,
     cell: ({ row }) => <AckTypeBadge type={row.original.ackType} />,
     size: 110,
+  },
+  {
+    accessorKey: 'trigger',
+    header: () => <span className='text-sm font-medium'>Trigger</span>,
+    cell: ({ row }) => (
+      <TriggerBadge
+        trigger={row.original.trigger}
+        priority={row.original.priority}
+      />
+    ),
+    size: 150,
   },
   {
     id: 'dueRule',

@@ -4,7 +4,7 @@ import {
   type ProcessType,
 } from './catalog'
 
-/** All six tracked states (FR 6.24.6). */
+/** All tracked states (FR 6.24.6) plus the post-rollback state. */
 export const JOB_STATUSES = [
   'Submitted',
   'Validating',
@@ -12,16 +12,21 @@ export const JOB_STATUSES = [
   'Completed',
   'Failed',
   'Partially completed',
+  'Rolled back',
 ] as const
 export type JobStatus = (typeof JOB_STATUSES)[number]
 
-export type RecordOutcome = 'success' | 'failed' | 'skipped'
+/**
+ * Record-level result: success (OK), warning (imported with a note),
+ * failed (Error) or skipped (duplicate handling).
+ */
+export type RecordOutcome = 'success' | 'warning' | 'failed' | 'skipped'
 
 export interface RecordResult {
   row: number
   key: string
   outcome: RecordOutcome
-  /** Failure/skip reason at record level (FR 6.24.4). */
+  /** Failure/warning/skip reason at record level (FR 6.24.4). */
   reason?: string
 }
 
@@ -41,7 +46,11 @@ export interface DataJob {
   successRecords: number
   failedRecords: number
   skippedRecords: number
+  /** Records imported successfully but flagged with a warning note. */
+  warningRecords?: number
   status: JobStatus
+  /** 0–100 while the job is In-progress (live progress bar). */
+  progress?: number
   /** True when the job only validated in sandbox/staging — nothing committed. */
   staging: boolean
   duplicateHandling?: DuplicateHandling
@@ -50,12 +59,73 @@ export interface DataJob {
   documentsZip?: string
   submittedBy: string
   submittedAt: string
+  /** Set when the job reaches a terminal state. */
+  finishedAt?: string
   /** Set after a failed/partial import is reverted to its pre-import state. */
   rolledBack: boolean
   records: RecordResult[]
 }
 
+/** Atomic (all-or-nothing) batches auto-roll-back on any failure. */
+export function isAtomicBatch(job: DataJob): boolean {
+  return job.kind === 'import' && job.processType === 'No records if error occurred'
+}
+
 export const seedJobs: DataJob[] = [
+  // In-flight seeds: useDataJobs animates these to completion after load so
+  // the live status progression is visible on first visit.
+  {
+    id: 'JOB-1043',
+    kind: 'import',
+    module: 'Organization',
+    functionName: 'Department Master',
+    entity: 'Department',
+    tier: 'Organizational',
+    companyId: 'co-01',
+    companyName: 'Aurora Software Ltd',
+    format: 'CSV',
+    fileName: 'departments_reorg_q3.csv',
+    fileSizeMb: 0.8,
+    totalRecords: 112,
+    successRecords: 112,
+    failedRecords: 0,
+    skippedRecords: 0,
+    status: 'In-progress',
+    progress: 46,
+    staging: false,
+    duplicateHandling: 'Overwrite duplicates',
+    processType: 'All valid records',
+    submittedBy: 'Dana Whitfield',
+    submittedAt: '2026-06-27T09:58:00',
+    rolledBack: false,
+    records: [
+      { row: 2, key: 'DEP-AUR-21', outcome: 'success' },
+      { row: 3, key: 'DEP-AUR-22', outcome: 'success' },
+    ],
+  },
+  {
+    id: 'JOB-1042',
+    kind: 'export',
+    module: 'Organization',
+    functionName: 'Location Master',
+    entity: 'Location',
+    tier: 'Organizational',
+    companyId: 'co-02',
+    companyName: 'Aurora Analytics Pvt Ltd',
+    format: 'XLSX',
+    fileName: 'location_export_2026-06-27.xlsx',
+    fileSizeMb: 0.2,
+    totalRecords: 42,
+    successRecords: 42,
+    failedRecords: 0,
+    skippedRecords: 0,
+    status: 'Submitted',
+    staging: false,
+    submittedBy: 'Marcus Lane',
+    submittedAt: '2026-06-27T09:57:00',
+    rolledBack: false,
+    records: [],
+  },
   {
     id: 'JOB-1041',
     kind: 'import',
@@ -72,6 +142,7 @@ export const seedJobs: DataJob[] = [
     successRecords: 1760,
     failedRecords: 52,
     skippedRecords: 28,
+    warningRecords: 34,
     status: 'Partially completed',
     staging: false,
     duplicateHandling: 'Ignore duplicates',
@@ -79,6 +150,7 @@ export const seedJobs: DataJob[] = [
     preserveEffectiveDates: true,
     submittedBy: 'Dana Whitfield',
     submittedAt: '2026-06-26T14:32:00',
+    finishedAt: '2026-06-26T14:39:00',
     rolledBack: false,
     records: [
       { row: 2, key: 'EMP-30021', outcome: 'success' },
@@ -103,6 +175,37 @@ export const seedJobs: DataJob[] = [
         reason: 'Overlapping effective-dated rows for the same employee',
       },
       { row: 16, key: 'EMP-30035', outcome: 'success' },
+      {
+        row: 47,
+        key: 'EMP-30066',
+        outcome: 'warning',
+        reason: "'Engineering' department not found — will be created",
+      },
+      {
+        row: 58,
+        key: 'EMP-30077',
+        outcome: 'warning',
+        reason: "Location left blank — head office 'Hyderabad HQ' assumed",
+      },
+      {
+        row: 112,
+        key: 'EMP-30131',
+        outcome: 'failed',
+        reason: "Invalid date '31-02-2025' in Joining Date",
+      },
+      {
+        row: 240,
+        key: 'EMP-30259',
+        outcome: 'failed',
+        reason: 'Email address is not in a valid format',
+      },
+      { row: 241, key: 'EMP-30260', outcome: 'success' },
+      {
+        row: 402,
+        key: 'EMP-30421',
+        outcome: 'warning',
+        reason: "Designation 'Sr. Executive' mapped to 'Senior Executive'",
+      },
     ],
   },
   {
@@ -128,6 +231,7 @@ export const seedJobs: DataJob[] = [
     preserveEffectiveDates: true,
     submittedBy: 'Dana Whitfield',
     submittedAt: '2026-06-25T10:05:00',
+    finishedAt: '2026-06-25T10:11:00',
     rolledBack: false,
     records: [
       { row: 2, key: 'EMP-1001 / Casual', outcome: 'success' },
@@ -157,6 +261,7 @@ export const seedJobs: DataJob[] = [
     processType: 'No records if error occurred',
     submittedBy: 'Marcus Lane',
     submittedAt: '2026-06-24T17:48:00',
+    finishedAt: '2026-06-24T17:50:00',
     rolledBack: true,
     records: [
       {
@@ -195,6 +300,7 @@ export const seedJobs: DataJob[] = [
     staging: false,
     submittedBy: 'Dana Whitfield',
     submittedAt: '2026-06-24T09:15:00',
+    finishedAt: '2026-06-24T09:18:00',
     rolledBack: false,
     records: [],
   },
@@ -221,6 +327,7 @@ export const seedJobs: DataJob[] = [
     preserveEffectiveDates: true,
     submittedBy: 'Priya Nair',
     submittedAt: '2026-06-22T19:20:00',
+    finishedAt: '2026-06-22T19:31:00',
     rolledBack: false,
     records: [
       {
@@ -260,6 +367,7 @@ export const seedJobs: DataJob[] = [
     processType: 'All valid records',
     submittedBy: 'Theo Brooks',
     submittedAt: '2026-06-20T11:02:00',
+    finishedAt: '2026-06-20T11:03:00',
     rolledBack: false,
     records: [
       { row: 2, key: 'BEA-01', outcome: 'success' },
@@ -289,6 +397,7 @@ export const seedJobs: DataJob[] = [
     documentsZip: 'certificates_bundle.zip',
     submittedBy: 'Yuki Tanaka',
     submittedAt: '2026-06-18T15:41:00',
+    finishedAt: '2026-06-18T15:46:00',
     rolledBack: false,
     records: [
       {
@@ -318,12 +427,13 @@ export const seedJobs: DataJob[] = [
     failedRecords: 0,
     skippedRecords: 0,
     status: 'Completed',
-    staging: false,
+    staging: true,
     duplicateHandling: 'Overwrite duplicates',
     processType: 'All valid records',
     preserveEffectiveDates: true,
     submittedBy: 'Owen Clarke',
     submittedAt: '2026-06-16T08:27:00',
+    finishedAt: '2026-06-16T08:31:00',
     rolledBack: false,
     records: [{ row: 2, key: 'EMP-7001 / STR-A', outcome: 'success' }],
   },
@@ -347,6 +457,7 @@ export const seedJobs: DataJob[] = [
     staging: false,
     submittedBy: 'Marcus Lane',
     submittedAt: '2026-06-15T13:55:00',
+    finishedAt: '2026-06-15T13:58:00',
     rolledBack: false,
     records: [],
   },
@@ -356,7 +467,7 @@ export const seedJobs: DataJob[] = [
     module: 'Organization',
     functionName: 'Location Master',
     entity: 'Location',
-    tier: 'Foundation',
+    tier: 'Organizational',
     companyId: 'co-01',
     companyName: 'Aurora Software Ltd',
     format: 'CSV',
@@ -372,6 +483,7 @@ export const seedJobs: DataJob[] = [
     processType: 'All valid records',
     submittedBy: 'Dana Whitfield',
     submittedAt: '2026-06-12T10:12:00',
+    finishedAt: '2026-06-12T10:13:00',
     rolledBack: false,
     records: [{ row: 2, key: 'LOC-HYD-01', outcome: 'success' }],
   },
@@ -391,12 +503,13 @@ export const seedJobs: DataJob[] = [
     successRecords: 0,
     failedRecords: 410,
     skippedRecords: 0,
-    status: 'Failed',
+    status: 'Rolled back',
     staging: false,
     duplicateHandling: 'Ignore duplicates',
     processType: 'No records if error occurred',
     submittedBy: 'Amara Okafor',
     submittedAt: '2026-06-10T16:33:00',
+    finishedAt: '2026-06-10T16:35:00',
     rolledBack: true,
     records: [
       {
@@ -430,6 +543,7 @@ export const seedJobs: DataJob[] = [
     processType: 'All valid records',
     submittedBy: 'Theo Brooks',
     submittedAt: '2026-06-08T09:44:00',
+    finishedAt: '2026-06-08T09:45:00',
     rolledBack: false,
     records: [{ row: 2, key: 'GRP-BEA-OPS', outcome: 'success' }],
   },
@@ -453,6 +567,7 @@ export const seedJobs: DataJob[] = [
     staging: false,
     submittedBy: 'Dana Whitfield',
     submittedAt: '2026-06-05T12:19:00',
+    finishedAt: '2026-06-05T12:21:00',
     rolledBack: false,
     records: [],
   },
@@ -479,6 +594,7 @@ export const seedJobs: DataJob[] = [
     preserveEffectiveDates: true,
     submittedBy: 'Owen Clarke',
     submittedAt: '2026-06-03T18:07:00',
+    finishedAt: '2026-06-03T18:22:00',
     rolledBack: false,
     records: [
       {

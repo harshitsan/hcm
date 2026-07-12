@@ -1,34 +1,52 @@
 import { useState } from 'react'
+import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import {
   EMPLOYEES,
-  renderBody,
+  SIGNATORIES,
   type HrDocument,
   type LetterTemplate,
 } from '../data/hr-letters'
+import { downloadLetterPdf, printLetter } from '../data/letter-pdf'
+import { resolveMergeFields } from '../data/merge-engine'
 import { type HrDocumentsStore } from '../hooks/use-hr-documents'
 import { DistributeDialog } from './distribute-dialog'
-import { AckBadge, ChannelBadge, DeliveryBadge, DocStatusBadge } from './status-badges'
+import { LetterSheet } from './letter-sheet'
+import {
+  AckBadge,
+  ChannelBadge,
+  DeliveryBadge,
+  DocStatusBadge,
+} from './status-badges'
 
 interface DocumentDetailSheetProps {
   doc: HrDocument | null
   onOpenChange: (open: boolean) => void
   store: HrDocumentsStore
   templates: LetterTemplate[]
-  /** Company Admin can approve/reject/distribute/reissue (HLC-06/08/10/14). */
+  /** Company Admin can approve/reject/issue/reissue (HLC-06/08/10/14). */
   canAct: boolean
 }
 
 /**
- * Full document record (HLC-22 drill-in): rendered content, signing authority
- * (HLC-07), complete version history with the current version flagged
- * (HLC-10/17), per-channel distribution tracking with re-send on failure
- * (HLC-08/09/13), retention (HLC-11), and the immutable audit trail (HLC-17).
+ * Full document record (HLC-22 drill-in): print-styled letter preview with
+ * letterhead and signature block, PDF download/print, the approval trail with
+ * the recorded signatory (HLC-07), version + reissue links (HLC-10/17),
+ * per-channel distribution tracking with re-send on failure (HLC-08/09/13),
+ * 7-year retention (HLC-11), and the immutable audit trail.
  */
 export function DocumentDetailSheet({
   doc,
@@ -40,16 +58,39 @@ export function DocumentDetailSheet({
   const [rejectReason, setRejectReason] = useState('')
   const [showReject, setShowReject] = useState(false)
   const [distributeOpen, setDistributeOpen] = useState(false)
+  const [reissueOpen, setReissueOpen] = useState(false)
+  const [signatoryName, setSignatoryName] = useState(SIGNATORIES[0].name)
 
   if (!doc) return null
 
   const employee = EMPLOYEES.find((e) => e.id === doc.employeeId)
   const template = templates.find((t) => t.id === doc.templateId)
-  const finalized = doc.status === 'approved' || doc.status === 'distributed'
-  const rendered =
-    template && employee
-      ? renderBody(template.body, employee, template.missingValueBehavior)
-      : 'Rendered from the template version recorded on this document.'
+  const canIssue = doc.status === 'approved' || doc.status === 'issued'
+  const merge = template
+    ? resolveMergeFields(template.body, doc.employeeId)
+    : {
+        rendered: 'Rendered from the template version recorded on this letter.',
+        gaps: [],
+      }
+  const letterheadOn = template?.letterhead ?? true
+
+  const pdfInput = {
+    refId: doc.id,
+    docType: doc.docType,
+    employeeName: doc.employeeName,
+    dateIso: doc.generatedOn,
+    body: merge.rendered,
+    letterhead: letterheadOn,
+    signedBy: doc.signedBy,
+    signingAuthority: doc.signingAuthority,
+  }
+
+  const selectedSignatory =
+    SIGNATORIES.find((s) => s.name === signatoryName) ?? SIGNATORIES[0]
+
+  const handleApprove = () => {
+    store.approve(doc.id, 'Lakshmi Rao (Company Admin)', selectedSignatory)
+  }
 
   return (
     <Sheet open={Boolean(doc)} onOpenChange={onOpenChange}>
@@ -63,6 +104,17 @@ export function DocumentDetailSheet({
         <div className='flex-1 space-y-4 overflow-y-auto px-5 py-5'>
           <div className='flex flex-wrap items-center gap-2'>
             <DocStatusBadge status={doc.status} />
+            {doc.trigger === 'auto' && (
+              <Badge variant='pending'>
+                Generated automatically — {doc.event}
+              </Badge>
+            )}
+            {doc.reissueOf && (
+              <Badge variant='overdue'>Reissue of {doc.reissueOf}</Badge>
+            )}
+            {doc.reissuedAs && (
+              <Badge variant='pending'>Reissued as {doc.reissuedAs}</Badge>
+            )}
             {doc.requiresAcknowledgment && (
               <AckBadge acknowledgedOn={doc.acknowledgedOn} />
             )}
@@ -82,7 +134,11 @@ export function DocumentDetailSheet({
             </p>
             <p>
               <span className='text-neutral-1000'>Retention: </span>
-              retained until {doc.retentionUntil} (7-year rule)
+              Retained until {doc.retentionUntil}
+            </p>
+            <p className='text-neutral-1000 text-xs'>
+              Issued letters are retained for 7 years from the date of
+              generation, per company document policy.
             </p>
             <p>
               <span className='text-neutral-1000'>Tenant scope: </span>
@@ -95,13 +151,49 @@ export function DocumentDetailSheet({
             )}
           </div>
 
-          <div className='rounded-[6px] border border-gray-200 bg-white p-3'>
-            <p className='text-paragraph-sm text-neutral-1000 mb-1 font-medium'>
-              Document content (PDF preview)
-            </p>
-            <pre className='text-neutral-1900 font-sans text-sm whitespace-pre-wrap'>
-              {rendered}
-            </pre>
+          <div className='space-y-2'>
+            <div className='flex flex-wrap items-center justify-between gap-2'>
+              <p className='text-paragraph-sm font-medium'>
+                Letter preview (PDF)
+              </p>
+              <div className='flex gap-2'>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  onClick={() => downloadLetterPdf(pdfInput)}
+                >
+                  Download PDF
+                </Button>
+                <Button
+                  size='sm'
+                  variant='outline'
+                  onClick={() => printLetter(pdfInput)}
+                >
+                  Print
+                </Button>
+              </div>
+            </div>
+            {merge.gaps.length > 0 && (
+              <div className='border-red-1400/40 rounded-[6px] border bg-red-50 p-3'>
+                <p className='text-red-1400 text-paragraph-sm mb-1 font-medium'>
+                  Missing information
+                </p>
+                <ul className='text-red-1400 list-disc space-y-0.5 pl-4 text-sm'>
+                  {merge.gaps.map((gap) => (
+                    <li key={gap}>{gap}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <LetterSheet
+              refId={doc.id}
+              docType={doc.docType}
+              dateIso={doc.generatedOn}
+              body={merge.rendered}
+              letterhead={letterheadOn}
+              signedBy={doc.signedBy}
+              signingAuthority={doc.signingAuthority}
+            />
           </div>
 
           {canAct && (
@@ -109,27 +201,58 @@ export function DocumentDetailSheet({
               <Separator />
               <div className='space-y-2'>
                 <p className='text-paragraph-sm font-medium'>Actions</p>
+                {doc.status === 'draft' && (
+                  <Button
+                    size='sm'
+                    onClick={() =>
+                      store.sendForApproval(doc.id, 'Lakshmi Rao (Company Admin)')
+                    }
+                  >
+                    Send for approval
+                  </Button>
+                )}
                 {doc.status === 'pending-approval' && (
-                  <div className='flex gap-2'>
-                    <Button
-                      size='sm'
-                      onClick={() => store.approve(doc.id, 'Lakshmi Rao (Company Admin)')}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size='sm'
-                      variant='outline'
-                      onClick={() => setShowReject((s) => !s)}
-                    >
-                      Reject…
-                    </Button>
+                  <div className='space-y-2'>
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <Select
+                        value={signatoryName}
+                        onValueChange={setSignatoryName}
+                      >
+                        <SelectTrigger
+                          variant='secondary'
+                          className='h-8 w-[240px]'
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SIGNATORIES.map((s) => (
+                            <SelectItem key={s.name} value={s.name}>
+                              {s.name} — {s.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size='sm' onClick={handleApprove}>
+                        Approve &amp; sign
+                      </Button>
+                      <Button
+                        size='sm'
+                        variant='outline'
+                        onClick={() => setShowReject((s) => !s)}
+                      >
+                        Reject…
+                      </Button>
+                    </div>
+                    <p className='text-neutral-1000 text-xs'>
+                      The selected signatory is recorded on the letter and
+                      appears in the signature block.
+                    </p>
                   </div>
                 )}
                 {showReject && doc.status === 'pending-approval' && (
                   <div className='space-y-2'>
                     <Textarea
-                      placeholder='Rejection reason (sent to the originator)'
+                      placeholder='e.g. Position title is out of date — correct and regenerate'
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
                     />
@@ -138,7 +261,11 @@ export function DocumentDetailSheet({
                       variant='outline'
                       disabled={rejectReason.trim().length < 5}
                       onClick={() => {
-                        store.reject(doc.id, 'Lakshmi Rao (Company Admin)', rejectReason.trim())
+                        store.reject(
+                          doc.id,
+                          'Lakshmi Rao (Company Admin)',
+                          rejectReason.trim()
+                        )
                         setShowReject(false)
                         setRejectReason('')
                       }}
@@ -151,28 +278,33 @@ export function DocumentDetailSheet({
                   <Button
                     size='sm'
                     variant='outline'
-                    disabled={!finalized}
+                    disabled={!canIssue}
                     title={
-                      !finalized
-                        ? 'Only finalized documents can be dispatched'
+                      !canIssue
+                        ? 'Only approved letters can be issued'
                         : undefined
                     }
                     onClick={() => setDistributeOpen(true)}
                   >
-                    Distribute…
+                    Issue / distribute…
                   </Button>
                   <Button
                     size='sm'
                     variant='outline'
-                    onClick={() =>
-                      store.reissue(
-                        doc.id,
-                        doc.status === 'rejected' ? 'corrected after rejection' : 'duplicate copy requested',
-                        'Lakshmi Rao (Company Admin)'
-                      )
+                    disabled={
+                      (doc.status !== 'issued' && doc.status !== 'rejected') ||
+                      Boolean(doc.reissuedAs)
                     }
+                    title={
+                      doc.reissuedAs
+                        ? `Already reissued as ${doc.reissuedAs}`
+                        : doc.status !== 'issued' && doc.status !== 'rejected'
+                          ? 'Only issued or rejected letters can be reissued'
+                          : undefined
+                    }
+                    onClick={() => setReissueOpen(true)}
                   >
-                    Reissue (new version)
+                    Reissue…
                   </Button>
                 </div>
                 {!doc.employeeHasAppAccess && (
@@ -186,6 +318,34 @@ export function DocumentDetailSheet({
           )}
 
           <Separator />
+          <div>
+            <p className='text-paragraph-sm mb-1 font-medium'>Approval trail</p>
+            <ul className='space-y-1 text-sm'>
+              <li>
+                <span className='text-neutral-1000'>Generated: </span>
+                {doc.generatedOn} by {doc.generatedBy}
+              </li>
+              {doc.approvedBy ? (
+                <li>
+                  <span className='text-neutral-1000'>Approved: </span>
+                  {doc.approvedOn} by {doc.approvedBy}
+                </li>
+              ) : (
+                <li className='text-neutral-1000'>
+                  {doc.status === 'rejected'
+                    ? 'Rejected — see reason above'
+                    : 'Approval pending'}
+                </li>
+              )}
+              {doc.signedBy && (
+                <li>
+                  <span className='text-neutral-1000'>Signed by: </span>
+                  {doc.signedBy.name}, {doc.signedBy.title}
+                </li>
+              )}
+            </ul>
+          </div>
+
           <div>
             <p className='text-paragraph-sm mb-1 font-medium'>
               Version history (all prior versions retained)
@@ -203,6 +363,13 @@ export function DocumentDetailSheet({
                 </li>
               ))}
             </ul>
+            {(doc.reissueOf || doc.reissuedAs) && (
+              <p className='text-neutral-1000 mt-1 text-xs'>
+                {doc.reissueOf && `This letter is a reissue of ${doc.reissueOf}. `}
+                {doc.reissuedAs &&
+                  `A replacement letter (${doc.reissuedAs}) has been created with a fresh approval cycle.`}
+              </p>
+            )}
           </div>
 
           <div>
@@ -212,7 +379,7 @@ export function DocumentDetailSheet({
             {doc.distributions.length === 0 ? (
               <p className='text-neutral-1000 text-sm'>
                 Not dispatched yet.
-                {!finalized && ' The notification engine only dispatches finalized documents.'}
+                {!canIssue && ' Only approved letters are dispatched.'}
               </p>
             ) : (
               <ul className='space-y-1.5'>
@@ -285,6 +452,25 @@ export function DocumentDetailSheet({
             }
           />
         )}
+
+        <ConfirmDialog
+          open={reissueOpen}
+          onOpenChange={setReissueOpen}
+          title={`Reissue ${doc.docType}?`}
+          desc={`A new letter linked to ${doc.id} will be created ("Reissue of ${doc.id}") and will go through a fresh approval cycle. The original stays retained.`}
+          confirmText='Create reissue'
+          handleConfirm={() => {
+            store.reissue(
+              doc.id,
+              doc.status === 'rejected'
+                ? 'corrected after rejection'
+                : 'duplicate copy requested',
+              'Lakshmi Rao (Company Admin)'
+            )
+            setReissueOpen(false)
+            toast.info('Find the new letter at the top of the documents list')
+          }}
+        />
       </FloatingSheetContent>
     </Sheet>
   )

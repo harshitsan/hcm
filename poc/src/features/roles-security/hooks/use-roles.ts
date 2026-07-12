@@ -4,6 +4,8 @@ import type { Role } from '@/context/role-context'
 import { canGovernScope } from '../data/authority'
 import type { HierarchyLevel } from '../data/directory'
 import {
+  canHoldCompensationPermissions,
+  isCompensationPermission,
   seedProjectRoles,
   seedRoles,
   type PermissionFunction,
@@ -57,9 +59,29 @@ export function useRoles({ append, actor, actorRole }: UseRolesOptions) {
     [actorRole]
   )
 
+  /**
+   * Compensation-visibility rule (Phase 1 policy): salary/tax/payroll-report
+   * permissions are only allowed on HR Admin, Finance & Compliance Viewer,
+   * or platform/portfolio-scoped roles — enforced at save time too.
+   */
+  const denyCompensationViolation = useCallback((draft: RoleDraft): boolean => {
+    const holdsCompensation = draft.permissions.some(isCompensationPermission)
+    if (
+      holdsCompensation &&
+      !canHoldCompensationPermissions(draft.name, draft.scopeLevel)
+    ) {
+      toast.error(
+        'Not saved — compensation permissions can only be granted to HR Admin, Finance & Compliance Viewer, or platform/portfolio roles (Phase 1 policy).'
+      )
+      return true
+    }
+    return false
+  }, [])
+
   const addRole = useCallback(
     (draft: RoleDraft): boolean => {
       if (denyOutOfScope(draft)) return false
+      if (denyCompensationViolation(draft)) return false
       const role: RoleDef = {
         ...draft,
         id: `role-${crypto.randomUUID().slice(0, 8)}`,
@@ -80,13 +102,14 @@ export function useRoles({ append, actor, actorRole }: UseRolesOptions) {
       toast.success(`Role "${draft.name}" saved as version 1`)
       return true
     },
-    [append, actor, actorRole, denyOutOfScope]
+    [append, actor, actorRole, denyOutOfScope, denyCompensationViolation]
   )
 
   /** Edits publish a new version; the prior version is retained (RSEC-18). */
   const updateRole = useCallback(
     (id: string, draft: RoleDraft): boolean => {
       if (denyOutOfScope(draft)) return false
+      if (denyCompensationViolation(draft)) return false
       setRoles((prev) =>
         prev.map((r) => {
           if (r.id !== id) return r
@@ -120,7 +143,7 @@ export function useRoles({ append, actor, actorRole }: UseRolesOptions) {
       )
       return true
     },
-    [append, actor, actorRole, denyOutOfScope]
+    [append, actor, actorRole, denyOutOfScope, denyCompensationViolation]
   )
 
   /** Screen-level permissions for a role (RSEC-33, RSEC-34). */

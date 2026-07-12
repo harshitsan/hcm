@@ -102,6 +102,9 @@ export interface PolicyVersion {
   attachment: PolicyAttachment | null
   status: VersionStatus
   changeNote: string
+  /** Version published because a law or regulation changed — the resulting
+   * re-acknowledgment wave is treated as priority. */
+  regulatoryUpdate?: boolean
   createdBy: string
   createdOn: string
 }

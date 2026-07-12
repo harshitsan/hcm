@@ -123,6 +123,20 @@ function SheetInner({
       toast.error(res.error)
       return
     }
+    // The canvas has no editor for a chain's routing rules or SLA settings —
+    // carry them over from the stored definition so saving here never drops them.
+    let definition = res.definition
+    if (
+      definition.kind === 'approver-chain' &&
+      artifact.definition.kind === 'approver-chain'
+    ) {
+      const { routing, sla } = artifact.definition
+      definition = {
+        ...definition,
+        ...(routing ? { routing } : {}),
+        ...(sla ? { sla } : {}),
+      }
+    }
     // Construct draft WITHOUT attachments key — avoids clobbering attachments
     // because updateArtifact does {...a, ...draft} (use-business-logic.ts:107)
     updateArtifact(artifact.id, {
@@ -130,7 +144,7 @@ function SheetInner({
       description: artifact.description,
       type: artifact.type,
       targetModule: artifact.targetModule,
-      definition: res.definition,
+      definition,
     })
     // Close without dirty confirm — save succeeded
     onRequestClose()

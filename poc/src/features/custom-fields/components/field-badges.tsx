@@ -1,6 +1,14 @@
+import { ShieldCheck } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   FIELD_TYPE_LABELS,
+  SENSITIVITY_LABELS,
+  type FieldDefinition,
   type FieldPermissions,
   type FieldScope,
   type FieldType,
@@ -28,6 +36,52 @@ export function YesNoBadge({ value }: { value: boolean }) {
     <Badge variant={value ? 'badge_active' : 'badge_inactive'}>
       {value ? 'Yes' : 'No'}
     </Badge>
+  )
+}
+
+/**
+ * Shield badge for salary/tax/payroll fields. Hover names the roles granted
+ * view access — nobody else ever sees the stored values.
+ */
+export function SensitivityBadge({ field }: { field: FieldDefinition }) {
+  if (field.sensitivity === 'none') return null
+  const grants = field.sensitiveGrants.length
+    ? field.sensitiveGrants.join(', ')
+    : 'No roles granted yet'
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant='outline' className='gap-1 border-orange-300 text-orange-900'>
+          <ShieldCheck className='size-3' aria-hidden />
+          Sensitive · {SENSITIVITY_LABELS[field.sensitivity]}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>Visible only to: {grants}</TooltipContent>
+    </Tooltip>
+  )
+}
+
+/**
+ * Capability chips: every custom field is first-class across the platform —
+ * searchable, usable in workflow conditions, imported/exported, reportable,
+ * and exposed on the API.
+ */
+export function CapabilityChips() {
+  const capabilities = [
+    'Searchable',
+    'Workflow conditions',
+    'Import/Export',
+    'Reports',
+    'API',
+  ]
+  return (
+    <div className='flex flex-wrap gap-1'>
+      {capabilities.map((c) => (
+        <Badge key={c} variant='outline' className='text-neutral-1000'>
+          {c}
+        </Badge>
+      ))}
+    </div>
   )
 }
 

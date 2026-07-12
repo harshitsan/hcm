@@ -23,7 +23,9 @@ import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
 import {
   AGREEMENT_TYPES,
+  EMAIL_DOC_TYPES,
   HR_DOC_TYPES,
+  OFFER_JOINING_TYPES,
   SIGNING_AUTHORITIES,
   TEMPLATE_LAYOUTS,
   todayIso,
@@ -58,7 +60,12 @@ export function TemplateOverlay({
   const isEdit = Boolean(template)
   const typeOptions = agreementOnly
     ? [...AGREEMENT_TYPES]
-    : [...HR_DOC_TYPES, ...AGREEMENT_TYPES]
+    : [
+        ...HR_DOC_TYPES,
+        ...OFFER_JOINING_TYPES,
+        ...EMAIL_DOC_TYPES,
+        ...AGREEMENT_TYPES,
+      ]
 
   const emptyDraft: TemplateValues = useMemo(
     () => ({
@@ -70,7 +77,6 @@ export function TemplateOverlay({
       requiresApproval: true,
       requiresAcknowledgment: agreementOnly,
       signingAuthority: SIGNING_AUTHORITIES[0],
-      missingValueBehavior: 'flagged',
       effectiveFrom: todayIso(),
       changeSummary: '',
     }),
@@ -95,7 +101,6 @@ export function TemplateOverlay({
             requiresApproval: template.requiresApproval,
             requiresAcknowledgment: template.requiresAcknowledgment,
             signingAuthority: template.signingAuthority,
-            missingValueBehavior: template.missingValueBehavior,
             effectiveFrom: todayIso(),
             changeSummary: '',
           }
@@ -215,53 +220,35 @@ export function TemplateOverlay({
 
               <MergeFieldPalette onInsert={insertToken} />
 
-              <div className='grid grid-cols-2 gap-3'>
-                <FormField
-                  control={form.control}
-                  name='signingAuthority'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Signing authority</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger variant='secondary' className='w-full'>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {SIGNING_AUTHORITIES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name='missingValueBehavior'
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Missing merge values</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger variant='secondary' className='w-full'>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value='blank'>Leave blank</SelectItem>
-                          <SelectItem value='flagged'>Flag as missing</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              <FormField
+                control={form.control}
+                name='signingAuthority'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Signing authority</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger variant='secondary' className='w-full'>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {SIGNING_AUTHORITIES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <p className='text-neutral-1000 text-xs'>
+                Letters generated from this template are never issued with
+                blank spaces — missing information blocks generation until the
+                employee record is completed.
+              </p>
 
               <TemplateFlagSwitches control={form.control} />
 

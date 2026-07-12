@@ -1,8 +1,15 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 import { type UploadResult } from '@/components/common/upload-modal'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import { seedEmployees, type Employee } from '../data/employees'
-import { bumpVersion, seedPolicies, type AckType } from '../data/policies'
+import {
+  bumpVersion,
+  renewalCadenceMonths,
+  seedPolicies,
+  type AckType,
+  type Policy,
+} from '../data/policies'
 import {
   seedAssignments,
   seedAuditEvents,
@@ -16,6 +23,12 @@ import {
   type LifecycleEvent,
 } from '../data/distributions'
 import { type ReAckTrigger, type ReminderRule } from '../data/config'
+import {
+  consumeReAckWave,
+  getPendingReAckWaves,
+  subscribeReAckWaves,
+  type ReAckWaveAnnouncement,
+} from '../data/reack-waves'
 import {
   computeDueDate,
   resolveAudience,
@@ -45,6 +58,45 @@ function retainUntil(fromIso: string): string {
 
 function newReceiptId() {
   return `rcpt-${Math.floor(10000 + Math.random() * 89999)}`
+}
+
+const waveDateFmt = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+})
+
+function addMonthsIso(iso: string, months: number): string {
+  const d = new Date(iso)
+  d.setMonth(d.getMonth() + months)
+  return d.toISOString()
+}
+
+/** Plain-language fallback shown to employees when no specific context exists. */
+export function reAckReason(trigger: ReAckTrigger): string {
+  switch (trigger) {
+    case 'Content change':
+      return 'the policy content changed'
+    case 'Periodic renewal':
+      return 'your previous acknowledgment has expired'
+    case 'Transfer':
+      return 'your transfer requires a fresh acknowledgment'
+    case 'Role change':
+      return 'your role change requires a fresh acknowledgment'
+    case 'Regulatory update':
+      return 'a regulatory update applies to this policy'
+  }
+}
+
+/** A policy whose acknowledgments have aged past its renewal cadence. */
+export interface RenewalDueItem {
+  policy: Policy
+  /** Most recent active acknowledgment for the policy. */
+  lastAcknowledgedAt: string
+  /** When the renewal cycle lapsed. */
+  dueSince: string
+  /** How many active acknowledgments would be re-issued. */
+  employeeCount: number
 }
 
 /** One active assignment per employee + policy + version (uniqueness rule). */
@@ -91,6 +143,9 @@ function buildAssignments(
       remindersSent: [],
       escalated: false,
       isNonUser: !e.isPortalUser,
+      trigger: dist.trigger,
+      triggerContext: null,
+      priority: dist.priority,
       superseded: false,
       taskStatus: dist.ackType === 'Read-Only' ? 'None' : 'Open',
     }))
@@ -149,6 +204,8 @@ export function usePolicyDistribution() {
           : draft.method === 'Scheduled'
             ? 'Scheduled'
             : 'Armed',
+        trigger: 'Initial',
+        priority: false,
         // Bulk runs come exclusively through the sanctioned Import
         // framework — see importBulkDistribution below.
         isBulk: false,
@@ -267,6 +324,8 @@ export function usePolicyDistribution() {
         eventTrigger: null,
         dueDateRule: { type: 'Relative', relativeDays: 14 },
         status: 'Sent',
+        trigger: 'Initial',
+        priority: false,
         isBulk: true,
         createdBy: actor,
         createdAt: now,
@@ -457,27 +516,76 @@ export function usePolicyDistribution() {
     [addAudit, assignments]
   )
 
-  /** Content-change / renewal / regulatory re-acknowledgment cycle. */
-  const triggerReAck = useCallback(
-    (policyId: string, trigger: ReAckTrigger, actor: string) => {
+  /**
+   * Re-acknowledgment wave: supersedes the active acknowledgments of a
+   * policy (kept as history — never deleted) and re-issues them as Pending,
+   * recording the wave as its own distribution row so the console shows why
+   * each ask went out.
+   */
+  const runReAckWave = useCallback(
+    (input: {
+      policyId: string
+      policyTitle: string
+      currentVersion: string
+      criticality: Assignment['criticality']
+      trigger: ReAckTrigger
+      actor: string
+      /** One-line plain-language reason shown to employees, or null. */
+      context: string | null
+      priority: boolean
+    }): number => {
+      const { trigger } = input
       const bumpsVersion =
         trigger === 'Content change' || trigger === 'Regulatory update'
       const now = new Date().toISOString()
       const targets = assignments.filter(
         (a) =>
-          a.policyId === policyId && a.status === 'Acknowledged' && !a.superseded
+          a.policyId === input.policyId &&
+          a.status === 'Acknowledged' &&
+          !a.superseded
       )
+      const baseVersion = targets[0]?.policyVersion ?? input.currentVersion
+      const newVersion = bumpsVersion ? bumpVersion(baseVersion) : baseVersion
+      // Priority (regulatory) waves get a tighter window.
+      const dueRule: DueDateRule = {
+        type: 'Relative',
+        relativeDays: input.priority ? 7 : 14,
+      }
       if (targets.length > 0) {
-        const newVersion = bumpsVersion
-          ? bumpVersion(targets[0].policyVersion)
-          : targets[0].policyVersion
+        const wave: Distribution = {
+          id: shortId('dist'),
+          policyId: input.policyId,
+          policyTitle: input.policyTitle,
+          policyVersion: newVersion,
+          ackType: 'Required',
+          criticality: input.criticality,
+          audience: {
+            logic: 'OR',
+            criteria: [
+              { field: 'employee', values: targets.map((t) => t.employeeId) },
+            ],
+          },
+          audienceSummary: `Re-acknowledgment — ${targets.length} employee(s) with an active acknowledgment`,
+          method: 'Manual',
+          scheduledFor: null,
+          eventTrigger: null,
+          dueDateRule: dueRule,
+          status: 'Sent',
+          trigger,
+          priority: input.priority,
+          isBulk: false,
+          createdBy: input.actor,
+          createdAt: now,
+          sentAt: now,
+        }
         const reissued: Assignment[] = targets.map((a) => ({
           ...a,
           id: shortId('as'),
+          distributionId: wave.id,
           policyVersion: newVersion,
           status: 'Pending',
           dueDate: computeDueDate(
-            { type: 'Relative', relativeDays: 14 },
+            dueRule,
             seedEmployees.find((e) => e.id === a.employeeId) ?? seedEmployees[0],
             now
           ),
@@ -489,9 +597,13 @@ export function usePolicyDistribution() {
           receiptId: null,
           remindersSent: [],
           escalated: false,
+          trigger,
+          triggerContext: input.context,
+          priority: input.priority,
           superseded: false,
           taskStatus: 'Open',
         }))
+        setDistributions((prev) => [wave, ...prev])
         // Prior acknowledgments stay queryable as history — never deleted.
         setAssignments((prev) => [
           ...reissued,
@@ -500,26 +612,160 @@ export function usePolicyDistribution() {
           ),
         ])
       }
-      const policy = seedPolicies.find((p) => p.id === policyId)
       addAudit({
         effectiveAt: now,
-        actor,
+        actor: input.actor,
         action: `Re-acknowledgment triggered (${trigger})`,
         employeeName: `— (${targets.length} active acknowledger(s))`,
-        policyTitle: policy?.title ?? policyId,
-        policyVersion: policy?.version ?? '',
+        policyTitle: input.policyTitle,
+        policyVersion: newVersion,
         company: 'Per scope',
-        detail:
-          'Prior acknowledgments preserved as bitemporal history; new pending assignments created per the decision table.',
+        detail: input.context
+          ? `${input.context}. Prior acknowledgments preserved as bitemporal history.`
+          : 'Prior acknowledgments preserved as bitemporal history; new pending assignments created per the decision table.',
+      })
+      publishAuditEvent({
+        module: 'Policy Distribution',
+        action: `Re-acknowledgment wave started (${trigger})`,
+        actor: input.actor,
+        actionType: 'update',
+        recordId: input.policyId,
+        recordName: `${input.policyTitle} · ${newVersion}`,
       })
       toast.success(
         targets.length > 0
-          ? `Re-acknowledgment required for ${targets.length} employee(s)`
-          : 'No active acknowledgments to re-issue for this policy'
+          ? `Re-acknowledgment required for ${targets.length} employee(s) — ${input.policyTitle}`
+          : `No active acknowledgments to re-issue for “${input.policyTitle}”`
       )
+      return targets.length
     },
     [addAudit, assignments]
   )
+
+  /** Content-change / renewal / regulatory re-acknowledgment cycle. */
+  const triggerReAck = useCallback(
+    (policyId: string, trigger: ReAckTrigger, actor: string) => {
+      const policy = seedPolicies.find((p) => p.id === policyId)
+      if (!policy) return
+      runReAckWave({
+        policyId,
+        policyTitle: policy.title,
+        currentVersion: policy.version,
+        criticality: policy.criticality,
+        trigger,
+        actor,
+        context: null,
+        priority: trigger === 'Regulatory update',
+      })
+    },
+    [runReAckWave]
+  )
+
+  /**
+   * Policies whose active acknowledgments are older than their renewal
+   * cadence and have no renewal wave already in flight ("Renewal due").
+   */
+  const renewalDue = useMemo<RenewalDueItem[]>(() => {
+    const nowIso = new Date().toISOString()
+    return seedPolicies.flatMap((policy) => {
+      const months = renewalCadenceMonths(policy.renewalCadence)
+      if (!months) return []
+      const active = assignments.filter(
+        (a) => a.policyId === policy.id && !a.superseded
+      )
+      const acked = active.filter(
+        (a) => a.status === 'Acknowledged' && a.acknowledgedAt
+      )
+      if (acked.length === 0) return []
+      const hasOpenRenewal = active.some(
+        (a) =>
+          a.trigger === 'Periodic renewal' &&
+          (a.status === 'Pending' || a.status === 'Overdue')
+      )
+      if (hasOpenRenewal) return []
+      const dates = acked.map((a) => a.acknowledgedAt as string).sort()
+      const lastAcknowledgedAt = dates[dates.length - 1]
+      const dueSince = addMonthsIso(lastAcknowledgedAt, months)
+      if (dueSince > nowIso) return []
+      return [{ policy, lastAcknowledgedAt, dueSince, employeeCount: acked.length }]
+    })
+  }, [assignments])
+
+  /** Starts the periodic-renewal wave for a policy past its cadence. */
+  const startRenewalWave = useCallback(
+    (policyId: string, actor: string) => {
+      const policy = seedPolicies.find((p) => p.id === policyId)
+      if (!policy) return
+      const months = renewalCadenceMonths(policy.renewalCadence)
+      runReAckWave({
+        policyId,
+        policyTitle: policy.title,
+        currentVersion: policy.version,
+        criticality: policy.criticality,
+        trigger: 'Periodic renewal',
+        actor,
+        context: months
+          ? `Renewal cycle (${policy.renewalCadence.toLowerCase()}) — previous acknowledgment is more than ${months} months old`
+          : 'Renewal cycle — previous acknowledgment has expired',
+        priority: false,
+      })
+    },
+    [runReAckWave]
+  )
+
+  /**
+   * Waves announced by the Policy Management library on publish (content
+   * change / regulatory update) are consumed here exactly once and turned
+   * into pending re-acknowledgments for everyone holding an active
+   * acknowledgment of the matching policy.
+   */
+  const applyAnnouncedWave = useCallback(
+    (wave: ReAckWaveAnnouncement) => {
+      const publishedOn = waveDateFmt.format(new Date(wave.announcedAt))
+      const policy = seedPolicies.find(
+        (p) => p.title.trim().toLowerCase() === wave.policyName.trim().toLowerCase()
+      )
+      if (!policy) {
+        addAudit({
+          effectiveAt: wave.announcedAt,
+          actor: wave.announcedBy,
+          action: `Re-acknowledgment wave received (${wave.trigger})`,
+          employeeName: '—',
+          policyTitle: wave.policyName,
+          policyVersion: wave.editionName,
+          company: 'Per scope',
+          detail:
+            'Published from the policy library. No employees currently hold an acknowledgment of this policy, so there is nothing to re-issue yet.',
+        })
+        return
+      }
+      runReAckWave({
+        policyId: policy.id,
+        policyTitle: policy.title,
+        currentVersion: policy.version,
+        criticality: policy.criticality,
+        trigger: wave.trigger,
+        actor: wave.announcedBy,
+        context:
+          wave.trigger === 'Regulatory update'
+            ? `Regulatory update published on ${publishedOn} — ${wave.editionName}`
+            : `Policy content changed on ${publishedOn} — ${wave.editionName}`,
+        priority: wave.priority,
+      })
+    },
+    [addAudit, runReAckWave]
+  )
+
+  const pendingWaves = useSyncExternalStore(
+    subscribeReAckWaves,
+    getPendingReAckWaves
+  )
+  useEffect(() => {
+    pendingWaves.forEach((wave) => {
+      // consumeReAckWave dequeues atomically so each wave applies once.
+      if (consumeReAckWave(wave.id)) applyAnnouncedWave(wave)
+    })
+  }, [pendingWaves, applyAnnouncedWave])
 
   /** Lifecycle integration: onboarding/transfer/role-change automation. */
   const simulateLifecycleEvent = useCallback(
@@ -569,6 +815,14 @@ export function usePolicyDistribution() {
         receiptId: null,
         remindersSent: [],
         escalated: false,
+        trigger: reAckTrigger ?? a.trigger,
+        triggerContext:
+          event === 'Transfer'
+            ? `Transferred on ${waveDateFmt.format(new Date(now))}`
+            : event === 'Role change'
+              ? `Role changed on ${waveDateFmt.format(new Date(now))}`
+              : a.triggerContext,
+        priority: false,
         superseded: false,
         taskStatus: 'Open',
       }))
@@ -660,6 +914,8 @@ export function usePolicyDistribution() {
     acknowledge,
     recordProxyAck,
     triggerReAck,
+    renewalDue,
+    startRenewalWave,
     simulateLifecycleEvent,
     runSlaSweep,
   }

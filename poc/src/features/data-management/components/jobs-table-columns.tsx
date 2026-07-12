@@ -8,7 +8,7 @@ import { SearchableHeader } from '@/components/common/data-table/searchable-head
 import { LongText } from '@/components/common/long-text'
 import { type Tier } from '../data/catalog'
 import { type DataJob } from '../data/jobs'
-import { JobStatusBadge, TierBadge } from './badges'
+import { JobProgressBar, JobStatusBadge, TierBadge } from './badges'
 
 const dateTimeFmt = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
@@ -179,9 +179,12 @@ export const jobsTableColumns: ColumnDef<DataJob>[] = [
           status={row.original.status}
           rolledBack={row.original.rolledBack}
         />
+        {row.original.status === 'In-progress' && (
+          <JobProgressBar progress={row.original.progress} />
+        )}
         {row.original.staging && (
           <span className='text-paragraph-sm text-neutral-1000 mt-0.5 block'>
-            Staging only
+            Sandbox only
           </span>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { z } from 'zod'
 import { useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -33,16 +33,24 @@ import {
   CALENDAR_DAYS,
   CALENDAR_TYPE_LABELS,
   CALENDAR_TYPES,
+  CHAIN_ESCALATION_STRATEGIES,
+  CHAIN_GROUP_PATTERNS,
+  CHAIN_ROUTING_DIMENSIONS,
+  CHAIN_ROUTING_OPERATORS,
   FIELD_TYPE_LABELS,
   FORM_ARTIFACT_TYPES,
   FORM_FIELD_TYPES,
+  routingRuleSentence,
   RULE_OPERATORS,
   RULE_OUTCOMES,
   TARGET_MODULES,
   type Artifact,
   type ArtifactDefinition,
+  type ChainGroupPattern,
+  type ChainRoutingRule,
+  type ChainStep,
 } from '../data/business-logic'
-import type { ArtifactDraft } from '../hooks/use-business-logic'
+import { getArtifacts, type ArtifactDraft } from '../hooks/use-business-logic'
 
 /**
  * Artifact builder (WFE-44, WFE-45, WFE-46): pick a target module, an
@@ -58,8 +66,26 @@ const builderSchema = z
     type: z.enum(FORM_ARTIFACT_TYPES),
     targetModule: z.enum(TARGET_MODULES),
     steps: z.array(
-      z.object({ approverRole: z.string(), slaHours: z.string() })
+      z.object({
+        approverRole: z.string(),
+        slaHours: z.string(),
+        /** True when the step runs in parallel with the step above it. */
+        parallel: z.boolean(),
+        /** Completion rule of the parallel block this step starts. */
+        blockPattern: z.enum(CHAIN_GROUP_PATTERNS),
+      })
     ),
+    routingRules: z.array(
+      z.object({
+        dimension: z.enum(CHAIN_ROUTING_DIMENSIONS),
+        operator: z.enum(CHAIN_ROUTING_OPERATORS),
+        value: z.string(),
+        thenChainVariant: z.string(),
+      })
+    ),
+    slaCalendarId: z.string(),
+    escalationStrategy: z.enum(CHAIN_ESCALATION_STRATEGIES),
+    escalationRole: z.string(),
     conditions: z.array(
       z.object({
         attribute: z.string(),
@@ -112,6 +138,12 @@ const builderSchema = z
           if (!/^\d+$/.test(s.slaHours))
             issue(['steps', i, 'slaHours'], 'Whole hours required')
         })
+        v.routingRules.forEach((r, i) => {
+          if (!r.value.trim())
+            issue(['routingRules', i, 'value'], 'Enter a value to match')
+        })
+        if (v.escalationStrategy === 'Role escalation' && !v.escalationRole)
+          issue(['escalationRole'], 'Select the role requests escalate to')
         break
       case 'decision-rule':
         if (v.conditions.length === 0)
@@ -185,7 +217,13 @@ const emptyValues: BuilderValues = {
   description: '',
   type: 'approver-chain',
   targetModule: TARGET_MODULES[0],
-  steps: [{ approverRole: '', slaHours: '24' }],
+  steps: [
+    { approverRole: '', slaHours: '24', parallel: false, blockPattern: 'all-must' },
+  ],
+  routingRules: [],
+  slaCalendarId: '',
+  escalationStrategy: 'Manager escalation',
+  escalationRole: '',
   conditions: [{ attribute: '', operator: '=', value: '' }],
   outcome: '',
   fields: [{ label: '', fieldType: 'text', required: false, options: '' }],
@@ -215,12 +253,29 @@ function toValues(artifact: Artifact): BuilderValues {
   }
   const def = artifact.definition
   switch (def.kind) {
-    case 'approver-chain':
-      values.steps = def.steps.map((s) => ({
+    case 'approver-chain': {
+      const sorted = [...def.steps].sort((a, b) => a.order - b.order)
+      values.steps = sorted.map((s, i) => ({
         approverRole: s.approverRole,
         slaHours: String(s.slaHours),
+        // A step "runs in parallel with the step above" when both share a group.
+        parallel:
+          i > 0 && s.group !== undefined && sorted[i - 1].group === s.group,
+        blockPattern:
+          (s.group !== undefined ? def.patterns?.[s.group] : undefined) ??
+          'all-must',
       }))
+      values.routingRules = (def.routing ?? []).map((r) => ({
+        dimension: r.dimension,
+        operator: r.operator,
+        value: r.value,
+        thenChainVariant: r.thenChainVariant ?? '',
+      }))
+      values.slaCalendarId = def.sla?.calendarArtifactId ?? ''
+      values.escalationStrategy = def.sla?.strategy ?? 'Manager escalation'
+      values.escalationRole = def.sla?.escalationRole ?? ''
       break
+    }
     case 'decision-rule':
       values.conditions = def.conditions.map((c) => ({ ...c }))
       values.outcome = def.outcome
@@ -269,15 +324,58 @@ function toValues(artifact: Artifact): BuilderValues {
 
 function toDefinition(values: BuilderValues): ArtifactDefinition {
   switch (values.type) {
-    case 'approver-chain':
-      return {
-        kind: 'approver-chain',
-        steps: values.steps.map((s, i) => ({
+    case 'approver-chain': {
+      // Consecutive steps flagged "parallel with the step above" join the
+      // previous step into a numbered parallel group. Ungrouped steps stay
+      // sequential — identical to pre-existing chains.
+      const steps: ChainStep[] = []
+      const patterns: Record<number, ChainGroupPattern> = {}
+      let groupCounter = 0
+      values.steps.forEach((s, i) => {
+        const step: ChainStep = {
           order: i + 1,
           approverRole: s.approverRole,
           slaHours: Number(s.slaHours || 0),
-        })),
+        }
+        if (i > 0 && s.parallel) {
+          const prev = steps[i - 1]
+          if (prev.group === undefined) {
+            groupCounter += 1
+            prev.group = groupCounter
+            // The block's completion rule lives on its first member's row.
+            patterns[groupCounter] = values.steps[i - 1].blockPattern
+          }
+          step.group = prev.group
+        }
+        steps.push(step)
+      })
+      const routing: ChainRoutingRule[] = values.routingRules.map((r) => ({
+        dimension: r.dimension,
+        operator: r.operator,
+        value: r.value.trim(),
+        ...(r.thenChainVariant.trim()
+          ? { thenChainVariant: r.thenChainVariant.trim() }
+          : {}),
+      }))
+      return {
+        kind: 'approver-chain',
+        steps,
+        ...(Object.keys(patterns).length > 0 ? { patterns } : {}),
+        ...(routing.length > 0 ? { routing } : {}),
+        sla: {
+          ...(values.slaCalendarId
+            ? { calendarArtifactId: values.slaCalendarId }
+            : {}),
+          remindAtPct: [50, 75],
+          escalateAtPct: 100,
+          strategy: values.escalationStrategy,
+          ...(values.escalationStrategy === 'Role escalation' &&
+          values.escalationRole
+            ? { escalationRole: values.escalationRole }
+            : {}),
+        },
       }
+    }
     case 'decision-rule':
       return {
         kind: 'decision-rule',
@@ -358,6 +456,7 @@ export function ArtifactBuilderSheet({
   })
 
   const steps = useFieldArray({ control: form.control, name: 'steps' })
+  const routingRules = useFieldArray({ control: form.control, name: 'routingRules' })
   const conditions = useFieldArray({ control: form.control, name: 'conditions' })
   const fields = useFieldArray({ control: form.control, name: 'fields' })
   const items = useFieldArray({ control: form.control, name: 'items' })
@@ -371,6 +470,35 @@ export function ArtifactBuilderSheet({
 
   const type = form.watch('type')
   const formErrors = form.formState.errors
+
+  // Consecutive steps flagged parallel render inside one bracketed block.
+  const watchedSteps = form.watch('steps')
+  const stepBlocks = useMemo(() => {
+    const blocks: { start: number; count: number }[] = []
+    watchedSteps.forEach((s, i) => {
+      if (i > 0 && s.parallel && blocks.length > 0) {
+        blocks[blocks.length - 1].count += 1
+      } else {
+        blocks.push({ start: i, count: 1 })
+      }
+    })
+    return blocks
+  }, [watchedSteps])
+  const escalationStrategy = form.watch('escalationStrategy')
+  const watchedRouting = form.watch('routingRules')
+
+  // Business-hours calendars from the catalog feed the SLA calendar select.
+  const businessHourCalendars = useMemo(
+    () =>
+      getArtifacts().filter(
+        (a) =>
+          a.definition.kind === 'calendar' &&
+          a.definition.calendarType === 'business-hours'
+      ),
+    // Re-read the catalog each time the sheet opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [open]
+  )
 
   function submit(values: BuilderValues) {
     onSave({
@@ -500,43 +628,244 @@ export function ArtifactBuilderSheet({
                       variant='outline'
                       className='h-7 gap-1 px-2'
                       onClick={() =>
-                        steps.append({ approverRole: '', slaHours: '24' })
+                        steps.append({
+                          approverRole: '',
+                          slaHours: '24',
+                          parallel: false,
+                          blockPattern: 'all-must',
+                        })
                       }
                     >
                       <Plus size={12} weight='bold' /> Add step
                     </Button>
                   </div>
+                  <p className='text-neutral-1000 text-xs'>
+                    Steps run one after another. Mark a step as running in
+                    parallel with the step above to group them into a parallel
+                    block, then choose whether any one or all of them must
+                    approve.
+                  </p>
                   {formErrors.steps?.message && (
                     <p className='text-destructive text-sm'>
                       {formErrors.steps.message}
                     </p>
                   )}
-                  {steps.fields.map((row, i) => (
+                  {stepBlocks.map((block) => {
+                    const indices = Array.from(
+                      { length: block.count },
+                      (_, k) => block.start + k
+                    )
+                    const cards = indices.map((i) => {
+                      const row = steps.fields[i]
+                      if (!row) return null
+                      return (
+                        <div
+                          key={row.id}
+                          className='rounded-md border border-gray-200 bg-white p-3'
+                        >
+                          <div className='mb-2 flex items-center justify-between'>
+                            <span className='text-neutral-1000 text-xs font-medium'>
+                              Step {i + 1}
+                            </span>
+                            <div className='flex items-center gap-2'>
+                              {i > 0 && (
+                                <FormField
+                                  control={form.control}
+                                  name={`steps.${i}.parallel`}
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <Select
+                                        value={field.value ? 'parallel' : 'sequential'}
+                                        onValueChange={(v) =>
+                                          field.onChange(v === 'parallel')
+                                        }
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger
+                                            variant='secondary'
+                                            className='h-6 w-[220px] text-xs'
+                                          >
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                          <SelectItem value='sequential'>
+                                            Runs after the step above
+                                          </SelectItem>
+                                          <SelectItem value='parallel'>
+                                            Runs in parallel with the step above
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </FormItem>
+                                  )}
+                                />
+                              )}
+                              <Button
+                                type='button'
+                                variant='icon2'
+                                className='text-neutral-1900 h-6 w-6'
+                                onClick={() => steps.remove(i)}
+                                aria-label={`Remove step ${i + 1}`}
+                              >
+                                <Trash size={14} weight='bold' />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className='grid grid-cols-2 gap-3'>
+                            <FormField
+                              control={form.control}
+                              name={`steps.${i}.approverRole`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Approver role</FormLabel>
+                                  <Select
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger
+                                        variant='secondary'
+                                        className='w-full'
+                                      >
+                                        <SelectValue placeholder='Select role' />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {APPROVER_STEP_ROLES.map((r) => (
+                                        <SelectItem key={r} value={r}>
+                                          {r}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`steps.${i}.slaHours`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>SLA (hours)</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      inputMode='numeric'
+                                      placeholder='24'
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })
+                    if (block.count === 1) return cards
+                    const blockPattern =
+                      watchedSteps[block.start]?.blockPattern ?? 'all-must'
+                    return (
+                      <div
+                        key={`block-${steps.fields[block.start]?.id ?? block.start}`}
+                        className='space-y-2 rounded-lg border-2 border-violet-300 bg-violet-50/50 p-2'
+                      >
+                        <div className='flex items-center justify-between gap-2 px-1'>
+                          <span className='rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800'>
+                            {blockPattern === 'any-one'
+                              ? 'In parallel — any one may approve'
+                              : 'In parallel — all must approve'}
+                          </span>
+                          <FormField
+                            control={form.control}
+                            name={`steps.${block.start}.blockPattern`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <Select
+                                  value={field.value}
+                                  onValueChange={field.onChange}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger
+                                      variant='secondary'
+                                      className='h-6 w-[190px] text-xs'
+                                    >
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <SelectItem value='any-one'>
+                                      Any one may approve
+                                    </SelectItem>
+                                    <SelectItem value='all-must'>
+                                      All must approve
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        {cards}
+                      </div>
+                    )
+                  })}
+
+                  <Separator />
+
+                  <div className='flex items-center justify-between'>
+                    <h3 className='text-neutral-1600 text-sm font-semibold'>
+                      Routing
+                    </h3>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      className='h-7 gap-1 px-2'
+                      onClick={() =>
+                        routingRules.append({
+                          dimension: 'Department',
+                          operator: 'is',
+                          value: '',
+                          thenChainVariant: '',
+                        })
+                      }
+                    >
+                      <Plus size={12} weight='bold' /> Add rule
+                    </Button>
+                  </div>
+                  <p className='text-neutral-1000 text-xs'>
+                    Route requests to a different chain variant by company,
+                    jurisdiction, location, department, group or transaction
+                    type. With no rules, this chain applies to everything.
+                  </p>
+                  {routingRules.fields.map((row, i) => (
                     <div
                       key={row.id}
-                      className='rounded-md border border-gray-200 bg-white p-3'
+                      className='space-y-2 rounded-md border border-gray-200 bg-white p-3'
                     >
-                      <div className='mb-2 flex items-center justify-between'>
+                      <div className='flex items-center justify-between'>
                         <span className='text-neutral-1000 text-xs font-medium'>
-                          Step {i + 1}
+                          Rule {i + 1}
                         </span>
                         <Button
                           type='button'
                           variant='icon2'
                           className='text-neutral-1900 h-6 w-6'
-                          onClick={() => steps.remove(i)}
-                          aria-label={`Remove step ${i + 1}`}
+                          onClick={() => routingRules.remove(i)}
+                          aria-label={`Remove rule ${i + 1}`}
                         >
                           <Trash size={14} weight='bold' />
                         </Button>
                       </div>
-                      <div className='grid grid-cols-2 gap-3'>
+                      <div className='grid grid-cols-3 gap-3'>
                         <FormField
                           control={form.control}
-                          name={`steps.${i}.approverRole`}
+                          name={`routingRules.${i}.dimension`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Approver role</FormLabel>
+                              <FormLabel>When</FormLabel>
                               <Select
                                 value={field.value}
                                 onValueChange={field.onChange}
@@ -546,13 +875,13 @@ export function ArtifactBuilderSheet({
                                     variant='secondary'
                                     className='w-full'
                                   >
-                                    <SelectValue placeholder='Select role' />
+                                    <SelectValue />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {APPROVER_STEP_ROLES.map((r) => (
-                                    <SelectItem key={r} value={r}>
-                                      {r}
+                                  {CHAIN_ROUTING_DIMENSIONS.map((d) => (
+                                    <SelectItem key={d} value={d}>
+                                      {d}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -563,24 +892,180 @@ export function ArtifactBuilderSheet({
                         />
                         <FormField
                           control={form.control}
-                          name={`steps.${i}.slaHours`}
+                          name={`routingRules.${i}.operator`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>SLA (hours)</FormLabel>
+                              <FormLabel>Condition</FormLabel>
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                              >
+                                <FormControl>
+                                  <SelectTrigger
+                                    variant='secondary'
+                                    className='w-full'
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {CHAIN_ROUTING_OPERATORS.map((op) => (
+                                    <SelectItem key={op} value={op}>
+                                      {op}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`routingRules.${i}.value`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Value</FormLabel>
                               <FormControl>
-                                <Input
-                                  inputMode='numeric'
-                                  placeholder='24'
-                                  {...field}
-                                />
+                                <Input placeholder='Engineering' {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
                       </div>
+                      <FormField
+                        control={form.control}
+                        name={`routingRules.${i}.thenChainVariant`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Route to chain variant (optional)
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder='Engineering approvals'
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      {watchedRouting[i] && (
+                        <p className='text-neutral-1000 rounded bg-gray-50 px-2 py-1 text-xs italic'>
+                          {routingRuleSentence({
+                            dimension: watchedRouting[i].dimension,
+                            operator: watchedRouting[i].operator,
+                            value: watchedRouting[i].value,
+                            thenChainVariant:
+                              watchedRouting[i].thenChainVariant || undefined,
+                          })}
+                        </p>
+                      )}
                     </div>
                   ))}
+
+                  <Separator />
+
+                  <h3 className='text-neutral-1600 text-sm font-semibold'>
+                    SLA &amp; escalation
+                  </h3>
+                  <FormField
+                    control={form.control}
+                    name='slaCalendarId'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Business-hours calendar</FormLabel>
+                        <Select
+                          value={field.value || 'none'}
+                          onValueChange={(v) =>
+                            field.onChange(v === 'none' ? '' : v)
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger variant='secondary' className='w-full'>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value='none'>
+                              24×7 (no calendar)
+                            </SelectItem>
+                            {businessHourCalendars.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <p className='text-neutral-1000 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs'>
+                    Reminders are sent at 50% and 75% of each step&apos;s SLA.
+                    At 100% the request escalates using the strategy below.
+                  </p>
+                  <FormField
+                    control={form.control}
+                    name='escalationStrategy'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Escalation strategy</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger variant='secondary' className='w-full'>
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {CHAIN_ESCALATION_STRATEGIES.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {escalationStrategy === 'Role escalation' && (
+                    <FormField
+                      control={form.control}
+                      name='escalationRole'
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Escalate to role</FormLabel>
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                          >
+                            <FormControl>
+                              <SelectTrigger
+                                variant='secondary'
+                                className='w-full'
+                              >
+                                <SelectValue placeholder='Select role' />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {APPROVER_STEP_ROLES.map((r) => (
+                                <SelectItem key={r} value={r}>
+                                  {r}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                 </div>
               )}
 

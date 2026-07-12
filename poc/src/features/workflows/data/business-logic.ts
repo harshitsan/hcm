@@ -200,6 +200,138 @@ export interface ChainStep {
   order: number
   approverRole: string
   slaHours: number
+  /**
+   * Optional parallel-block id: steps sharing a group number run in parallel
+   * under that group's pattern; ungrouped steps run sequentially (default).
+   */
+  group?: number
+}
+
+/** How a parallel block of chain steps completes. */
+export const CHAIN_GROUP_PATTERNS = ['any-one', 'all-must'] as const
+
+export type ChainGroupPattern = (typeof CHAIN_GROUP_PATTERNS)[number]
+
+export const CHAIN_GROUP_PATTERN_LABELS: Record<ChainGroupPattern, string> = {
+  'any-one': 'In parallel — any one may approve',
+  'all-must': 'In parallel — all must approve',
+}
+
+/** Dimensions a chain's conditional routing rules can key on (F6). */
+export const CHAIN_ROUTING_DIMENSIONS = [
+  'Company',
+  'Jurisdiction',
+  'Location',
+  'Department',
+  'Group',
+  'Transaction type',
+] as const
+
+export type ChainRoutingDimension = (typeof CHAIN_ROUTING_DIMENSIONS)[number]
+
+export const CHAIN_ROUTING_OPERATORS = ['is', 'is not'] as const
+
+export type ChainRoutingOperator = (typeof CHAIN_ROUTING_OPERATORS)[number]
+
+export interface ChainRoutingRule {
+  dimension: ChainRoutingDimension
+  operator: ChainRoutingOperator
+  value: string
+  /** Named chain variant the request is routed to when the rule matches. */
+  thenChainVariant?: string
+}
+
+/** Plain-language sentence for one routing rule, used in editor + detail. */
+export function routingRuleSentence(rule: ChainRoutingRule): string {
+  const target = rule.thenChainVariant
+    ? `route to variant "${rule.thenChainVariant}"`
+    : 'use this approval chain'
+  return `When ${rule.dimension} ${rule.operator} ${rule.value || '…'}, ${target}.`
+}
+
+/** Escalation strategies configurable per chain (F6). */
+export const CHAIN_ESCALATION_STRATEGIES = [
+  'Manager escalation',
+  'Role escalation',
+  'Time-based reassignment',
+  'Multi-level escalation',
+] as const
+
+export type ChainEscalationStrategy =
+  (typeof CHAIN_ESCALATION_STRATEGIES)[number]
+
+/** SLA management settings for an approver chain. All optional on seeds. */
+export interface ChainSla {
+  /** Business-hours calendar artifact driving the SLA clock; omitted = 24×7. */
+  calendarArtifactId?: string
+  /** Reminder thresholds as % of SLA consumed. */
+  remindAtPct: number[]
+  /** Escalation threshold as % of SLA consumed. */
+  escalateAtPct: number
+  strategy: ChainEscalationStrategy
+  /** Target role when strategy is Role escalation. */
+  escalationRole?: string
+}
+
+export const DEFAULT_CHAIN_SLA: ChainSla = {
+  remindAtPct: [50, 75],
+  escalateAtPct: 100,
+  strategy: 'Manager escalation',
+}
+
+/** Read-time normalizer: chains authored before SLA settings get defaults. */
+export function chainSlaOf(def: {
+  sla?: Partial<ChainSla>
+}): ChainSla {
+  return {
+    ...DEFAULT_CHAIN_SLA,
+    ...(def.sla ?? {}),
+    remindAtPct: def.sla?.remindAtPct ?? DEFAULT_CHAIN_SLA.remindAtPct,
+    escalateAtPct: def.sla?.escalateAtPct ?? DEFAULT_CHAIN_SLA.escalateAtPct,
+    strategy: def.sla?.strategy ?? DEFAULT_CHAIN_SLA.strategy,
+  }
+}
+
+/** A run of chain steps: one sequential step, or a parallel block. */
+export interface ChainBlock {
+  group?: number
+  /** null = sequential single step. */
+  pattern: ChainGroupPattern | null
+  steps: ChainStep[]
+}
+
+/**
+ * Groups a chain's steps into display/execution blocks: consecutive steps
+ * sharing a group number form one parallel block under the group's pattern;
+ * every other step is its own sequential block. Ungrouped seeds are
+ * unchanged — each step becomes a sequential block.
+ */
+export function chainBlocks(
+  steps: ChainStep[],
+  patterns?: Record<number, ChainGroupPattern>
+): ChainBlock[] {
+  const sorted = [...steps].sort((a, b) => a.order - b.order)
+  const blocks: ChainBlock[] = []
+  for (const step of sorted) {
+    const last = blocks[blocks.length - 1]
+    if (
+      step.group !== undefined &&
+      last &&
+      last.group === step.group
+    ) {
+      last.steps.push(step)
+      continue
+    }
+    blocks.push({
+      group: step.group,
+      pattern:
+        step.group !== undefined
+          ? (patterns?.[step.group] ?? 'all-must')
+          : null,
+      steps: [step],
+    })
+  }
+  return blocks
 }
 
 export interface RuleCondition {
@@ -247,7 +379,16 @@ export interface CalendarEntry {
 
 /** Type-specific payload; `kind` always mirrors the artifact's `type`. */
 export type ArtifactDefinition =
-  | { kind: 'approver-chain'; steps: ChainStep[] }
+  | {
+      kind: 'approver-chain'
+      steps: ChainStep[]
+      /** Completion pattern per parallel group id; absent = all sequential. */
+      patterns?: Record<number, ChainGroupPattern>
+      /** Conditional routing rules; absent = chain applies unconditionally. */
+      routing?: ChainRoutingRule[]
+      /** SLA & escalation settings; absent = DEFAULT_CHAIN_SLA at read time. */
+      sla?: ChainSla
+    }
   | { kind: 'decision-rule'; conditions: RuleCondition[]; outcome: RuleOutcome }
   | { kind: 'custom-form'; fields: FormFieldDef[] }
   | { kind: 'checklist'; items: ChecklistItem[] }

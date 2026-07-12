@@ -102,17 +102,18 @@ export function StepOptions({ form, importFn }: StepOptionsProps) {
         render={({ field }) => (
           <FormItem className='flex items-center justify-between rounded-[6px] border border-gray-200 px-3 py-2.5'>
             <div>
-              <FormLabel>Staging / sandbox validation first</FormLabel>
+              <FormLabel>Validate only (sandbox)</FormLabel>
               <p className='text-paragraph-sm text-neutral-1000'>
-                Validate without committing; review record-level results, then
-                promote only validated records to production.
+                Run the whole batch in a sandbox without committing anything;
+                review record-level results, then promote only validated
+                records to production.
               </p>
             </div>
             <FormControl>
               <Switch
                 checked={field.value}
                 onCheckedChange={field.onChange}
-                aria-label='Staging mode'
+                aria-label='Validate only (sandbox)'
               />
             </FormControl>
           </FormItem>

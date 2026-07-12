@@ -37,6 +37,21 @@ export const LIFECYCLE_EVENTS = [
 ] as const
 export type LifecycleEvent = (typeof LIFECYCLE_EVENTS)[number]
 
+/**
+ * Why an acknowledgment was requested. 'Initial' is the first ask; every
+ * other value is a re-acknowledgment reason (content change, periodic
+ * renewal, transfer, role change or regulatory update).
+ */
+export const ASSIGNMENT_TRIGGERS = [
+  'Initial',
+  'Content change',
+  'Periodic renewal',
+  'Transfer',
+  'Role change',
+  'Regulatory update',
+] as const
+export type AssignmentTrigger = (typeof ASSIGNMENT_TRIGGERS)[number]
+
 export const DUE_RULE_TYPES = [
   'Fixed',
   'Relative',
@@ -78,6 +93,10 @@ export interface Distribution {
   eventTrigger: LifecycleEvent | null
   dueDateRule: DueDateRule
   status: DistributionStatus
+  /** Why this ask went out — 'Initial' or a re-acknowledgment reason. */
+  trigger: AssignmentTrigger
+  /** Priority wave (regulatory updates) — surfaced with a priority chip. */
+  priority: boolean
   isBulk: boolean
   createdBy: string
   createdAt: string
@@ -118,6 +137,13 @@ export interface Assignment {
   escalated: boolean
   /** Recipient has no portal access and cannot self-acknowledge. */
   isNonUser: boolean
+  /** Why this acknowledgment was requested. */
+  trigger: AssignmentTrigger
+  /** One-line plain-language context shown to the employee, e.g.
+   * "Transferred to Pune office on 12 May 2026". */
+  triggerContext: string | null
+  /** Priority ask (regulatory update) — shown with a priority chip. */
+  priority: boolean
   /** True when a re-acknowledgment cycle replaced this record (kept as history). */
   superseded: boolean
   /** Task/checklist module integration state. */
@@ -171,6 +197,9 @@ function makeAssignment(
     remindersSent: [],
     escalated: false,
     isNonUser: false,
+    trigger: 'Initial',
+    triggerContext: null,
+    priority: false,
     superseded: false,
     taskStatus: row.ackType === 'Read-Only' ? 'None' : 'Open',
     ...row,
@@ -205,6 +234,8 @@ export const seedDistributions: Distribution[] = [
     eventTrigger: null,
     dueDateRule: { type: 'Relative', relativeDays: 14 },
     status: 'Sent',
+    trigger: 'Initial',
+    priority: false,
     isBulk: true,
     createdBy: 'Priya Raman (Group Company Admin)',
     createdAt: '2026-06-10T09:00:00Z',
@@ -230,6 +261,8 @@ export const seedDistributions: Distribution[] = [
     eventTrigger: null,
     dueDateRule: { type: 'Fixed', fixedDate: '2026-07-10' },
     status: 'Sent',
+    trigger: 'Initial',
+    priority: false,
     isBulk: false,
     createdBy: 'Asha Verma (Company Admin)',
     createdAt: '2026-06-20T11:30:00Z',
@@ -252,6 +285,8 @@ export const seedDistributions: Distribution[] = [
     eventTrigger: null,
     dueDateRule: { type: 'Relative', relativeDays: 10 },
     status: 'Scheduled',
+    trigger: 'Initial',
+    priority: false,
     isBulk: false,
     createdBy: 'Asha Verma (Company Admin)',
     createdAt: '2026-06-25T14:00:00Z',
@@ -274,6 +309,8 @@ export const seedDistributions: Distribution[] = [
     eventTrigger: null,
     dueDateRule: { type: 'Relative', relativeDays: 30 },
     status: 'Sent',
+    trigger: 'Initial',
+    priority: false,
     isBulk: false,
     createdBy: 'Asha Verma (Company Admin)',
     createdAt: '2026-06-15T10:00:00Z',
@@ -298,6 +335,8 @@ export const seedDistributions: Distribution[] = [
     eventTrigger: null,
     dueDateRule: { type: 'Relative', relativeDays: 0 },
     status: 'Sent',
+    trigger: 'Initial',
+    priority: false,
     isBulk: false,
     createdBy: 'Priya Raman (Group Company Admin)',
     createdAt: '2026-06-05T08:00:00Z',
@@ -330,6 +369,8 @@ export const seedDistributions: Distribution[] = [
     eventTrigger: 'Onboarding',
     dueDateRule: { type: 'Hire-based', hireOffsetDays: 30 },
     status: 'Armed',
+    trigger: 'Initial',
+    priority: false,
     isBulk: false,
     createdBy: 'Noel D’Souza (Platform Admin)',
     createdAt: '2026-05-30T12:00:00Z',
@@ -358,10 +399,88 @@ export const seedDistributions: Distribution[] = [
     eventTrigger: null,
     dueDateRule: { type: 'Periodic renewal', renewalMonths: 6 },
     status: 'Sent',
+    trigger: 'Initial',
+    priority: false,
     isBulk: true,
     createdBy: 'Priya Raman (Group Company Admin)',
     createdAt: '2026-06-18T07:45:00Z',
     sentAt: '2026-06-18T07:50:00Z',
+  },
+  // Re-acknowledgment wave: Data Privacy Policy content changed on 3 Jun 2026.
+  {
+    id: 'dist-08',
+    policyId: 'pol-06',
+    policyTitle: 'Data Privacy Policy',
+    policyVersion: 'v3',
+    ackType: 'Required',
+    criticality: 'High',
+    audience: {
+      logic: 'OR',
+      criteria: [{ field: 'employee', values: ['emp-101', 'emp-108'] }],
+    },
+    audienceSummary: 'Re-acknowledgment — 2 employees with an active acknowledgment',
+    method: 'Manual',
+    scheduledFor: null,
+    eventTrigger: null,
+    dueDateRule: { type: 'Relative', relativeDays: 14 },
+    status: 'Sent',
+    trigger: 'Content change',
+    priority: false,
+    isBulk: false,
+    createdBy: 'Asha Verma (Company Admin)',
+    createdAt: '2026-06-03T10:00:00Z',
+    sentAt: '2026-06-03T10:02:00Z',
+  },
+  // Priority re-acknowledgment wave: DPDP data-handling rules amended.
+  {
+    id: 'dist-09',
+    policyId: 'pol-02',
+    policyTitle: 'Information Security Policy',
+    policyVersion: 'v3',
+    ackType: 'Required',
+    criticality: 'Critical',
+    audience: {
+      logic: 'OR',
+      criteria: [{ field: 'employee', values: ['emp-101'] }],
+    },
+    audienceSummary: 'Re-acknowledgment — 1 employee with an active acknowledgment',
+    method: 'Manual',
+    scheduledFor: null,
+    eventTrigger: null,
+    dueDateRule: { type: 'Relative', relativeDays: 7 },
+    status: 'Sent',
+    trigger: 'Regulatory update',
+    priority: true,
+    isBulk: false,
+    createdBy: 'Asha Verma (Company Admin)',
+    createdAt: '2026-06-08T09:00:00Z',
+    sentAt: '2026-06-08T09:01:00Z',
+  },
+  // 2025 POSH campaign — its acknowledgments are now past the annual renewal
+  // cadence, so the policy shows as "Renewal due" in the admin console.
+  {
+    id: 'dist-10',
+    policyId: 'pol-03',
+    policyTitle: 'Prevention of Sexual Harassment (POSH)',
+    policyVersion: 'v1',
+    ackType: 'Required',
+    criticality: 'Critical',
+    audience: {
+      logic: 'OR',
+      criteria: [{ field: 'employee', values: ['emp-103', 'emp-107'] }],
+    },
+    audienceSummary: 'Northwind + Contoso HR and Sales — 2025 campaign',
+    method: 'Manual',
+    scheduledFor: null,
+    eventTrigger: null,
+    dueDateRule: { type: 'Relative', relativeDays: 10 },
+    status: 'Sent',
+    trigger: 'Initial',
+    priority: false,
+    isBulk: false,
+    createdBy: 'Asha Verma (Company Admin)',
+    createdAt: '2025-06-20T09:00:00Z',
+    sentAt: '2025-06-20T09:02:00Z',
   },
 ]
 
@@ -403,6 +522,26 @@ export const seedAssignments: Assignment[] = [
     acknowledgedBy: 'Arjun Mehta',
     receiptId: 'rcpt-88021',
     taskStatus: 'Completed',
+    // Superseded by the role-change re-acknowledgment below (as-071).
+    superseded: true,
+  }),
+  makeAssignment({
+    id: 'as-071',
+    distributionId: 'dist-01',
+    employeeId: 'emp-102',
+    employeeName: 'Arjun Mehta',
+    company: 'Northwind Retail',
+    department: 'Human Resources',
+    policyId: 'pol-01',
+    policyTitle: 'Code of Conduct',
+    policyVersion: 'v3',
+    ackType: 'Required',
+    criticality: 'Critical',
+    status: 'Pending',
+    dueDate: '2026-07-15',
+    assignedAt: '2026-07-01T09:00:00Z',
+    trigger: 'Role change',
+    triggerContext: 'Promoted to HR Manager on 1 Jul 2026',
   }),
   makeAssignment({
     id: 'as-003',
@@ -441,6 +580,26 @@ export const seedAssignments: Assignment[] = [
     acknowledgedBy: 'Kavya Reddy',
     receiptId: 'rcpt-88034',
     taskStatus: 'Completed',
+    // Superseded by the transfer re-acknowledgment below (as-070).
+    superseded: true,
+  }),
+  makeAssignment({
+    id: 'as-070',
+    distributionId: 'dist-01',
+    employeeId: 'emp-105',
+    employeeName: 'Kavya Reddy',
+    company: 'Contoso Manufacturing',
+    department: 'Operations',
+    policyId: 'pol-01',
+    policyTitle: 'Code of Conduct',
+    policyVersion: 'v3',
+    ackType: 'Required',
+    criticality: 'Critical',
+    status: 'Pending',
+    dueDate: '2026-07-19',
+    assignedAt: '2026-07-05T09:00:00Z',
+    trigger: 'Transfer',
+    triggerContext: 'Transferred to Pune office on 12 May 2026',
   }),
   makeAssignment({
     id: 'as-005',
@@ -538,6 +697,27 @@ export const seedAssignments: Assignment[] = [
     dueDate: '2026-07-10',
     assignedAt: '2026-06-20T11:32:00Z',
     remindersSent: [50],
+    // Superseded by the regulatory-update wave for v3 (as-052).
+    superseded: true,
+  }),
+  makeAssignment({
+    id: 'as-052',
+    distributionId: 'dist-09',
+    employeeId: 'emp-101',
+    employeeName: 'Riya Sharma',
+    company: 'Northwind Retail',
+    department: 'Engineering',
+    policyId: 'pol-02',
+    policyTitle: 'Information Security Policy',
+    policyVersion: 'v3',
+    ackType: 'Required',
+    criticality: 'Critical',
+    status: 'Pending',
+    dueDate: '2026-07-20',
+    assignedAt: '2026-06-08T09:01:00Z',
+    trigger: 'Regulatory update',
+    triggerContext: 'DPDP data-handling rules amended on 5 Jun 2026',
+    priority: true,
   }),
   makeAssignment({
     id: 'as-011',
@@ -751,6 +931,8 @@ export const seedAssignments: Assignment[] = [
     dueDate: '2026-12-18',
     assignedAt: '2026-06-18T07:50:00Z',
     isNonUser: true,
+    trigger: 'Periodic renewal',
+    triggerContext: 'Half-yearly safety renewal cycle started 18 Jun 2026',
   }),
   makeAssignment({
     id: 'as-042',
@@ -784,6 +966,91 @@ export const seedAssignments: Assignment[] = [
     dueDate: '2026-12-18',
     assignedAt: '2026-06-18T07:50:00Z',
     isNonUser: true,
+  }),
+
+  // dist-08 · Data Privacy v3 — content-change re-acknowledgment wave
+  makeAssignment({
+    id: 'as-050',
+    distributionId: 'dist-08',
+    employeeId: 'emp-101',
+    employeeName: 'Riya Sharma',
+    company: 'Northwind Retail',
+    department: 'Engineering',
+    policyId: 'pol-06',
+    policyTitle: 'Data Privacy Policy',
+    policyVersion: 'v3',
+    ackType: 'Required',
+    criticality: 'High',
+    status: 'Pending',
+    dueDate: '2026-07-17',
+    assignedAt: '2026-06-03T10:02:00Z',
+    trigger: 'Content change',
+    triggerContext: 'Policy content changed on 3 Jun 2026',
+  }),
+  makeAssignment({
+    id: 'as-051',
+    distributionId: 'dist-08',
+    employeeId: 'emp-108',
+    employeeName: 'Dev Patel',
+    company: 'Contoso Manufacturing',
+    department: 'Engineering',
+    policyId: 'pol-06',
+    policyTitle: 'Data Privacy Policy',
+    policyVersion: 'v3',
+    ackType: 'Required',
+    criticality: 'High',
+    status: 'Acknowledged',
+    dueDate: '2026-06-17',
+    assignedAt: '2026-06-03T10:02:00Z',
+    acknowledgedAt: '2026-06-05T11:20:00Z',
+    acknowledgedBy: 'Dev Patel',
+    receiptId: 'rcpt-88301',
+    taskStatus: 'Completed',
+    trigger: 'Content change',
+    triggerContext: 'Policy content changed on 3 Jun 2026',
+  }),
+
+  // dist-10 · POSH 2025 campaign — acknowledgments now past the annual
+  // renewal cadence, driving the "Renewal due" state for pol-03.
+  makeAssignment({
+    id: 'as-055',
+    distributionId: 'dist-10',
+    employeeId: 'emp-103',
+    employeeName: 'Sneha Kulkarni',
+    company: 'Northwind Retail',
+    department: 'Sales',
+    policyId: 'pol-03',
+    policyTitle: 'Prevention of Sexual Harassment (POSH)',
+    policyVersion: 'v1',
+    ackType: 'Required',
+    criticality: 'Critical',
+    status: 'Acknowledged',
+    dueDate: '2025-06-30',
+    assignedAt: '2025-06-20T09:02:00Z',
+    acknowledgedAt: '2025-06-24T14:05:00Z',
+    acknowledgedBy: 'Sneha Kulkarni',
+    receiptId: 'rcpt-71204',
+    taskStatus: 'Completed',
+  }),
+  makeAssignment({
+    id: 'as-056',
+    distributionId: 'dist-10',
+    employeeId: 'emp-107',
+    employeeName: 'Meena Iyer',
+    company: 'Contoso Manufacturing',
+    department: 'Human Resources',
+    policyId: 'pol-03',
+    policyTitle: 'Prevention of Sexual Harassment (POSH)',
+    policyVersion: 'v1',
+    ackType: 'Required',
+    criticality: 'Critical',
+    status: 'Acknowledged',
+    dueDate: '2025-06-30',
+    assignedAt: '2025-06-20T09:02:00Z',
+    acknowledgedAt: '2025-06-28T10:12:00Z',
+    acknowledgedBy: 'Meena Iyer',
+    receiptId: 'rcpt-71219',
+    taskStatus: 'Completed',
   }),
 ]
 

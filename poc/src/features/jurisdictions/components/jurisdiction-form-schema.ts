@@ -21,6 +21,9 @@ export const jurisdictionFormSchema = z.object({
     .max(10, 'Keep codes short (≤10 chars)'),
   type: z.enum(JURISDICTION_TYPES),
   status: z.enum(JURISDICTION_STATUSES),
+  /** Informational region/country label — no hierarchy meaning. */
+  region: z.string().optional(),
+  description: z.string().optional(),
   effectiveFrom: z.string().min(1, 'Effective date is required'),
   taxFees: z.array(taxFeeSchema),
 })
@@ -32,6 +35,8 @@ export const emptyJurisdictionDraft: JurisdictionFormValues = {
   code: '',
   type: 'Country',
   status: 'active',
+  region: '',
+  description: '',
   effectiveFrom: new Date().toISOString().slice(0, 10),
   taxFees: [],
 }

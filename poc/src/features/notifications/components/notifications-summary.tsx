@@ -18,7 +18,8 @@ export function NotificationsSummary({
       (n) => !n.read && (n.category === 'approval' || n.category === 'escalation')
     ).length
     const delivered = deliveries.filter(
-      (d) => d.finalStatus === 'delivered'
+      (d) =>
+        d.finalStatus === 'delivered' || d.finalStatus === 'sent via fallback'
     ).length
     const attention = deliveries.filter(
       (d) => d.finalStatus === 'dead-letter' || d.finalStatus === 'failed'

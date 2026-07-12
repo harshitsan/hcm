@@ -9,13 +9,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  EMPLOYEES,
-  renderBody,
+  SIGNATORIES,
   type HrDocument,
   type LetterTemplate,
 } from '../data/hr-letters'
+import { resolveMergeFields } from '../data/merge-engine'
 import { type HrDocumentsStore } from '../hooks/use-hr-documents'
 
 interface ApprovalsTabProps {
@@ -24,14 +31,18 @@ interface ApprovalsTabProps {
 }
 
 /**
- * Approver queue (HLC-06/14): every document pending approval is listed with
- * its rendered content. Approving finalizes it per the workflow; rejecting
- * requires a reason, returns it to the originator, and blocks distribution.
- * Both outcomes land in the document's audit history.
+ * Approver queue (HLC-06/14): every letter pending approval is listed with
+ * its rendered content. Approving records the chosen signatory (name + title)
+ * on the letter — it appears in the signature block; rejecting requires a
+ * reason, returns it to the originator, and blocks issue. Both outcomes land
+ * in the letter's audit history.
  */
 export function ApprovalsTab({ store, templates }: ApprovalsTabProps) {
   const [rejecting, setRejecting] = useState<HrDocument | null>(null)
   const [reason, setReason] = useState('')
+  const [signatoryByDoc, setSignatoryByDoc] = useState<Record<string, string>>(
+    {}
+  )
 
   const pending = useMemo(
     () => store.documents.filter((d) => d.status === 'pending-approval'),
@@ -40,11 +51,13 @@ export function ApprovalsTab({ store, templates }: ApprovalsTabProps) {
 
   const contentFor = (doc: HrDocument) => {
     const template = templates.find((t) => t.id === doc.templateId)
-    const employee = EMPLOYEES.find((e) => e.id === doc.employeeId)
-    return template && employee
-      ? renderBody(template.body, employee, template.missingValueBehavior)
+    return template
+      ? resolveMergeFields(template.body, doc.employeeId).rendered
       : 'Content rendered from the recorded template version.'
   }
+
+  const signatoryFor = (docId: string) =>
+    SIGNATORIES.find((s) => s.name === signatoryByDoc[docId]) ?? SIGNATORIES[0]
 
   return (
     <div className='w-full'>
@@ -53,8 +66,9 @@ export function ApprovalsTab({ store, templates }: ApprovalsTabProps) {
           Approval queue ({pending.length})
         </h2>
         <p className='text-paragraph-sm text-neutral-1000'>
-          Documents awaiting your review. Rejected documents are never
-          distributed — the originator is notified to correct and regenerate.
+          Letters awaiting your review. Pick who signs, then approve — the
+          signatory appears on the letter. Rejected letters are never issued;
+          the originator is notified to correct and regenerate.
         </p>
       </div>
 
@@ -72,23 +86,47 @@ export function ApprovalsTab({ store, templates }: ApprovalsTabProps) {
               className='rounded-[6px] border border-gray-200 bg-white p-4'
             >
               <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
-                <div className='flex items-center gap-2'>
+                <div className='flex flex-wrap items-center gap-2'>
                   <span className='text-neutral-1600 font-medium'>
                     {doc.docType} — {doc.employeeName}
                   </span>
                   <Badge variant='overdue'>Pending approval</Badge>
+                  {doc.reissueOf && (
+                    <Badge variant='overdue'>Reissue of {doc.reissueOf}</Badge>
+                  )}
                   <Badge variant='pending'>
                     Version {doc.versions.length} · template v{doc.templateVersion}
                   </Badge>
                 </div>
-                <div className='flex gap-2'>
+                <div className='flex flex-wrap items-center gap-2'>
+                  <Select
+                    value={signatoryFor(doc.id).name}
+                    onValueChange={(name) =>
+                      setSignatoryByDoc((prev) => ({ ...prev, [doc.id]: name }))
+                    }
+                  >
+                    <SelectTrigger variant='secondary' className='h-8 w-[230px]'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SIGNATORIES.map((s) => (
+                        <SelectItem key={s.name} value={s.name}>
+                          {s.name} — {s.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Button
                     size='sm'
                     onClick={() =>
-                      store.approve(doc.id, 'Lakshmi Rao (Company Admin)')
+                      store.approve(
+                        doc.id,
+                        'Lakshmi Rao (Company Admin)',
+                        signatoryFor(doc.id)
+                      )
                     }
                   >
-                    Approve
+                    Approve &amp; sign
                   </Button>
                   <Button
                     size='sm'
@@ -120,15 +158,15 @@ export function ApprovalsTab({ store, templates }: ApprovalsTabProps) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject document?</DialogTitle>
+            <DialogTitle>Reject letter?</DialogTitle>
             <DialogDescription>
               {rejecting?.docType} for {rejecting?.employeeName} will be
               returned to the originator with your reason and will not be
-              distributed.
+              issued.
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            placeholder='Reason for rejection (required)'
+            placeholder='e.g. Grade shown is out of date — correct and regenerate'
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />

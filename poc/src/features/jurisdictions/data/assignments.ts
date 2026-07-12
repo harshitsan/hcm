@@ -4,6 +4,7 @@
  * All references are by catalog id so every module draws from the single
  * supported catalog (JUR-07).
  */
+import { employeesInJurisdiction } from './cross-references'
 
 export interface CompanyRecord {
   id: string
@@ -255,17 +256,22 @@ export const seedEmployees: EmployeeContext[] = [
 /** The Employee (User) persona resolves to this employee in the POC. */
 export const MY_EMPLOYEE_ID = 'emp-01'
 
-/** How many companies / policies reference a jurisdiction (JUR-01 guard). */
+/**
+ * How many companies / policies / employee records reference a jurisdiction
+ * (JUR-01 guard). Employee counts come from the directory, where each
+ * employee belongs to exactly one jurisdiction.
+ */
 export function countReferences(
   jurisdictionId: string,
   companies: CompanyRecord[],
   policies: JurisdictionPolicy[]
-): { companies: number; policies: number; total: number } {
+): { companies: number; policies: number; employees: number; total: number } {
   const c = companies.filter((co) =>
     co.jurisdictionIds.includes(jurisdictionId)
   ).length
   const p = policies.filter((po) =>
     po.jurisdictionIds.includes(jurisdictionId)
   ).length
-  return { companies: c, policies: p, total: c + p }
+  const e = employeesInJurisdiction(jurisdictionId).length
+  return { companies: c, policies: p, employees: e, total: c + p + e }
 }

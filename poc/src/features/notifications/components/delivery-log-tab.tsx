@@ -1,12 +1,21 @@
 import { useState } from 'react'
-import { Inbox, Mail, RefreshCcw, ShieldCheck } from 'lucide-react'
+import { CalendarClock, Inbox, Mail, RefreshCcw, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { DataTable } from '@/components/common/data-table/table'
 import { RoleGate, useRole } from '@/context/role-context'
-import { type DeliveryRecord } from '../data/notifications'
+import { seedDigestQueue, type DeliveryRecord } from '../data/notifications'
 import { deliveryLogColumns } from './delivery-log-columns'
 import { DeliveryStatusBadge } from './notification-badges'
+import { OutboxDetailSheet } from './outbox-detail-sheet'
 
 interface DeliveryLogTabProps {
   deliveries: DeliveryRecord[]
@@ -16,10 +25,11 @@ interface DeliveryLogTabProps {
 }
 
 /**
- * Auditable notification + per-channel delivery records (NTF-18) with the
- * engine's delivery guarantee controls — retry, email fallback and the
- * dead-letter store (NTF-08, NTF-22). Records are immutable; Platform Admin
- * only gets re-drive actions, never edits.
+ * Outbox — auditable sent messages with per-channel delivery records (NTF-18)
+ * and the engine's delivery guarantee controls: retry, email fallback, the
+ * digest queue and the dead-letter store (NTF-08, NTF-22). Rows open a detail
+ * sheet with the delivery timeline and message preview. Records are
+ * immutable; Platform Admin only gets re-drive actions, never edits.
  */
 export function DeliveryLogTab({
   deliveries,
@@ -30,6 +40,10 @@ export function DeliveryLogTab({
   const { hasRole } = useRole()
   const [selectedRows, setSelectedRows] = useState<DeliveryRecord[]>([])
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
+  const [detailId, setDetailId] = useState<string | null>(null)
+
+  // Resolve from the live list so retries/fallbacks reflect in the open sheet.
+  const detailRecord = deliveries.find((d) => d.id === detailId) ?? null
 
   const clearSelection = () => {
     setSelectedRows([])
@@ -42,6 +56,7 @@ export function DeliveryLogTab({
     selected &&
     (selected.finalStatus === 'partially delivered' ||
       selected.finalStatus === 'in progress' ||
+      selected.finalStatus === 'retrying' ||
       selected.finalStatus === 'failed')
 
   const deadLetters = deliveries.filter((d) => d.finalStatus === 'dead-letter')
@@ -64,7 +79,7 @@ export function DeliveryLogTab({
 
       <div className='mb-3 flex items-center justify-between'>
         <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
-          Delivery records ({deliveries.length})
+          Sent messages ({deliveries.length})
         </h2>
         <RoleGate roles={['Platform Admin']}>
           <div className='flex items-center gap-2'>
@@ -102,7 +117,65 @@ export function DeliveryLogTab({
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(rows) => setSelectedRows(rows)}
+        onRowClick={(row) => setDetailId(row.id)}
       />
+
+      {detailRecord && (
+        <OutboxDetailSheet
+          record={detailRecord}
+          onOpenChange={(open) => {
+            if (!open) setDetailId(null)
+          }}
+        />
+      )}
+
+      <Card className='mt-4 gap-3 border-none bg-white py-4'>
+        <CardHeader className='px-4'>
+          <CardTitle className='text-paragraph-md text-neutral-1600 flex items-center gap-2 font-medium'>
+            <CalendarClock className='text-blue-1400 size-4' />
+            Digest queue ({seedDigestQueue.length})
+          </CardTitle>
+          <p className='text-paragraph-sm text-neutral-1000'>
+            Scheduler-driven digests and summaries waiting for their next run.
+            Each run consolidates the period&apos;s non-critical updates into
+            one message per recipient; empty periods are skipped.
+          </p>
+        </CardHeader>
+        <CardContent className='px-4'>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Digest</TableHead>
+                <TableHead>Schedule</TableHead>
+                <TableHead>Next run</TableHead>
+                <TableHead>Recipients</TableHead>
+                <TableHead>Contents</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {seedDigestQueue.map((d) => (
+                <TableRow key={d.id}>
+                  <TableCell className='text-sm font-medium'>{d.name}</TableCell>
+                  <TableCell className='text-sm'>{d.cadence}</TableCell>
+                  <TableCell className='text-sm'>
+                    {new Intl.DateTimeFormat('en-GB', {
+                      weekday: 'short',
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }).format(new Date(d.nextRunAt))}
+                  </TableCell>
+                  <TableCell className='text-sm'>{d.recipients}</TableCell>
+                  <TableCell className='text-neutral-1000 text-sm'>
+                    {d.contents}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <Card className='mt-4 gap-3 border-none bg-white py-4'>
         <CardHeader className='px-4'>

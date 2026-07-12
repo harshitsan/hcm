@@ -22,14 +22,19 @@ import {
   FILE_TYPES,
   HEADER_FORMATS,
   TEXT_QUALIFIERS,
+  type ImportFunction,
 } from '../../data/catalog'
 import { type ConfigVersion } from '../../data/config'
+import { downloadImportTemplate } from '../../data/files'
 import { type WizardValues } from './schema'
 
 interface StepFileProps {
   form: UseFormReturn<WizardValues>
   /** Latest published config version — governs formats and limits (DM-17). */
   config: ConfigVersion
+  /** Target function/entity — powers the template download. */
+  importFn?: ImportFunction
+  entityName?: string
 }
 
 // Kensium reference sample offered for download when Xml is selected.
@@ -88,11 +93,33 @@ function HeaderFormatField({ form }: { form: UseFormReturn<WizardValues> }) {
  * options, the data file itself and an optional supporting-documents zip
  * (DM-03 / DM-04 / DM-22 / DM-23 / DM-28).
  */
-export function StepFile({ form, config }: StepFileProps) {
+export function StepFile({ form, config, importFn, entityName }: StepFileProps) {
   const fileType = form.watch('fileType')
 
   return (
     <div className='space-y-4'>
+      {importFn && entityName && (
+        <div className='bg-blue-150 flex items-center justify-between gap-3 rounded-[6px] px-3 py-2'>
+          <span className='text-neutral-1900 text-sm'>
+            Not sure about the file layout? Start from the ready-made template.
+          </span>
+          <Button
+            type='button'
+            variant='outline'
+            onClick={() => {
+              downloadImportTemplate(importFn, entityName)
+              toast.success(
+                `${entityName} import template downloaded — fill it in and upload it here`
+              )
+            }}
+            className='h-7 shrink-0 gap-1 rounded-[6px] px-2'
+          >
+            <DownloadSimple size={12} weight='bold' />
+            Download the {entityName} import template
+          </Button>
+        </div>
+      )}
+
       <div className='grid grid-cols-2 gap-3'>
         <FormField
           control={form.control}
@@ -124,25 +151,30 @@ export function StepFile({ form, config }: StepFileProps) {
           name='format'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Format</FormLabel>
-              <Select
-                value={field.value}
-                onValueChange={field.onChange}
-                disabled={fileType === 'Xml'}
-              >
-                <FormControl>
-                  <SelectTrigger variant='secondary' className='w-full'>
-                    <SelectValue />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {config.formats.map((f) => (
-                    <SelectItem key={f} value={f}>
-                      {f}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormLabel>Accepted formats</FormLabel>
+              <FormControl>
+                <div className='flex flex-wrap gap-1.5'>
+                  {config.formats.map((f) => {
+                    const selected = field.value === f
+                    return (
+                      <button
+                        key={f}
+                        type='button'
+                        disabled={fileType === 'Xml'}
+                        onClick={() => field.onChange(f)}
+                        aria-pressed={selected}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                          selected
+                            ? 'bg-blue-1400 border-blue-1400 text-white'
+                            : 'text-neutral-1900 border-gray-200 hover:bg-gray-50'
+                        } ${fileType === 'Xml' ? 'cursor-not-allowed opacity-50' : ''}`}
+                      >
+                        {f}
+                      </button>
+                    )
+                  })}
+                </div>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

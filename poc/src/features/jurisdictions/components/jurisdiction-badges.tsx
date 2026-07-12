@@ -4,6 +4,7 @@ import {
   type Jurisdiction,
   type JurisdictionStatus,
   type JurisdictionType,
+  type StatutoryApplicability,
 } from '../data/jurisdictions'
 
 const typeVariant: Record<
@@ -43,6 +44,29 @@ export function TaxConfigBadge({ jurisdiction }: { jurisdiction: Jurisdiction })
   ) : (
     <Badge variant='pending'>Not configured</Badge>
   )
+}
+
+/** Chip for entries added to the catalog mid-life (O1 edge case). */
+export function NewEntryBadge() {
+  return <Badge variant='live'>New</Badge>
+}
+
+const statutoryVariant: Record<
+  StatutoryApplicability,
+  'completed' | 'badge_inactive' | 'pending'
+> = {
+  Applicable: 'completed',
+  'Not applicable': 'badge_inactive',
+  Configured: 'pending',
+}
+
+/** Applicable / Not applicable / Configured state of a statutory item (O1). */
+export function StatutoryApplicabilityBadge({
+  applicability,
+}: {
+  applicability: StatutoryApplicability
+}) {
+  return <Badge variant={statutoryVariant[applicability]}>{applicability}</Badge>
 }
 
 export function RulePackStatusBadge({

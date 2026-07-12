@@ -19,8 +19,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
-import { DetailSheet } from '@/components/module-page'
-import { StatusBadge } from './jurisdiction-badges'
 import { RoleGate, useRole } from '@/context/role-context'
 import {
   JURISDICTION_TYPES,
@@ -35,6 +33,7 @@ import {
   type JurisdictionDraft,
   type JurisdictionsStore,
 } from '../hooks/use-jurisdictions'
+import { JurisdictionDetailSheet } from './jurisdiction-detail-sheet'
 import { JurisdictionHistoryDialog } from './jurisdiction-history-dialog'
 import { JurisdictionOverlay } from './jurisdiction-overlay'
 import { buildJurisdictionColumns } from './jurisdictions-table-columns'
@@ -60,8 +59,12 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
   const [overlayOpen, setOverlayOpen] = useState(false)
   const [editing, setEditing] = useState<Jurisdiction | null>(null)
   const [historyFor, setHistoryFor] = useState<Jurisdiction | null>(null)
-  const [detailFor, setDetailFor] = useState<Jurisdiction | null>(null)
+  const [detailForId, setDetailForId] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState(false)
+
+  // Looked up live so statutory-profile edits show in the open sheet.
+  const detailFor =
+    store.jurisdictions.find((j) => j.id === detailForId) ?? null
 
   const refCounts = useMemo(
     () =>
@@ -185,12 +188,13 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
         </div>
       </div>
 
-      {!canManage && (
-        <p className='text-paragraph-sm text-neutral-1000 mb-2'>
-          The catalog is governed by the Platform Admin. Your assignments,
-          policies and tax settings all draw from these entries.
-        </p>
-      )}
+      <p className='text-paragraph-sm text-neutral-1000 mb-2'>
+        A flat, platform-managed catalog of operational regions — not a
+        mandatory country/state/city hierarchy. Entries drive policy
+        applicability and statutory enablement wherever they are referenced.
+        {!canManage &&
+          ' The catalog is governed by the Platform Admin. Your assignments, policies and tax settings all draw from these entries.'}
+      </p>
 
       <DataTable
         columns={columns}
@@ -198,40 +202,15 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
         variant='no-status'
         resetSelectionKey={resetSelectionKey}
         onSelectionChange={(r) => setSelectedRows(r)}
-        onRowClick={(row) => setDetailFor(row)}
+        onRowClick={(row) => setDetailForId(row.id)}
       />
 
-      <DetailSheet
-        open={detailFor !== null}
-        onOpenChange={(o) => !o && setDetailFor(null)}
-        title={detailFor?.name ?? ''}
-        description={detailFor?.code}
-        badges={detailFor && <StatusBadge status={detailFor.status} />}
-        sections={
-          detailFor
-            ? [
-                {
-                  title: 'Jurisdiction',
-                  fields: [
-                    { label: 'Code', value: detailFor.code },
-                    { label: 'Type', value: detailFor.type },
-                    { label: 'Effective from', value: detailFor.effectiveFrom },
-                    { label: 'Effective to', value: detailFor.effectiveTo ?? 'Open-ended' },
-                  ],
-                },
-                {
-                  title: 'Taxes & fees',
-                  fields:
-                    detailFor.taxFees.length > 0
-                      ? detailFor.taxFees.map((t) => ({
-                          label: t.name,
-                          value: t.rate,
-                        }))
-                      : [{ label: 'Configuration', value: 'Not configured' }],
-                },
-              ]
-            : []
-        }
+      <JurisdictionDetailSheet
+        jurisdiction={detailFor}
+        onClose={() => setDetailForId(null)}
+        store={store}
+        companies={companies}
+        policies={policies}
       />
 
       <JurisdictionOverlay
@@ -261,7 +240,7 @@ export function CatalogTab({ store, companies, policies }: CatalogTabProps) {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {isReferenced
-                ? `${selectedRefs?.companies} companies and ${selectedRefs?.policies} policies reference this jurisdiction, so it cannot be deleted. You can deactivate it instead — existing references are preserved but it can no longer be selected for new use.`
+                ? `${selectedRefs?.companies} companies, ${selectedRefs?.policies} policies and ${selectedRefs?.employees} employee records reference this jurisdiction, so it cannot be deleted. You can deactivate it instead — existing references are preserved but it can no longer be selected for new use.`
                 : 'Nothing references this catalog entry, so it can be permanently removed. This can’t be undone.'}
             </AlertDialogDescription>
           </AlertDialogHeader>

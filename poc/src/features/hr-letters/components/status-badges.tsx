@@ -8,12 +8,16 @@ import {
 
 const docStatusMap: Record<
   DocStatus,
-  { label: string; variant: 'overdue' | 'badge_active' | 'dropped' | 'open' }
+  {
+    label: string
+    variant: 'overdue' | 'badge_active' | 'dropped' | 'open' | 'pending'
+  }
 > = {
+  draft: { label: 'Draft', variant: 'pending' },
   'pending-approval': { label: 'Pending approval', variant: 'overdue' },
   approved: { label: 'Approved', variant: 'badge_active' },
   rejected: { label: 'Rejected', variant: 'dropped' },
-  distributed: { label: 'Distributed', variant: 'open' },
+  issued: { label: 'Issued', variant: 'open' },
 }
 
 /** Workflow status of a generated document (HLC-06/14). */

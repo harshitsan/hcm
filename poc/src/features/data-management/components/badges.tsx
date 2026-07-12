@@ -19,6 +19,7 @@ const statusVariant: Record<JobStatus, BadgeVariant> = {
   Completed: 'completed',
   Failed: 'dropped',
   'Partially completed': 'overdue',
+  'Rolled back': 'badge_inactive',
 }
 
 export function JobStatusBadge({
@@ -31,7 +32,9 @@ export function JobStatusBadge({
   return (
     <span className='inline-flex items-center gap-1'>
       <Badge variant={statusVariant[status]}>{status}</Badge>
-      {rolledBack && <Badge variant='badge_inactive'>Rolled back</Badge>}
+      {rolledBack && status !== 'Rolled back' && (
+        <Badge variant='badge_inactive'>Rolled back</Badge>
+      )}
     </span>
   )
 }
@@ -49,14 +52,37 @@ export function TierBadge({ tier }: { tier: Tier }) {
 
 const outcomeVariant: Record<RecordOutcome, BadgeVariant> = {
   success: 'completed',
+  warning: 'overdue',
   failed: 'dropped',
   skipped: 'pending',
 }
 
+/** Record-level result labels shown to users (FR 6.24.4). */
+const outcomeLabel: Record<RecordOutcome, string> = {
+  success: 'OK',
+  warning: 'Warning',
+  failed: 'Error',
+  skipped: 'Skipped',
+}
+
 export function OutcomeBadge({ outcome }: { outcome: RecordOutcome }) {
+  return <Badge variant={outcomeVariant[outcome]}>{outcomeLabel[outcome]}</Badge>
+}
+
+/** Animated bar shown while a job is In-progress (FR 6.24.6). */
+export function JobProgressBar({ progress }: { progress?: number }) {
+  const pct = Math.max(0, Math.min(100, progress ?? 0))
   return (
-    <Badge variant={outcomeVariant[outcome]} className='capitalize'>
-      {outcome}
-    </Badge>
+    <span className='mt-1 flex w-[120px] items-center gap-1.5'>
+      <span className='h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-300'>
+        <span
+          className='bg-blue-1400 block h-full rounded-full transition-all duration-300'
+          style={{ width: `${pct}%` }}
+        />
+      </span>
+      <span className='text-paragraph-sm text-neutral-1000 tabular-nums'>
+        {pct}%
+      </span>
+    </span>
   )
 }

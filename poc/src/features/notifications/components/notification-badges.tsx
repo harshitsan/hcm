@@ -2,10 +2,12 @@ import { Badge } from '@/components/ui/badge'
 import {
   CHANNEL_LABELS,
   EVENT_TYPE_LABELS,
+  OUTBOX_MODEL_LABELS,
   type AttemptStatus,
   type Channel,
   type DeliveryFinalStatus,
   type EventTypeId,
+  type OutboxModel,
 } from '../data/notifications'
 
 type BadgeVariant =
@@ -40,6 +42,9 @@ const finalStatusVariant: Record<DeliveryFinalStatus, BadgeVariant> = {
   delivered: 'badge_active',
   'partially delivered': 'overdue',
   failed: 'dropped',
+  retrying: 'overdue',
+  'sent via fallback': 'completed',
+  held: 'pending',
   'dead-letter': 'dropped',
   'in progress': 'open',
 }
@@ -52,6 +57,14 @@ export function DeliveryStatusBadge({
   return (
     <Badge variant={finalStatusVariant[status]} className='capitalize'>
       {status}
+    </Badge>
+  )
+}
+
+export function ModelBadge({ model }: { model: OutboxModel }) {
+  return (
+    <Badge variant={model === 'scheduled' ? 'pending' : 'open'}>
+      {OUTBOX_MODEL_LABELS[model]}
     </Badge>
   )
 }

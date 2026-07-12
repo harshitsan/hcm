@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { DownloadSimple } from 'phosphor-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   Table,
@@ -11,16 +10,12 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { TIERS, type ImportFunction, type Tier } from '../../data/catalog'
-import { type RecordResult } from '../../data/jobs'
+import { type ValidationOutcome } from '../../hooks/use-data-jobs'
 import { OutcomeBadge, TierBadge } from '../badges'
+import { downloadValidationReportCsv } from '../error-report'
 import { type WizardValues } from './schema'
 
-export interface ValidationPreview {
-  success: number
-  failed: number
-  skipped: number
-  records: RecordResult[]
-}
+export type ValidationPreview = ValidationOutcome
 
 interface StepReviewProps {
   values: WizardValues
@@ -36,7 +31,7 @@ interface StepReviewProps {
  * record-level results, and the final commit decision
  * (DM-05 / DM-06 / DM-07 / DM-14 / DM-18).
  */
-type OutcomeFilter = 'all' | 'success' | 'failed' | 'skipped'
+type OutcomeFilter = 'all' | 'success' | 'warning' | 'failed' | 'skipped'
 
 export function StepReview({
   values,
@@ -126,12 +121,17 @@ export function StepReview({
 
       {preview && (
         <div className='space-y-2'>
-          <div className='grid grid-cols-4 gap-2 text-center'>
+          <div className='grid grid-cols-5 gap-2 text-center'>
             {(
               [
-                ['all', 'All', preview.success + preview.failed + preview.skipped],
-                ['success', 'Success', preview.success],
-                ['failed', 'Failed', preview.failed],
+                [
+                  'all',
+                  'All',
+                  preview.success + preview.failed + preview.skipped,
+                ],
+                ['success', 'OK', preview.success - preview.warnings],
+                ['warning', 'Warnings', preview.warnings],
+                ['failed', 'Errors', preview.failed],
                 ['skipped', 'Skipped', preview.skipped],
               ] as [OutcomeFilter, string, number][]
             ).map(([key, label, value]) => (
@@ -165,10 +165,10 @@ export function StepReview({
               type='button'
               variant='icon2'
               onClick={() =>
-                toast.success('Validation records exported (CSV)')
+                downloadValidationReportCsv(importFn.name, preview.records)
               }
               className='text-neutral-1900 h-7 w-7'
-              aria-label='Export validation records'
+              aria-label='Download error report'
             >
               <DownloadSimple size={16} weight='bold' />
             </Button>

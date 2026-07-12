@@ -1,6 +1,7 @@
 import { type UseFormReturn } from 'react-hook-form'
 import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   FormControl,
   FormField,
@@ -20,9 +21,12 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import {
   FIELD_SCOPES,
+  FIELD_SENSITIVITIES,
   FIELD_TARGETS,
   FIELD_TYPE_LABELS,
   FIELD_TYPES,
+  SENSITIVE_GRANTABLE_ROLES,
+  SENSITIVITY_LABELS,
   SUPPORTED_ENTITIES,
   type FieldScope,
 } from '../data/custom-fields'
@@ -379,14 +383,110 @@ const AUDIENCES = [
   },
 ] as const
 
-/** Step 4 — per-audience View/Edit permission matrix. */
+/** Step 4 — per-audience View/Edit permission matrix + sensitivity grants. */
 export function StepPermissions({ form }: StepProps) {
+  const sensitivity = form.watch('sensitivity')
+  const isSensitive = sensitivity !== 'none'
+
   const grantHrFull = () => {
     form.setValue('permissions.hrView', true)
     form.setValue('permissions.hrEdit', true)
   }
+
+  const clearRestrictedAudiences = () => {
+    form.setValue('permissions.managerView', false)
+    form.setValue('permissions.managerEdit', false)
+    form.setValue('permissions.employeeView', false)
+    form.setValue('permissions.employeeEdit', false)
+  }
+
   return (
     <>
+      <FormField
+        control={form.control}
+        name='sensitivity'
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Sensitivity</FormLabel>
+            <Select
+              value={field.value}
+              onValueChange={(value) => {
+                field.onChange(value)
+                if (value !== 'none') {
+                  clearRestrictedAudiences()
+                } else {
+                  form.setValue('sensitiveGrants', [])
+                }
+              }}
+            >
+              <FormControl>
+                <SelectTrigger variant='secondary' className='w-full'>
+                  <SelectValue />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {FIELD_SENSITIVITIES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {SENSITIVITY_LABELS[s]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className='text-paragraph-sm text-neutral-1000'>
+              Mark fields that hold salary, tax, or payroll data. Sensitive
+              fields stay hidden from standard employees and people-managers,
+              and every role that may view them must be granted access
+              individually.
+            </p>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {isSensitive && (
+        <FormField
+          control={form.control}
+          name='sensitiveGrants'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Grant access to roles</FormLabel>
+              <FormControl>
+                <div className='space-y-1 rounded-md border border-gray-200 bg-white p-3'>
+                  {SENSITIVE_GRANTABLE_ROLES.map((role) => {
+                    const granted = field.value.includes(role)
+                    return (
+                      <label
+                        key={role}
+                        className='flex cursor-pointer items-center gap-2 py-1'
+                      >
+                        <Checkbox
+                          variant='blue'
+                          checked={granted}
+                          onCheckedChange={(checked) =>
+                            field.onChange(
+                              checked
+                                ? [...field.value, role]
+                                : field.value.filter((r: string) => r !== role)
+                            )
+                          }
+                          aria-label={`Grant ${role} access`}
+                        />
+                        <span className='text-sm'>{role}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </FormControl>
+              <p className='text-paragraph-sm text-neutral-1000'>
+                Only these roles can ever be granted access to{' '}
+                {SENSITIVITY_LABELS[sensitivity].toLowerCase()} data.
+              </p>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
       <div className='flex items-center justify-between'>
         <p className='text-paragraph-sm text-neutral-1000'>
           Toggle View and Edit independently per audience.
@@ -401,49 +501,61 @@ export function StepPermissions({ form }: StepProps) {
           <span>View</span>
           <span>Edit</span>
         </div>
-        {AUDIENCES.map((aud) => (
-          <div
-            key={aud.label}
-            className='grid grid-cols-3 items-center gap-2 border-b border-gray-100 px-3 py-2 last:border-b-0'
-          >
-            <span className='text-sm font-medium'>{aud.label}</span>
-            <FormField
-              control={form.control}
-              name={aud.view}
-              render={({ field }) => (
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked)
-                    // Removing View also removes Edit.
-                    if (!checked) form.setValue(aud.edit, false)
-                  }}
-                  aria-label={`${aud.label} view`}
-                />
-              )}
-            />
-            <FormField
-              control={form.control}
-              name={aud.edit}
-              render={({ field }) => (
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked)
-                    // Edit implies View.
-                    if (checked) form.setValue(aud.view, true)
-                  }}
-                  aria-label={`${aud.label} edit`}
-                />
-              )}
-            />
-          </div>
-        ))}
+        {AUDIENCES.map((aud) => {
+          const restricted = isSensitive && aud.label !== 'HR'
+          return (
+            <div
+              key={aud.label}
+              className='grid grid-cols-3 items-center gap-2 border-b border-gray-100 px-3 py-2 last:border-b-0'
+            >
+              <span className='text-sm font-medium'>{aud.label}</span>
+              <FormField
+                control={form.control}
+                name={aud.view}
+                render={({ field }) => (
+                  <Switch
+                    checked={restricted ? false : field.value}
+                    disabled={restricted}
+                    onCheckedChange={(checked) => {
+                      field.onChange(checked)
+                      // Removing View also removes Edit.
+                      if (!checked) form.setValue(aud.edit, false)
+                    }}
+                    aria-label={`${aud.label} view`}
+                  />
+                )}
+              />
+              <FormField
+                control={form.control}
+                name={aud.edit}
+                render={({ field }) => (
+                  <Switch
+                    checked={restricted ? false : field.value}
+                    disabled={restricted}
+                    onCheckedChange={(checked) => {
+                      field.onChange(checked)
+                      // Edit implies View.
+                      if (checked) form.setValue(aud.view, true)
+                    }}
+                    aria-label={`${aud.label} edit`}
+                  />
+                )}
+              />
+            </div>
+          )
+        })}
       </div>
-      <p className='text-paragraph-sm text-neutral-1000'>
-        View without Edit renders the field read-only; no View hides it
-        entirely for that audience.
-      </p>
+      {isSensitive ? (
+        <p className='text-paragraph-sm rounded-md border border-orange-200 bg-orange-50 p-3 text-orange-900'>
+          Compensation data is never visible to standard employees or
+          people-managers (Phase 1 policy).
+        </p>
+      ) : (
+        <p className='text-paragraph-sm text-neutral-1000'>
+          View without Edit renders the field read-only; no View hides it
+          entirely for that audience.
+        </p>
+      )}
     </>
   )
 }

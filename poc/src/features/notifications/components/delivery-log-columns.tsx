@@ -5,8 +5,16 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { HighlightedCell } from '@/components/common/data-table/highlighted-cell'
 import { SearchableHeader } from '@/components/common/data-table/searchable-header'
 import { LongText } from '@/components/common/long-text'
-import { EVENT_TYPE_LABELS, type DeliveryRecord } from '../data/notifications'
-import { AttemptBadge, DeliveryStatusBadge } from './notification-badges'
+import {
+  EVENT_TYPE_LABELS,
+  OUTBOX_MODEL_LABELS,
+  type DeliveryRecord,
+} from '../data/notifications'
+import {
+  AttemptBadge,
+  DeliveryStatusBadge,
+  ModelBadge,
+} from './notification-badges'
 
 const dateFmt = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
@@ -125,6 +133,31 @@ export const deliveryLogColumns: ColumnDef<DeliveryRecord>[] = [
     ),
   },
   {
+    id: 'model',
+    accessorFn: (row) => OUTBOX_MODEL_LABELS[row.model],
+    header: ({ column }) => (
+      <SearchableHeader column={column} columnName='Model'>
+        <Button
+          variant='header'
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Model
+          <ArrowUpDown className='text-neutral-2100 size-3.5' />
+        </Button>
+      </SearchableHeader>
+    ),
+    cell: ({ row, column }) => (
+      <HighlightedCell
+        value={OUTBOX_MODEL_LABELS[row.original.model]}
+        columnId={column.id}
+      >
+        <div className='p-1.5'>
+          <ModelBadge model={row.original.model} />
+        </div>
+      </HighlightedCell>
+    ),
+  },
+  {
     id: 'attempts',
     header: () => <span className='text-sm font-medium'>Channel attempts</span>,
     cell: ({ row }) => (
@@ -153,8 +186,15 @@ export const deliveryLogColumns: ColumnDef<DeliveryRecord>[] = [
     ),
     cell: ({ row, column }) => (
       <HighlightedCell value={row.original.finalStatus} columnId={column.id}>
-        <div className='p-1.5'>
-          <DeliveryStatusBadge status={row.original.finalStatus} />
+        <div className='flex flex-col gap-0.5 p-1.5'>
+          <div>
+            <DeliveryStatusBadge status={row.original.finalStatus} />
+          </div>
+          {row.original.note && (
+            <span className='text-paragraph-sm text-neutral-1000'>
+              {row.original.note}
+            </span>
+          )}
         </div>
       </HighlightedCell>
     ),

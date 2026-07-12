@@ -9,18 +9,9 @@ import {
 } from 'phosphor-react'
 import { useRole } from '@/context/role-context'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { DataTable } from '@/components/common/data-table/table'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
@@ -89,7 +80,7 @@ export function DataManagement() {
     ['Failed', 'Partially completed'].includes(selectedLive.status)
 
   const onConfirmRollback = () => {
-    if (selectedLive) rollbackJob(selectedLive.id)
+    if (selectedLive) rollbackJob(selectedLive.id, actorName(role))
     setConfirmRollback(false)
     clearSelection()
   }
@@ -207,7 +198,14 @@ export function DataManagement() {
             </TabsContent>
 
             <TabsContent value='log'>
-              <ImportLogTab jobs={visibleJobs} onOpenJob={setDetailJob} />
+              <ImportLogTab
+                jobs={visibleJobs}
+                onOpenJob={setDetailJob}
+                onRollback={(job) => {
+                  rollbackJob(job.id, actorName(role))
+                  clearSelection()
+                }}
+              />
             </TabsContent>
 
             <TabsContent value='mappings'>
@@ -232,6 +230,7 @@ export function DataManagement() {
         functionToggles={configStore.functionToggles}
         tierMap={configStore.tierMap}
         mappings={mappings}
+        jobs={jobs}
         onSaveMapping={addMapping}
         onSubmitImport={(draft) => {
           submitImport(draft)
@@ -242,6 +241,7 @@ export function DataManagement() {
       <ExportOverlay
         open={exportOpen}
         onOpenChange={setExportOpen}
+        jobs={visibleJobs}
         onSubmitExport={submitExport}
       />
 
@@ -251,7 +251,7 @@ export function DataManagement() {
           if (!open) setDetailJob(null)
         }}
         onRollback={(id) => {
-          rollbackJob(id)
+          rollbackJob(id, actorName(role))
           clearSelection()
         }}
         onReimport={(job) => {
@@ -261,27 +261,15 @@ export function DataManagement() {
         }}
       />
 
-      <AlertDialog open={confirmRollback} onOpenChange={setConfirmRollback}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Roll back {selectedLive?.id}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              All changes from this import will be reverted transactionally and{' '}
-              {selectedLive?.companyName} will reflect the exact state prior to
-              the import.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={onConfirmRollback}
-              className='bg-destructive hover:bg-destructive/90 text-white'
-            >
-              Roll back
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={confirmRollback}
+        onOpenChange={setConfirmRollback}
+        title={`Roll back ${selectedLive?.id}?`}
+        desc={`This removes the ${(selectedLive?.successRecords ?? 0).toLocaleString('en-US')} records created by this import. Master data referenced by later imports cannot be removed — those rows will be reported.`}
+        confirmText='Roll back'
+        destructive
+        handleConfirm={onConfirmRollback}
+      />
     </>
   )
 }

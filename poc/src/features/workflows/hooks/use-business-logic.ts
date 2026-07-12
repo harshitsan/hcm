@@ -11,6 +11,8 @@ import {
 } from '../data/business-logic'
 import { KENSIUM_ARTIFACTS } from '../data/kensium-artifacts'
 import { getUserFolders, moduleFolderId } from '../data/workflow-folders'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
+import { routingRuleSentence } from '../data/business-logic'
 
 /** Author-editable slice; id, version, scopes and history are engine-managed. */
 export type ArtifactDraft = Pick<
@@ -120,6 +122,38 @@ export function useBusinessLogic({ actor }: { actor: string }) {
       toast.success(
         `"${draft.name}" saved as v${nextVersion} — prior versions stay in history`
       )
+      // Routing rules on an approval chain are audit-relevant: publish a
+      // dedicated event whenever they change (added, removed or edited).
+      if (
+        target.definition.kind === 'approver-chain' &&
+        draft.definition.kind === 'approver-chain'
+      ) {
+        const before = target.definition.routing ?? []
+        const after = draft.definition.routing ?? []
+        if (JSON.stringify(before) !== JSON.stringify(after)) {
+          publishAuditEvent({
+            module: 'Workflow Engine',
+            action: 'Approval routing rules changed',
+            actor,
+            actionType: 'update',
+            recordId: id,
+            recordName: `${draft.name} (v${nextVersion})`,
+            changes: [
+              {
+                field: 'Routing rules',
+                previousValue:
+                  before.length > 0
+                    ? before.map(routingRuleSentence).join(' ')
+                    : 'No rules — chain applied to everything',
+                newValue:
+                  after.length > 0
+                    ? after.map(routingRuleSentence).join(' ')
+                    : 'No rules — chain applies to everything',
+              },
+            ],
+          })
+        }
+      }
     },
     [actor, artifacts]
   )

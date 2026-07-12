@@ -26,9 +26,13 @@ import {
 import {
   ARTIFACT_TYPE_LABELS,
   CALENDAR_TYPE_LABELS,
+  CHAIN_GROUP_PATTERN_LABELS,
   blockingLevel,
+  chainBlocks,
+  chainSlaOf,
   FIELD_TYPE_LABELS,
   isEffectivelyActive,
+  routingRuleSentence,
   SCOPE_LABELS,
   SCOPE_LEVELS,
   SCOPE_TOGGLE_ROLE,
@@ -36,28 +40,83 @@ import {
   type ArtifactDefinition,
   type ScopeLevel,
 } from '../data/business-logic'
+import { getArtifacts } from '../hooks/use-business-logic'
 
 /** Renders the type-specific payload the target module consumes (WFE-49). */
 function DefinitionView({ definition }: { definition: ArtifactDefinition }) {
   switch (definition.kind) {
-    case 'approver-chain':
-      return (
-        <div className='space-y-2'>
-          {definition.steps.map((s) => (
-            <div
-              key={s.order}
-              className='flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm'
-            >
-              <span className='text-neutral-1900'>
-                {s.order}. {s.approverRole}
-              </span>
-              <span className='text-neutral-1000 text-xs'>
-                SLA {s.slaHours} h
-              </span>
-            </div>
-          ))}
+    case 'approver-chain': {
+      const blocks = chainBlocks(definition.steps, definition.patterns)
+      const sla = chainSlaOf(definition)
+      const calendarName = sla.calendarArtifactId
+        ? (getArtifacts().find((a) => a.id === sla.calendarArtifactId)?.name ??
+          sla.calendarArtifactId)
+        : null
+      const stepRow = (s: (typeof definition.steps)[number]) => (
+        <div
+          key={s.order}
+          className='flex items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm'
+        >
+          <span className='text-neutral-1900'>
+            {s.order}. {s.approverRole}
+          </span>
+          <span className='text-neutral-1000 text-xs'>SLA {s.slaHours} h</span>
         </div>
       )
+      return (
+        <div className='space-y-2'>
+          {blocks.map((block, bi) =>
+            block.pattern === null ? (
+              block.steps.map(stepRow)
+            ) : (
+              <div
+                key={`block-${bi}`}
+                className='space-y-1.5 rounded-lg border-2 border-violet-300 bg-violet-50/50 p-2'
+              >
+                <span className='inline-block rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800'>
+                  {CHAIN_GROUP_PATTERN_LABELS[block.pattern]}
+                </span>
+                {block.steps.map(stepRow)}
+              </div>
+            )
+          )}
+          {definition.routing && definition.routing.length > 0 && (
+            <div className='pt-1'>
+              <p className='text-neutral-1600 mb-1 text-xs font-semibold'>
+                Routing rules
+              </p>
+              <div className='space-y-1'>
+                {definition.routing.map((r, i) => (
+                  <p
+                    key={`route-${i}`}
+                    className='text-neutral-1900 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs'
+                  >
+                    {routingRuleSentence(r)}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className='pt-1'>
+            <p className='text-neutral-1600 mb-1 text-xs font-semibold'>
+              SLA &amp; escalation
+            </p>
+            <div className='text-neutral-1000 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs'>
+              <p>
+                Clock: {calendarName ?? '24×7 (no calendar)'} · Reminders at{' '}
+                {sla.remindAtPct.map((p) => `${p}%`).join(' and ')} of SLA
+              </p>
+              <p className='mt-0.5'>
+                At {sla.escalateAtPct}%: {sla.strategy}
+                {sla.strategy === 'Role escalation' && sla.escalationRole
+                  ? ` → ${sla.escalationRole}`
+                  : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
     case 'decision-rule':
       return (
         <div className='space-y-2'>

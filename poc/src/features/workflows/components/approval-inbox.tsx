@@ -322,6 +322,7 @@ export function ApprovalInbox({
       <InstanceDetailSheet
         instance={liveDetail}
         events={events}
+        tasks={store.tasks}
         open={detail !== null}
         onOpenChange={(open) => {
           if (!open) setDetail(null)

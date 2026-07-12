@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { ROLES, type Role } from '@/context/role-context'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
+import { announceReAckWave } from '@/features/policy-distribution/data/reack-waves'
 import {
   LINKED_MODULES,
   TENANT,
@@ -182,6 +184,48 @@ export function usePolicies() {
     return inScope.length
   }, [])
 
+  /**
+   * Publishing a NEW version of an already-published policy means the content
+   * changed — employees who acknowledged an earlier edition must re-acknowledge.
+   * Announces a re-acknowledgment wave to the Policy Distribution module and
+   * records the request in the audit trail. Initial publications never announce.
+   */
+  const announceReAcknowledgment = useCallback(
+    (policy: Policy, version: PolicyVersion, actorRole: Role) => {
+      const trigger = version.regulatoryUpdate
+        ? ('Regulatory update' as const)
+        : ('Content change' as const)
+      announceReAckWave({
+        policyName: policy.name,
+        editionName: version.editionName,
+        trigger,
+        priority: !!version.regulatoryUpdate,
+        announcedBy: actorRole,
+      })
+      recordAudit(
+        actorRole,
+        `Re-acknowledgment requested (${trigger.toLowerCase()})`,
+        `${policy.name} — ${version.editionName}`,
+        'success'
+      )
+      publishAuditEvent({
+        module: 'Policies',
+        action: `Re-acknowledgment requested (${trigger})`,
+        actor: actorRole,
+        actorRole,
+        actionType: 'update',
+        recordId: policy.id,
+        recordName: `${policy.name} — ${version.editionName}`,
+      })
+      toast.info('Employees will be asked to re-acknowledge', {
+        description: version.regulatoryUpdate
+          ? `${version.editionName} is a regulatory update — the re-acknowledgment is marked priority with a shorter deadline.`
+          : `${version.editionName} replaces earlier acknowledged content, so previous acknowledgments no longer count.`,
+      })
+    },
+    [recordAudit]
+  )
+
   const addPolicy = useCallback(
     (draft: PolicyDraft, actorRole: Role) => {
       const version: PolicyVersion = {
@@ -293,12 +337,17 @@ export function usePolicies() {
         toast.success(`${version.editionName} published (v${nextNumber})`, {
           description: `Prior editions preserved. ${count} in-scope worker(s) notified.`,
         })
+        // Content changed relative to an earlier published edition →
+        // start a re-acknowledgment wave.
+        if (published.length > 0) {
+          announceReAcknowledgment(updated, version, actorRole)
+        }
       } else {
         toast.success(`${version.editionName} saved as draft (v${nextNumber})`)
       }
       return true
     },
-    [policies, notifyScope, recordAudit]
+    [policies, notifyScope, recordAudit, announceReAcknowledgment]
   )
 
   /** Publish an existing draft version after preview (POL-27). */
@@ -320,8 +369,16 @@ export function usePolicies() {
       toast.success(`${version.editionName} published`, {
         description: `Active per its effective dates. ${count} in-scope worker(s) notified.`,
       })
+      // A draft published on top of earlier published editions is a content
+      // change for everyone who already acknowledged → re-acknowledgment wave.
+      const priorPublished = policy.versions.some(
+        (v) => v.status === 'published' && v.version !== versionNumber
+      )
+      if (priorPublished) {
+        announceReAcknowledgment(policy, published, actorRole)
+      }
     },
-    [policies, notifyScope, recordAudit]
+    [policies, notifyScope, recordAudit, announceReAcknowledgment]
   )
 
   /** Retire = no longer applied, history retained for audit (POL-01/14). */

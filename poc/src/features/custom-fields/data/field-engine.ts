@@ -1,5 +1,6 @@
 import { type Role } from '@/context/role-context'
 import {
+  SENSITIVITY_LABELS,
   type FieldDefinition,
   type FieldPermissions,
 } from './custom-fields'
@@ -26,6 +27,14 @@ export function resolveFieldAccess(
   record: EntityRecord
 ): FieldAccess {
   const p = def.permissions
+  // Compensation-visibility rule (Phase 1): salary/tax/payroll fields are
+  // never shown to standard employees or people-managers, whatever the matrix.
+  if (
+    def.sensitivity !== 'none' &&
+    (role === 'Employee (User)' || role === 'Employee (Non-User)')
+  ) {
+    return 'hidden'
+  }
   switch (role) {
     // Admin roles act as the HR audience.
     case 'Platform Admin':
@@ -250,6 +259,65 @@ export function valueAsOf(
   return entries.length ? entries[entries.length - 1].newValue : null
 }
 
+/**
+ * Type-migration simulation (guided migration for fields with stored data).
+ * A field "has data" when it has been revised (version > 1) or ships on the
+ * standard form (isDefault) — both imply records have saved values.
+ */
+export function hasStoredData(def: FieldDefinition): boolean {
+  return def.version > 1 || def.isDefault
+}
+
+/** Deterministic mock record count derived from the field id. */
+export function mockRecordCount(def: FieldDefinition): number {
+  let hash = 0
+  for (const ch of def.id) hash = (hash * 31 + ch.charCodeAt(0)) % 997
+  return 12 + (hash % 68)
+}
+
+/** Deterministic mock count of stored values that cannot convert cleanly. */
+export function mockIncompatibleCount(def: FieldDefinition): number {
+  return Math.max(1, Math.round(mockRecordCount(def) * 0.15))
+}
+
+/** Plausible examples of stored values that may not survive a type change. */
+export function mockIncompatibleSamples(
+  def: FieldDefinition,
+  nextType: FieldDefinition['type']
+): string[] {
+  switch (nextType) {
+    case 'number':
+    case 'decimal':
+    case 'currency':
+    case 'percentage':
+      return ['"TBD"', '"N/A"', '"12 approx."']
+    case 'date':
+    case 'date-time':
+      return ['"Next quarter"', '"31-02-2026"', '"ASAP"']
+    case 'boolean':
+    case 'checkbox':
+      return ['"Maybe"', '"Pending confirmation"']
+    case 'email':
+      return ['"john.doe"', '"contact via manager"']
+    case 'phone':
+      return ['"ext. 4521"', '"call reception"']
+    case 'url':
+      return ['"intranet page"', '"see wiki"']
+    case 'single-select':
+    case 'multi-select':
+    case 'radio':
+      return def.options.length
+        ? ['Values outside the configured option list']
+        : ['Free-text values that do not match any option']
+    case 'lookup':
+      return ['Values that do not match an existing record']
+    case 'file':
+      return ['Text values (no attachment to carry over)']
+    default:
+      return ['Values longer than the new format allows']
+  }
+}
+
 /** Human diff between two definition versions for the governance log. */
 export function summarizeFieldChanges(
   prev: FieldDefinition,
@@ -264,6 +332,8 @@ export function summarizeFieldChanges(
     | 'regex'
     | 'effectiveDate'
     | 'permissions'
+    | 'sensitivity'
+    | 'sensitiveGrants'
   >
 ): string {
   const changes: string[] = []
@@ -283,6 +353,16 @@ export function summarizeFieldChanges(
     changes.push(next.regex ? 'regex validation updated' : 'regex removed')
   if (permissionsDiffer(prev.permissions, next.permissions))
     changes.push('permission matrix updated')
+  if (prev.sensitivity !== next.sensitivity)
+    changes.push(
+      `sensitivity: ${SENSITIVITY_LABELS[prev.sensitivity]} → ${SENSITIVITY_LABELS[next.sensitivity]}`
+    )
+  if (prev.sensitiveGrants.join('|') !== next.sensitiveGrants.join('|'))
+    changes.push(
+      next.sensitiveGrants.length
+        ? `sensitive-data access granted to: ${next.sensitiveGrants.join(', ')}`
+        : 'sensitive-data access grants cleared'
+    )
   if (prev.effectiveDate !== next.effectiveDate)
     changes.push(`effective ${next.effectiveDate}`)
   return changes.length ? changes.join('; ') : 'No definition changes'

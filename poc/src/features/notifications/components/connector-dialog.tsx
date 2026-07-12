@@ -21,11 +21,9 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { type Connector } from '../data/settings'
-import { type ConnectorDraft } from '../hooks/use-notification-settings'
 
 const connectorFormSchema = z.object({
-  webhookUrl: z.url('Enter a valid webhook URL'),
-  apiKey: z.string().min(8, 'API key must be at least 8 characters'),
+  target: z.string().trim().min(3, 'Enter the workspace or number to connect'),
 })
 
 type ConnectorFormValues = z.infer<typeof connectorFormSchema>
@@ -34,32 +32,29 @@ interface ConnectorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   connector: Connector | null
-  onSubmit: (id: Connector['id'], draft: ConnectorDraft) => void
+  onConnect: (id: Connector['id'], target: string) => void
 }
 
-/** Platform Admin provisioning of Teams/WhatsApp connectors (NTF-13). */
+/** Connect a Teams workspace / WhatsApp business number (mock, NTF-13). */
 export function ConnectorDialog({
   open,
   onOpenChange,
   connector,
-  onSubmit,
+  onConnect,
 }: ConnectorDialogProps) {
   const form = useForm<ConnectorFormValues>({
     resolver: zodResolver(connectorFormSchema),
-    defaultValues: { webhookUrl: '', apiKey: '' },
+    defaultValues: { target: '' },
   })
 
   useEffect(() => {
     if (!open || !connector) return
-    form.reset({
-      webhookUrl: connector.webhookUrl,
-      apiKey: connector.credentialStatus === 'valid' ? connector.apiKey : '',
-    })
+    form.reset({ target: connector.target })
   }, [open, connector, form])
 
   function handleSubmit(values: ConnectorFormValues) {
     if (!connector) return
-    onSubmit(connector.id, values)
+    onConnect(connector.id, values.target)
     onOpenChange(false)
   }
 
@@ -67,45 +62,25 @@ export function ConnectorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className='max-w-[460px]'>
+      <DialogContent className='max-w-[440px]'>
         <DialogHeader>
-          <DialogTitle>Configure {connector.name} connector</DialogTitle>
+          <DialogTitle>Connect {connector.name}</DialogTitle>
           <DialogDescription>
-            Supply the third-party integration credentials. Once provisioned,
-            Company Admins can enable the channel; failures always fall back to
-            mandatory email.
+            Point the connector at your {connector.targetLabel.toLowerCase()}.
+            Once connected, the channel can be switched on for delivery; any
+            failure always falls back to the mandatory email channel.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-4'>
             <FormField
               control={form.control}
-              name='webhookUrl'
+              name='target'
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Webhook URL</FormLabel>
+                  <FormLabel>{connector.targetLabel}</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder='https://provider.example.com/webhook/…'
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name='apiKey'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>API key</FormLabel>
-                  <FormControl>
-                    <Input
-                      type='password'
-                      placeholder='Integration API key'
-                      {...field}
-                    />
+                    <Input placeholder={connector.targetPlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -119,7 +94,7 @@ export function ConnectorDialog({
               >
                 Cancel
               </Button>
-              <Button type='submit'>Provision connector</Button>
+              <Button type='submit'>Connect</Button>
             </DialogFooter>
           </form>
         </Form>

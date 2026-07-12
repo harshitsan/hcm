@@ -1,14 +1,22 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
 import type { Role } from '@/context/role-context'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import {
+  addDelegation,
+  delegationEffectiveStatus,
+  delegationPersonById,
+  delegationPersonName,
+  getDelegations,
+  markDelegationRevoked,
   seedApprovals,
-  seedDelegations,
+  subscribeDelegations,
+  todayIso,
   type ApprovalItem,
   type DelegatableActivity,
   type Delegation,
 } from '../data/delegations'
-import { personById, personName } from '../data/directory'
+import { HOME_COMPANY_ID } from '../data/directory'
 import type { AuditAppendInput, NotifyInput } from './use-security-audit'
 
 export interface DelegationDraft {
@@ -31,6 +39,10 @@ interface UseDelegationsOptions {
  * Delegations are rejected unless owner and delegate share a company; while
  * a delegation is active the workflow engine routes the owner's matching
  * approvals to the delegate, and decisions capture both parties.
+ *
+ * The delegation list lives in a module-level external store (shared with
+ * the Directory org chart); expiry is applied at read time, so approval
+ * rights return to the owner automatically when the end date passes.
  */
 export function useDelegations({
   append,
@@ -38,19 +50,22 @@ export function useDelegations({
   actor,
   actorRole,
 }: UseDelegationsOptions) {
-  const [delegations, setDelegations] =
-    useState<Delegation[]>(seedDelegations)
+  const delegations = useSyncExternalStore(subscribeDelegations, getDelegations)
   const [approvals, setApprovals] = useState<ApprovalItem[]>(seedApprovals)
 
   /** Active delegation covering an owner + activity, if any (RSEC-21). */
   const activeDelegationFor = useCallback(
-    (ownerId: string, activity: DelegatableActivity): Delegation | null =>
-      delegations.find(
-        (d) =>
-          d.status === 'Active' &&
-          d.ownerId === ownerId &&
-          d.activities.includes(activity)
-      ) ?? null,
+    (ownerId: string, activity: DelegatableActivity): Delegation | null => {
+      const today = todayIso()
+      return (
+        delegations.find(
+          (d) =>
+            delegationEffectiveStatus(d, today) === 'Active' &&
+            d.ownerId === ownerId &&
+            d.activities.includes(activity)
+        ) ?? null
+      )
+    },
     [delegations]
   )
 
@@ -65,8 +80,8 @@ export function useDelegations({
 
   const createDelegation = useCallback(
     (draft: DelegationDraft): boolean => {
-      const owner = personById(draft.ownerId)
-      const delegate = personById(draft.delegateId)
+      const owner = delegationPersonById(draft.ownerId)
+      const delegate = delegationPersonById(draft.delegateId)
       if (!owner || !delegate) return false
       // RSEC-04: delegation is restricted to users of the same company.
       if (owner.companyId !== delegate.companyId) {
@@ -87,15 +102,37 @@ export function useDelegations({
         companyId: owner.companyId,
         status: 'Active',
       }
-      setDelegations((prev) => [delegation, ...prev])
+      addDelegation(delegation)
       append({
         category: 'Delegation',
         actor,
         actorRole,
         target: delegate.name,
         detail: `Delegated ${draft.activities.join(', ')}${draft.endDate ? ` until ${draft.endDate}` : ' (open-ended)'}`,
-        sourceCompanyId: owner.companyId,
-        targetCompanyId: owner.companyId,
+        sourceCompanyId: HOME_COMPANY_ID,
+        targetCompanyId: HOME_COMPANY_ID,
+      })
+      publishAuditEvent({
+        module: 'Roles & Security',
+        action: 'Delegation created',
+        actor,
+        actorRole,
+        entityType: 'Employee',
+        actionType: 'create',
+        recordId: delegation.id,
+        recordName: `${owner.name} → ${delegate.name}`,
+        changes: [
+          {
+            field: 'Delegated activities',
+            previousValue: null,
+            newValue: draft.activities.join(', '),
+          },
+          {
+            field: 'Ends',
+            previousValue: null,
+            newValue: draft.endDate ?? 'Open-ended',
+          },
+        ],
       })
       toast.success(
         `Delegation to ${delegate.name} is active — matching approvals now route to them`
@@ -109,18 +146,26 @@ export function useDelegations({
   const revokeDelegation = useCallback(
     (id: string) => {
       const delegation = delegations.find((d) => d.id === id)
-      setDelegations((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, status: 'Revoked' } : d))
-      )
+      markDelegationRevoked(id)
       if (delegation) {
         append({
           category: 'Delegation',
           actor,
           actorRole,
-          target: personName(delegation.delegateId),
+          target: delegationPersonName(delegation.delegateId),
           detail: 'Delegation revoked — approvals route back to the owner',
-          sourceCompanyId: delegation.companyId,
-          targetCompanyId: delegation.companyId,
+          sourceCompanyId: HOME_COMPANY_ID,
+          targetCompanyId: HOME_COMPANY_ID,
+        })
+        publishAuditEvent({
+          module: 'Roles & Security',
+          action: 'Delegation revoked',
+          actor,
+          actorRole,
+          entityType: 'Employee',
+          actionType: 'status-change',
+          recordId: delegation.id,
+          recordName: `${delegationPersonName(delegation.ownerId)} → ${delegationPersonName(delegation.delegateId)}`,
         })
       }
       toast.success('Delegation revoked — new approvals route back to you')
@@ -151,12 +196,12 @@ export function useDelegations({
           event: 'Delegated approval decided',
           template: 'security/delegated-approval',
           recipients: ['Sunita Patil (Company Admin)'],
-          companyId: item.companyId,
+          companyId: HOME_COMPANY_ID,
         })
       }
       toast.success(
         viaDelegation
-          ? `${decision} on behalf of ${personName(item.ownerId)} — the delegate relationship is recorded`
+          ? `${decision} on behalf of ${delegationPersonName(item.ownerId)} — the delegate relationship is recorded`
           : `${item.title} ${decision.toLowerCase()}`
       )
     },

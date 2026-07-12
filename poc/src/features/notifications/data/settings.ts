@@ -10,7 +10,7 @@ export interface ChannelSetting {
   enabled: boolean
   /** Email is the always-on channel and can never be disabled (NTF-01). */
   mandatory: boolean
-  /** Teams/WhatsApp only work through a provisioned connector (NTF-03). */
+  /** Teams/WhatsApp only work through a connected connector (NTF-03). */
   requiresConnector: boolean
   description: string
 }
@@ -22,7 +22,7 @@ export const seedChannelSettings: ChannelSetting[] = [
     mandatory: true,
     requiresConnector: false,
     description:
-      'Always-on. Used as the guaranteed fallback for every recipient, including employees without HRMS access.',
+      'Email is the mandatory baseline channel. Always on — the guaranteed fallback for every recipient, including employees without HRMS access.',
   },
   {
     channel: 'in-app',
@@ -34,11 +34,11 @@ export const seedChannelSettings: ChannelSetting[] = [
   },
   {
     channel: 'teams',
-    enabled: false,
+    enabled: true,
     mandatory: false,
     requiresConnector: true,
     description:
-      'Optional. Delivered via the Microsoft Teams third-party connector when provisioned by the Platform Admin.',
+      'Optional. Delivered via the Microsoft Teams connector when connected by an admin.',
   },
   {
     channel: 'whatsapp',
@@ -46,19 +46,20 @@ export const seedChannelSettings: ChannelSetting[] = [
     mandatory: false,
     requiresConnector: true,
     description:
-      'Optional. Delivered via the WhatsApp Business connector when provisioned by the Platform Admin.',
+      'Optional. Delivered via the WhatsApp Business connector when connected by an admin.',
   },
 ]
-
-export type CredentialStatus = 'valid' | 'invalid' | 'missing'
 
 export interface Connector {
   id: 'teams' | 'whatsapp'
   name: string
-  provisioned: boolean
-  credentialStatus: CredentialStatus
-  webhookUrl: string
-  apiKey: string
+  connected: boolean
+  /** Workspace (Teams) or business number (WhatsApp) the connector points at. */
+  target: string
+  /** User-facing label for the target field in the Connect dialog. */
+  targetLabel: string
+  targetPlaceholder: string
+  connectedAt: string | null
   lastTest: string | null
   lastTestResult: 'success' | 'failed' | null
 }
@@ -67,20 +68,22 @@ export const seedConnectors: Connector[] = [
   {
     id: 'teams',
     name: 'Microsoft Teams',
-    provisioned: true,
-    credentialStatus: 'invalid',
-    webhookUrl: 'https://outlook.office.com/webhook/nw-hrms-alerts',
-    apiKey: 'teams-key-••••7d21',
+    connected: true,
+    target: 'northwind-hq (teams.microsoft.com)',
+    targetLabel: 'Teams workspace',
+    targetPlaceholder: 'e.g. northwind-hq',
+    connectedAt: '2026-05-14T11:20:00',
     lastTest: '2026-06-29T15:40:02',
-    lastTestResult: 'failed',
+    lastTestResult: 'success',
   },
   {
     id: 'whatsapp',
     name: 'WhatsApp',
-    provisioned: false,
-    credentialStatus: 'missing',
-    webhookUrl: '',
-    apiKey: '',
+    connected: false,
+    target: '',
+    targetLabel: 'WhatsApp business number',
+    targetPlaceholder: 'e.g. +1 415 555 0100',
+    connectedAt: null,
     lastTest: null,
     lastTestResult: null,
   },
@@ -140,12 +143,48 @@ export const seedAlertsConfig: AlertsConfig = {
 
 export type Frequency = 'immediate' | 'daily' | 'weekly'
 
+export const FREQUENCY_LABELS: Record<Frequency, string> = {
+  immediate: 'Immediate',
+  daily: 'Daily digest',
+  weekly: 'Weekly digest',
+}
+
+/** Modules a user can subscribe to, each with its own delivery frequency. */
+export const SUBSCRIPTION_GROUPS = [
+  { id: 'approvals', label: 'Approvals', critical: true },
+  { id: 'leave', label: 'Leave', critical: false },
+  { id: 'attendance', label: 'Attendance', critical: false },
+  { id: 'lifecycle', label: 'Lifecycle', critical: false },
+  { id: 'announcements', label: 'Announcements', critical: false },
+  { id: 'documents', label: 'Documents', critical: false },
+] as const
+
+export type SubscriptionGroupId = (typeof SUBSCRIPTION_GROUPS)[number]['id']
+
+export const SUBSCRIPTION_GROUP_LABELS: Record<SubscriptionGroupId, string> =
+  Object.fromEntries(
+    SUBSCRIPTION_GROUPS.map((g) => [g.id, g.label])
+  ) as Record<SubscriptionGroupId, string>
+
+export interface GroupSubscription {
+  group: SubscriptionGroupId
+  subscribed: boolean
+  frequency: Frequency
+}
+
+/** Quiet hours suppress non-critical alerts; critical alerts always send. */
+export interface QuietHours {
+  enabled: boolean
+  start: string
+  end: string
+}
+
 /** Effective-dated user preference record (NTF-12, NTF-20). */
 export interface PreferenceVersion {
   version: number
   channels: Channel[]
-  subscriptions: EventTypeId[]
-  frequency: Frequency
+  groups: GroupSubscription[]
+  quietHours: QuietHours
   effectiveFrom: string
   savedBy: string
 }
@@ -154,31 +193,30 @@ export const seedPreferenceVersions: PreferenceVersion[] = [
   {
     version: 1,
     channels: ['email', 'in-app'],
-    subscriptions: [
-      'approval',
-      'escalation',
-      'workflow',
-      'reminder',
-      'lifecycle',
-      'announcement',
-      'task',
+    groups: [
+      { group: 'approvals', subscribed: true, frequency: 'immediate' },
+      { group: 'leave', subscribed: true, frequency: 'immediate' },
+      { group: 'attendance', subscribed: true, frequency: 'immediate' },
+      { group: 'lifecycle', subscribed: true, frequency: 'immediate' },
+      { group: 'announcements', subscribed: true, frequency: 'immediate' },
+      { group: 'documents', subscribed: true, frequency: 'immediate' },
     ],
-    frequency: 'immediate',
+    quietHours: { enabled: false, start: '22:00', end: '07:00' },
     effectiveFrom: '2026-01-01',
     savedBy: 'System (default)',
   },
   {
     version: 2,
     channels: ['email', 'in-app'],
-    subscriptions: [
-      'approval',
-      'escalation',
-      'workflow',
-      'reminder',
-      'lifecycle',
-      'task',
+    groups: [
+      { group: 'approvals', subscribed: true, frequency: 'immediate' },
+      { group: 'leave', subscribed: true, frequency: 'immediate' },
+      { group: 'attendance', subscribed: true, frequency: 'daily' },
+      { group: 'lifecycle', subscribed: true, frequency: 'daily' },
+      { group: 'announcements', subscribed: true, frequency: 'weekly' },
+      { group: 'documents', subscribed: false, frequency: 'weekly' },
     ],
-    frequency: 'daily',
+    quietHours: { enabled: true, start: '22:00', end: '07:00' },
     effectiveFrom: '2026-04-15',
     savedBy: 'Priya Nair',
   },

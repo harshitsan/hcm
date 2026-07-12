@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { DownloadSimple, Eye, PenNib } from 'phosphor-react'
-import { toast } from 'sonner'
 import { useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,11 +17,12 @@ import {
   EMPLOYEES,
   ME_NON_USER_ID,
   ME_USER_ID,
-  renderBody,
   type HrDocument,
   type LetterTemplate,
 } from '../data/hr-letters'
 import { type QuestionnaireQuestion } from '../data/catalogs'
+import { downloadLetterPdf } from '../data/letter-pdf'
+import { resolveMergeFields } from '../data/merge-engine'
 import { type HrDocumentsStore } from '../hooks/use-hr-documents'
 import { AckBadge, DeliveryBadge, DocStatusBadge } from './status-badges'
 
@@ -54,16 +54,30 @@ export function MyDocumentsTab({ store, templates, questions }: MyDocumentsTabPr
       store.documents.filter(
         (d) =>
           d.employeeId === meId &&
-          (d.status === 'approved' || d.status === 'distributed')
+          (d.status === 'approved' || d.status === 'issued')
       ),
     [store.documents, meId]
   )
 
   const renderedContent = (doc: HrDocument) => {
     const template = templates.find((t) => t.id === doc.templateId)
-    return template && me
-      ? renderBody(template.body, me, template.missingValueBehavior)
+    return template
+      ? resolveMergeFields(template.body, doc.employeeId).rendered
       : 'Document content'
+  }
+
+  const handleDownload = (doc: HrDocument) => {
+    const template = templates.find((t) => t.id === doc.templateId)
+    downloadLetterPdf({
+      refId: doc.id,
+      docType: doc.docType,
+      employeeName: doc.employeeName,
+      dateIso: doc.generatedOn,
+      body: renderedContent(doc),
+      letterhead: template?.letterhead ?? true,
+      signedBy: doc.signedBy,
+      signingAuthority: doc.signingAuthority,
+    })
   }
 
   const isCertification = (doc: HrDocument) =>
@@ -145,9 +159,7 @@ export function MyDocumentsTab({ store, templates, questions }: MyDocumentsTabPr
                     <Button
                       size='sm'
                       variant='outline'
-                      onClick={() =>
-                        toast.success(`${doc.docType} downloaded as PDF`)
-                      }
+                      onClick={() => handleDownload(doc)}
                     >
                       <DownloadSimple size={14} weight='bold' /> Download PDF
                     </Button>
@@ -160,7 +172,10 @@ export function MyDocumentsTab({ store, templates, questions }: MyDocumentsTabPr
                 )}
               </div>
               <p className='text-neutral-1000 mt-1 text-xs'>
-                Issued {doc.generatedOn} · Signed by {doc.signingAuthority}
+                Issued {doc.generatedOn} ·{' '}
+                {doc.signedBy
+                  ? `Signed by ${doc.signedBy.name}, ${doc.signedBy.title}`
+                  : `Signing authority: ${doc.signingAuthority}`}
                 {doc.acknowledgedOn ? ` · Acknowledged ${doc.acknowledgedOn}` : ''}
               </p>
               {doc.versions.length > 1 && (

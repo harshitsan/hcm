@@ -134,6 +134,7 @@ export function CatalogTab({ store }: { store: PoliciesStore }) {
       attachment,
       status: publish ? 'published' : 'draft',
       changeNote: values.changeNote,
+      regulatoryUpdate: values.regulatoryUpdate,
       createdBy: role,
     }
     if (versionTarget) {

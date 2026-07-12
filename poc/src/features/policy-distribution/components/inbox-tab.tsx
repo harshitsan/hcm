@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button'
 import { CURRENT_EMPLOYEE_ID, seedEmployees } from '../data/employees'
 import { type Assignment } from '../data/distributions'
 import { type PolicyConfigStore } from '../hooks/use-policy-config'
-import { type PolicyDistributionStore } from '../hooks/use-policy-distribution'
+import {
+  reAckReason,
+  type PolicyDistributionStore,
+} from '../hooks/use-policy-distribution'
 import { PolicyReviewDialog } from './policy-review-dialog'
 import { ReceiptDialog } from './receipt-dialog'
 import { AckTypeBadge, AssignmentStatusBadge } from './status-badges'
@@ -45,6 +48,11 @@ function InboxRow({
 }) {
   const a = assignment
   const acted = a.status === 'Acknowledged' || a.status === 'Delivered'
+  // Pending re-acknowledgments always say WHY they came back.
+  const reAckWhy =
+    a.trigger !== 'Initial' && !acted
+      ? `Re-acknowledgment required — ${a.triggerContext ?? reAckReason(a.trigger)}`
+      : null
   return (
     <div
       className={`flex items-center justify-between gap-3 rounded-[6px] border bg-white px-4 py-3 ${
@@ -57,9 +65,17 @@ function InboxRow({
           <p className='text-neutral-1600 truncate text-sm font-medium'>
             {a.policyTitle} · {a.policyVersion}
           </p>
+          {reAckWhy && (
+            <p className='text-paragraph-sm text-orange-1200 mt-0.5'>
+              {reAckWhy}
+            </p>
+          )}
           <div className='mt-1 flex flex-wrap items-center gap-1.5'>
             <AckTypeBadge type={a.ackType} />
             <AssignmentStatusBadge status={a.status} superseded={a.superseded} />
+            {a.priority && !acted && (
+              <Badge variant='overlay_overdue'>Priority — regulatory update</Badge>
+            )}
             {a.dueDate && !acted && (
               <span
                 className={`text-paragraph-sm ${

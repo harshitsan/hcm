@@ -1,11 +1,21 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { TreeStructure } from 'phosphor-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useRole } from '@/context/role-context'
+import { companyById } from '@/features/directory/data/directory'
+import { requestOrgChartFocus } from '@/features/directory/data/org-focus'
+import { requestModuleTab } from '@/features/workflows/data/module-nav'
 import {
-  CURRENT_EMPLOYEE_ID,
-  HOME_COMPANY_ID,
-  personName,
-} from '../data/directory'
+  CURRENT_DELEGATION_USER_ID,
+  DELEGATION_COMPANY_ID,
+  daysUntilExpiry,
+  delegationEffectiveStatus,
+  delegationPersonName,
+  todayIso,
+  type Delegation,
+} from '../data/delegations'
 import { type DelegationsStore } from '../hooks/use-delegations'
 import { SecurityBadge } from './badges'
 import { DelegationOverlay } from './delegation-overlay'
@@ -18,22 +28,53 @@ import { DelegationOverlay } from './delegation-overlay'
  */
 export function DelegationsTab({ store }: { store: DelegationsStore }) {
   const { role } = useRole()
+  const navigate = useNavigate()
   const [overlayOpen, setOverlayOpen] = useState(false)
   const isEmployee = role === 'Employee (User)'
-  const me = CURRENT_EMPLOYEE_ID
+  const me = CURRENT_DELEGATION_USER_ID
+  const today = todayIso()
 
   const myDelegations = store.delegations.filter((d) => d.ownerId === me)
   const routedToMe = store.approvals.filter(
     (a) => a.status === 'Pending' && store.routedApproverId(a) === me
   )
   const companyDelegations = store.delegations.filter(
-    (d) => d.companyId === HOME_COMPANY_ID
+    (d) => d.companyId === DELEGATION_COMPANY_ID
   )
   const delegatedDecisions = store.approvals.filter(
     (a) =>
-      a.companyId === HOME_COMPANY_ID &&
+      a.companyId === DELEGATION_COMPANY_ID &&
       a.decidedById !== null &&
       a.decidedById !== a.ownerId
+  )
+
+  /** Open the Directory module on the Org Chart tab, focused on a person. */
+  const viewInOrgChart = (employeeId: string) => {
+    requestOrgChartFocus(employeeId)
+    requestModuleTab('/directory', 'org-chart')
+    navigate({ to: '/directory' })
+  }
+
+  const expiryChip = (d: Delegation) => {
+    if (delegationEffectiveStatus(d, today) !== 'Active') return null
+    const days = daysUntilExpiry(d, today)
+    if (days === null || days > 7) return null
+    return (
+      <Badge variant='overdue' className='ml-1'>
+        {days <= 0 ? 'Expires today' : `Expires in ${days} day${days === 1 ? '' : 's'}`}
+      </Badge>
+    )
+  }
+
+  const orgChartButton = (employeeId: string) => (
+    <Button
+      variant='ghost'
+      className='h-6 gap-1 px-1.5 text-xs'
+      onClick={() => viewInOrgChart(employeeId)}
+    >
+      <TreeStructure size={12} weight='bold' />
+      View in org chart
+    </Button>
   )
 
   return (
@@ -64,33 +105,40 @@ export function DelegationsTab({ store }: { store: DelegationsStore }) {
                 </tr>
               </thead>
               <tbody>
-                {myDelegations.map((d) => (
-                  <tr key={d.id} className='border-b last:border-0'>
-                    <td className='text-neutral-1600 py-2 pr-3 font-medium'>
-                      {personName(d.delegateId)}
-                    </td>
-                    <td className='text-neutral-1900 px-2'>
-                      {d.activities.join(', ')}
-                    </td>
-                    <td className='text-neutral-1900 px-2'>
-                      {d.startDate} → {d.endDate ?? 'open-ended'}
-                    </td>
-                    <td className='px-2'>
-                      <SecurityBadge value={d.status} />
-                    </td>
-                    <td className='px-2'>
-                      {d.status === 'Active' && (
-                        <Button
-                          variant='outline'
-                          className='h-6 text-xs'
-                          onClick={() => store.revokeDelegation(d.id)}
-                        >
-                          Revoke
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {myDelegations.map((d) => {
+                  const status = delegationEffectiveStatus(d, today)
+                  return (
+                    <tr key={d.id} className='border-b last:border-0'>
+                      <td className='text-neutral-1600 py-2 pr-3 font-medium'>
+                        {delegationPersonName(d.delegateId)}
+                      </td>
+                      <td className='text-neutral-1900 px-2'>
+                        {d.activities.join(', ')}
+                      </td>
+                      <td className='text-neutral-1900 px-2'>
+                        {d.startDate} → {d.endDate ?? 'open-ended'}
+                        {expiryChip(d)}
+                      </td>
+                      <td className='px-2'>
+                        <SecurityBadge value={status} />
+                      </td>
+                      <td className='px-2'>
+                        <div className='flex items-center gap-1'>
+                          {status === 'Active' && (
+                            <Button
+                              variant='outline'
+                              className='h-6 text-xs'
+                              onClick={() => store.revokeDelegation(d.id)}
+                            >
+                              Revoke
+                            </Button>
+                          )}
+                          {orgChartButton(d.delegateId)}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
                 {myDelegations.length === 0 && (
                   <tr>
                     <td colSpan={5} className='text-neutral-1000 py-4 text-center'>
@@ -100,6 +148,11 @@ export function DelegationsTab({ store }: { store: DelegationsStore }) {
                 )}
               </tbody>
             </table>
+            <p className='text-neutral-1000 mt-2 text-xs'>
+              When a delegation reaches its end date it expires on its own and
+              your approval rights return to you automatically — no action is
+              needed.
+            </p>
           </div>
 
           <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
@@ -132,7 +185,7 @@ export function DelegationsTab({ store }: { store: DelegationsStore }) {
                         'Myself (owner)'
                       ) : (
                         <span>
-                          {personName(a.ownerId)}{' '}
+                          {delegationPersonName(a.ownerId)}{' '}
                           <span className='text-neutral-1000 text-xs'>
                             (delegated to you)
                           </span>
@@ -175,7 +228,7 @@ export function DelegationsTab({ store }: { store: DelegationsStore }) {
         <>
           <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
             <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
-              Delegations in Aurora Software
+              Delegations in {companyById(DELEGATION_COMPANY_ID)?.name ?? 'your company'}
               <span className='text-neutral-1000 ml-2 text-xs'>
                 who delegated to whom — oversight within your scope only
               </span>
@@ -188,30 +241,37 @@ export function DelegationsTab({ store }: { store: DelegationsStore }) {
                   <th className='px-2 font-medium'>Activities</th>
                   <th className='px-2 font-medium'>Period</th>
                   <th className='px-2 font-medium'>Status</th>
+                  <th className='px-2 font-medium'>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {companyDelegations.map((d) => (
                   <tr key={d.id} className='border-b last:border-0'>
                     <td className='text-neutral-1600 py-2 pr-3 font-medium'>
-                      {personName(d.ownerId)}
+                      {delegationPersonName(d.ownerId)}
                     </td>
                     <td className='text-neutral-1900 px-2'>
-                      {personName(d.delegateId)}
+                      {delegationPersonName(d.delegateId)}
                     </td>
                     <td className='text-neutral-1900 px-2'>
                       {d.activities.join(', ')}
                     </td>
                     <td className='text-neutral-1900 px-2'>
                       {d.startDate} → {d.endDate ?? 'open-ended'}
+                      {expiryChip(d)}
                     </td>
                     <td className='px-2'>
-                      <SecurityBadge value={d.status} />
+                      <SecurityBadge value={delegationEffectiveStatus(d, today)} />
                     </td>
+                    <td className='px-2'>{orgChartButton(d.ownerId)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <p className='text-neutral-1000 mt-2 text-xs'>
+              Expired delegations end on their own — approval rights return to
+              the owner automatically on the day after the end date.
+            </p>
           </div>
 
           <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
@@ -240,10 +300,10 @@ export function DelegationsTab({ store }: { store: DelegationsStore }) {
                       <div className='text-neutral-1000 text-xs'>{a.activity}</div>
                     </td>
                     <td className='text-neutral-1900 px-2'>
-                      {personName(a.ownerId)}
+                      {delegationPersonName(a.ownerId)}
                     </td>
                     <td className='text-neutral-1900 px-2'>
-                      {personName(a.decidedById)}
+                      {delegationPersonName(a.decidedById)}
                     </td>
                     <td className='text-neutral-1900 px-2'>{a.decidedOn}</td>
                     <td className='px-2'>

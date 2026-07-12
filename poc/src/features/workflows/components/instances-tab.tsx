@@ -19,20 +19,81 @@ import type { Role } from '@/context/role-context'
 import type { AuditEvent } from '../data/audit'
 import type { WorkflowDefinition } from '../data/definitions'
 import type { WorkflowInstance } from '../data/instances'
+import type { ApprovalTask } from '../data/instances'
 import { requestModuleTab } from '../data/module-nav'
 import type { RoutingRule } from '../data/routing'
-import { CURRENT_APPROVER, TRANSACTION_TYPES } from '../data/shared'
+import {
+  CURRENT_APPROVER,
+  ESCALATION_LABELS,
+  TRANSACTION_TYPES,
+} from '../data/shared'
 import type { InstancesStore } from '../hooks/use-instances'
 import { useInboxRows } from './approval-inbox'
-import { InstanceStatusBadge, SlaBadge } from './badges'
+import { InstanceStatusBadge } from './badges'
 import { InstanceDetailSheet } from './instance-detail-sheet'
 import { StartRequestDialog } from './start-request-dialog'
 import { SummaryCards } from './summary-cards'
 import { SectionToolbar, SortableHeader } from './table-helpers'
 import { WorkflowChip } from './workflow-chip'
 
+/**
+ * Real-time SLA tracking bar (F6): elapsed vs the stage SLA with tick markers
+ * at the 50% / 75% reminder thresholds and the 100% escalation threshold.
+ * Colour shifts neutral → amber (50) → orange (75) → red (100); past 100% the
+ * request shows an "Escalated" chip with the configured strategy.
+ */
+function SlaProgress({
+  percent,
+  escalated,
+  strategy,
+}: {
+  percent: number | null
+  escalated: boolean
+  strategy: string
+}) {
+  if (percent === null)
+    return <span className='text-neutral-1000 text-xs'>—</span>
+  const fill =
+    percent >= 100
+      ? 'bg-red-500'
+      : percent >= 75
+        ? 'bg-orange-500'
+        : percent >= 50
+          ? 'bg-amber-500'
+          : 'bg-emerald-500'
+  return (
+    <div className='flex min-w-[130px] flex-col gap-1'>
+      <div className='relative h-1.5 w-full overflow-hidden rounded-full bg-gray-200'>
+        <div
+          className={`h-full rounded-full ${fill}`}
+          style={{ width: `${Math.min(percent, 100)}%` }}
+        />
+        {[50, 75, 100].map((tick) => (
+          <span
+            key={tick}
+            className='absolute top-0 h-full w-px bg-white/90'
+            style={{ left: `${tick}%` }}
+            aria-hidden
+          />
+        ))}
+      </div>
+      <div className='flex items-center gap-1.5'>
+        <span className='text-neutral-1000 text-xs'>
+          {percent}% of SLA used
+        </span>
+        {(escalated || percent >= 100) && (
+          <span className='inline-flex items-center rounded-full bg-red-100 px-1.5 py-px text-[11px] font-medium whitespace-nowrap text-red-700'>
+            Escalated — {strategy}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function instanceColumns(
-  slaForInstance: (id: string) => number | null
+  slaForInstance: (id: string) => number | null,
+  tasks: ApprovalTask[]
 ): ColumnDef<WorkflowInstance>[] {
   return [
     {
@@ -87,9 +148,28 @@ function instanceColumns(
       header: () => (
         <span className='text-paragraph-sm font-medium'>SLA health</span>
       ),
-      cell: ({ row }) => (
-        <SlaBadge percent={slaForInstance(row.original.id)} />
-      ),
+      cell: ({ row }) => {
+        const inst = row.original
+        const percent = slaForInstance(inst.id)
+        const escalated = tasks.some(
+          (t) =>
+            t.instanceId === inst.id &&
+            (t.status === 'escalated' ||
+              (t.status === 'pending' &&
+                t.via !== 'normal' &&
+                t.via !== 'delegated'))
+        )
+        const stage = inst.stages[inst.currentStageIndex]
+        return (
+          <SlaProgress
+            percent={percent}
+            escalated={escalated}
+            strategy={
+              stage ? ESCALATION_LABELS[stage.escalation] : 'Manager escalation'
+            }
+          />
+        )
+      },
     },
     {
       accessorKey: 'status',
@@ -134,7 +214,7 @@ export function InstancesTab({
   companies: string[]
   role: Role
 }) {
-  const { instances, slaForInstance, tickSla, startInstance } = store
+  const { instances, tasks, slaForInstance, tickSla, startInstance } = store
 
   const canAdmin = role === 'Company Admin'
 
@@ -186,8 +266,8 @@ export function InstancesTab({
   }, [scopedInstances, inboxRows])
 
   const instanceCols = useMemo(
-    () => instanceColumns(slaForInstance),
-    [slaForInstance]
+    () => instanceColumns(slaForInstance, tasks),
+    [slaForInstance, tasks]
   )
 
   // The detail sheet must reflect live engine state, not a stale snapshot.
@@ -394,6 +474,7 @@ export function InstancesTab({
       <InstanceDetailSheet
         instance={liveDetail}
         events={events}
+        tasks={tasks}
         open={detail !== null}
         onOpenChange={(open) => {
           if (!open) setDetail(null)

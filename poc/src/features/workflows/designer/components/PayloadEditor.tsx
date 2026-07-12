@@ -532,6 +532,18 @@ export function PayloadEditor({ config, patch }: { config: Config; patch: (p: Co
           {definition.steps.map((s, i) => (
             <div key={i} className="map-row" style={{ fontSize: 12, marginBottom: 3 }}>
               <span style={{ width: 24, flexShrink: 0, color: 'var(--color-muted, #666)' }}>{s.order}.</span>
+              {s.group !== undefined && (
+                <span
+                  title={
+                    (definition.patterns?.[s.group] ?? 'all-must') === 'any-one'
+                      ? 'In parallel — any one may approve'
+                      : 'In parallel — all must approve'
+                  }
+                  style={{ flexShrink: 0, fontSize: 10, color: '#7c3aed' }}
+                >
+                  ∥
+                </span>
+              )}
               <PSelect
                 value={s.approverRole}
                 options={APPROVER_STEP_ROLES}

@@ -7,6 +7,10 @@
 export const FILE_FORMATS = ['CSV', 'XLS', 'XLSX', 'JSON'] as const
 export type FileFormat = (typeof FILE_FORMATS)[number]
 
+/** Formats offered for data export (FR 6.24.2). */
+export const EXPORT_FORMATS = ['CSV', 'XLSX', 'JSON'] as const satisfies
+  readonly FileFormat[]
+
 export const FILE_TYPES = ['Excel', 'Flat file', 'Xml'] as const
 export type FileType = (typeof FILE_TYPES)[number]
 
@@ -35,6 +39,18 @@ export const TIERS = [
 ] as const
 export type Tier = (typeof TIERS)[number]
 
+/** Plain-language tier headings shown in the import entity picker. */
+export const TIER_HEADINGS: Record<Tier, string> = {
+  Foundation: 'Tier 1 — Foundation masters',
+  Organizational: 'Tier 2 — Organization masters',
+  Workforce: 'Tier 3 — Workforce masters',
+  Transactional: 'Tier 4 — Transactional data',
+}
+
+export function tierIndex(tier: Tier): number {
+  return TIERS.indexOf(tier)
+}
+
 export const DUPLICATE_HANDLING = [
   'Ignore duplicates',
   'Overwrite duplicates',
@@ -60,7 +76,12 @@ export interface DataEntity {
 
 export const DATA_ENTITIES: DataEntity[] = [
   { id: 'company', name: 'Company', kind: 'Master', tier: 'Foundation' },
-  { id: 'location', name: 'Location', kind: 'Master', tier: 'Foundation' },
+  {
+    id: 'location',
+    name: 'Location',
+    kind: 'Master',
+    tier: 'Organizational',
+  },
   {
     id: 'department',
     name: 'Department',

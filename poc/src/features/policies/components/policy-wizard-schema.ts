@@ -39,6 +39,7 @@ export const wizardSchema = z
     effectiveFrom: z.string().min(1, 'Effective-from date is required'),
     effectiveTill: z.string(),
     changeNote: z.string().min(3, 'A change note is required for the version history'),
+    regulatoryUpdate: z.boolean(),
   })
   .superRefine((values, ctx) => {
     if (values.effectiveTill && values.effectiveTill < values.effectiveFrom) {
@@ -73,7 +74,7 @@ export const WIZARD_STEP_FIELDS: (keyof WizardValues)[][] = [
     'positionLevels',
   ],
   ['excludedPositionLevels'],
-  ['effectiveFrom', 'effectiveTill', 'changeNote'],
+  ['effectiveFrom', 'effectiveTill', 'changeNote', 'regulatoryUpdate'],
   [],
 ]
 
@@ -125,4 +126,5 @@ export const emptyWizardValues: WizardValues = {
   effectiveFrom: '',
   effectiveTill: '',
   changeNote: '',
+  regulatoryUpdate: false,
 }

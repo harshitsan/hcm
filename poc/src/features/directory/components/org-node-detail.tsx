@@ -1,3 +1,4 @@
+import { ArrowsLeftRight } from 'phosphor-react'
 import { type Role } from '@/context/role-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,10 +11,20 @@ import {
   NonUserBadge,
 } from './directory-badges'
 
+/** Active delegation involvement shown on the node detail panel. */
+export interface DelegationNote {
+  id: string
+  /** Whether the selected person handed over ('owner') or is acting ('delegate'). */
+  kind: 'owner' | 'delegate'
+  counterpartName: string
+  endDate: string | null
+}
+
 interface OrgNodeDetailProps {
   employee: Employee | null
   manager: Employee | null
   reports: Employee[]
+  delegations?: DelegationNote[]
   role: Role
   config: PrivacyConfig
   customFields: CustomFieldDef[]
@@ -40,6 +51,7 @@ export function OrgNodeDetail({
   employee,
   manager,
   reports,
+  delegations = [],
   role,
   config,
   customFields,
@@ -73,6 +85,28 @@ export function OrgNodeDetail({
             <p className='text-neutral-1000 font-mono text-xs'>
               {employee.employeeCode} · {companyById(employee.companyId)?.name}
             </p>
+            {delegations.length > 0 && (
+              <div className='space-y-1'>
+                {delegations.map((d) => (
+                  <div
+                    key={d.id}
+                    className='bg-vanilla-400/30 text-vanilla-500 flex items-start gap-1.5 rounded-md px-2 py-1 text-xs'
+                  >
+                    <ArrowsLeftRight
+                      size={12}
+                      weight='bold'
+                      className='mt-0.5 shrink-0'
+                    />
+                    <span>
+                      {d.kind === 'owner'
+                        ? `Delegating approvals to ${d.counterpartName}`
+                        : `Acting for ${d.counterpartName}`}{' '}
+                      {d.endDate ? `until ${d.endDate}` : 'until revoked'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
             <DetailRow label='Position' value={employee.position} />
             <DetailRow label='Department' value={employee.department} />
             <DetailRow label='Location' value={employee.location} />

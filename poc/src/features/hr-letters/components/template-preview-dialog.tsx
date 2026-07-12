@@ -32,8 +32,7 @@ export function TemplatePreviewDialog({
           <DialogDescription>
             {template?.docType} · {template?.layout} layout
             {template?.letterhead ? ' · letterhead' : ''} · current v
-            {template?.currentVersion} · missing values:{' '}
-            {template?.missingValueBehavior}
+            {template?.currentVersion}
           </DialogDescription>
         </DialogHeader>
         <pre className='text-neutral-1900 max-h-56 overflow-y-auto rounded bg-neutral-100 p-3 font-sans text-sm whitespace-pre-wrap'>

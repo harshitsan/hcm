@@ -12,8 +12,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { type Tier } from '../data/catalog'
-import { type DataJob } from '../data/jobs'
-import { JobStatusBadge, OutcomeBadge, TierBadge } from './badges'
+import { downloadExportFile } from '../data/files'
+import { isAtomicBatch, type DataJob } from '../data/jobs'
+import {
+  JobProgressBar,
+  JobStatusBadge,
+  OutcomeBadge,
+  TierBadge,
+} from './badges'
 import { downloadErrorReportCsv } from './error-report'
 import { ADMIN_ROLES } from './scope'
 
@@ -39,6 +45,8 @@ function infoRows(job: DataJob): [string, string][] {
     'Submitted',
     `${dateTimeFmt.format(new Date(job.submittedAt))} by ${job.submittedBy}`,
   ])
+  if (job.finishedAt)
+    rows.push(['Finished', dateTimeFmt.format(new Date(job.finishedAt))])
   return rows
 }
 
@@ -64,7 +72,10 @@ export function JobDetailOverlay({
   const { hasRole } = useRole()
   const isAdmin = hasRole(...ADMIN_ROLES)
   const terminal =
-    job && ['Completed', 'Failed', 'Partially completed'].includes(job.status)
+    job &&
+    ['Completed', 'Failed', 'Partially completed', 'Rolled back'].includes(
+      job.status
+    )
   const hasFailures = Boolean(job && job.failedRecords > 0)
 
   return (
@@ -101,11 +112,21 @@ export function JobDetailOverlay({
                 </div>
               </div>
 
-              <div className='grid grid-cols-4 gap-2 text-center'>
+              {job.status === 'In-progress' && (
+                <div className='rounded-[6px] border border-gray-200 px-3 py-2.5'>
+                  <p className='text-neutral-1600 mb-1 text-sm font-medium'>
+                    Import in progress — records are being written
+                  </p>
+                  <JobProgressBar progress={job.progress} />
+                </div>
+              )}
+
+              <div className='grid grid-cols-5 gap-2 text-center'>
                 {(
                   [
                     ['All Records', job.totalRecords],
                     ['Success', job.successRecords],
+                    ['Warnings', job.warningRecords ?? 0],
                     ['Failed', job.failedRecords],
                     ['Skipped', job.skippedRecords],
                   ] as [string, number][]
@@ -126,8 +147,13 @@ export function JobDetailOverlay({
 
               {job.staging && (
                 <p className='bg-blue-150 text-blue-1400 rounded-[6px] px-3 py-2 text-sm'>
-                  Staging validation only — no records were committed to
+                  Sandbox validation only — no records were committed to
                   production.
+                </p>
+              )}
+              {isAtomicBatch(job) && job.status === 'Failed' && (
+                <p className='bg-red-1300/20 text-red-1400 rounded-[6px] px-3 py-2 text-sm'>
+                  Import failed — no records were created (atomic batch).
                 </p>
               )}
               {job.rolledBack && (
@@ -178,11 +204,18 @@ export function JobDetailOverlay({
               {terminal && job.kind === 'export' && (
                 <Button
                   variant='outline'
-                  onClick={() =>
+                  onClick={() => {
+                    downloadExportFile({
+                      entity: job.entity,
+                      companyName: job.companyName,
+                      format: job.format,
+                      fileName: job.fileName,
+                      totalRecords: job.totalRecords,
+                    })
                     toast.success(
                       `${job.fileName} downloaded (${job.format}, tenant-scoped)`
                     )
-                  }
+                  }}
                 >
                   Download output file
                 </Button>

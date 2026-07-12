@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import {
   seedTemplates,
   todayIso,
@@ -16,7 +17,6 @@ export interface TemplateDraft {
   requiresApproval: boolean
   requiresAcknowledgment: boolean
   signingAuthority: string
-  missingValueBehavior: LetterTemplate['missingValueBehavior']
   effectiveFrom: string
   changeSummary: string
 }
@@ -49,12 +49,20 @@ export function useLetterTemplates() {
       requiresApproval: draft.requiresApproval,
       requiresAcknowledgment: draft.requiresAcknowledgment,
       signingAuthority: draft.signingAuthority,
-      missingValueBehavior: draft.missingValueBehavior,
       currentVersion: 1,
       versions: [version],
       updatedOn: todayIso(),
     }
     setTemplates((prev) => [template, ...prev])
+    publishAuditEvent({
+      module: 'HR Letters & Certificates',
+      action: `Template "${draft.name}" created (v1)`,
+      actor: editedBy,
+      entityType: 'Company',
+      actionType: 'create',
+      recordId: template.id,
+      recordName: `${draft.docType} template — ${draft.name}`,
+    })
     toast.success(`Template "${draft.name}" created (v1, effective ${draft.effectiveFrom})`)
     return template
   }, [])
@@ -75,7 +83,6 @@ export function useLetterTemplates() {
             requiresApproval: draft.requiresApproval,
             requiresAcknowledgment: draft.requiresAcknowledgment,
             signingAuthority: draft.signingAuthority,
-            missingValueBehavior: draft.missingValueBehavior,
             currentVersion: nextVersion,
             versions: [
               ...t.versions,
@@ -90,6 +97,15 @@ export function useLetterTemplates() {
           }
         })
       )
+      publishAuditEvent({
+        module: 'HR Letters & Certificates',
+        action: `Template "${draft.name}" saved as a new version`,
+        actor: editedBy,
+        entityType: 'Company',
+        actionType: 'update',
+        recordId: id,
+        recordName: `${draft.docType} template — ${draft.name}`,
+      })
       toast.success(
         'Template saved as a new version — already-generated documents are unaffected'
       )

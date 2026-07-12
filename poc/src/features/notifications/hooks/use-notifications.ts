@@ -99,7 +99,9 @@ export function useNotifications() {
       recipientType: 'user',
       tenant: 'Northwind Retail Co.',
       templateVersion: 'Resolved at dispatch',
+      model: 'event-driven',
       createdAt: now,
+      preview: `${title} — dispatched immediately with your channel preferences applied and email enforced.`,
       attempts: [
         { channel: 'in-app', status: 'delivered', timestamp: now },
         { channel: 'email', status: 'delivered', timestamp: now },
@@ -167,7 +169,7 @@ export function useNotifications() {
             ...d.attempts,
             { channel: 'email', status: 'delivered', timestamp: now },
           ],
-          finalStatus: 'delivered',
+          finalStatus: 'sent via fallback',
         }
       })
     )

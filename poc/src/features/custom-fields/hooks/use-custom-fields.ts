@@ -1,7 +1,9 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import { summarizeFieldChanges } from '../data/field-engine'
 import {
+  SENSITIVITY_LABELS,
   seedFieldDefinitions,
   seedFieldVersions,
   type FieldDefinition,
@@ -18,6 +20,13 @@ export interface FieldDefinitionsStore {
   versions: FieldVersionEntry[]
   addField: (draft: FieldDraft, actor: string) => FieldDefinition
   updateField: (id: string, draft: FieldDraft, actor: string) => void
+  /** Apply a type change on a field with stored data (guided migration). */
+  migrateFieldType: (
+    id: string,
+    draft: FieldDraft,
+    outcome: { converted: number; cleared: number },
+    actor: string
+  ) => void
   deleteField: (id: string) => void
   toggleDefault: (id: string) => void
   reorderFields: (orderedIds: string[]) => void
@@ -106,6 +115,28 @@ export function useFieldDefinitions(): FieldDefinitionsStore {
       }
       mutateFields((prev) => [field, ...prev])
       logVersion(field, 'Field created', actor)
+      if (field.sensitivity !== 'none') {
+        publishAuditEvent({
+          module: 'Custom Fields',
+          action: 'Sensitive field created',
+          actor,
+          actionType: 'create',
+          recordId: field.id,
+          recordName: `${field.name} (${field.entity})`,
+          changes: [
+            {
+              field: 'Sensitivity',
+              previousValue: null,
+              newValue: SENSITIVITY_LABELS[field.sensitivity],
+            },
+            {
+              field: 'Roles granted view access',
+              previousValue: null,
+              newValue: field.sensitiveGrants.join(', ') || '—',
+            },
+          ],
+        })
+      }
       toast.success(`Custom field "${field.name}" created on ${field.entity}`)
       return field
     },
@@ -125,8 +156,82 @@ export function useFieldDefinitions(): FieldDefinitionsStore {
       }
       mutateFields((prev) => prev.map((f) => (f.id === id ? next : f)))
       logVersion(next, summarizeFieldChanges(existing, draft), actor)
+      const sensitivityChanged =
+        existing.sensitivity !== next.sensitivity ||
+        existing.sensitiveGrants.join('|') !== next.sensitiveGrants.join('|')
+      if (sensitivityChanged) {
+        publishAuditEvent({
+          module: 'Custom Fields',
+          action: 'Field sensitivity changed',
+          actor,
+          actionType: 'update',
+          recordId: next.id,
+          recordName: `${next.name} (${next.entity})`,
+          changes: [
+            {
+              field: 'Sensitivity',
+              previousValue: SENSITIVITY_LABELS[existing.sensitivity],
+              newValue: SENSITIVITY_LABELS[next.sensitivity],
+            },
+            {
+              field: 'Roles granted view access',
+              previousValue: existing.sensitiveGrants.join(', ') || '—',
+              newValue: next.sensitiveGrants.join(', ') || '—',
+            },
+          ],
+        })
+      }
       toast.success(
         `"${next.name}" updated — v${next.version} recorded, effective ${next.effectiveDate}`
+      )
+    },
+    [logVersion]
+  )
+
+  const migrateFieldType = useCallback(
+    (
+      id: string,
+      draft: FieldDraft,
+      outcome: { converted: number; cleared: number },
+      actor: string
+    ) => {
+      const existing = fieldsState.find((f) => f.id === id)
+      if (!existing) return
+      const next: FieldDefinition = {
+        ...existing,
+        ...draft,
+        version: existing.version + 1,
+        updatedBy: actor,
+        updatedAt: today(),
+      }
+      mutateFields((prev) => prev.map((f) => (f.id === id ? next : f)))
+      logVersion(
+        next,
+        `Type migrated from ${existing.type} to ${next.type} (${outcome.converted} records converted, ${outcome.cleared} cleared)`,
+        actor
+      )
+      publishAuditEvent({
+        module: 'Custom Fields',
+        action: 'Field type migrated',
+        actor,
+        actionType: 'update',
+        recordId: next.id,
+        recordName: `${next.name} (${next.entity})`,
+        changes: [
+          {
+            field: 'Data type',
+            previousValue: existing.type,
+            newValue: next.type,
+          },
+          {
+            field: 'Stored values',
+            previousValue: `${outcome.converted + outcome.cleared} records`,
+            newValue: `${outcome.converted} converted, ${outcome.cleared} cleared`,
+          },
+        ],
+      })
+      toast.success(
+        `"${next.name}" migrated to its new type — ${outcome.converted} records converted, ${outcome.cleared} cleared`
       )
     },
     [logVersion]
@@ -176,6 +281,7 @@ export function useFieldDefinitions(): FieldDefinitionsStore {
     versions,
     addField,
     updateField,
+    migrateFieldType,
     deleteField,
     toggleDefault,
     reorderFields,

@@ -28,6 +28,7 @@ import {
 } from '../data/hr-letters'
 import { type HrDocumentsStore } from '../hooks/use-hr-documents'
 import { type LetterConfigStore } from '../hooks/use-letter-config'
+import { BatchGenerateOverlay } from './batch-generate-overlay'
 import { DocumentDetailSheet } from './document-detail-sheet'
 import { documentsTableColumns } from './documents-table-columns'
 import { GenerateOverlay } from './generate-overlay'
@@ -35,10 +36,11 @@ import { LettersSummary } from './letters-summary'
 
 const STATUS_FILTERS: Array<{ value: DocStatus | 'all'; label: string }> = [
   { value: 'all', label: 'All statuses' },
+  { value: 'draft', label: 'Draft' },
   { value: 'pending-approval', label: 'Pending approval' },
   { value: 'approved', label: 'Approved' },
+  { value: 'issued', label: 'Issued' },
   { value: 'rejected', label: 'Rejected' },
-  { value: 'distributed', label: 'Distributed' },
 ]
 
 interface DocumentsTabProps {
@@ -61,6 +63,7 @@ export function DocumentsTab({ store, templates, config }: DocumentsTabProps) {
   const [selectedRows, setSelectedRows] = useState<HrDocument[]>([])
   const [resetSelectionKey, setResetSelectionKey] = useState(0)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [batchOpen, setBatchOpen] = useState(false)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<DocStatus | 'all'>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -92,7 +95,22 @@ export function DocumentsTab({ store, templates, config }: DocumentsTabProps) {
     store.generate(
       template,
       employees,
-      employees.length > 1 ? 'batch' : 'manual',
+      'manual',
+      'On request',
+      'Lakshmi Rao (Company Admin)'
+    )
+    clearSelection()
+  }
+
+  const handleBatchGenerate = (
+    template: LetterTemplate,
+    employeeIds: string[]
+  ) => {
+    const employees = EMPLOYEES.filter((e) => employeeIds.includes(e.id))
+    store.generate(
+      template,
+      employees,
+      'batch',
       'On request',
       'Lakshmi Rao (Company Admin)'
     )
@@ -187,6 +205,13 @@ export function DocumentsTab({ store, templates, config }: DocumentsTabProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button
+                variant='outline'
+                onClick={() => setBatchOpen(true)}
+                className='h-7 rounded-[6px]! px-2!'
+              >
+                Batch generate
+              </Button>
+              <Button
                 variant='red'
                 onClick={() => setGenerateOpen(true)}
                 className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
@@ -214,6 +239,13 @@ export function DocumentsTab({ store, templates, config }: DocumentsTabProps) {
         templates={templates}
         documents={store.documents}
         onGenerate={handleGenerate}
+      />
+
+      <BatchGenerateOverlay
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        templates={templates}
+        onGenerate={handleBatchGenerate}
       />
 
       <DocumentDetailSheet

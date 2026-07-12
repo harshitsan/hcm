@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import {
   retentionUntilFrom,
   seedDocuments,
@@ -11,16 +12,22 @@ import {
   type HrDocument,
   type LetterTemplate,
   type QuestionnaireAnswer,
+  type Signatory,
 } from '../data/hr-letters'
+import { resolveMergeFields } from '../data/merge-engine'
 
 export type HrDocumentsStore = ReturnType<typeof useHrDocuments>
 
+const AUDIT_MODULE = 'HR Letters & Certificates'
+
 /**
  * In-memory generated-documents store. Stands in for the document service —
- * covers generation (manual/auto/batch, HLC-03/04/05), the approval workflow
- * (HLC-06/14), distribution + delivery tracking (HLC-08/09/21), versioning and
- * reissue (HLC-10/17), retention (HLC-11), and acknowledgment (HLC-29).
- * Every action appends to the document's immutable audit trail.
+ * covers gap-checked generation (manual/auto/batch, HLC-03/04/05), the
+ * Draft → Pending approval → Approved → Issued lifecycle with signatory
+ * tracking (HLC-06/14), distribution + delivery tracking (HLC-08/09/21),
+ * reissue as a new linked record (HLC-10/17), 7-year retention (HLC-11), and
+ * acknowledgment (HLC-29). Every action appends to the document's immutable
+ * audit trail and publishes to the platform audit log.
  */
 export function useHrDocuments() {
   const [documents, setDocuments] = useState<HrDocument[]>(seedDocuments)
@@ -39,9 +46,10 @@ export function useHrDocuments() {
   )
 
   /**
-   * Render + persist one PDF per employee (HLC-03/05). Employees with
-   * incomplete source records are reported as failures without blocking the
-   * rest of the batch.
+   * Create one letter per employee (HLC-03/05). Every employee is gap-checked
+   * against the merge engine first — anyone with missing information is
+   * skipped, the rest are created as drafts (manual/batch) or routed straight
+   * into the approval workflow (auto).
    */
   const generate = useCallback(
     (
@@ -51,17 +59,26 @@ export function useHrDocuments() {
       event: string,
       generatedBy: string
     ) => {
-      const failed = employees.filter((e) => e.recordIncomplete)
-      const succeeded = employees.filter((e) => !e.recordIncomplete)
+      const skipped = employees.filter(
+        (e) => resolveMergeFields(template.body, e.id).gaps.length > 0
+      )
+      const ready = employees.filter(
+        (e) => resolveMergeFields(template.body, e.id).gaps.length === 0
+      )
       const today = todayIso()
 
-      const created: HrDocument[] = succeeded.map((emp) => ({
+      const created: HrDocument[] = ready.map((emp) => ({
         id: `hrl-${crypto.randomUUID().slice(0, 8)}`,
         docType: template.docType,
         employeeId: emp.id,
         employeeName: emp.name,
         employeeHasAppAccess: emp.hasAppAccess,
-        status: template.requiresApproval ? 'pending-approval' : 'approved',
+        status:
+          trigger === 'auto'
+            ? template.requiresApproval
+              ? 'pending-approval'
+              : 'approved'
+            : 'draft',
         trigger,
         event,
         generatedOn: today,
@@ -69,6 +86,11 @@ export function useHrDocuments() {
         templateId: template.id,
         templateVersion: template.currentVersion,
         signingAuthority: template.signingAuthority,
+        approvedBy: null,
+        approvedOn: null,
+        signedBy: null,
+        reissueOf: null,
+        reissuedAs: null,
         requiresAcknowledgment: template.requiresAcknowledgment,
         acknowledgedOn: null,
         retentionUntil: retentionUntilFrom(today),
@@ -88,10 +110,12 @@ export function useHrDocuments() {
             on: today,
             actor: generatedBy,
             action: 'Generated',
-            detail: `${trigger} generation, template v${template.currentVersion}${
-              template.requiresApproval
-                ? ' — entered approval workflow'
-                : ' — no approval required, finalized directly'
+            detail: `${trigger === 'auto' ? 'Automatic' : trigger === 'batch' ? 'Batch' : 'Manual'} generation, template v${template.currentVersion}${
+              trigger === 'auto'
+                ? template.requiresApproval
+                  ? ' — entered approval workflow'
+                  : ' — no approval required'
+                : ' — saved as draft'
             }`,
           },
         ],
@@ -101,31 +125,102 @@ export function useHrDocuments() {
 
       setDocuments((prev) => [...created, ...prev])
 
-      if (failed.length > 0) {
+      created.forEach((doc) => {
+        publishAuditEvent({
+          module: AUDIT_MODULE,
+          action: `${doc.docType} generated for ${doc.employeeName}`,
+          actor: generatedBy,
+          entityType: 'Employee',
+          actionType: 'create',
+          recordId: doc.id,
+          recordName: `${doc.docType} — ${doc.employeeName}`,
+        })
+      })
+
+      if (skipped.length > 0 && created.length > 0) {
         toast.warning(
-          `${failed.length} document(s) failed — incomplete source record: ${failed
-            .map((f) => f.name)
-            .join(', ')}. ${created.length} succeeded.`
+          `${created.length} generated, ${skipped.length} skipped for missing data (${skipped
+            .map((s) => s.name)
+            .join(', ')})`
+        )
+      } else if (skipped.length > 0) {
+        toast.error(
+          `Nothing generated — missing information for ${skipped
+            .map((s) => s.name)
+            .join(', ')}`
         )
       } else if (created.length > 0) {
         toast.success(
           created.length === 1
-            ? `${template.docType} generated as PDF for ${created[0].employeeName}`
-            : `${created.length} PDFs generated for ${template.docType}`
+            ? `${template.docType} generated for ${created[0].employeeName}`
+            : `${created.length} letters generated from ${template.name}`
         )
       }
-      return { created, failed }
+      return { created, skipped }
     },
     []
   )
 
-  const approve = useCallback(
-    (id: string, approver: string) => {
+  /** Move a draft into the approval queue (or straight to approved-equivalent). */
+  const sendForApproval = useCallback(
+    (id: string, actor: string) => {
       setDocuments((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, status: 'approved' } : d))
+        prev.map((d) =>
+          d.id === id && d.status === 'draft'
+            ? { ...d, status: 'pending-approval' }
+            : d
+        )
       )
-      appendAudit(id, approver, 'Approved', 'Approval step completed — document finalized')
-      toast.success('Document approved and finalized')
+      appendAudit(id, actor, 'Sent for approval', 'Draft submitted to the approval queue')
+      publishAuditEvent({
+        module: AUDIT_MODULE,
+        action: 'Letter sent for approval',
+        actor,
+        entityType: 'Employee',
+        actionType: 'status-change',
+        recordId: id,
+      })
+      toast.success('Sent for approval')
+    },
+    [appendAudit]
+  )
+
+  /**
+   * Approve a pending letter (Company Admin) recording the chosen signatory —
+   * the signature block on the letter reads "Signed by: NAME, TITLE".
+   */
+  const approve = useCallback(
+    (id: string, approver: string, signatory: Signatory) => {
+      setDocuments((prev) =>
+        prev.map((d) =>
+          d.id === id
+            ? {
+                ...d,
+                status: 'approved',
+                approvedBy: approver,
+                approvedOn: todayIso(),
+                signedBy: signatory,
+              }
+            : d
+        )
+      )
+      appendAudit(
+        id,
+        approver,
+        'Approved',
+        `Approved — signed by ${signatory.name}, ${signatory.title}`
+      )
+      publishAuditEvent({
+        module: AUDIT_MODULE,
+        action: `Letter approved — signed by ${signatory.name}, ${signatory.title}`,
+        actor: approver,
+        entityType: 'Employee',
+        actionType: 'status-change',
+        recordId: id,
+      })
+      toast.success(
+        `Approved — will carry the signature of ${signatory.name}, ${signatory.title}`
+      )
     },
     [appendAudit]
   )
@@ -138,17 +233,24 @@ export function useHrDocuments() {
         )
       )
       appendAudit(id, approver, 'Rejected', `Originator notified to correct and regenerate — ${reason}`)
-      toast.error('Document rejected — originator notified, not distributed')
+      publishAuditEvent({
+        module: AUDIT_MODULE,
+        action: 'Letter rejected',
+        actor: approver,
+        entityType: 'Employee',
+        actionType: 'status-change',
+        recordId: id,
+      })
+      toast.error('Document rejected — originator notified, not issued')
     },
     [appendAudit]
   )
 
   /**
-   * Dispatch through the notification engine (HLC-08/09/21). Outcome is
-   * deterministic: in-app needs portal access, a bouncing mailbox fails email,
-   * print always yields a print-ready copy, and handover records who handed
-   * the physical document over and when. Other employees can be CC'd on the
-   * communication; CC names are stored on the distribution record.
+   * Dispatch through the notification engine (HLC-08/09/21) — the letter
+   * becomes Issued. Outcome is deterministic: in-app needs portal access, a
+   * bouncing mailbox fails email, print always yields a print-ready copy, and
+   * handover records who handed the physical document over and when.
    */
   const distribute = useCallback(
     (
@@ -163,8 +265,8 @@ export function useHrDocuments() {
     ) => {
       const doc = documents.find((d) => d.id === id)
       if (!doc) return
-      if (doc.status !== 'approved' && doc.status !== 'distributed') {
-        toast.error('Only finalized documents can be dispatched')
+      if (doc.status !== 'approved' && doc.status !== 'issued') {
+        toast.error('Only approved letters can be issued')
         return
       }
       const ccRecipients = options?.ccRecipients?.length
@@ -195,7 +297,7 @@ export function useHrDocuments() {
           d.id === id
             ? {
                 ...d,
-                status: 'distributed',
+                status: 'issued',
                 distributions: [
                   ...d.distributions,
                   {
@@ -226,11 +328,23 @@ export function useHrDocuments() {
           ? 'Delivery failed'
           : channel === 'handover'
             ? 'Handed over'
-            : 'Distributed',
+            : 'Issued',
         `${channel} dispatch — ${detail}${
           ccRecipients ? ` · CC: ${ccRecipients.join(', ')}` : ''
         }`
       )
+      publishAuditEvent({
+        module: AUDIT_MODULE,
+        action:
+          outcome === 'failed'
+            ? `Letter delivery failed (${channel})`
+            : `Letter issued via ${channel}`,
+        actor: options?.handedOverBy ?? 'Notification engine',
+        entityType: 'Employee',
+        actionType: 'status-change',
+        recordId: id,
+        recordName: `${doc.docType} — ${doc.employeeName}`,
+      })
       if (outcome === 'failed') {
         toast.error(`Email delivery failed — re-send via another channel`)
       } else if (channel === 'handover') {
@@ -239,7 +353,7 @@ export function useHrDocuments() {
         )
       } else {
         toast.success(
-          `Document dispatched via ${channel} (${outcome})${
+          `Letter issued via ${channel} (${outcome})${
             ccRecipients ? ` — CC'd ${ccRecipients.length} employee(s)` : ''
           }`
         )
@@ -249,37 +363,86 @@ export function useHrDocuments() {
   )
 
   /**
-   * Reissue creates a new current version; prior versions stay retained
-   * (HLC-10). A rejected document re-enters the approval workflow.
+   * Reissue creates a brand-new letter record linked to the original
+   * ("Reissue of hrl-1004") with a fresh approval cycle; the original stays
+   * retained and gains a link to its reissue (HLC-10/17).
    */
   const reissue = useCallback(
     (id: string, reason: string, actor: string) => {
+      const original = documents.find((d) => d.id === id)
+      if (!original) return
       const today = todayIso()
-      setDocuments((prev) =>
-        prev.map((d) => {
-          if (d.id !== id) return d
-          const nextVersion = d.versions.length + 1
-          return {
-            ...d,
-            status: d.status === 'rejected' ? 'pending-approval' : d.status,
-            rejectReason: null,
-            versions: [
-              ...d.versions.map((ver) => ({ ...ver, current: false })),
-              {
-                version: nextVersion,
-                generatedOn: today,
-                event: `Reissue — ${reason}`,
-                templateVersion: d.templateVersion,
-                current: true,
-              },
-            ],
-          }
-        })
+      const newId = `hrl-${crypto.randomUUID().slice(0, 8)}`
+      const replacement: HrDocument = {
+        ...original,
+        id: newId,
+        status: 'pending-approval',
+        trigger: 'manual',
+        event: `Reissue of ${original.id}`,
+        generatedOn: today,
+        generatedBy: actor,
+        approvedBy: null,
+        approvedOn: null,
+        signedBy: null,
+        reissueOf: original.id,
+        reissuedAs: null,
+        acknowledgedOn: null,
+        retentionUntil: retentionUntilFrom(today),
+        rejectReason: null,
+        versions: [
+          {
+            version: 1,
+            generatedOn: today,
+            event: `Reissue of ${original.id}`,
+            templateVersion: original.templateVersion,
+            current: true,
+          },
+        ],
+        distributions: [],
+        audit: [
+          {
+            on: today,
+            actor,
+            action: 'Generated',
+            detail: `Reissue of ${original.id} (${reason}) — fresh approval cycle`,
+          },
+        ],
+        questionnaireAnswers: [],
+      }
+      setDocuments((prev) => [
+        replacement,
+        ...prev.map((d) =>
+          d.id === id
+            ? {
+                ...d,
+                reissuedAs: newId,
+                audit: [
+                  ...d.audit,
+                  {
+                    on: today,
+                    actor,
+                    action: 'Reissued',
+                    detail: `Reissued as ${newId} (${reason}) — new letter enters a fresh approval cycle`,
+                  },
+                ],
+              }
+            : d
+        ),
+      ])
+      publishAuditEvent({
+        module: AUDIT_MODULE,
+        action: `Letter reissued — ${original.id} replaced by ${newId}`,
+        actor,
+        entityType: 'Employee',
+        actionType: 'create',
+        recordId: newId,
+        recordName: `${original.docType} — ${original.employeeName} (reissue)`,
+      })
+      toast.success(
+        `Reissue created as a new letter linked to ${original.id} — it now awaits approval`
       )
-      appendAudit(id, actor, 'Reissued', `New version issued (${reason}); prior versions retained`)
-      toast.success('Document reissued — new current version created, history retained')
     },
-    [appendAudit]
+    [documents]
   )
 
   /** Employee acknowledgment/signature on agreement letters (HLC-29/30). */
@@ -293,10 +456,27 @@ export function useHrDocuments() {
         )
       )
       appendAudit(id, employeeName, 'Acknowledged', 'Employee acknowledged/signed the agreement in-app')
+      publishAuditEvent({
+        module: AUDIT_MODULE,
+        action: 'Agreement acknowledged',
+        actor: employeeName,
+        entityType: 'Employee',
+        actionType: 'update',
+        recordId: id,
+      })
       toast.success('Agreement acknowledged — timestamp recorded')
     },
     [appendAudit]
   )
 
-  return { documents, generate, approve, reject, distribute, reissue, acknowledge }
+  return {
+    documents,
+    generate,
+    sendForApproval,
+    approve,
+    reject,
+    distribute,
+    reissue,
+    acknowledge,
+  }
 }

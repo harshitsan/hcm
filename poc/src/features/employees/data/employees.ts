@@ -209,6 +209,12 @@ export interface Employee {
   socialMediaTwitter: string
   companyId: string
   jurisdiction: Jurisdiction
+  /**
+   * Exactly one operational jurisdiction per employee, referencing the
+   * platform jurisdiction catalog (src/features/jurisdictions). Optional
+   * because it links the display label above to the catalog entry.
+   */
+  jurisdictionId?: string
   departments: string[]
   position: string
   /** Primary functional (work) location, one of LOCATIONS. */
@@ -266,6 +272,7 @@ export const seedEmployees: Employee[] = [
     email: 'ananya.krishnan@aurora.in',
     companyId: 'c-aur-ret',
     jurisdiction: 'India — Karnataka',
+    jurisdictionId: 'jur-08',
     departments: ['Human Resources'],
     position: 'HR Manager',
     groups: ['Leadership Circle'],
@@ -325,6 +332,7 @@ export const seedEmployees: Employee[] = [
     email: 'vikram.shetty@aurora.in',
     companyId: 'c-aur-ret',
     jurisdiction: 'India — Karnataka',
+    jurisdictionId: 'jur-08',
     departments: ['Operations'],
     position: 'Operations Lead',
     groups: ['Leadership Circle'],
@@ -377,6 +385,7 @@ export const seedEmployees: Employee[] = [
     email: 'rohit.menon@aurora.in',
     companyId: 'c-aur-ret',
     jurisdiction: 'India — Karnataka',
+    jurisdictionId: 'jur-08',
     departments: ['Engineering', 'Quality Assurance'],
     position: 'Senior Software Engineer',
     groups: ['Hybrid'],
@@ -439,6 +448,7 @@ export const seedEmployees: Employee[] = [
     email: 'sneha.patil@aurora.in',
     companyId: 'c-aur-tech',
     jurisdiction: 'India — Maharashtra',
+    jurisdictionId: 'jur-09',
     departments: ['Engineering'],
     position: 'Software Engineer',
     groups: [],
@@ -491,6 +501,7 @@ export const seedEmployees: Employee[] = [
     email: '',
     companyId: 'c-aur-tech',
     jurisdiction: 'India — Maharashtra',
+    jurisdictionId: 'jur-09',
     departments: ['Operations'],
     position: 'Warehouse Supervisor',
     groups: ['Night Shift', 'Field Staff'],
@@ -546,6 +557,7 @@ export const seedEmployees: Employee[] = [
     email: 'rakesh.iyer@meridianfoods.in',
     companyId: 'c-mer-food',
     jurisdiction: 'India — Telangana',
+    jurisdictionId: 'jur-16',
     departments: ['Finance'],
     position: 'Finance Analyst',
     groups: [],
@@ -600,6 +612,7 @@ export const seedEmployees: Employee[] = [
     email: 'rakesh.iyer@meridianlogistics.in',
     companyId: 'c-mer-log',
     jurisdiction: 'India — Maharashtra',
+    jurisdictionId: 'jur-09',
     departments: ['Finance', 'Supply Chain'],
     position: 'Finance Analyst',
     groups: ['Hybrid'],
@@ -651,6 +664,7 @@ export const seedEmployees: Employee[] = [
     email: 'deepa.raghavan@meridianfoods.in',
     companyId: 'c-mer-food',
     jurisdiction: 'India — Telangana',
+    jurisdictionId: 'jur-16',
     departments: ['Finance'],
     position: 'Engineering Manager',
     groups: ['Leadership Circle'],
@@ -705,6 +719,7 @@ export const seedEmployees: Employee[] = [
     email: 'nilesh.kadam@meridianlogistics.in',
     companyId: 'c-mer-log',
     jurisdiction: 'India — Maharashtra',
+    jurisdictionId: 'jur-09',
     departments: ['Supply Chain'],
     position: 'Operations Lead',
     groups: ['Field Staff'],
@@ -758,6 +773,7 @@ export const seedEmployees: Employee[] = [
     email: 'kavya.reddy@meridianfoods.in',
     companyId: 'c-mer-food',
     jurisdiction: 'India — Telangana',
+    jurisdictionId: 'jur-16',
     departments: ['Quality Assurance'],
     position: 'QA Engineer',
     groups: ['Hybrid'],
@@ -809,6 +825,7 @@ export const seedEmployees: Employee[] = [
     email: 'tarun.bhalla@aurora.in',
     companyId: 'c-aur-ret',
     jurisdiction: 'India — Karnataka',
+    jurisdictionId: 'jur-08',
     departments: ['Sales'],
     position: 'Sales Executive',
     groups: ['Field Staff'],
@@ -862,6 +879,7 @@ export const seedEmployees: Employee[] = [
     email: '',
     companyId: 'c-aur-ret',
     jurisdiction: 'India — Karnataka',
+    jurisdictionId: 'jur-08',
     departments: ['Operations', 'Human Resources'],
     position: 'HR Executive',
     groups: [],

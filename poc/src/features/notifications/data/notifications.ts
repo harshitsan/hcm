@@ -61,8 +61,19 @@ export type DeliveryFinalStatus =
   | 'delivered'
   | 'partially delivered'
   | 'failed'
+  | 'retrying'
+  | 'sent via fallback'
+  | 'held'
   | 'dead-letter'
   | 'in progress'
+
+/** Event-driven dispatch vs scheduler-driven digests/summaries (NTF-08/09). */
+export type OutboxModel = 'event-driven' | 'scheduled'
+
+export const OUTBOX_MODEL_LABELS: Record<OutboxModel, string> = {
+  'event-driven': 'Event-driven',
+  scheduled: 'Scheduled',
+}
 
 /** Persisted, auditable notification + per-channel outcomes (NTF-18). */
 export interface DeliveryRecord {
@@ -73,9 +84,17 @@ export interface DeliveryRecord {
   recipientType: 'user' | 'non-user'
   tenant: string
   templateVersion: string
+  /** Whether the engine sent this immediately on an event or on a schedule. */
+  model: OutboxModel
   createdAt: string
   attempts: DeliveryAttempt[]
   finalStatus: DeliveryFinalStatus
+  /** Rendered message body shown in the outbox detail view. */
+  preview?: string
+  /** Delivery-engine annotation, e.g. a quiet-hours hold or override. */
+  note?: string
+  /** Explicit engine timeline steps; when absent the view derives them from attempts. */
+  timeline?: string[]
 }
 
 export const seedNotifications: AppNotification[] = [
@@ -274,12 +293,15 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Leave Approval v3',
+    model: 'event-driven',
     createdAt: '2026-07-02T09:42:04',
     attempts: [
       { channel: 'email', status: 'delivered', timestamp: '2026-07-02T09:42:05' },
       { channel: 'in-app', status: 'delivered', timestamp: '2026-07-02T09:42:04' },
     ],
     finalStatus: 'delivered',
+    preview:
+      'Hi Dana, Priya Nair submitted a 3-day casual leave request (14–16 Jul) that needs your approval. Open the request to approve or reject.',
   },
   {
     id: 'DLV-9002',
@@ -289,13 +311,21 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Escalation Alert v2',
+    model: 'event-driven',
     createdAt: '2026-07-01T18:00:02',
     attempts: [
       { channel: 'teams', status: 'failed', timestamp: '2026-07-01T18:00:03', error: 'Connector timeout (504)' },
       { channel: 'email', status: 'delivered', timestamp: '2026-07-01T18:00:09' },
       { channel: 'in-app', status: 'delivered', timestamp: '2026-07-01T18:00:02' },
     ],
-    finalStatus: 'delivered',
+    finalStatus: 'sent via fallback',
+    preview:
+      'Timesheet TS-4471 has been awaiting approval for 5 days and has escalated past its first threshold. Action required.',
+    timeline: [
+      'Attempt 1 failed (Teams connector timeout)',
+      'Fallback: delivered via email',
+      'Also delivered in-app',
+    ],
   },
   {
     id: 'DLV-9003',
@@ -305,11 +335,14 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'non-user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Employee Joining v1',
+    model: 'event-driven',
     createdAt: '2026-06-27T14:30:10',
     attempts: [
       { channel: 'email', status: 'delivered', timestamp: '2026-06-27T14:30:12' },
     ],
     finalStatus: 'delivered',
+    preview:
+      'Welcome aboard, Sofia! You join Northwind Retail Co. on 07 Jul. This email carries your joining checklist, reporting location and first-day schedule.',
   },
   {
     id: 'DLV-9004',
@@ -319,6 +352,7 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Travel Approval v2',
+    model: 'event-driven',
     createdAt: '2026-06-30T16:20:03',
     attempts: [
       { channel: 'whatsapp', status: 'retrying', timestamp: '2026-06-30T16:21:00', error: 'Rate limited — retry 2/3 (backoff 60s)' },
@@ -326,6 +360,8 @@ export const seedDeliveries: DeliveryRecord[] = [
       { channel: 'email', status: 'delivered', timestamp: '2026-06-30T16:20:05' },
     ],
     finalStatus: 'partially delivered',
+    preview:
+      'Your travel request to Bengaluru (20–24 Jul) moved from Pending Approval to Approved. Bookings can now be raised.',
   },
   {
     id: 'DLV-9005',
@@ -335,12 +371,15 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Attendance Reminder v1',
+    model: 'event-driven',
     createdAt: '2026-07-02T07:00:01',
     attempts: [
       { channel: 'email', status: 'delivered', timestamp: '2026-07-02T07:00:03' },
       { channel: 'in-app', status: 'delivered', timestamp: '2026-07-02T07:00:01' },
     ],
     finalStatus: 'delivered',
+    preview:
+      'Hi Theo, you have not recorded attendance for 01 Jul. Record your time to avoid a compliance gap.',
   },
   {
     id: 'DLV-9006',
@@ -350,6 +389,7 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'non-user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Exit Notification v2',
+    model: 'event-driven',
     createdAt: '2026-06-25T10:15:00',
     attempts: [
       { channel: 'email', status: 'failed', timestamp: '2026-06-25T10:15:02', error: 'Mailbox unavailable (550)' },
@@ -358,6 +398,8 @@ export const seedDeliveries: DeliveryRecord[] = [
       { channel: 'email', status: 'failed', timestamp: '2026-06-25T11:25:02', error: 'Mailbox unavailable (550) — retry 3/3, exhausted' },
     ],
     finalStatus: 'dead-letter',
+    preview:
+      'Hi Owen, your exit checklist and final settlement summary are attached. Please review and acknowledge by 05 Jul.',
   },
   {
     id: 'DLV-9007',
@@ -367,12 +409,15 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Announcement Alert v4',
+    model: 'event-driven',
     createdAt: '2026-06-26T12:00:05',
     attempts: [
       { channel: 'in-app', status: 'delivered', timestamp: '2026-06-26T12:00:05' },
       { channel: 'email', status: 'delivered', timestamp: '2026-06-26T12:00:41' },
     ],
     finalStatus: 'delivered',
+    preview:
+      'The annual town hall is scheduled for 18 Jul, 3:00 PM in the main auditorium and on Teams. Agenda and joining details inside.',
   },
   {
     id: 'DLV-9008',
@@ -382,11 +427,14 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Daily Digest v1',
+    model: 'scheduled',
     createdAt: '2026-07-01T07:00:00',
     attempts: [
       { channel: 'email', status: 'delivered', timestamp: '2026-07-01T07:00:06' },
     ],
     finalStatus: 'delivered',
+    preview:
+      'Your daily digest for 30 Jun: 2 workflow updates, 1 reminder and 1 announcement, consolidated into one summary.',
   },
   {
     id: 'DLV-9009',
@@ -396,12 +444,15 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Offer Approval v2',
+    model: 'event-driven',
     createdAt: '2026-06-29T15:40:00',
     attempts: [
-      { channel: 'teams', status: 'failed', timestamp: '2026-06-29T15:40:02', error: 'Invalid connector credentials (401)' },
+      { channel: 'teams', status: 'failed', timestamp: '2026-06-29T15:40:02', error: 'Connector temporarily unavailable' },
       { channel: 'email', status: 'delivered', timestamp: '2026-06-29T15:40:08' },
     ],
     finalStatus: 'delivered',
+    preview:
+      'The offer for the Frontend Engineer requisition (REQ-114) is ready for your approval. Compensation details are in the attached summary.',
   },
   {
     id: 'DLV-9010',
@@ -411,11 +462,168 @@ export const seedDeliveries: DeliveryRecord[] = [
     recipientType: 'user',
     tenant: 'Northwind Retail Co.',
     templateVersion: 'Overdue Task v1',
+    model: 'event-driven',
     createdAt: '2026-07-01T08:00:00',
     attempts: [
       { channel: 'in-app', status: 'delivered', timestamp: '2026-07-01T08:00:01' },
       { channel: 'email', status: 'pending', timestamp: '2026-07-01T08:00:01' },
     ],
     finalStatus: 'in progress',
+    preview:
+      'Hi Yuki, your self-appraisal for the H1 review cycle passed its due date (30 Jun) and is now overdue. Submit it to keep the cycle on track.',
+  },
+  {
+    id: 'DLV-9011',
+    eventType: 'escalation',
+    subject: 'Escalation: purchase approval PA-2087 unattended',
+    recipient: 'dana.whitfield@satellitehr.com',
+    recipientType: 'user',
+    tenant: 'Northwind Retail Co.',
+    templateVersion: 'Escalation Alert v2',
+    model: 'event-driven',
+    createdAt: '2026-07-03T10:12:00',
+    attempts: [
+      { channel: 'teams', status: 'failed', timestamp: '2026-07-03T10:12:02', error: 'Teams unreachable' },
+      { channel: 'teams', status: 'failed', timestamp: '2026-07-03T10:17:02', error: 'Teams unreachable — retry 2 failed' },
+      { channel: 'email', status: 'delivered', timestamp: '2026-07-03T10:18:10' },
+    ],
+    finalStatus: 'sent via fallback',
+    preview:
+      'Purchase approval PA-2087 has been unattended for 3 days and escalated to you as the next approver in the chain.',
+    timeline: [
+      'Attempt 1 failed (Teams unreachable)',
+      'Retry in 5 min',
+      'Attempt 2 failed',
+      'Fallback: delivered via email',
+    ],
+  },
+  {
+    id: 'DLV-9012',
+    eventType: 'reminder',
+    subject: 'Timesheet submission due tomorrow',
+    recipient: 'priya.nair (WhatsApp +1 415 ••• 0182)',
+    recipientType: 'user',
+    tenant: 'Northwind Retail Co.',
+    templateVersion: 'Timesheet Reminder v2',
+    model: 'event-driven',
+    createdAt: '2026-07-09T09:00:00',
+    attempts: [
+      { channel: 'whatsapp', status: 'retrying', timestamp: '2026-07-09T09:01:10', error: 'Provider rate limited — retry 1/3 (next attempt in 5 min)' },
+      { channel: 'in-app', status: 'delivered', timestamp: '2026-07-09T09:00:01' },
+    ],
+    finalStatus: 'retrying',
+    preview:
+      'Reminder: your weekly timesheet for 06–12 Jul is due for submission by end of day tomorrow.',
+  },
+  {
+    id: 'DLV-9013',
+    eventType: 'announcement',
+    subject: 'Policy update: revised travel policy',
+    recipient: 'liam.patel@satellitehr.com',
+    recipientType: 'user',
+    tenant: 'Northwind Retail Co.',
+    templateVersion: 'Announcement Alert v4',
+    model: 'event-driven',
+    createdAt: '2026-07-08T15:30:00',
+    attempts: [
+      { channel: 'email', status: 'failed', timestamp: '2026-07-08T15:30:04', error: 'Recipient mailbox full (552)' },
+    ],
+    finalStatus: 'failed',
+    preview:
+      'The travel policy was revised on 08 Jul: updated per-diem limits and a new pre-approval threshold for international travel.',
+  },
+  {
+    id: 'DLV-9014',
+    eventType: 'announcement',
+    subject: 'Cafeteria menu for next week',
+    recipient: 'theo.brooks@satellitehr.com',
+    recipientType: 'user',
+    tenant: 'Northwind Retail Co.',
+    templateVersion: 'Announcement Alert v4',
+    model: 'event-driven',
+    createdAt: '2026-07-11T22:30:00',
+    attempts: [
+      { channel: 'in-app', status: 'pending', timestamp: '2026-07-11T22:30:01' },
+      { channel: 'email', status: 'pending', timestamp: '2026-07-11T22:30:01' },
+    ],
+    finalStatus: 'held',
+    note: 'Held — quiet hours (delivers 07:00)',
+    preview:
+      'Next week’s cafeteria menu is out — including the new vegetarian counter starting Monday.',
+    timeline: [
+      'Generated 22:30 — inside the recipient’s quiet hours (22:00–07:00)',
+      'Non-critical alert: held by the engine',
+      'Scheduled to deliver at 07:00',
+    ],
+  },
+  {
+    id: 'DLV-9015',
+    eventType: 'escalation',
+    subject: 'Critical: payroll cutoff approval needed tonight',
+    recipient: 'dana.whitfield@satellitehr.com',
+    recipientType: 'user',
+    tenant: 'Northwind Retail Co.',
+    templateVersion: 'Escalation Alert v2',
+    model: 'event-driven',
+    createdAt: '2026-07-11T23:05:00',
+    attempts: [
+      { channel: 'email', status: 'delivered', timestamp: '2026-07-11T23:05:04' },
+      { channel: 'in-app', status: 'delivered', timestamp: '2026-07-11T23:05:01' },
+    ],
+    finalStatus: 'delivered',
+    note: 'Critical alert — quiet hours overridden',
+    preview:
+      'Payroll batch PB-0712 needs sign-off before the 06:00 bank cutoff. Approve or reject tonight to avoid a payment delay.',
+    timeline: [
+      'Generated 23:05 — inside the recipient’s quiet hours (22:00–07:00)',
+      'Critical alert: quiet hours overridden by policy',
+      'Delivered via email and in-app immediately',
+    ],
+  },
+  {
+    id: 'DLV-9016',
+    eventType: 'digest',
+    subject: 'Weekly manager digest — week of 06 Jul',
+    recipient: 'dana.whitfield@satellitehr.com',
+    recipientType: 'user',
+    tenant: 'Northwind Retail Co.',
+    templateVersion: 'Weekly Manager Digest v1',
+    model: 'scheduled',
+    createdAt: '2026-07-06T08:00:00',
+    attempts: [
+      { channel: 'email', status: 'delivered', timestamp: '2026-07-06T08:00:09' },
+    ],
+    finalStatus: 'delivered',
+    preview:
+      'Your team last week: 3 approvals completed, 1 escalation resolved, 2 leave requests upcoming, and 1 overdue task.',
+  },
+]
+
+/** Scheduler-driven digests waiting for their next run (NTF-09). */
+export interface DigestQueueItem {
+  id: string
+  name: string
+  cadence: string
+  nextRunAt: string
+  recipients: string
+  contents: string
+}
+
+export const seedDigestQueue: DigestQueueItem[] = [
+  {
+    id: 'DGQ-01',
+    name: 'Daily summary',
+    cadence: 'Daily at 07:00',
+    nextRunAt: '2026-07-13T07:00:00',
+    recipients: 'All employees subscribed to daily digests',
+    contents: 'Non-critical updates from the past day, consolidated per person',
+  },
+  {
+    id: 'DGQ-02',
+    name: 'Weekly manager digest',
+    cadence: 'Mondays at 08:00',
+    nextRunAt: '2026-07-13T08:00:00',
+    recipients: 'Reporting managers',
+    contents: 'Team approvals, leave, attendance exceptions and overdue tasks',
   },
 ]

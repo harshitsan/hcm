@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
@@ -37,6 +38,8 @@ import {
 import {
   PERMISSION_FUNCTIONS,
   ROLE_STATUSES,
+  canHoldCompensationPermissions,
+  isCompensationPermission,
   type RoleDef,
 } from '../data/roles'
 import { type RoleDraft } from '../hooks/use-roles'
@@ -122,11 +125,25 @@ export function RoleOverlay({
   }, [open, role, form])
 
   const scopeLevel = form.watch('scopeLevel')
+  const roleName = form.watch('name')
   const levels = allowedScopeLevels(actorRole)
   const groupIds = authorizedGroupIds(actorRole)
   const companyIds = authorizedCompanyIds(actorRole)
+  const allowCompensation = canHoldCompensationPermissions(
+    roleName,
+    scopeLevel
+  )
 
   function handleSubmit(values: RoleFormValues) {
+    if (
+      values.permissions.some(isCompensationPermission) &&
+      !canHoldCompensationPermissions(values.name, values.scopeLevel)
+    ) {
+      toast.error(
+        'Not saved — compensation permissions can only be granted to HR Admin, Finance & Compliance Viewer, or platform/portfolio roles (Phase 1 policy).'
+      )
+      return
+    }
     const ok = onSubmit({
       ...values,
       scopeEntityId:
@@ -259,26 +276,40 @@ export function RoleOverlay({
                       Function permissions (cascade only within the scope)
                     </FormLabel>
                     <div className='grid grid-cols-1 gap-2 rounded-[6px] border border-gray-200 p-3'>
-                      {PERMISSION_FUNCTIONS.map((perm) => (
-                        <label
-                          key={perm}
-                          className='flex items-center gap-2 text-sm'
-                        >
-                          <Checkbox
-                            variant='blue'
-                            checked={field.value.includes(perm)}
-                            onCheckedChange={(checked) =>
-                              field.onChange(
-                                checked
-                                  ? [...field.value, perm]
-                                  : field.value.filter((p) => p !== perm)
-                              )
-                            }
-                          />
-                          {perm}
-                        </label>
-                      ))}
+                      {PERMISSION_FUNCTIONS.map((perm) => {
+                        const locked =
+                          isCompensationPermission(perm) && !allowCompensation
+                        return (
+                          <label
+                            key={perm}
+                            className={`flex items-center gap-2 text-sm ${
+                              locked ? 'text-neutral-1000 opacity-60' : ''
+                            }`}
+                          >
+                            <Checkbox
+                              variant='blue'
+                              disabled={locked}
+                              checked={field.value.includes(perm)}
+                              onCheckedChange={(checked) =>
+                                field.onChange(
+                                  checked
+                                    ? [...field.value, perm]
+                                    : field.value.filter((p) => p !== perm)
+                                )
+                              }
+                            />
+                            {perm}
+                          </label>
+                        )
+                      })}
                     </div>
+                    {!allowCompensation && (
+                      <p className='text-neutral-1000 text-xs'>
+                        Compensation permissions can only be granted to HR
+                        Admin, Finance &amp; Compliance Viewer, or
+                        platform/portfolio roles (Phase 1 policy).
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

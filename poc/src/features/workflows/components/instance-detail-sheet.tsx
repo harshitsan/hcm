@@ -3,7 +3,11 @@ import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import { Separator } from '@/components/ui/separator'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import type { AuditEvent } from '../data/audit'
-import type { ApprovalDecision, WorkflowInstance } from '../data/instances'
+import type {
+  ApprovalDecision,
+  ApprovalTask,
+  WorkflowInstance,
+} from '../data/instances'
 import { ESCALATION_LABELS } from '../data/shared'
 import { InstanceStatusBadge, PatternBadge, StageStatusBadge } from './badges'
 
@@ -23,20 +27,90 @@ const DECISION_BADGE: Record<
  * and per-approver decisions, the bound definition version, and the complete
  * chronological audit history for the request (WFE-12).
  */
+interface TimelineEntry {
+  key: string
+  at: string
+  label: string
+  tone: 'neutral' | 'reminder' | 'escalation'
+}
+
+/**
+ * SLA timeline for a request (F6): assignment, the 50% / 75% reminders that
+ * have fired, escalations at 100% and final decisions — derived from the live
+ * engine tasks so it advances with the SLA clock.
+ */
+function buildTimeline(
+  instance: WorkflowInstance,
+  tasks: ApprovalTask[]
+): TimelineEntry[] {
+  const entries: TimelineEntry[] = []
+  const mine = tasks
+    .filter((t) => t.instanceId === instance.id)
+    .sort((a, b) => a.assignedAt.localeCompare(b.assignedAt))
+  for (const t of mine) {
+    const stage = instance.stages.find((s) => s.id === t.stageId)
+    const strategy = stage ? ESCALATION_LABELS[stage.escalation] : 'escalation'
+    entries.push({
+      key: `${t.id}-assigned`,
+      at: t.assignedAt,
+      label: `Assigned to ${t.approver} — ${t.stageName}${
+        t.escalatedFrom ? ` (taken over from ${t.escalatedFrom})` : ''
+      }`,
+      tone: 'neutral',
+    })
+    for (const th of [50, 75]) {
+      if (t.slaPercent >= th) {
+        entries.push({
+          key: `${t.id}-remind-${th}`,
+          at: t.assignedAt,
+          label: `Reminder sent to ${t.approver} at ${th}% of the ${t.slaHours}-hour SLA`,
+          tone: 'reminder',
+        })
+      }
+    }
+    if (t.status === 'escalated' || t.slaPercent >= 100) {
+      entries.push({
+        key: `${t.id}-escalated`,
+        at: t.decidedAt ?? t.assignedAt,
+        label: `SLA reached 100% — escalated away from ${t.approver} (${strategy})`,
+        tone: 'escalation',
+      })
+    }
+    if ((t.status === 'approved' || t.status === 'rejected') && t.decidedAt) {
+      entries.push({
+        key: `${t.id}-decided`,
+        at: t.decidedAt,
+        label: `${t.status === 'approved' ? 'Approved' : 'Rejected'} by ${t.approver}`,
+        tone: 'neutral',
+      })
+    }
+  }
+  return entries
+}
+
+const TIMELINE_DOT: Record<TimelineEntry['tone'], string> = {
+  neutral: 'bg-gray-400',
+  reminder: 'bg-amber-500',
+  escalation: 'bg-red-500',
+}
+
 export function InstanceDetailSheet({
   instance,
   events,
+  tasks = [],
   open,
   onOpenChange,
 }: {
   instance: WorkflowInstance | null
   events: AuditEvent[]
+  tasks?: ApprovalTask[]
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
   const history = instance
     ? events.filter((e) => e.refId === instance.id)
     : []
+  const timeline = instance ? buildTimeline(instance, tasks) : []
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -134,6 +208,39 @@ export function InstanceDetailSheet({
                   </div>
                 ))}
               </div>
+            </div>
+
+            <Separator />
+
+            <div>
+              <h3 className='text-neutral-1600 mb-2 text-sm font-semibold'>
+                Timeline
+              </h3>
+              {timeline.length === 0 ? (
+                <p className='text-neutral-1000 text-sm'>
+                  No reminders or escalations yet for this request.
+                </p>
+              ) : (
+                <div className='space-y-1.5'>
+                  {timeline.map((entry) => (
+                    <div
+                      key={entry.key}
+                      className='flex items-start gap-2 text-sm'
+                    >
+                      <span
+                        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TIMELINE_DOT[entry.tone]}`}
+                        aria-hidden
+                      />
+                      <div className='flex min-w-0 flex-1 items-baseline justify-between gap-2'>
+                        <span className='text-neutral-1900'>{entry.label}</span>
+                        <span className='text-neutral-1000 shrink-0 text-xs'>
+                          {entry.at}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <Separator />

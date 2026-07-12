@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowsIn,
@@ -31,12 +37,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  activeDelegationsInvolving,
+  getDelegations,
+  subscribeDelegations,
+} from '@/features/roles-security/data/delegations'
 import { type Employee } from '../data/directory'
+import { takeOrgChartFocus } from '../data/org-focus'
 import { type DirectoryStore } from '../hooks/use-directory'
 import { type DirectoryConfigStore } from '../hooks/use-directory-config'
 import { managerAsOf, renderManagerId, scopedCompanies } from '../utils/org'
 import { NonUserBadge } from './directory-badges'
-import { OrgNodeDetail } from './org-node-detail'
+import { OrgNodeDetail, type DelegationNote } from './org-node-detail'
 
 type ChartView = 'tree' | 'department'
 
@@ -59,10 +71,21 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
   const { role } = useRole()
   const companies = useMemo(() => scopedCompanies(role), [role])
 
-  const [companyId, setCompanyId] = useState(companies[0]?.id ?? '')
+  // One-shot focus request (e.g. "View in org chart" on a delegation row):
+  // opens the chart on that employee's company with their node selected.
+  const [focusEmployee] = useState<Employee | null>(() => {
+    const id = takeOrgChartFocus()
+    return id ? (store.employeeById.get(id) ?? null) : null
+  })
+
+  const [companyId, setCompanyId] = useState(
+    focusEmployee?.companyId ?? companies[0]?.id ?? ''
+  )
   const [view, setView] = useState<ChartView>('tree')
   const [asOf, setAsOf] = useState(TODAY)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(
+    focusEmployee?.id ?? null
+  )
   const [zoom, setZoom] = useState(1)
   const [departmentFilter, setDepartmentFilter] = useState('all')
   const [translate, setTranslate] = useState({ x: 400, y: 72 })
@@ -351,6 +374,24 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
     : null
   const selectedReports = selected ? childrenOf(selected.id) : []
 
+  // Live delegation involvement (owner or acting delegate) for the selected
+  // person, read from the shared delegation store in Roles & Security.
+  const delegationList = useSyncExternalStore(
+    subscribeDelegations,
+    getDelegations
+  )
+  const selectedDelegations: DelegationNote[] = selected
+    ? activeDelegationsInvolving(selected.id, delegationList).map((d) => ({
+        id: d.id,
+        kind: d.ownerId === selected.id ? 'owner' : 'delegate',
+        counterpartName:
+          store.employeeById.get(
+            d.ownerId === selected.id ? d.delegateId : d.ownerId
+          )?.name ?? 'a colleague',
+        endDate: d.endDate,
+      }))
+    : []
+
   return (
     <>
     <div className='grid gap-4 lg:grid-cols-[1.5fr_1fr]'>
@@ -552,6 +593,7 @@ export function OrgChartTab({ store, config }: OrgChartTabProps) {
         employee={selected}
         manager={selectedManager}
         reports={selectedReports}
+        delegations={selectedDelegations}
         role={role}
         config={config.privacyConfig}
         customFields={config.customFields}

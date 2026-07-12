@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useRole } from '@/context/role-context'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { DirectorySummary } from './components/directory-summary'
@@ -75,7 +76,11 @@ export function DirectoryOrgChart() {
           />
 
           {/* Remount when the role changes so the default tab stays valid. */}
-          <Tabs key={role} defaultValue='directory' className='w-full'>
+          <Tabs
+            key={role}
+            defaultValue={takeRequestedTab('/directory') ?? 'directory'}
+            className='w-full'
+          >
             <TabsList className='mb-2 bg-transparent p-0 h-auto justify-start gap-2 rounded-none'>
               {tabs.map((tab) => (
                 <TabsTrigger

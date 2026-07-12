@@ -17,11 +17,18 @@ export function DistributionSummary({
     const acked = active.filter((a) => a.status === 'Acknowledged').length
     const pending = active.filter((a) => a.status === 'Pending').length
     const overdue = active.filter((a) => a.status === 'Overdue').length
+    // Open re-acknowledgment asks — anything not part of an initial send.
+    const pendingReAck = active.filter(
+      (a) =>
+        a.trigger !== 'Initial' &&
+        (a.status === 'Pending' || a.status === 'Overdue')
+    ).length
     return [
       { label: 'Distributions', value: distributions.length },
       { label: 'Acknowledged', value: acked },
       { label: 'Pending', value: pending },
       { label: 'Overdue', value: overdue },
+      { label: 'Awaiting re-acknowledgment', value: pendingReAck },
     ]
   }, [distributions, assignments])
 
@@ -33,7 +40,7 @@ export function DistributionSummary({
         </CardTitle>
       </CardHeader>
       <CardContent className='p-0 pt-0'>
-        <div className='grid grid-cols-2 gap-3 lg:grid-cols-4'>
+        <div className='grid grid-cols-2 gap-3 lg:grid-cols-5'>
           {items.map((item) => (
             <div
               key={item.label}

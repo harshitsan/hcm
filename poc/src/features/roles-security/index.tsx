@@ -19,6 +19,7 @@ import { RolesTab } from './components/roles-tab'
 import { ScopeTab } from './components/scope-tab'
 import { SecuritySummary } from './components/security-summary'
 import { assignmentStatusOn } from './data/assignments'
+import { delegationEffectiveStatus } from './data/delegations'
 import { companyName } from './data/directory'
 import { useAssignments } from './hooks/use-assignments'
 import { useCompanyContext } from './hooks/use-company-context'
@@ -165,8 +166,9 @@ export function RolesSecurity() {
     },
     {
       label: 'Active delegations',
-      value: delegations.delegations.filter((d) => d.status === 'Active')
-        .length,
+      value: delegations.delegations.filter(
+        (d) => delegationEffectiveStatus(d, today) === 'Active'
+      ).length,
     },
     { label: 'Security events', value: audit.events.length },
   ]

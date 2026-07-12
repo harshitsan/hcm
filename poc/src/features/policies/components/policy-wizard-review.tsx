@@ -1,5 +1,6 @@
 import { FileText, Paperclip } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   FormControl,
   FormField,
@@ -127,6 +128,34 @@ export function DatingStep({
           </FormItem>
         )}
       />
+      <FormField
+        control={form.control}
+        name='regulatoryUpdate'
+        render={({ field }) => (
+          <FormItem>
+            <div className='border-gray-200 flex items-start gap-2 rounded-[6px] border p-3'>
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={(v) => field.onChange(v === true)}
+                  variant='blue'
+                />
+              </FormControl>
+              <div>
+                <FormLabel className='text-neutral-1600 text-sm font-medium'>
+                  Mark as regulatory update
+                </FormLabel>
+                <p className='text-paragraph-sm text-neutral-1000'>
+                  Use this when the change is driven by a law or regulation.
+                  On publish, employees are asked to re-acknowledge as a
+                  priority with a shorter deadline.
+                </p>
+              </div>
+            </div>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
       <div className='space-y-1.5'>
         <p className='text-neutral-1600 text-sm font-medium'>
           Policy document file (PDF / DOCX, max 5 MB)
@@ -180,6 +209,12 @@ export function ReviewStep({ values, attachment, nextVersionNumber }: ReviewStep
       values.linkedModules.length > 0 ? values.linkedModules.join(', ') : 'None',
     ],
     ['Document', attachment ? attachment.fileName : 'No file attached'],
+    [
+      'Regulatory update',
+      values.regulatoryUpdate
+        ? 'Yes — priority re-acknowledgment on publish'
+        : 'No',
+    ],
   ]
   return (
     <div className='space-y-3'>

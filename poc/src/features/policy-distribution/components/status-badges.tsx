@@ -2,6 +2,7 @@ import { Badge } from '@/components/ui/badge'
 import { type AckType, type Criticality } from '../data/policies'
 import {
   type AssignmentStatus,
+  type AssignmentTrigger,
   type DistributionStatus,
 } from '../data/distributions'
 
@@ -43,6 +44,31 @@ export function DistributionStatusBadge({
     <Badge variant={distStatusVariant[status]}>
       {status === 'Armed' ? 'Event-armed' : status}
     </Badge>
+  )
+}
+
+const triggerVariant: Record<AssignmentTrigger, BadgeVariant> = {
+  Initial: 'pending',
+  'Content change': 'open',
+  'Periodic renewal': 'open',
+  Transfer: 'open',
+  'Role change': 'open',
+  'Regulatory update': 'overdue',
+}
+
+/** Why the ask went out; regulatory updates carry a priority chip. */
+export function TriggerBadge({
+  trigger,
+  priority,
+}: {
+  trigger: AssignmentTrigger
+  priority?: boolean
+}) {
+  return (
+    <span className='inline-flex items-center gap-1'>
+      <Badge variant={triggerVariant[trigger]}>{trigger}</Badge>
+      {priority && <Badge variant='overlay_overdue'>Priority</Badge>}
+    </span>
   )
 }
 

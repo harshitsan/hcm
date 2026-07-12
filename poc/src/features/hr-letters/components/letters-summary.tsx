@@ -20,8 +20,9 @@ export function LettersSummary({ documents }: LettersSummaryProps) {
 
     return [
       { label: 'Total documents', value: documents.length },
+      { label: 'Drafts', value: by('draft') },
       { label: 'Pending approval', value: by('pending-approval') },
-      { label: 'Distributed', value: by('distributed') },
+      { label: 'Issued', value: by('issued') },
       { label: 'Delivery failures', value: failedDeliveries },
       { label: 'Acknowledgments due', value: pendingAcks },
     ]

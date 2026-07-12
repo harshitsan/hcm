@@ -27,7 +27,8 @@ export function ChannelsTab({ settings, runDigest }: ChannelsTabProps) {
       />
       <ConnectorsCard
         connectors={settings.connectors}
-        saveConnector={settings.saveConnector}
+        connectConnector={settings.connectConnector}
+        disconnectConnector={settings.disconnectConnector}
         testConnector={settings.testConnector}
       />
       <DeliveryModelsCard

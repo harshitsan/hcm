@@ -1,10 +1,15 @@
 import { useState } from 'react'
-import { ClockCounterClockwise, PencilSimple, Plus } from 'phosphor-react'
+import {
+  ClockCounterClockwise,
+  LockSimple,
+  PencilSimple,
+  Plus,
+} from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DataTable } from '@/components/common/data-table/table'
 import { RoleGate } from '@/context/role-context'
-import { type RoleDef } from '../data/roles'
+import { COMPENSATION_PERMISSIONS, type RoleDef } from '../data/roles'
 import { type RolesStore } from '../hooks/use-roles'
 import { ProjectRolesPanel } from './project-roles-panel'
 import { roleColumns } from './role-columns'
@@ -43,6 +48,42 @@ export function RolesTab({ store }: { store: RolesStore }) {
 
   return (
     <div className='w-full space-y-4'>
+      {/* Compensation visibility policy (Phase 1) — computed live */}
+      <div className='rounded-[8px] border border-gray-200 bg-white p-4'>
+        <div className='mb-2 flex items-center gap-2'>
+          <LockSimple size={16} weight='bold' className='text-orange-1200' />
+          <h3 className='text-neutral-1600 text-sm font-medium'>
+            Compensation visibility policy
+          </h3>
+        </div>
+        <p className='text-neutral-1000 mb-3 text-xs'>
+          Salary, tax and payroll report data can only be seen by the HR
+          Admin and Finance &amp; Compliance Viewer roles, or by
+          platform/portfolio-level roles. Other roles cannot be granted these
+          permissions (Phase 1 policy).
+        </p>
+        <div className='grid grid-cols-1 gap-2 sm:grid-cols-3'>
+          {COMPENSATION_PERMISSIONS.map((perm) => {
+            const holders = store.roles.filter((r) =>
+              r.permissions.includes(perm)
+            )
+            return (
+              <div
+                key={perm}
+                className='rounded-[6px] border border-gray-200 px-3 py-2'
+              >
+                <p className='text-neutral-1600 text-xs font-medium'>{perm}</p>
+                <p className='text-neutral-1000 text-xs'>
+                  {holders.length > 0
+                    ? holders.map((r) => r.name).join(', ')
+                    : 'No role currently holds this permission'}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       <div className='flex items-center justify-between'>
         <div className='flex items-center gap-2'>
           <h2 className='text-neutral-1600 text-paragraph-md font-medium'>

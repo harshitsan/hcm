@@ -16,8 +16,46 @@ export const PERMISSION_FUNCTIONS = [
   'Manage roles & security',
   'View reports',
   'Manage organization setup',
+  'View salary data',
+  'View tax data',
+  'View payroll reports',
 ] as const
 export type PermissionFunction = (typeof PERMISSION_FUNCTIONS)[number]
+
+/**
+ * Compensation-visibility rule (Phase 1 policy): salary, tax and payroll
+ * report data may only be granted to the HR Admin and Finance & Compliance
+ * Viewer roles, or to platform/portfolio-scoped roles.
+ */
+export const COMPENSATION_PERMISSIONS = [
+  'View salary data',
+  'View tax data',
+  'View payroll reports',
+] as const satisfies readonly PermissionFunction[]
+
+const COMPENSATION_PERMISSION_SET = new Set<PermissionFunction>(
+  COMPENSATION_PERMISSIONS
+)
+
+export function isCompensationPermission(
+  permission: PermissionFunction
+): boolean {
+  return COMPENSATION_PERMISSION_SET.has(permission)
+}
+
+const COMPENSATION_ELIGIBLE_ROLE_NAMES = [
+  'hr admin',
+  'finance & compliance viewer',
+]
+
+/** Whether a role may hold any of the three compensation permissions. */
+export function canHoldCompensationPermissions(
+  name: string,
+  scopeLevel: HierarchyLevel
+): boolean {
+  if (scopeLevel === 'Platform' || scopeLevel === 'Portfolio') return true
+  return COMPENSATION_ELIGIBLE_ROLE_NAMES.includes(name.trim().toLowerCase())
+}
 
 export const ROLE_STATUSES = ['Published', 'Draft'] as const
 export type RoleStatus = (typeof ROLE_STATUSES)[number]
@@ -234,6 +272,48 @@ export const seedRoles: RoleDef[] = [
     version: 1,
     effectiveFrom: '2026-08-01',
     status: 'Draft',
+    history: [],
+  },
+  {
+    id: 'role-11',
+    name: 'HR Admin',
+    description:
+      'HR administration for Aurora Software with access to salary and tax data',
+    isAdmin: true,
+    scopeLevel: 'Company',
+    scopeEntityId: 'co-1',
+    permissions: [
+      'View employee records',
+      'Edit employee records',
+      'View reports',
+      'View salary data',
+      'View tax data',
+      'View payroll reports',
+    ],
+    screenIds: ['scr-07', 'scr-08', 'scr-09', 'scr-16', 'scr-17'],
+    version: 1,
+    effectiveFrom: '2026-05-01',
+    status: 'Published',
+    history: [],
+  },
+  {
+    id: 'role-12',
+    name: 'Finance & Compliance Viewer',
+    description:
+      'Read-only compensation visibility for Aurora Software finance and compliance staff',
+    isAdmin: false,
+    scopeLevel: 'Company',
+    scopeEntityId: 'co-1',
+    permissions: [
+      'View reports',
+      'View salary data',
+      'View tax data',
+      'View payroll reports',
+    ],
+    screenIds: ['scr-04', 'scr-16', 'scr-17'],
+    version: 1,
+    effectiveFrom: '2026-05-01',
+    status: 'Published',
     history: [],
   },
 ]

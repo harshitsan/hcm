@@ -1,10 +1,6 @@
 import { toast } from 'sonner'
+import { downloadFile, toCsv } from '../data/files'
 import { type DataJob, type RecordResult } from '../data/jobs'
-
-function csvCell(value: string | number): string {
-  const s = String(value)
-  return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
-}
 
 /**
  * Builds and downloads the record-level error report for a job as a real
@@ -37,21 +33,44 @@ export function downloadErrorReportCsv(job: DataJob) {
     return
   }
 
-  const header = ['Job Id', 'Row', 'Record Key', 'Entity', 'Outcome', 'Reason']
-  const lines = rows.map((r) =>
-    [job.id, r.row, r.key, job.entity, r.outcome, r.reason ?? '']
-      .map(csvCell)
-      .join(',')
+  const csv = toCsv(
+    ['Job Id', 'Row', 'Record Key', 'Entity', 'Outcome', 'Reason'],
+    rows.map((r) => [job.id, r.row, r.key, job.entity, r.outcome, r.reason ?? ''])
   )
-  const csv = [header.join(','), ...lines].join('\n')
-
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `${job.id.toLowerCase()}-error-report.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadFile(`${job.id.toLowerCase()}-error-report.csv`, csv, 'text/csv')
   toast.success(
     `Error report for ${job.id} downloaded — ${rows.length} record${rows.length === 1 ? '' : 's'} (CSV)`
+  )
+}
+
+/**
+ * Downloads the record-level results of a sandbox validation run as a real
+ * CSV, before anything is committed (row, record key, result, message).
+ */
+export function downloadValidationReportCsv(
+  entity: string,
+  records: RecordResult[]
+) {
+  if (records.length === 0) {
+    toast.info('Run validation first — there are no results to download yet')
+    return
+  }
+  const label: Record<RecordResult['outcome'], string> = {
+    success: 'OK',
+    warning: 'Warning',
+    failed: 'Error',
+    skipped: 'Skipped',
+  }
+  const csv = toCsv(
+    ['Row', 'Record Key', 'Result', 'Message'],
+    records.map((r) => [r.row, r.key, label[r.outcome], r.reason ?? ''])
+  )
+  downloadFile(
+    `${entity.toLowerCase().replace(/\s+/g, '-')}-validation-report.csv`,
+    csv,
+    'text/csv'
+  )
+  toast.success(
+    `Validation report downloaded — ${records.length} record${records.length === 1 ? '' : 's'} (CSV)`
   )
 }

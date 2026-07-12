@@ -1,21 +1,45 @@
 /**
  * HR Letters & Certificates — canonical types + seed data.
- * Covers the eight standard HR document types (HLC-01), agreement letters
- * (HLC-28), merge fields (HLC-02), template versioning (HLC-18), and the
- * generated-document lifecycle with versions, distribution tracking, and an
- * immutable audit trail (HLC-03..HLC-11, HLC-17).
+ * Covers the 18 standard Kensium template types across four categories
+ * (Letters / Certificates / Offers & joining / Email templates), agreement
+ * letters (HLC-28), merge fields (HLC-02), template versioning (HLC-18), and
+ * the generated-letter lifecycle: Draft → Pending approval → Approved →
+ * Issued, with signing-authority tracking, reissue as a linked record,
+ * distribution tracking, 7-year retention, and an immutable audit trail.
  */
 
-export const HR_DOC_TYPES = [
+export const LETTER_TYPES = [
   'Appointment Letter',
   'Confirmation Letter',
   'Transfer Letter',
   'Promotion Letter',
   'Relieving Letter',
+] as const
+
+export const CERTIFICATE_TYPES = [
   'Experience Certificate',
   'Address Proof',
   'Employment Verification',
 ] as const
+
+export const OFFER_JOINING_TYPES = [
+  'Offer Letter',
+  'Joining Letter',
+  'Appointment Order',
+] as const
+
+export const EMAIL_DOC_TYPES = [
+  'Interview Invite Email',
+  'Offer Email',
+  'Onboarding Welcome Email',
+  'Probation Reminder Email',
+  'Exit Acknowledgement Email',
+  'Birthday & Anniversary Greeting',
+  'Policy Update Notice',
+] as const
+
+/** The original eight letter/certificate types (HLC-01). */
+export const HR_DOC_TYPES = [...LETTER_TYPES, ...CERTIFICATE_TYPES] as const
 export type HrDocType = (typeof HR_DOC_TYPES)[number]
 
 export const AGREEMENT_TYPES = [
@@ -24,8 +48,36 @@ export const AGREEMENT_TYPES = [
 ] as const
 export type AgreementType = (typeof AGREEMENT_TYPES)[number]
 
-export const ALL_DOC_KINDS = [...HR_DOC_TYPES, ...AGREEMENT_TYPES] as const
-export type DocKind = HrDocType | AgreementType
+export const ALL_DOC_KINDS = [
+  ...LETTER_TYPES,
+  ...CERTIFICATE_TYPES,
+  ...OFFER_JOINING_TYPES,
+  ...EMAIL_DOC_TYPES,
+  ...AGREEMENT_TYPES,
+] as const
+export type DocKind = (typeof ALL_DOC_KINDS)[number]
+
+/* ------------------------- Template categories ------------------------- */
+
+export const TEMPLATE_CATEGORIES = [
+  'Letters',
+  'Certificates',
+  'Offers & joining',
+  'Email templates',
+] as const
+export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number]
+
+/** Which of the four catalog categories a document type belongs to. */
+export function categoryOfDocType(docType: DocKind): TemplateCategory {
+  if ((CERTIFICATE_TYPES as readonly string[]).includes(docType))
+    return 'Certificates'
+  if ((OFFER_JOINING_TYPES as readonly string[]).includes(docType))
+    return 'Offers & joining'
+  if ((EMAIL_DOC_TYPES as readonly string[]).includes(docType))
+    return 'Email templates'
+  // Standard letters and agreement letters both sit under Letters.
+  return 'Letters'
+}
 
 export const WORKFLOW_EVENTS = [
   'Hire',
@@ -33,16 +85,18 @@ export const WORKFLOW_EVENTS = [
   'Transfer',
   'Promotion',
   'Relieving',
+  'Offer accepted',
 ] as const
 export type WorkflowEvent = (typeof WORKFLOW_EVENTS)[number]
 
 /** Which document type an auto-generation workflow event produces (HLC-04). */
-export const EVENT_DOC_TYPE: Record<WorkflowEvent, HrDocType> = {
+export const EVENT_DOC_TYPE: Record<WorkflowEvent, DocKind> = {
   Hire: 'Appointment Letter',
   Confirmation: 'Confirmation Letter',
   Transfer: 'Transfer Letter',
   Promotion: 'Promotion Letter',
   Relieving: 'Relieving Letter',
+  'Offer accepted': 'Offer Letter',
 }
 
 export const SIGNING_AUTHORITIES = [
@@ -51,7 +105,20 @@ export const SIGNING_AUTHORITIES = [
   'VP People Ops — Sarah D’Souza',
 ] as const
 
+/** People authorised to sign issued letters (name + title). */
+export interface Signatory {
+  name: string
+  title: string
+}
+
+export const SIGNATORIES: Signatory[] = [
+  { name: 'Meera Krishnan', title: 'HR Head' },
+  { name: 'Rajiv Malhotra', title: 'Managing Director' },
+  { name: 'Sunita Rao', title: 'Company Secretary' },
+]
+
 export const COMPANY_NAME = 'Kensium Solutions'
+export const COMPANY_LEGAL_NAME = 'Kensium Solutions Private Limited'
 export const COMPANY_ADDRESS = 'Plot 12, HITEC City, Hyderabad 500081'
 
 export interface Employee {
@@ -65,7 +132,7 @@ export interface Employee {
   customFields: Record<string, string>
   /** Simulated bad mailbox — email dispatch fails for this person (HLC-09). */
   emailBounces?: boolean
-  /** Simulated incomplete record — batch generation reports a failure (HLC-05). */
+  /** Simulated incomplete record — position data missing, generation blocked. */
   recordIncomplete?: boolean
 }
 
@@ -75,15 +142,18 @@ export const ME_USER_ID = 'emp-3'
 export const ME_NON_USER_ID = 'emp-6'
 
 export const EMPLOYEES: Employee[] = [
-  { id: 'emp-1', name: 'Arjun Mehta', email: 'arjun.mehta@kensium.com', position: 'Senior Software Engineer', department: 'Engineering', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '60 days', grade: 'L4' } },
-  { id: 'emp-2', name: 'Priya Sharma', email: 'priya.sharma@kensium.com', position: 'HR Executive', department: 'Human Resources', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '30 days', grade: 'L2' } },
-  { id: 'emp-3', name: 'Ananya Iyer', email: 'ananya.iyer@kensium.com', position: 'Product Designer', department: 'Design', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '45 days', grade: 'L3' } },
-  { id: 'emp-4', name: 'Rohan Verma', email: 'rohan.verma@kensium.com', position: 'QA Lead', department: 'Quality', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '60 days', grade: 'L4' } },
-  { id: 'emp-5', name: 'Kavitha Reddy', email: 'kavitha.reddy@kensium.com', position: 'Finance Analyst', department: 'Finance', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '30 days', grade: 'L2' } },
-  { id: 'emp-6', name: 'Suresh Patil', email: 'suresh.patil@kensium.com', position: 'Field Technician', department: 'Operations', company: COMPANY_NAME, hasAppAccess: false, customFields: { noticePeriod: '15 days', grade: 'L1' } },
-  { id: 'emp-7', name: 'Neha Gupta', email: 'neha.gupta@kensium.com', position: 'Marketing Manager', department: 'Marketing', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '60 days', grade: 'L5' } },
+  { id: 'emp-1', name: 'Arjun Mehta', email: 'arjun.mehta@kensium.com', position: 'Senior Software Engineer', department: 'Engineering', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '60 days', grade: 'L4', bankBranch: 'HDFC Bank — HITEC City' } },
+  { id: 'emp-2', name: 'Priya Sharma', email: 'priya.sharma@kensium.com', position: 'HR Executive', department: 'Human Resources', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '30 days', grade: 'L2', bankBranch: 'ICICI Bank — Madhapur' } },
+  { id: 'emp-3', name: 'Ananya Iyer', email: 'ananya.iyer@kensium.com', position: 'Product Designer', department: 'Design', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '45 days', grade: 'L3', bankBranch: 'HDFC Bank — Gachibowli' } },
+  { id: 'emp-4', name: 'Rohan Verma', email: 'rohan.verma@kensium.com', position: 'QA Lead', department: 'Quality', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '60 days', grade: 'L4', bankBranch: 'SBI — Kondapur' } },
+  { id: 'emp-5', name: 'Kavitha Reddy', email: 'kavitha.reddy@kensium.com', position: 'Finance Analyst', department: 'Finance', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '30 days', grade: 'L2', bankBranch: 'Axis Bank — Jubilee Hills' } },
+  { id: 'emp-6', name: 'Suresh Patil', email: 'suresh.patil@kensium.com', position: 'Field Technician', department: 'Operations', company: COMPANY_NAME, hasAppAccess: false, customFields: { noticePeriod: '15 days', grade: 'L1', bankBranch: 'SBI — Ameerpet' } },
+  { id: 'emp-7', name: 'Neha Gupta', email: 'neha.gupta@kensium.com', position: 'Marketing Manager', department: 'Marketing', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '60 days', grade: 'L5', bankBranch: 'HDFC Bank — Banjara Hills' } },
+  // Vikram's record is deliberately incomplete: no position data, no grade,
+  // no bank branch — generation for him is blocked with a gap list.
   { id: 'emp-8', name: 'Vikram Singh', email: 'vikram.singh@kensium.com', position: 'DevOps Engineer', department: 'Engineering', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '60 days' }, recordIncomplete: true },
-  { id: 'emp-9', name: 'Fatima Khan', email: 'fatima.khan@kensium.com', position: 'Recruiter', department: 'Talent Acquisition', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '30 days', grade: 'L2' } },
+  { id: 'emp-9', name: 'Fatima Khan', email: 'fatima.khan@kensium.com', position: 'Recruiter', department: 'Talent Acquisition', company: COMPANY_NAME, hasAppAccess: true, customFields: { noticePeriod: '30 days', grade: 'L2', bankBranch: 'ICICI Bank — Kukatpally' } },
+  // Deepak's bank branch was never captured — letters that need it are blocked.
   { id: 'emp-10', name: 'Deepak Nair', email: 'deepak.nair@kensium.com', position: 'Warehouse Associate', department: 'Operations', company: COMPANY_NAME, hasAppAccess: false, customFields: { noticePeriod: '15 days', grade: 'L1' }, emailBounces: true },
 ]
 
@@ -98,48 +168,21 @@ export interface MergeField {
 }
 
 export const MERGE_FIELDS: MergeField[] = [
+  { token: '{{employee.fullName}}', source: 'Employee', label: 'Employee full name' },
   { token: '{{employee.name}}', source: 'Employee', label: 'Employee name' },
   { token: '{{employee.email}}', source: 'Employee', label: 'Employee email' },
   { token: '{{employee.id}}', source: 'Employee', label: 'Employee ID' },
   { token: '{{position.title}}', source: 'Position', label: 'Position title' },
   { token: '{{position.department}}', source: 'Position', label: 'Department' },
   { token: '{{company.name}}', source: 'Company', label: 'Company name' },
+  { token: '{{company.legalName}}', source: 'Company', label: 'Company legal name' },
   { token: '{{company.address}}', source: 'Company', label: 'Company address' },
+  { token: '{{letter.date}}', source: 'Company', label: 'Letter date' },
   { token: '{{custom.noticePeriod}}', source: 'Custom', label: 'Notice period (custom)' },
   { token: '{{custom.grade}}', source: 'Custom', label: 'Grade (custom)' },
+  { token: '{{custom.bankBranch}}', source: 'Custom', label: 'Bank branch (custom)' },
+  { token: '{{custom.badgeId}}', source: 'Custom', label: 'Badge ID (custom)' },
 ]
-
-export type MissingValueBehavior = 'blank' | 'flagged'
-
-/**
- * Shared render engine (HLC-19): binds each merge field to employee, position,
- * company, and custom-field data. Missing values follow the configured
- * behavior (blank or flagged) instead of leaking the raw token.
- */
-export function renderBody(
-  body: string,
-  employee: Employee,
-  behavior: MissingValueBehavior
-): string {
-  const values: Record<string, string | undefined> = {
-    '{{employee.name}}': employee.name,
-    '{{employee.email}}': employee.email,
-    '{{employee.id}}': employee.id,
-    '{{position.title}}': employee.recordIncomplete
-      ? undefined
-      : employee.position,
-    '{{position.department}}': employee.department,
-    '{{company.name}}': employee.company,
-    '{{company.address}}': COMPANY_ADDRESS,
-    '{{custom.noticePeriod}}': employee.customFields['noticePeriod'],
-    '{{custom.grade}}': employee.customFields['grade'],
-  }
-  return body.replace(/\{\{[a-zA-Z.]+\}\}/g, (token) => {
-    const value = values[token]
-    if (value) return value
-    return behavior === 'blank' ? '' : `[MISSING: ${token}]`
-  })
-}
 
 /* ------------------------------- Templates -------------------------------- */
 
@@ -163,7 +206,6 @@ export interface LetterTemplate {
   requiresApproval: boolean
   requiresAcknowledgment: boolean
   signingAuthority: string
-  missingValueBehavior: MissingValueBehavior
   currentVersion: number
   versions: TemplateVersion[]
   updatedOn: string
@@ -181,6 +223,7 @@ const v = (
 })
 
 export const seedTemplates: LetterTemplate[] = [
+  /* ------------------------------- Letters ------------------------------- */
   {
     id: 'tpl-appt',
     docType: 'Appointment Letter',
@@ -191,7 +234,6 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: true,
     requiresAcknowledgment: false,
     signingAuthority: SIGNING_AUTHORITIES[1],
-    missingValueBehavior: 'flagged',
     currentVersion: 3,
     versions: [
       v(1, '2025-04-01', 'Initial template'),
@@ -210,7 +252,6 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: true,
     requiresAcknowledgment: false,
     signingAuthority: SIGNING_AUTHORITIES[0],
-    missingValueBehavior: 'flagged',
     currentVersion: 2,
     versions: [
       v(1, '2025-05-15', 'Initial template'),
@@ -228,7 +269,6 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: true,
     requiresAcknowledgment: false,
     signingAuthority: SIGNING_AUTHORITIES[0],
-    missingValueBehavior: 'blank',
     currentVersion: 1,
     versions: [v(1, '2025-06-01', 'Initial template')],
     updatedOn: '2025-06-01',
@@ -243,7 +283,6 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: true,
     requiresAcknowledgment: false,
     signingAuthority: SIGNING_AUTHORITIES[1],
-    missingValueBehavior: 'flagged',
     currentVersion: 2,
     versions: [
       v(1, '2025-04-01', 'Initial template'),
@@ -261,11 +300,11 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: true,
     requiresAcknowledgment: false,
     signingAuthority: SIGNING_AUTHORITIES[0],
-    missingValueBehavior: 'blank',
     currentVersion: 1,
     versions: [v(1, '2025-07-10', 'Initial template')],
     updatedOn: '2025-07-10',
   },
+  /* ----------------------------- Certificates ---------------------------- */
   {
     id: 'tpl-exp',
     docType: 'Experience Certificate',
@@ -276,7 +315,6 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: false,
     requiresAcknowledgment: false,
     signingAuthority: SIGNING_AUTHORITIES[0],
-    missingValueBehavior: 'flagged',
     currentVersion: 2,
     versions: [
       v(1, '2025-04-01', 'Initial template'),
@@ -294,7 +332,6 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: false,
     requiresAcknowledgment: false,
     signingAuthority: SIGNING_AUTHORITIES[2],
-    missingValueBehavior: 'blank',
     currentVersion: 1,
     versions: [v(1, '2025-08-01', 'Initial template')],
     updatedOn: '2025-08-01',
@@ -309,11 +346,159 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: false,
     requiresAcknowledgment: false,
     signingAuthority: SIGNING_AUTHORITIES[2],
-    missingValueBehavior: 'blank',
     currentVersion: 1,
     versions: [v(1, '2025-08-01', 'Initial template')],
     updatedOn: '2025-08-01',
   },
+  /* --------------------------- Offers & joining -------------------------- */
+  {
+    id: 'tpl-offer',
+    docType: 'Offer Letter',
+    name: 'Offer of Employment',
+    body: 'Dear {{employee.fullName}},\n\nFollowing your interviews, {{company.legalName}} is delighted to offer you the position of {{position.title}} in our {{position.department}} team. Your grade will be {{custom.grade}} and your notice period {{custom.noticePeriod}}. Salary will be credited to your bank branch on record: {{custom.bankBranch}}.\n\nPlease confirm your acceptance within 7 days of this letter dated {{letter.date}}.',
+    layout: 'Modern',
+    letterhead: true,
+    requiresApproval: true,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[1],
+    currentVersion: 2,
+    versions: [
+      v(1, '2025-09-15', 'Initial template'),
+      v(2, '2026-04-20', 'Added bank branch and acceptance window'),
+    ],
+    updatedOn: '2026-04-20',
+  },
+  {
+    id: 'tpl-join',
+    docType: 'Joining Letter',
+    name: 'Joining Letter',
+    body: 'Dear {{employee.fullName}},\n\nWelcome to {{company.legalName}}. This letter confirms your joining as {{position.title}} in the {{position.department}} department at {{company.address}}. Your access badge ({{custom.badgeId}}) will be issued on your first day.',
+    layout: 'Classic',
+    letterhead: true,
+    requiresApproval: true,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 1,
+    versions: [v(1, '2025-09-15', 'Initial template')],
+    updatedOn: '2025-09-15',
+  },
+  {
+    id: 'tpl-appt-order',
+    docType: 'Appointment Order',
+    name: 'Appointment Order',
+    body: 'APPOINTMENT ORDER\n\n{{employee.fullName}} ({{employee.id}}) is hereby appointed as {{position.title}} in the {{position.department}} department of {{company.legalName}}. Grade: {{custom.grade}}. This order takes effect from the date of issue: {{letter.date}}.',
+    layout: 'Classic',
+    letterhead: true,
+    requiresApproval: true,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[1],
+    currentVersion: 1,
+    versions: [v(1, '2025-10-01', 'Initial template')],
+    updatedOn: '2025-10-01',
+  },
+  /* --------------------------- Email templates --------------------------- */
+  {
+    id: 'tpl-eml-interview',
+    docType: 'Interview Invite Email',
+    name: 'Interview Invite',
+    body: 'Dear {{employee.fullName}},\n\nYou are invited to an interview for the {{position.title}} role at {{company.name}}. Our team will meet you at {{company.address}}. Please carry a photo ID and reach 15 minutes early.',
+    layout: 'Compact',
+    letterhead: false,
+    requiresApproval: false,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 1,
+    versions: [v(1, '2025-10-05', 'Initial template')],
+    updatedOn: '2025-10-05',
+  },
+  {
+    id: 'tpl-eml-offer',
+    docType: 'Offer Email',
+    name: 'Offer Email',
+    body: 'Dear {{employee.fullName}},\n\nCongratulations! Your offer letter for the {{position.title}} position at {{company.legalName}} is attached. Kindly reply with your acceptance so we can plan your onboarding.',
+    layout: 'Compact',
+    letterhead: false,
+    requiresApproval: false,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 2,
+    versions: [
+      v(1, '2025-10-05', 'Initial template'),
+      v(2, '2026-02-02', 'Warmer congratulations wording'),
+    ],
+    updatedOn: '2026-02-02',
+  },
+  {
+    id: 'tpl-eml-welcome',
+    docType: 'Onboarding Welcome Email',
+    name: 'Onboarding Welcome',
+    body: 'Dear {{employee.fullName}},\n\nWelcome to {{company.name}}! You join the {{position.department}} team as {{position.title}}. Your access badge {{custom.badgeId}} and workstation will be ready on day one.',
+    layout: 'Compact',
+    letterhead: false,
+    requiresApproval: false,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 1,
+    versions: [v(1, '2025-10-05', 'Initial template')],
+    updatedOn: '2025-10-05',
+  },
+  {
+    id: 'tpl-eml-probation',
+    docType: 'Probation Reminder Email',
+    name: 'Probation Review Reminder',
+    body: 'Dear {{employee.fullName}},\n\nA reminder that your probation review is coming up. Your manager will share feedback on your work as {{position.title}}, {{position.department}}, and HR will confirm the outcome in writing.',
+    layout: 'Compact',
+    letterhead: false,
+    requiresApproval: false,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 1,
+    versions: [v(1, '2025-11-12', 'Initial template')],
+    updatedOn: '2025-11-12',
+  },
+  {
+    id: 'tpl-eml-exit',
+    docType: 'Exit Acknowledgement Email',
+    name: 'Exit Acknowledgement',
+    body: 'Dear {{employee.fullName}},\n\nWe acknowledge your resignation. Your notice period of {{custom.noticePeriod}} applies, and HR will guide you through the exit steps at {{company.name}}. Thank you for your contribution.',
+    layout: 'Compact',
+    letterhead: false,
+    requiresApproval: false,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 1,
+    versions: [v(1, '2025-11-12', 'Initial template')],
+    updatedOn: '2025-11-12',
+  },
+  {
+    id: 'tpl-eml-greet',
+    docType: 'Birthday & Anniversary Greeting',
+    name: 'Birthday & Anniversary Greeting',
+    body: 'Dear {{employee.fullName}},\n\nWarm wishes from everyone at {{company.name}}! Thank you for everything you do for the {{position.department}} team. Have a wonderful celebration.',
+    layout: 'Compact',
+    letterhead: false,
+    requiresApproval: false,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 1,
+    versions: [v(1, '2025-12-01', 'Initial template')],
+    updatedOn: '2025-12-01',
+  },
+  {
+    id: 'tpl-eml-policy',
+    docType: 'Policy Update Notice',
+    name: 'Policy Update Notice',
+    body: 'Dear {{employee.fullName}},\n\nAn HR policy applicable to your role ({{position.title}}) has been updated at {{company.legalName}}. Please review the updated policy in the portal and reach out to HR with questions.',
+    layout: 'Compact',
+    letterhead: false,
+    requiresApproval: false,
+    requiresAcknowledgment: false,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 1,
+    versions: [v(1, '2025-12-01', 'Initial template')],
+    updatedOn: '2025-12-01',
+  },
+  /* ------------------------------ Agreements ------------------------------ */
   {
     id: 'tpl-cert-agr',
     docType: 'Certification Agreement Letter',
@@ -324,7 +509,6 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: true,
     requiresAcknowledgment: true,
     signingAuthority: SIGNING_AUTHORITIES[1],
-    missingValueBehavior: 'flagged',
     currentVersion: 2,
     versions: [
       v(1, '2025-09-01', 'Initial agreement'),
@@ -342,7 +526,6 @@ export const seedTemplates: LetterTemplate[] = [
     requiresApproval: true,
     requiresAcknowledgment: true,
     signingAuthority: SIGNING_AUTHORITIES[0],
-    missingValueBehavior: 'flagged',
     currentVersion: 1,
     versions: [v(1, '2025-10-01', 'Initial agreement')],
     updatedOn: '2025-10-01',
@@ -352,10 +535,11 @@ export const seedTemplates: LetterTemplate[] = [
 /* --------------------------- Generated documents --------------------------- */
 
 export type DocStatus =
+  | 'draft'
   | 'pending-approval'
   | 'approved'
+  | 'issued'
   | 'rejected'
-  | 'distributed'
 
 export type Channel = 'email' | 'in-app' | 'print' | 'handover'
 export type DeliveryOutcome = 'sent' | 'delivered' | 'failed'
@@ -417,6 +601,15 @@ export interface HrDocument {
   templateId: string
   templateVersion: number
   signingAuthority: string
+  /** Who approved the letter, once approved. */
+  approvedBy: string | null
+  approvedOn: string | null
+  /** The signatory recorded at approval — shown on the signature block. */
+  signedBy: Signatory | null
+  /** Set when this letter is a reissue of an earlier one. */
+  reissueOf: string | null
+  /** Set on the original when a reissue has been created from it. */
+  reissuedAs: string | null
   requiresAcknowledgment: boolean
   acknowledgedOn: string | null
   retentionUntil: string
@@ -453,7 +646,7 @@ export const seedDocuments: HrDocument[] = [
     employeeId: 'emp-1',
     employeeName: 'Arjun Mehta',
     employeeHasAppAccess: true,
-    status: 'distributed',
+    status: 'issued',
     trigger: 'auto',
     event: 'Hire',
     generatedOn: '2026-04-06',
@@ -461,6 +654,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-appt',
     templateVersion: 3,
     signingAuthority: SIGNING_AUTHORITIES[1],
+    approvedBy: 'Lakshmi Rao (Company Admin)',
+    approvedOn: '2026-04-07',
+    signedBy: SIGNATORIES[1],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-04-06',
@@ -473,9 +671,9 @@ export const seedDocuments: HrDocument[] = [
       { id: 'dst-2', channel: 'in-app', sentOn: '2026-04-08', outcome: 'delivered', detail: 'Available in employee portal' },
     ],
     audit: [
-      audit('2026-04-06', 'Workflow engine', 'Generated', 'Auto-generated on Hire event, template v3'),
-      audit('2026-04-07', 'Lakshmi Rao', 'Approved', 'Single-step approval completed'),
-      audit('2026-04-08', 'Notification engine', 'Distributed', 'Email + in-app dispatch'),
+      audit('2026-04-06', 'Workflow engine', 'Generated', 'Generated automatically — Hire event, template v3'),
+      audit('2026-04-07', 'Lakshmi Rao', 'Approved', 'Approved — signed by Rajiv Malhotra, Managing Director'),
+      audit('2026-04-08', 'Notification engine', 'Issued', 'Email + in-app dispatch'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,
@@ -494,6 +692,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-conf',
     templateVersion: 2,
     signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: null,
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-06-24',
@@ -503,7 +706,7 @@ export const seedDocuments: HrDocument[] = [
     ],
     distributions: [],
     audit: [
-      audit('2026-06-24', 'Workflow engine', 'Generated', 'Auto-generated on Confirmation event, template v2'),
+      audit('2026-06-24', 'Workflow engine', 'Generated', 'Generated automatically — Confirmation event, template v2'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,
@@ -522,6 +725,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-promo',
     templateVersion: 2,
     signingAuthority: SIGNING_AUTHORITIES[1],
+    approvedBy: 'Meera Krishnan',
+    approvedOn: '2026-06-20',
+    signedBy: SIGNATORIES[1],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-06-18',
@@ -532,7 +740,7 @@ export const seedDocuments: HrDocument[] = [
     distributions: [],
     audit: [
       audit('2026-06-18', 'Lakshmi Rao', 'Generated', 'Manual generation, template v2'),
-      audit('2026-06-20', 'Meera Krishnan', 'Approved', 'Ready for distribution'),
+      audit('2026-06-20', 'Meera Krishnan', 'Approved', 'Approved — signed by Rajiv Malhotra, Managing Director'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,
@@ -543,7 +751,7 @@ export const seedDocuments: HrDocument[] = [
     employeeId: 'emp-2',
     employeeName: 'Priya Sharma',
     employeeHasAppAccess: true,
-    status: 'distributed',
+    status: 'issued',
     trigger: 'manual',
     event: 'On request',
     generatedOn: '2026-05-11',
@@ -551,21 +759,25 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-exp',
     templateVersion: 2,
     signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: 'Lakshmi Rao (Company Admin)',
+    approvedOn: '2026-05-11',
+    signedBy: SIGNATORIES[0],
+    reissueOf: null,
+    reissuedAs: 'hrl-1016',
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-05-11',
     rejectReason: null,
     versions: [
-      { version: 1, generatedOn: '2026-05-11', event: 'On request', templateVersion: 2, current: false },
-      { version: 2, generatedOn: '2026-05-19', event: 'Reissue — name correction', templateVersion: 2, current: true },
+      { version: 1, generatedOn: '2026-05-11', event: 'On request', templateVersion: 2, current: true },
     ],
     distributions: [
       { id: 'dst-3', channel: 'email', sentOn: '2026-05-19', outcome: 'delivered', detail: 'priya.sharma@kensium.com' },
     ],
     audit: [
       audit('2026-05-11', 'Lakshmi Rao', 'Generated', 'Manual generation, template v2'),
-      audit('2026-05-19', 'Lakshmi Rao', 'Reissued', 'Version 2 issued for name correction; v1 retained'),
-      audit('2026-05-19', 'Notification engine', 'Distributed', 'Email dispatch'),
+      audit('2026-05-19', 'Notification engine', 'Issued', 'Email dispatch'),
+      audit('2026-07-06', 'Lakshmi Rao', 'Reissued', 'Reissued as hrl-1016 for a name correction — fresh approval cycle'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,
@@ -576,7 +788,7 @@ export const seedDocuments: HrDocument[] = [
     employeeId: 'emp-3',
     employeeName: 'Ananya Iyer',
     employeeHasAppAccess: true,
-    status: 'distributed',
+    status: 'issued',
     trigger: 'manual',
     event: 'On request',
     generatedOn: '2026-06-02',
@@ -584,6 +796,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-addr',
     templateVersion: 1,
     signingAuthority: SIGNING_AUTHORITIES[2],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: SIGNATORIES[2],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-06-02',
@@ -596,7 +813,7 @@ export const seedDocuments: HrDocument[] = [
     ],
     audit: [
       audit('2026-06-02', 'Priya Sharma', 'Generated', 'No approval required — finalized directly'),
-      audit('2026-06-02', 'Notification engine', 'Distributed', 'In-app access enabled'),
+      audit('2026-06-02', 'Notification engine', 'Issued', 'In-app access enabled'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,
@@ -615,6 +832,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-emp-ver',
     templateVersion: 1,
     signingAuthority: SIGNING_AUTHORITIES[2],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: SIGNATORIES[2],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-06-25',
@@ -643,6 +865,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-trans',
     templateVersion: 1,
     signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: null,
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-06-15',
@@ -652,7 +879,7 @@ export const seedDocuments: HrDocument[] = [
     ],
     distributions: [],
     audit: [
-      audit('2026-06-15', 'Workflow engine', 'Generated', 'Auto-generated on Transfer event, template v1'),
+      audit('2026-06-15', 'Workflow engine', 'Generated', 'Generated automatically — Transfer event, template v1'),
       audit('2026-06-17', 'Meera Krishnan', 'Rejected', 'Originator notified to correct and regenerate'),
     ],
     questionnaireAnswers: [],
@@ -672,6 +899,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-reliev',
     templateVersion: 1,
     signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: null,
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-06-26',
@@ -681,7 +913,7 @@ export const seedDocuments: HrDocument[] = [
     ],
     distributions: [],
     audit: [
-      audit('2026-06-26', 'Workflow engine', 'Generated', 'Auto-generated on Relieving event, template v1'),
+      audit('2026-06-26', 'Workflow engine', 'Generated', 'Generated automatically — Relieving event, template v1'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,
@@ -692,7 +924,7 @@ export const seedDocuments: HrDocument[] = [
     employeeId: 'emp-10',
     employeeName: 'Deepak Nair',
     employeeHasAppAccess: false,
-    status: 'distributed',
+    status: 'issued',
     trigger: 'batch',
     event: 'Hire',
     generatedOn: '2026-05-04',
@@ -700,6 +932,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-appt',
     templateVersion: 3,
     signingAuthority: SIGNING_AUTHORITIES[1],
+    approvedBy: 'Meera Krishnan',
+    approvedOn: '2026-05-05',
+    signedBy: SIGNATORIES[1],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-05-04',
@@ -713,7 +950,7 @@ export const seedDocuments: HrDocument[] = [
     ],
     audit: [
       audit('2026-05-04', 'Lakshmi Rao', 'Generated', 'Batch generation, template v3'),
-      audit('2026-05-05', 'Meera Krishnan', 'Approved', 'Single-step approval completed'),
+      audit('2026-05-05', 'Meera Krishnan', 'Approved', 'Approved — signed by Rajiv Malhotra, Managing Director'),
       audit('2026-05-06', 'Notification engine', 'Delivery failed', 'Email bounced'),
       audit('2026-05-07', 'Notification engine', 'Re-sent', 'Print channel used after email failure'),
     ],
@@ -726,7 +963,7 @@ export const seedDocuments: HrDocument[] = [
     employeeId: 'emp-6',
     employeeName: 'Suresh Patil',
     employeeHasAppAccess: false,
-    status: 'distributed',
+    status: 'issued',
     trigger: 'manual',
     event: 'On request',
     generatedOn: '2026-06-10',
@@ -734,6 +971,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-exp',
     templateVersion: 2,
     signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: SIGNATORIES[0],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-06-10',
@@ -747,7 +989,7 @@ export const seedDocuments: HrDocument[] = [
     ],
     audit: [
       audit('2026-06-10', 'Priya Sharma', 'Generated', 'Employee has no app access — email channel chosen'),
-      audit('2026-06-10', 'Notification engine', 'Distributed', 'Email dispatch, delivery confirmed'),
+      audit('2026-06-10', 'Notification engine', 'Issued', 'Email dispatch, delivery confirmed'),
       audit('2026-06-12', 'Priya Sharma', 'Handed over', 'Physical copy handed over to the employee in person'),
     ],
     questionnaireAnswers: [],
@@ -759,7 +1001,7 @@ export const seedDocuments: HrDocument[] = [
     employeeId: 'emp-3',
     employeeName: 'Ananya Iyer',
     employeeHasAppAccess: true,
-    status: 'distributed',
+    status: 'issued',
     trigger: 'manual',
     event: 'Certification sponsorship',
     generatedOn: '2026-06-20',
@@ -767,6 +1009,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-cert-agr',
     templateVersion: 2,
     signingAuthority: SIGNING_AUTHORITIES[1],
+    approvedBy: 'Meera Krishnan',
+    approvedOn: '2026-06-21',
+    signedBy: SIGNATORIES[1],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: true,
     acknowledgedOn: null,
     retentionUntil: '2033-06-20',
@@ -779,8 +1026,8 @@ export const seedDocuments: HrDocument[] = [
     ],
     audit: [
       audit('2026-06-20', 'Lakshmi Rao', 'Generated', 'Certification agreement, template v2'),
-      audit('2026-06-21', 'Meera Krishnan', 'Approved', 'Released for acknowledgment'),
-      audit('2026-06-21', 'Notification engine', 'Distributed', 'In-app dispatch — acknowledgment pending'),
+      audit('2026-06-21', 'Meera Krishnan', 'Approved', 'Approved — signed by Rajiv Malhotra, Managing Director'),
+      audit('2026-06-21', 'Notification engine', 'Issued', 'In-app dispatch — acknowledgment pending'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,
@@ -791,7 +1038,7 @@ export const seedDocuments: HrDocument[] = [
     employeeId: 'emp-1',
     employeeName: 'Arjun Mehta',
     employeeHasAppAccess: true,
-    status: 'distributed',
+    status: 'issued',
     trigger: 'manual',
     event: 'Training nomination',
     generatedOn: '2026-05-25',
@@ -799,6 +1046,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-train-agr',
     templateVersion: 1,
     signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: 'Meera Krishnan',
+    approvedOn: '2026-05-26',
+    signedBy: SIGNATORIES[0],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: true,
     acknowledgedOn: '2026-05-28',
     retentionUntil: '2033-05-25',
@@ -811,7 +1063,7 @@ export const seedDocuments: HrDocument[] = [
     ],
     audit: [
       audit('2026-05-25', 'Lakshmi Rao', 'Generated', 'Training agreement, template v1'),
-      audit('2026-05-26', 'Meera Krishnan', 'Approved', 'Released for acknowledgment'),
+      audit('2026-05-26', 'Meera Krishnan', 'Approved', 'Approved — signed by Meera Krishnan, HR Head'),
       audit('2026-05-28', 'Arjun Mehta', 'Acknowledged', 'Employee signed in-app'),
     ],
     questionnaireAnswers: [],
@@ -823,7 +1075,7 @@ export const seedDocuments: HrDocument[] = [
     employeeId: 'emp-9',
     employeeName: 'Fatima Khan',
     employeeHasAppAccess: true,
-    status: 'distributed',
+    status: 'issued',
     trigger: 'batch',
     event: 'Confirmation',
     generatedOn: '2026-04-28',
@@ -831,6 +1083,11 @@ export const seedDocuments: HrDocument[] = [
     templateId: 'tpl-conf',
     templateVersion: 2,
     signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: 'Meera Krishnan',
+    approvedOn: '2026-04-29',
+    signedBy: SIGNATORIES[0],
+    reissueOf: null,
+    reissuedAs: null,
     requiresAcknowledgment: false,
     acknowledgedOn: null,
     retentionUntil: '2033-04-28',
@@ -843,8 +1100,147 @@ export const seedDocuments: HrDocument[] = [
     ],
     audit: [
       audit('2026-04-28', 'Lakshmi Rao', 'Generated', 'Batch generation, template v2'),
-      audit('2026-04-29', 'Meera Krishnan', 'Approved', 'Single-step approval completed'),
-      audit('2026-04-30', 'Notification engine', 'Distributed', 'Print channel'),
+      audit('2026-04-29', 'Meera Krishnan', 'Approved', 'Approved — signed by Meera Krishnan, HR Head'),
+      audit('2026-04-30', 'Notification engine', 'Issued', 'Print channel'),
+    ],
+    questionnaireAnswers: [],
+    company: COMPANY_NAME,
+  },
+  {
+    id: 'hrl-1014',
+    docType: 'Offer Letter',
+    employeeId: 'emp-9',
+    employeeName: 'Fatima Khan',
+    employeeHasAppAccess: true,
+    status: 'issued',
+    trigger: 'auto',
+    event: 'Offer accepted',
+    generatedOn: '2026-06-30',
+    generatedBy: 'Workflow engine',
+    templateId: 'tpl-offer',
+    templateVersion: 2,
+    signingAuthority: SIGNING_AUTHORITIES[1],
+    approvedBy: 'Lakshmi Rao (Company Admin)',
+    approvedOn: '2026-07-01',
+    signedBy: SIGNATORIES[1],
+    reissueOf: null,
+    reissuedAs: null,
+    requiresAcknowledgment: false,
+    acknowledgedOn: null,
+    retentionUntil: '2033-06-30',
+    rejectReason: null,
+    versions: [
+      { version: 1, generatedOn: '2026-06-30', event: 'Offer accepted', templateVersion: 2, current: true },
+    ],
+    distributions: [
+      { id: 'dst-11', channel: 'email', sentOn: '2026-07-01', outcome: 'delivered', detail: 'fatima.khan@kensium.com' },
+    ],
+    audit: [
+      audit('2026-06-30', 'Workflow engine', 'Generated', 'Generated automatically — Offer accepted, template v2'),
+      audit('2026-07-01', 'Lakshmi Rao', 'Approved', 'Approved — signed by Rajiv Malhotra, Managing Director'),
+      audit('2026-07-01', 'Notification engine', 'Issued', 'Email dispatch'),
+    ],
+    questionnaireAnswers: [],
+    company: COMPANY_NAME,
+  },
+  {
+    id: 'hrl-1015',
+    docType: 'Onboarding Welcome Email',
+    employeeId: 'emp-2',
+    employeeName: 'Priya Sharma',
+    employeeHasAppAccess: true,
+    status: 'issued',
+    trigger: 'auto',
+    event: 'Joining confirmed',
+    generatedOn: '2026-07-02',
+    generatedBy: 'Workflow engine',
+    templateId: 'tpl-eml-welcome',
+    templateVersion: 1,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: SIGNATORIES[0],
+    reissueOf: null,
+    reissuedAs: null,
+    requiresAcknowledgment: false,
+    acknowledgedOn: null,
+    retentionUntil: '2033-07-02',
+    rejectReason: null,
+    versions: [
+      { version: 1, generatedOn: '2026-07-02', event: 'Joining confirmed', templateVersion: 1, current: true },
+    ],
+    distributions: [
+      { id: 'dst-12', channel: 'email', sentOn: '2026-07-02', outcome: 'delivered', detail: 'priya.sharma@kensium.com' },
+    ],
+    audit: [
+      audit('2026-07-02', 'Workflow engine', 'Generated', 'Generated automatically — Joining confirmed, template v1'),
+      audit('2026-07-02', 'Notification engine', 'Issued', 'Email dispatch'),
+    ],
+    questionnaireAnswers: [],
+    company: COMPANY_NAME,
+  },
+  {
+    id: 'hrl-1016',
+    docType: 'Experience Certificate',
+    employeeId: 'emp-2',
+    employeeName: 'Priya Sharma',
+    employeeHasAppAccess: true,
+    status: 'pending-approval',
+    trigger: 'manual',
+    event: 'Reissue of hrl-1004',
+    generatedOn: '2026-07-06',
+    generatedBy: 'Lakshmi Rao',
+    templateId: 'tpl-exp',
+    templateVersion: 2,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: null,
+    reissueOf: 'hrl-1004',
+    reissuedAs: null,
+    requiresAcknowledgment: false,
+    acknowledgedOn: null,
+    retentionUntil: '2033-07-06',
+    rejectReason: null,
+    versions: [
+      { version: 1, generatedOn: '2026-07-06', event: 'Reissue of hrl-1004', templateVersion: 2, current: true },
+    ],
+    distributions: [],
+    audit: [
+      audit('2026-07-06', 'Lakshmi Rao', 'Generated', 'Reissue of hrl-1004 (name correction) — fresh approval cycle'),
+    ],
+    questionnaireAnswers: [],
+    company: COMPANY_NAME,
+  },
+  {
+    id: 'hrl-1017',
+    docType: 'Joining Letter',
+    employeeId: 'emp-3',
+    employeeName: 'Ananya Iyer',
+    employeeHasAppAccess: true,
+    status: 'draft',
+    trigger: 'manual',
+    event: 'On request',
+    generatedOn: '2026-07-08',
+    generatedBy: 'Lakshmi Rao',
+    templateId: 'tpl-join',
+    templateVersion: 1,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    approvedBy: null,
+    approvedOn: null,
+    signedBy: null,
+    reissueOf: null,
+    reissuedAs: null,
+    requiresAcknowledgment: false,
+    acknowledgedOn: null,
+    retentionUntil: '2033-07-08',
+    rejectReason: null,
+    versions: [
+      { version: 1, generatedOn: '2026-07-08', event: 'On request', templateVersion: 1, current: true },
+    ],
+    distributions: [],
+    audit: [
+      audit('2026-07-08', 'Lakshmi Rao', 'Generated', 'Manual generation, template v1 — saved as draft'),
     ],
     questionnaireAnswers: [],
     company: COMPANY_NAME,

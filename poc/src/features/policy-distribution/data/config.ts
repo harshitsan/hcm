@@ -38,7 +38,7 @@ export interface NotificationTemplate {
 
 export const REACK_TRIGGERS = [
   'Content change',
-  'Periodic renewal expiry',
+  'Periodic renewal',
   'Transfer',
   'Role change',
   'Regulatory update',
@@ -157,7 +157,7 @@ export const seedDecisionRules: DecisionRule[] = [
   {
     id: 'dr-03',
     order: 3,
-    trigger: 'Periodic renewal expiry',
+    trigger: 'Periodic renewal',
     scope: 'Employees whose renewal cycle has lapsed for the policy',
     enabled: true,
     version: 1,

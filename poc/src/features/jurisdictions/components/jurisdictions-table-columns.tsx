@@ -6,7 +6,12 @@ import { HighlightedCell } from '@/components/common/data-table/highlighted-cell
 import { SearchableHeader } from '@/components/common/data-table/searchable-header'
 import { LongText } from '@/components/common/long-text'
 import { typeAbbrev, type Jurisdiction } from '../data/jurisdictions'
-import { StatusBadge, TaxConfigBadge, TypeBadge } from './jurisdiction-badges'
+import {
+  NewEntryBadge,
+  StatusBadge,
+  TaxConfigBadge,
+  TypeBadge,
+} from './jurisdiction-badges'
 
 const dateFmt = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
@@ -17,6 +22,7 @@ const dateFmt = new Intl.DateTimeFormat('en-GB', {
 export interface ReferenceCounts {
   companies: number
   policies: number
+  employees: number
   total: number
 }
 
@@ -71,11 +77,15 @@ export function buildJurisdictionColumns(
         return (
           <HighlightedCell value={j.name} columnId={column.id}>
             <div className='flex min-w-0 flex-col'>
-              <LongText className='text-neutral-1600 font-medium'>
-                {j.name}
-              </LongText>
+              <span className='flex items-center gap-1.5'>
+                <LongText className='text-neutral-1600 font-medium'>
+                  {j.name}
+                </LongText>
+                {j.recentlyAdded && <NewEntryBadge />}
+              </span>
               <span className='text-paragraph-sm text-neutral-1000 truncate'>
                 {j.code}
+                {j.region ? ` · ${j.region}` : ''}
               </span>
             </div>
           </HighlightedCell>
@@ -138,6 +148,7 @@ export function buildJurisdictionColumns(
         return (
           <span className='text-neutral-1900 text-sm'>
             {refs.companies} companies · {refs.policies} policies
+            {refs.employees > 0 ? ` · ${refs.employees} employees` : ''}
           </span>
         )
       },

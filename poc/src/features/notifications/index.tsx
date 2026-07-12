@@ -17,6 +17,7 @@ import { InboxTab } from './components/inbox-tab'
 import { MessagesTab } from './components/messages-tab'
 import { NotificationsSummary } from './components/notifications-summary'
 import { PreferencesTab } from './components/preferences-tab'
+import { PushEventsPanel } from './components/push-events-panel'
 import { TasksTab } from './components/tasks-tab'
 import { TemplatesTab } from './components/templates-tab'
 import { useMessages } from './hooks/use-messages'
@@ -43,7 +44,16 @@ import { takeRequestedTab } from '@/features/workflows/data/module-nav'
  *   configuration, gated per role.
  */
 export function Notifications() {
-  const { role } = useRole()
+  const { role, hasRole } = useRole()
+
+  // Channel / connector / outbox management is admin material; personal
+  // notification settings stay available to every role.
+  const isAdminView = hasRole(
+    'Platform Admin',
+    'Portfolio Admin',
+    'Group Company Admin',
+    'Company Admin'
+  )
 
   // Workflow approval inbox — shares the module-level engine + audit stores
   // with the Workflow Engine page, so decisions here reflect there instantly.
@@ -115,7 +125,9 @@ export function Notifications() {
       <Main fluid className='bg-neutral-200'>
         <div className='w-full'>
           <Tabs
-            value={activeTab}
+            // If the role loses admin access while on the Admin tab, land
+            // back on the default Notifications inbox.
+            value={!isAdminView && activeTab === 'admin' ? 'notifications' : activeTab}
             onValueChange={handleTabChange}
             className='w-full'
           >
@@ -134,11 +146,13 @@ export function Notifications() {
                 {messaging.unreadCount > 0 ? ` (${messaging.unreadCount})` : ''}
               </TabsTrigger>
               <TabsTrigger value='preferences' variant='primary'>
-                My Preferences
+                Notification Settings
               </TabsTrigger>
-              <TabsTrigger value='admin' variant='primary'>
-                Admin
-              </TabsTrigger>
+              {isAdminView && (
+                <TabsTrigger value='admin' variant='primary'>
+                  Admin
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value='tasks'>
@@ -206,41 +220,46 @@ export function Notifications() {
               />
             </TabsContent>
 
-            <TabsContent value='admin'>
-              <EngineArtifactsPanel module='Notifications' />
-              <div className='flex flex-col gap-6'>
-                <section>
-                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Templates</h3>
-                  <TemplatesTab
-                    templates={templates}
-                    saveTemplate={saveTemplate}
-                    restoreDefault={restoreDefault}
-                    overrideAtCompany={overrideAtCompany}
-                    onCancel={handleTemplatesCancel}
-                  />
-                </section>
-                <section>
-                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Channels</h3>
-                  <ChannelsTab settings={settings} runDigest={runDigest} />
-                </section>
-                <section>
-                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Alerts</h3>
-                  <AlertsTab
-                    alerts={settings.alerts}
-                    saveAlerts={settings.saveAlerts}
-                  />
-                </section>
-                <section>
-                  <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Delivery History</h3>
-                  <DeliveryLogTab
-                    deliveries={deliveries}
-                    retryDelivery={retryDelivery}
-                    fallbackToEmail={fallbackToEmail}
-                    resolveDeadLetter={resolveDeadLetter}
-                  />
-                </section>
-              </div>
-            </TabsContent>
+            {isAdminView && (
+              <TabsContent value='admin'>
+                <EngineArtifactsPanel module='Notifications' />
+                <div className='flex flex-col gap-6'>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Templates</h3>
+                    <TemplatesTab
+                      templates={templates}
+                      saveTemplate={saveTemplate}
+                      restoreDefault={restoreDefault}
+                      overrideAtCompany={overrideAtCompany}
+                      onCancel={handleTemplatesCancel}
+                    />
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Channels</h3>
+                    <ChannelsTab settings={settings} runDigest={runDigest} />
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Alerts</h3>
+                    <AlertsTab
+                      alerts={settings.alerts}
+                      saveAlerts={settings.saveAlerts}
+                    />
+                  </section>
+                  <section>
+                    <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Outbox</h3>
+                    <div className='grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]'>
+                      <DeliveryLogTab
+                        deliveries={deliveries}
+                        retryDelivery={retryDelivery}
+                        fallbackToEmail={fallbackToEmail}
+                        resolveDeadLetter={resolveDeadLetter}
+                      />
+                      <PushEventsPanel />
+                    </div>
+                  </section>
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </Main>

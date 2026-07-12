@@ -21,7 +21,6 @@ export const templateSchema = z.object({
   requiresApproval: z.boolean(),
   requiresAcknowledgment: z.boolean(),
   signingAuthority: z.string().min(1, 'Select a signing authority'),
-  missingValueBehavior: z.enum(['blank', 'flagged']),
   effectiveFrom: z.string().min(1, 'Set the effective date'),
   changeSummary: z.string().min(3, 'Describe the change for configuration history'),
 })

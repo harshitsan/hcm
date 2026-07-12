@@ -139,10 +139,11 @@ const defs: NodeDef[] = [
   },
   {
     kind: 'approvalTask', label: 'Approval task', icon: UserCheck, category: 'action', accent: 'purple',
-    defaultConfig: { approverRole: 'Reporting Manager', slaHours: 24, mockDecision: 'approved' },
+    defaultConfig: { approverRole: 'Reporting Manager', slaHours: 24, approvalMode: 'Sequential', mockDecision: 'approved' },
     configFields: [
       { key: 'approverRole', label: 'Approver role', type: 'select', options: APPROVER_ROLES, required: true },
       { key: 'slaHours', label: 'SLA (business hours)', type: 'number', required: true },
+      { key: 'approvalMode', label: 'Approval mode', type: 'select', options: ['Sequential', 'Parallel — any one may approve', 'Parallel — all must approve'] },
       { key: 'mockDecision', label: 'Decision in test runs', type: 'select', options: ['approved', 'rejected'] },
     ],
   },

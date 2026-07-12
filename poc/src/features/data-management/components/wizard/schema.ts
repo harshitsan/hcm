@@ -17,7 +17,8 @@ const EXT_BY_FORMAT: Record<FileFormat, string[]> = {
 }
 
 const baseWizardSchema = z.object({
-  module: z.string().min(1, 'Select a module'),
+  entityId: z.string().min(1, 'Select what you want to import'),
+  module: z.string().min(1, 'Select a function to set the module'),
   functionId: z.string().min(1, 'Select a function'),
   companyId: z.string().min(1, 'Select the company context'),
   mappingMode: z.enum(['new', 'saved']),
@@ -127,6 +128,7 @@ export function buildWizardSchema(config: ConfigVersion) {
 }
 
 export const wizardDefaults: WizardValues = {
+  entityId: '',
   module: '',
   functionId: '',
   companyId: '',
@@ -160,7 +162,14 @@ export const WIZARD_STEPS = [
 
 /** Fields validated when leaving each step. */
 export const STEP_FIELDS: (keyof WizardValues)[][] = [
-  ['module', 'functionId', 'companyId', 'mappingMode', 'savedMappingId'],
+  [
+    'entityId',
+    'module',
+    'functionId',
+    'companyId',
+    'mappingMode',
+    'savedMappingId',
+  ],
   [
     'fileType',
     'format',

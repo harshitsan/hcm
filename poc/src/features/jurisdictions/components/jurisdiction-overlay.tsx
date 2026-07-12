@@ -12,6 +12,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -70,6 +71,8 @@ export function JurisdictionOverlay({
             code: jurisdiction.code,
             type: jurisdiction.type,
             status: jurisdiction.status,
+            region: jurisdiction.region ?? '',
+            description: jurisdiction.description ?? '',
             effectiveFrom: jurisdiction.effectiveFrom,
             taxFees: jurisdiction.taxFees,
           }
@@ -160,6 +163,41 @@ export function JurisdictionOverlay({
                 />
               </div>
 
+              <FormField
+                control={form.control}
+                name='region'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Region / country label (informational)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder='e.g. Asia-Pacific, India, Europe'
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name='description'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder='e.g. Operational region for statutory items that vary by state'
+                        rows={2}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className='grid grid-cols-2 gap-3'>
                 <FormField
                   control={form.control}
@@ -200,7 +238,9 @@ export function JurisdictionOverlay({
               <p className='text-paragraph-sm text-neutral-1000'>
                 Catalog entries are flat — no parent country/state chain is
                 required, whatever the type. Saving an edit records a new
-                effective-dated version in the entry's history.
+                effective-dated version in the entry's history. Adding a
+                jurisdiction mid-life makes new policy and statutory options
+                available without changing any existing records.
               </p>
 
               <TaxFeeFields form={form} />

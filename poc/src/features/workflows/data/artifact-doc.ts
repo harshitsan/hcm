@@ -25,10 +25,23 @@ import {
   type Artifact,
   type ArtifactDefinition,
   type ArtifactType,
+  type ChainGroupPattern,
   type ChainStep,
   type RuleCondition,
   type RuleOutcome,
 } from './business-logic'
+
+/** Designer approvalMode option strings ↔ chain group patterns. */
+const APPROVAL_MODE_BY_PATTERN: Record<ChainGroupPattern, string> = {
+  'any-one': 'Parallel — any one may approve',
+  'all-must': 'Parallel — all must approve',
+}
+
+function patternFromApprovalMode(mode: string): ChainGroupPattern | null {
+  if (mode === APPROVAL_MODE_BY_PATTERN['any-one']) return 'any-one'
+  if (mode === APPROVAL_MODE_BY_PATTERN['all-must']) return 'all-must'
+  return null // 'Sequential' or unset
+}
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -116,9 +129,14 @@ export function artifactToDoc(artifact: Artifact): WorkflowDoc {
     const steps = [...def.steps].sort((a, b) => a.order - b.order).map((s) => {
       const step = createStep('approvalTask') as LeafStep
       step.label = `Step ${s.order} · ${s.approverRole}`
+      const pattern =
+        s.group !== undefined ? (def.patterns?.[s.group] ?? 'all-must') : null
       step.config = {
         approverRole: s.approverRole,
         slaHours: s.slaHours,
+        approvalMode: pattern
+          ? APPROVAL_MODE_BY_PATTERN[pattern]
+          : 'Sequential',
         mockDecision: 'approved',
       }
       return step
@@ -221,12 +239,39 @@ export function docFromCanvas(doc: WorkflowDoc, type: ArtifactType): FromDocResu
           'An approver-chain workflow must contain at least one Approval task step.',
       }
     }
-    const steps: ChainStep[] = leaves.map((s, i) => ({
-      order: i + 1,
-      approverRole: String(s.config.approverRole ?? ''),
-      slaHours: Number(s.config.slaHours ?? 0),
-    }))
-    return { ok: true, definition: { kind: 'approver-chain', steps } }
+    // Rebuild parallel groups from each step's approvalMode: consecutive
+    // steps sharing the same parallel mode collapse into one group.
+    const steps: ChainStep[] = []
+    const patterns: Record<number, ChainGroupPattern> = {}
+    let nextGroup = 1
+    leaves.forEach((s, i) => {
+      const step: ChainStep = {
+        order: i + 1,
+        approverRole: String(s.config.approverRole ?? ''),
+        slaHours: Number(s.config.slaHours ?? 0),
+      }
+      const pattern = patternFromApprovalMode(String(s.config.approvalMode ?? ''))
+      if (pattern) {
+        const prev = steps[i - 1]
+        if (prev?.group !== undefined && patterns[prev.group] === pattern) {
+          step.group = prev.group
+        } else {
+          step.group = nextGroup
+          patterns[nextGroup] = pattern
+          nextGroup += 1
+        }
+      }
+      steps.push(step)
+    })
+    const hasGroups = Object.keys(patterns).length > 0
+    return {
+      ok: true,
+      definition: {
+        kind: 'approver-chain',
+        steps,
+        ...(hasGroups ? { patterns } : {}),
+      },
+    }
   }
 
   // ── decision-rule ─────────────────────────────────────────────────────────

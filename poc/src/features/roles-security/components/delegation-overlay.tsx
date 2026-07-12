@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -22,8 +22,17 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { DELEGATABLE_ACTIVITIES } from '../data/delegations'
-import { CURRENT_EMPLOYEE_ID, PEOPLE, companyName } from '../data/directory'
+import {
+  companyById,
+  seedEmployees,
+} from '@/features/directory/data/directory'
+import { managerAsOf } from '@/features/directory/utils/org'
+import {
+  CURRENT_DELEGATION_USER_ID,
+  DELEGATABLE_ACTIVITIES,
+  delegationPersonById,
+  todayIso,
+} from '../data/delegations'
 import { type DelegationDraft } from '../hooks/use-delegations'
 
 const delegationSchema = z
@@ -57,7 +66,9 @@ interface DelegationOverlayProps {
 
 /**
  * New delegation (RSEC-04). All users are listed — picking one from another
- * company demonstrates the same-company rejection on save.
+ * company demonstrates the same-company rejection on save. A compact
+ * reporting-context panel shows the owner's manager and direct reports so
+ * the user can judge the appropriate hierarchy for the hand-over.
  */
 export function DelegationOverlay({
   open,
@@ -73,13 +84,35 @@ export function DelegationOverlay({
     if (open) form.reset(emptyValues)
   }, [open, form])
 
-  const candidates = PEOPLE.filter(
-    (p) => p.isUser && p.id !== CURRENT_EMPLOYEE_ID
+  const owner = delegationPersonById(CURRENT_DELEGATION_USER_ID)
+
+  // Reporting context from the company directory: manager above, direct
+  // reports below (effective-dated manager resolution shared with the org
+  // chart). Read-only view of employee data.
+  const { manager, directReports } = useMemo(() => {
+    const today = todayIso()
+    if (!owner) return { manager: undefined, directReports: [] }
+    const managerId = managerAsOf(owner, today)
+    return {
+      manager: managerId ? delegationPersonById(managerId) : undefined,
+      directReports: seedEmployees.filter(
+        (e) =>
+          e.employmentStatus !== 'inactive' &&
+          managerAsOf(e, today) === owner.id
+      ),
+    }
+  }, [owner])
+
+  const candidates = seedEmployees.filter(
+    (p) =>
+      p.isUser &&
+      p.id !== CURRENT_DELEGATION_USER_ID &&
+      p.employmentStatus !== 'inactive'
   )
 
   function handleSubmit(values: DelegationValues) {
     const ok = onSubmit({
-      ownerId: CURRENT_EMPLOYEE_ID,
+      ownerId: CURRENT_DELEGATION_USER_ID,
       delegateId: values.delegateId,
       activities: values.activities,
       startDate: values.startDate,
@@ -102,6 +135,41 @@ export function DelegationOverlay({
             className='flex min-h-0 flex-1 flex-col'
           >
             <div className='flex-1 space-y-4 overflow-y-auto px-5 py-5'>
+              {owner && (
+                <div className='rounded-[6px] border border-gray-200 bg-neutral-100 p-3'>
+                  <p className='text-neutral-1600 mb-2 text-xs font-medium'>
+                    Your reporting context
+                  </p>
+                  <div className='space-y-1.5 text-xs'>
+                    <div className='flex items-start justify-between gap-3'>
+                      <span className='text-neutral-1000'>Reports to</span>
+                      <span className='text-neutral-1900 text-right font-medium'>
+                        {manager
+                          ? `${manager.name} — ${manager.position}`
+                          : 'No one — top of the organization'}
+                      </span>
+                    </div>
+                    <div className='flex items-start justify-between gap-3'>
+                      <span className='text-neutral-1000'>You</span>
+                      <span className='text-neutral-1900 text-right font-medium'>
+                        {owner.name} — {owner.position}, {owner.department}
+                      </span>
+                    </div>
+                    <div className='flex items-start justify-between gap-3'>
+                      <span className='text-neutral-1000'>Direct reports</span>
+                      <span className='text-neutral-1900 text-right font-medium'>
+                        {directReports.length > 0
+                          ? directReports.map((r) => r.name).join(', ')
+                          : 'None'}
+                      </span>
+                    </div>
+                  </div>
+                  <p className='text-neutral-1000 mt-2 text-[11px]'>
+                    Approvals you delegate stay visible to your manager and
+                    the rest of your reporting line.
+                  </p>
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name='delegateId'
@@ -119,7 +187,14 @@ export function DelegationOverlay({
                       <SelectContent>
                         {candidates.map((p) => (
                           <SelectItem key={p.id} value={p.id}>
-                            {p.name} · {companyName(p.companyId)}
+                            <span>
+                              {p.name}
+                              <span className='text-neutral-1000'>
+                                {' '}
+                                · {p.position}, {p.department} ·{' '}
+                                {companyById(p.companyId)?.name}
+                              </span>
+                            </span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -187,8 +262,9 @@ export function DelegationOverlay({
               <p className='text-neutral-1000 text-xs'>
                 While active, your matching approvals route to the delegate and
                 their decisions are recorded on your behalf — visible to your
-                managers and hierarchy. Revoke at any time to route work back
-                to you.
+                managers and hierarchy. When the end date passes, the
+                delegation expires and your approval rights return to you
+                automatically. You can also revoke at any time.
               </p>
             </div>
             <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>

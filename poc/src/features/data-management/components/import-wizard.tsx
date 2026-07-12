@@ -9,7 +9,9 @@ import { Form } from '@/components/ui/form'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { COMPANIES, entityById, functionById, type Tier } from '../data/catalog'
 import { type ConfigVersion, type FunctionToggle } from '../data/config'
+import { type DataJob } from '../data/jobs'
 import { type MappingTemplate } from '../data/mappings'
+import { tierGates } from '../data/sequencing'
 import { simulateValidation, type ImportDraft } from '../hooks/use-data-jobs'
 import { type MappingDraft } from '../hooks/use-mappings'
 import { actorName } from './scope'
@@ -35,6 +37,8 @@ interface ImportWizardProps {
   functionToggles: FunctionToggle[]
   tierMap: Record<string, Tier>
   mappings: MappingTemplate[]
+  /** Full job history — drives the dependency-sequencing gates. */
+  jobs: DataJob[]
   onSaveMapping: (draft: MappingDraft) => void
   onSubmitImport: (draft: ImportDraft) => void
 }
@@ -50,11 +54,14 @@ export function ImportWizard({
   functionToggles,
   tierMap,
   mappings,
+  jobs,
   onSaveMapping,
   onSubmitImport,
 }: ImportWizardProps) {
   const { role } = useRole()
   const [step, setStep] = useState(0)
+  // Dependency sequencing gates derived from the import history (FR 6.24.3).
+  const gates = useMemo(() => tierGates(jobs), [jobs])
   const [columnMap, setColumnMap] = useState<Record<string, string>>({})
   const [preview, setPreview] = useState<ValidationPreview | null>(null)
 
@@ -110,12 +117,22 @@ export function ImportWizard({
         documentsZip: v.documentsZip || undefined,
       })
     )
-    toast.info('Staging validation finished — nothing was committed')
+    toast.info('Sandbox validation finished — nothing was committed')
   }
 
   const goNext = async () => {
     const valid = await form.trigger(STEP_FIELDS[step])
     if (!valid) return
+    if (step === 0 && importFn) {
+      // Belt and braces: the picker disables locked tiers, but re-check the
+      // dependency gate before moving on (FR 6.24.3).
+      const tier = tierMap[importFn.entityId] ?? 'Foundation'
+      const gate = gates[tier]
+      if (!gate.unlocked) {
+        toast.error(gate.reason ?? 'This tier is locked by dependency sequencing')
+        return
+      }
+    }
     if (step === 3 && importFn) {
       const missing = missingRequiredFields(importFn, columnMap)
       if (missing.length > 0) {
@@ -179,7 +196,7 @@ export function ImportWizard({
     const staging = form.getValues('staging')
     if (!stagingOnly && staging && !preview) {
       toast.error(
-        'Staging mode is on — run validation and review the results before committing'
+        'Validate only (sandbox) is on — run validation and review the results before committing'
       )
       return
     }
@@ -189,7 +206,7 @@ export function ImportWizard({
     onSubmitImport(draft)
     toast.success(
       stagingOnly
-        ? `Staging validation job submitted for ${draft.fileName}`
+        ? `Sandbox validation job submitted for ${draft.fileName}`
         : `Import job submitted for ${draft.fileName} — track it live on the dashboard`
     )
     onOpenChange(false)
@@ -233,9 +250,20 @@ export function ImportWizard({
                   role={role}
                   functionToggles={functionToggles}
                   mappings={mappings}
+                  tierMap={tierMap}
+                  gates={gates}
                 />
               )}
-              {step === 1 && <StepFile form={form} config={currentConfig} />}
+              {step === 1 && (
+                <StepFile
+                  form={form}
+                  config={currentConfig}
+                  importFn={importFn}
+                  entityName={
+                    importFn ? entityById(importFn.entityId)?.name : undefined
+                  }
+                />
+              )}
               {step === 2 && <StepOptions form={form} importFn={importFn} />}
               {step === 3 && importFn && (
                 <StepMapping
@@ -280,7 +308,7 @@ export function ImportWizard({
                       variant='outline'
                       onClick={() => submit(true)}
                     >
-                      Validate only (staging)
+                      Validate only (sandbox)
                     </Button>
                     <Button type='button' onClick={() => submit(false)}>
                       Commit import

@@ -128,15 +128,28 @@ export const documentsTableColumns: ColumnDef<HrDocument>[] = [
         </Button>
       </SearchableHeader>
     ),
-    cell: ({ row }) => (
-      <div className='text-sm'>
-        <span>{dateFmt.format(new Date(row.original.generatedOn))}</span>
-        <span className='text-neutral-1000 block text-xs'>
-          {row.original.trigger === 'auto' ? 'Automatic' : 'Manual'} ·{' '}
-          {row.original.event}
-        </span>
-      </div>
-    ),
+    cell: ({ row }) => {
+      const doc = row.original
+      return (
+        <div className='flex flex-col gap-1 py-1 text-sm'>
+          <span>{dateFmt.format(new Date(doc.generatedOn))}</span>
+          {doc.trigger === 'auto' ? (
+            <Badge variant='pending' className='w-fit'>
+              Generated automatically — {doc.event}
+            </Badge>
+          ) : (
+            <span className='text-neutral-1000 text-xs'>
+              {doc.trigger === 'batch' ? 'Batch' : 'Manual'} · {doc.event}
+            </span>
+          )}
+          {doc.reissueOf && (
+            <Badge variant='overdue' className='w-fit'>
+              Reissue of {doc.reissueOf}
+            </Badge>
+          )}
+        </div>
+      )
+    },
   },
   {
     id: 'delivery',

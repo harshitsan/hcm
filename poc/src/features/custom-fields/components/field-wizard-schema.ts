@@ -2,10 +2,13 @@ import { z } from 'zod'
 import { type Role } from '@/context/role-context'
 import {
   FIELD_SCOPES,
+  FIELD_SENSITIVITIES,
   FIELD_TARGETS,
   FIELD_TYPES,
   SUPPORTED_ENTITIES,
+  type FieldDefinition,
   type FieldScope,
+  type FieldTarget,
   type FieldType,
   type SupportedEntity,
 } from '../data/custom-fields'
@@ -43,8 +46,18 @@ export const fieldWizardSchema = z
       employeeView: z.boolean(),
       employeeEdit: z.boolean(),
     }),
+    sensitivity: z.enum(FIELD_SENSITIVITIES),
+    /** Roles granted view access to salary/tax/payroll data. */
+    sensitiveGrants: z.array(z.string()),
   })
   .superRefine((v, ctx) => {
+    if (v.sensitivity !== 'none' && v.sensitiveGrants.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['sensitiveGrants'],
+        message: 'Grant access to at least one authorised role',
+      })
+    }
     if (
       hasConfigurableOptions(v.type) &&
       parseOptions(v.optionsText).length < 2
@@ -99,5 +112,29 @@ export const WIZARD_STEPS = [
     title: 'Behaviors',
     fields: ['required', 'isDefault', 'mask', 'regex', 'effectiveDate'],
   },
-  { title: 'Permissions', fields: ['permissions'] },
+  {
+    title: 'Permissions',
+    fields: ['permissions', 'sensitivity', 'sensitiveGrants'],
+  },
 ] as const
+
+/**
+ * Platform + company field-name collision rule: a new definition may not
+ * reuse the name of an existing field on the same entity when that field is
+ * governed at Platform or Company scope (case-insensitive, trimmed).
+ */
+export function findNameCollision(
+  fields: FieldDefinition[],
+  name: string,
+  entity: FieldTarget,
+  excludeId?: string
+): FieldDefinition | undefined {
+  const wanted = name.trim().toLowerCase()
+  return fields.find(
+    (f) =>
+      f.id !== excludeId &&
+      f.entity === entity &&
+      (f.scope === 'Platform' || f.scope === 'Company') &&
+      f.name.trim().toLowerCase() === wanted
+  )
+}
