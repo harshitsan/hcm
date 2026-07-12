@@ -469,8 +469,17 @@ export function useOffers({
         toast.error(`Onboarding data gaps: ${gaps.join('; ')}`)
         return false
       }
-      patchOffer(id, (o) => ({ ...o, convertedTo: mode }))
       const hire = onConverted(offer, mode)
+      patchOffer(id, (o) => ({
+        ...o,
+        convertedTo: mode,
+        conversion: {
+          employeeCode: hire.employeeCode,
+          onboardingCaseId: hire.onboardingCaseId,
+          userAccount: mode === 'employee-user',
+          at: today(),
+        },
+      }))
       logEngine(
         'workflow',
         `Candidate converted (${mode})`,
@@ -479,8 +488,8 @@ export function useOffers({
       notify('New hire ready for onboarding', 'Onboarding module')
       toast.success(
         mode === 'employee-user'
-          ? `${offer.candidateName} converted — employee ${hire.employeeCode} created; onboarding case ${hire.onboardingCaseId} started`
-          : `${offer.candidateName} converted as Employee (Non-User) — employee ${hire.employeeCode} created; no login provisioned`,
+          ? `${offer.candidateName} handed off to Onboarding — employee record ${hire.employeeCode} created with a user account`
+          : `${offer.candidateName} handed off to Onboarding — employee record ${hire.employeeCode} created (no sign-in account)`,
         {
           description:
             'The new hire is now visible in Employees and in Lifecycle → Onboarding.',

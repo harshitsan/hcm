@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import type { EngineLogEntry } from '../data/config'
 import {
   PIPELINE_STAGES,
@@ -459,7 +460,7 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
    * offer entry requires completed scorecards and reference checks.
    */
   const advanceStage = useCallback(
-    (id: string, target: PipelineStage): boolean => {
+    (id: string, target: PipelineStage, note?: string): boolean => {
       const app = applications.find((a) => a.id === id)
       if (!app) return false
       const current = (app.status === 'on-hold'
@@ -483,10 +484,10 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
         if (app.scorecards.length === 0)
           failures.push('at least one submitted scorecard')
         if (
-          app.referenceChecks.length === 0 ||
-          app.referenceChecks.some((r) => r.status !== 'completed')
+          !app.referenceChecks.some((r) => r.status === 'completed') ||
+          app.referenceChecks.some((r) => r.status === 'pending')
         )
-          failures.push('all reference checks completed')
+          failures.push('all reference checks resolved (at least one completed)')
         if (failures.length > 0) {
           logEngine(
             'rules',
@@ -503,7 +504,7 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
         heldFromStage: undefined,
         stageHistory: [
           ...a.stageHistory,
-          { at: today(), actor, from: current, to: target },
+          { at: today(), actor, from: current, to: target, note },
         ],
       }))
       logEngine(
@@ -511,6 +512,20 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
         'Stage gate evaluated',
         `${id} → ${target}: entry conditions met — ALLOW`
       )
+      publishAuditEvent({
+        module: 'Recruitment',
+        action: `Candidate advanced to ${target}`,
+        actor,
+        actionType: 'update',
+        recordId: id,
+        recordName: app.candidateName,
+        changes: [
+          { field: 'Hiring stage', previousValue: current, newValue: target },
+          ...(note
+            ? [{ field: 'Decision basis', previousValue: null, newValue: note }]
+            : []),
+        ],
+      })
       notify(`Candidate moved to ${target}`, app.candidateEmail)
       toast.success(`${app.candidateName} moved to ${target}`)
       return true
@@ -530,7 +545,21 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
         ],
       }))
       const app = applications.find((a) => a.id === id)
-      if (app) notify('Application closed', app.candidateEmail)
+      if (app) {
+        notify('Application closed', app.candidateEmail)
+        publishAuditEvent({
+          module: 'Recruitment',
+          action: 'Candidate rejected',
+          actor,
+          actionType: 'update',
+          recordId: id,
+          recordName: app.candidateName,
+          changes: [
+            { field: 'Hiring stage', previousValue: String(app.status), newValue: 'rejected' },
+            { field: 'Reason', previousValue: null, newValue: reason },
+          ],
+        })
+      }
       toast.success('Candidate closed with reason recorded')
     },
     [applications, patchApp, notify, actor]
@@ -538,19 +567,114 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
 
   /** Pause / resume progression without losing history (TA-45). */
   const holdApplication = useCallback(
-    (id: string) => {
+    (id: string, note?: string) => {
+      const app = applications.find((a) => a.id === id)
       patchApp(id, (a) => ({
         ...a,
         heldFromStage: a.status as PipelineStage,
         status: 'on-hold',
         stageHistory: [
           ...a.stageHistory,
-          { at: today(), actor, from: String(a.status), to: 'on-hold' },
+          { at: today(), actor, from: String(a.status), to: 'on-hold', note },
         ],
       }))
+      if (app)
+        publishAuditEvent({
+          module: 'Recruitment',
+          action: 'Candidate placed on hold',
+          actor,
+          actionType: 'update',
+          recordId: id,
+          recordName: app.candidateName,
+          changes: [
+            { field: 'Hiring stage', previousValue: String(app.status), newValue: 'on-hold' },
+            ...(note
+              ? [{ field: 'Decision basis', previousValue: null, newValue: note }]
+              : []),
+          ],
+        })
       toast.success('Candidate placed on hold')
     },
-    [patchApp, actor]
+    [applications, patchApp, actor]
+  )
+
+  /**
+   * Revive an on-hold candidate into a different open vacancy — the original
+   * application keeps its full history and the candidate re-enters the new
+   * vacancy's pipeline at the review stage (PRD T3 edge case).
+   */
+  const reviveIntoVacancy = useCallback(
+    (
+      id: string,
+      vacancy: { code: string; rrfId: string; position: string }
+    ) => {
+      const app = applications.find((a) => a.id === id)
+      if (!app || app.status !== 'on-hold') return
+      patchApp(id, (a) => ({
+        ...a,
+        status: 'cancelled',
+        rejectionReason: `Revived into ${vacancy.position} (${vacancy.code})`,
+        stageHistory: [
+          ...a.stageHistory,
+          {
+            at: today(),
+            actor,
+            from: 'on-hold',
+            to: 'cancelled',
+            note: `Revived into ${vacancy.position} (${vacancy.code}) — full history retained here`,
+          },
+        ],
+      }))
+      setApplications((prev) => [
+        {
+          id: newId('app'),
+          candidateId: app.candidateId,
+          candidateName: app.candidateName,
+          candidateEmail: app.candidateEmail,
+          requisitionId: vacancy.rrfId,
+          requisitionTitle: vacancy.position,
+          status: 'applied',
+          resume: app.resume,
+          appliedAt: today(),
+          preScreenScore: app.preScreenScore,
+          interviews: [],
+          scorecards: [],
+          referenceChecks: [],
+          stageHistory: [
+            {
+              at: today(),
+              actor,
+              from: 'on-hold',
+              to: 'applied',
+              note: `Revived from on-hold — originally applied for ${app.requisitionTitle}`,
+            },
+          ],
+          checklist: {},
+        },
+        ...prev,
+      ])
+      publishAuditEvent({
+        module: 'Recruitment',
+        action: 'On-hold candidate revived into vacancy',
+        actor,
+        actionType: 'update',
+        recordId: id,
+        recordName: app.candidateName,
+        changes: [
+          {
+            field: 'Vacancy',
+            previousValue: app.requisitionTitle,
+            newValue: `${vacancy.position} (${vacancy.code})`,
+          },
+          { field: 'Hiring stage', previousValue: 'on-hold', newValue: 'applied' },
+        ],
+      })
+      notify('Your application is being considered for a new opening', app.candidateEmail)
+      toast.success(
+        `${app.candidateName} revived into ${vacancy.position} — now in review`
+      )
+    },
+    [applications, patchApp, actor, notify]
   )
 
   const resumeApplication = useCallback(
@@ -786,14 +910,38 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
 
   const addReferenceCheck = useCallback(
     (id: string, draft: Omit<ReferenceCheck, 'id' | 'status'>) => {
+      const isEmail = draft.mode === 'Email'
       patchApp(id, (a) => ({
         ...a,
         referenceChecks: [
           ...a.referenceChecks,
-          { ...draft, id: newId('rf'), status: 'pending' },
+          {
+            ...draft,
+            id: newId('rf'),
+            status: 'pending',
+            requestSentAt: isEmail ? today() : undefined,
+          },
         ],
       }))
-      toast.success('Reference added — flagged pending until completed')
+      toast.success(
+        isEmail
+          ? `Reference request sent to ${draft.referee} — awaiting reply`
+          : 'Reference added — record the call notes once completed'
+      )
+    },
+    [patchApp]
+  )
+
+  /** Email reference never replied — resolved without an outcome. */
+  const markReferenceNoResponse = useCallback(
+    (id: string, refId: string) => {
+      patchApp(id, (a) => ({
+        ...a,
+        referenceChecks: a.referenceChecks.map((r) =>
+          r.id === refId ? { ...r, status: 'no-response' } : r
+        ),
+      }))
+      toast.info('Reference marked as no response — it no longer blocks the offer')
     },
     [patchApp]
   )
@@ -844,12 +992,14 @@ export function useCandidates({ actor, logEngine, notify }: UseCandidatesArgs) {
     rejectApplication,
     holdApplication,
     resumeApplication,
+    reviveIntoVacancy,
     cancelApplication,
     scheduleInterviews,
     skipRound,
     submitScorecard,
     addReferenceCheck,
     completeReferenceCheck,
+    markReferenceNoResponse,
     saveChecklist,
     patchApp,
   }

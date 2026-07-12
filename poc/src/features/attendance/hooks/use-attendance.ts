@@ -7,7 +7,8 @@ import {
   type CaptureSource,
   type WorkCategory,
 } from '../data/attendance'
-import { employeeName, hoursBetween } from '../data/shared'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
+import { employeeName, fmtDate, hoursBetween } from '../data/shared'
 
 export interface ManualEntryDraft {
   employeeId: string
@@ -23,7 +24,7 @@ export interface ManualEntryDraft {
  * manual entry, biometric, API and file-import capture (TNA-01…04) plus the
  * Time engine recompute (TNA-25). Resets on reload.
  */
-export function useAttendance(actor: string) {
+export function useAttendance(actor: string, payrollLockedThrough = '1970-01-01') {
   const [records, setRecords] = useState<AttendanceRecord[]>(seedAttendance)
 
   /** Derive engine-computed hours from raw punches (TNA-25). */
@@ -92,6 +93,27 @@ export function useAttendance(actor: string) {
   /** TNA-13 — administrative override: mandatory reason + immutable audit. */
   const overrideRecord = useCallback(
     (id: string, punchIn: string, punchOut: string, reason: string) => {
+      // W8 — the payroll lock freezes corrections for the locked period.
+      const target = records.find((r) => r.id === id)
+      if (target && target.date <= payrollLockedThrough) {
+        toast.error(
+          `This period is locked for payroll — corrections up to ${fmtDate(payrollLockedThrough)} are frozen. Contact HR to unlock.`
+        )
+        publishAuditEvent({
+          module: 'Time & Attendance',
+          action: 'Override blocked by payroll lock',
+          actor,
+          recordName: `Attendance — ${employeeName(target.employeeId)}`,
+          changes: [
+            {
+              field: `Override for ${fmtDate(target.date)}`,
+              previousValue: null,
+              newValue: `Blocked — period locked through ${fmtDate(payrollLockedThrough)}`,
+            },
+          ],
+        })
+        return
+      }
       setRecords((prev) =>
         prev.map((r) => {
           if (r.id !== id) return r
@@ -123,7 +145,7 @@ export function useAttendance(actor: string) {
       )
       toast.success('Override applied — audit trail updated and downstream hours recomputed')
     },
-    [actor, compute]
+    [actor, compute, records, payrollLockedThrough]
   )
 
   /** TNA-02 — assign an unmatched device punch to a known employee. */

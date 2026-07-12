@@ -12,7 +12,7 @@ export function DesignerStoreProvider({
 }: {
   store: DesignerStore
   children: ReactNode
-}): JSX.Element {
+}) {
   return (
     <DesignerStoreContext.Provider value={store}>
       {children}

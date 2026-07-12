@@ -2,15 +2,21 @@ import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { type ProbationDecisionTable } from '../data/config'
 import {
+  D6_NOTE,
   seedPeerReviews,
   seedPeriodicReviews,
   seedProbation,
   type PeerReview,
   type PeriodicReview,
   type ProbationCase,
+  type ProbationHistoryEntry,
   type ProbationOutcome,
 } from '../data/probation'
-import { addDays, pendingStep, shortId, todayISO } from '../data/shared'
+import { addDays, addMonths, pendingStep, shortId, todayISO } from '../data/shared'
+import {
+  openDisciplinaryCaseFor,
+  type DisciplinaryCase,
+} from '../data/disciplinary'
 import { type LogInput } from './use-lifecycle-log'
 
 interface Deps {
@@ -21,6 +27,11 @@ interface Deps {
     title: string
     body: string
   }) => void
+  /**
+   * Live disciplinary cases — an employee with an open case cannot be
+   * Confirmed until it is resolved (Extend remains available).
+   */
+  disciplinaryCases?: DisciplinaryCase[]
   /** Follow-through for the “Initiate Separation” outcome (opens an exit). */
   onSeparation: (probationCase: ProbationCase) => void
 }
@@ -38,8 +49,23 @@ export function deriveOutcome(
   return row?.outcome ?? null
 }
 
+/** Timeline entry stamped with today's date (payroll = display-only D6 line). */
+function historyEntry(text: string, payroll?: boolean): ProbationHistoryEntry {
+  return {
+    id: shortId('h'),
+    date: todayISO(),
+    text,
+    ...(payroll ? { payroll: true } : {}),
+  }
+}
+
 /** Probation confirmation store + peer / periodic reviews. */
-export function useProbation({ log, notify, onSeparation }: Deps) {
+export function useProbation({
+  log,
+  notify,
+  disciplinaryCases,
+  onSeparation,
+}: Deps) {
   const [cases, setCases] = useState<ProbationCase[]>(seedProbation)
   const [peerReviews, setPeerReviews] = useState<PeerReview[]>(seedPeerReviews)
   const [periodicReviews, setPeriodicReviews] =
@@ -54,7 +80,16 @@ export function useProbation({ log, notify, onSeparation }: Deps) {
 
   const startReview = useCallback(
     (c: ProbationCase) => {
-      patch(c.id, (prev) => ({ ...prev, status: 'in-review' }))
+      patch(c.id, (prev) => ({
+        ...prev,
+        status: 'in-review',
+        history: [
+          ...prev.history,
+          historyEntry(
+            `Confirmation review initiated — evaluation opened against decision table ${prev.decisionTableVersion}.`
+          ),
+        ],
+      }))
       log({
         company: 'Aurora Software India',
         module: 'Probation',
@@ -80,29 +115,77 @@ export function useProbation({ log, notify, onSeparation }: Deps) {
     [patch]
   )
 
+  /**
+   * The open disciplinary case gating this employee's confirmation, if any.
+   * While one exists, the Confirm outcome is blocked — Extend stays available.
+   */
+  const confirmationGate = useCallback(
+    (c: ProbationCase) =>
+      openDisciplinaryCaseFor(c.employeeName, disciplinaryCases ?? []),
+    [disciplinaryCases]
+  )
+
   const submitDecision = useCallback(
-    (c: ProbationCase, outcome: ProbationOutcome) => {
+    (
+      c: ProbationCase,
+      outcome: ProbationOutcome,
+      details?: { extensionMonths?: number; reason?: string }
+    ) => {
       if (c.criteria.some((cr) => cr.score === null)) {
         toast.error('Score every evaluation criterion before submitting a decision')
         return
       }
+      if (outcome === 'Confirm') {
+        const gate = confirmationGate(c)
+        if (gate) {
+          toast.error(
+            `Confirmation gated — open disciplinary case (${gate.id}, ${gate.actionType}). Resolve the case to release the gate; Extend remains available.`
+          )
+          log({
+            company: 'Aurora Software India',
+            module: 'Probation',
+            action: 'Confirmation blocked by disciplinary gate',
+            target: `${c.id} · ${c.employeeName}`,
+            outcome: `Open disciplinary case ${gate.id} (${gate.actionType}) must be resolved first`,
+            onBehalfOf: null,
+          })
+          return
+        }
+      }
+      const extensionMonths =
+        outcome === 'Extend' ? (details?.extensionMonths ?? 3) : null
+      const outcomeReason = details?.reason?.trim() || null
       patch(c.id, (prev) => ({
         ...prev,
         decision: outcome,
         status: 'pending-approval',
+        extensionMonths,
+        outcomeReason,
         approvals: prev.approvals.map((s) => ({
           ...s,
           status: 'pending' as const,
           actedOn: null,
           note: null,
         })),
+        history: [
+          ...prev.history,
+          historyEntry(
+            `Decision “${outcome}”${
+              outcome === 'Extend' ? ` (${extensionMonths} month(s))` : ''
+            } submitted and routed for approval.${
+              outcomeReason ? ` Reason: ${outcomeReason}` : ''
+            }`
+          ),
+        ],
       }))
       log({
         company: 'Aurora Software India',
         module: 'Probation',
         action: `Decision submitted (${outcome})`,
         target: `${c.id} · ${c.employeeName}`,
-        outcome: 'Routed to Manager → Department Head → HR (not yet applied)',
+        outcome: outcomeReason
+          ? `Routed to Manager → Department Head → HR (not yet applied) — reason: ${outcomeReason}`
+          : 'Routed to Manager → Department Head → HR (not yet applied)',
         onBehalfOf: null,
       })
       notify({
@@ -113,30 +196,70 @@ export function useProbation({ log, notify, onSeparation }: Deps) {
       })
       toast.success(`Decision “${outcome}” routed for approval`)
     },
-    [log, notify, patch]
+    [confirmationGate, log, notify, patch]
   )
 
   const applyOutcome = useCallback(
     (c: ProbationCase) => {
       const outcome = c.decision
+      let logOutcome = 'Employee status set to confirmed'
       if (outcome === 'Confirm') {
-        patch(c.id, (prev) => ({ ...prev, status: 'confirmed' }))
+        patch(c.id, (prev) => ({
+          ...prev,
+          status: 'confirmed',
+          confirmedOn: todayISO(),
+          history: [
+            ...prev.history,
+            historyEntry(
+              'Employment status updated to Confirmed — Employee Confirmation letter queued.'
+            ),
+            historyEntry(`Payroll notified — ${D6_NOTE}.`, true),
+          ],
+        }))
+        notify({
+          recipient: 'Payroll computation (D6)',
+          kind: 'task',
+          title: `Confirmation pay implication: ${c.employeeName}`,
+          body: `${c.employeeName} (${c.employeeCode}) confirmed effective ${todayISO()}. ${D6_NOTE}.`,
+        })
         toast.success(
-          `${c.employeeName} confirmed — Employee Confirmation letter template queued`
+          `${c.employeeName} confirmed — payroll computation (D6) notified of any pay implication`
         )
       } else if (outcome === 'Extend') {
-        const extendedTo = addDays(c.dueDate, 90)
+        const months = c.extensionMonths ?? 3
+        const extendedTo = addMonths(c.extendedTo ?? c.dueDate, months)
+        logOutcome = `New probation end ${extendedTo}`
         patch(c.id, (prev) => ({
           ...prev,
           status: 'extended',
           extendedTo,
           criteria: prev.criteria.map((cr) => ({ ...cr, score: null })),
+          history: [
+            ...prev.history,
+            historyEntry(
+              `Probation extended by ${months} month(s) — new probation end date ${extendedTo}. Status stays Probation; a fresh evaluation cycle is scheduled.`
+            ),
+            historyEntry(`Payroll notified — ${D6_NOTE}.`, true),
+          ],
         }))
         toast.success(
           `Probation extended to ${extendedTo} — new evaluation cycle scheduled`
         )
       } else if (outcome === 'Initiate Separation') {
-        patch(c.id, (prev) => ({ ...prev, status: 'separation-initiated' }))
+        logOutcome = 'Exit management workflow initiated'
+        patch(c.id, (prev) => ({
+          ...prev,
+          status: 'separation-initiated',
+          history: [
+            ...prev.history,
+            historyEntry(
+              `Separation initiated — Probation Separation exit case opened and handed to the Exits workflow.${
+                c.outcomeReason ? ` Reason: ${c.outcomeReason}` : ''
+              }`
+            ),
+            historyEntry(`Payroll notified — ${D6_NOTE}.`, true),
+          ],
+        }))
         onSeparation(c)
         toast.success('Separation initiated — exit workflow opened')
       }
@@ -145,16 +268,11 @@ export function useProbation({ log, notify, onSeparation }: Deps) {
         module: 'Probation',
         action: `Outcome applied (${outcome ?? 'n/a'})`,
         target: `${c.id} · ${c.employeeName}`,
-        outcome:
-          outcome === 'Extend'
-            ? `New probation end ${addDays(c.dueDate, 90)}`
-            : outcome === 'Initiate Separation'
-              ? 'Exit management workflow initiated'
-              : 'Employee status set to confirmed',
+        outcome: logOutcome,
         onBehalfOf: null,
       })
     },
-    [log, onSeparation, patch]
+    [log, notify, onSeparation, patch]
   )
 
   const approveStep = useCallback(
@@ -195,6 +313,12 @@ export function useProbation({ log, notify, onSeparation }: Deps) {
             ? { ...s, status: 'rejected' as const, actedOn: todayISO(), note }
             : s
         ),
+        history: [
+          ...prev.history,
+          historyEntry(
+            `Approval rejected (${step.role}) — outcome not applied, returned for re-evaluation.`
+          ),
+        ],
       }))
       log({
         company: 'Aurora Software India',
@@ -275,6 +399,7 @@ export function useProbation({ log, notify, onSeparation }: Deps) {
     cases,
     peerReviews,
     periodicReviews,
+    confirmationGate,
     startReview,
     setScore,
     submitDecision,

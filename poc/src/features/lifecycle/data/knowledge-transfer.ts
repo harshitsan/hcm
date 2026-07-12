@@ -151,6 +151,33 @@ export const seedKtLeaves: KtLeaveEntry[] = [
   { employee: 'Meghna Iyer', from: '2026-07-15', to: '2026-07-15', type: 'Casual Leave', status: 'Approved' },
 ]
 
+/** Statuses where the handover is already closed (no unavailability flag). */
+const CLOSED_STATUSES: KtStatus[] = ['Received', 'Pre Closed', 'Withdrawn']
+
+/**
+ * Why the KT receiver cannot take the handover right now, or null when they
+ * are available. A receiver is unavailable when they are no longer an active
+ * employee, or when an approved leave of 3+ days overlaps the remaining
+ * handover window (reference today = 2026-07-09).
+ */
+export function receiverUnavailability(t: KtTask): string | null {
+  if (CLOSED_STATUSES.includes(t.status)) return null
+  if (!t.receiverActive) {
+    return 'Receiver is no longer an active employee'
+  }
+  const leave = seedKtLeaves.find((l) => {
+    if (l.employee !== t.receiver || l.status !== 'Approved') return false
+    const overlaps = l.from <= t.endDate && l.to >= KT_TODAY
+    const days =
+      (new Date(l.to).getTime() - new Date(l.from).getTime()) / 86400000 + 1
+    return overlaps && days >= 3
+  })
+  if (leave) {
+    return `Receiver on approved ${leave.type} ${leave.from} → ${leave.to}, overlapping the handover window`
+  }
+  return null
+}
+
 export const seedKtTasks: KtTask[] = [
   {
     id: 'kt-101',
@@ -337,6 +364,35 @@ export const seedKtTasks: KtTask[] = [
       { actor: 'Anita Desai', action: 'Assigned', date: '2026-06-18', comment: 'Exit KT raised by the exit coordinator.' },
       { actor: 'Dev Malhotra', action: 'Initiated', date: '2026-06-25', comment: 'Sessions booked; handbook uploaded.' },
       { actor: 'Dev Malhotra', action: 'KT material uploaded', date: '2026-06-25', comment: 'ap-reconciliation-handbook.xlsx' },
+    ],
+  },
+  {
+    // W7 seed — handover mid-transfer whose receiver has already exited, so
+    // the task is flagged "Receiver unavailable" and must be reassigned.
+    id: 'kt-111',
+    task: 'Inventory forecasting model & demand planning sheets',
+    provider: 'Meghna Iyer',
+    providerActive: true,
+    receiver: 'Ishaan Gupta',
+    receiverActive: false,
+    department: 'Operations',
+    startDate: '2026-06-25',
+    endDate: '2026-07-15',
+    status: 'Initiated',
+    week: [0, 2, 1, 2, 1, 0, 0],
+    description:
+      'Forecasting model walkthrough, demand planning sheets and the monthly S&OP inputs.',
+    project: 'Supply Chain Planning',
+    notificationRequired: true,
+    notifyBeforeDays: 3,
+    peopleToNotify: ['Anita Desai'],
+    notificationFrequency: 'Weekly',
+    comments: 'Receiver separated mid-handover — needs a new receiver.',
+    isExit: false,
+    history: [
+      { actor: 'Anita Desai', action: 'Assigned', date: '2026-06-24', comment: null },
+      { actor: 'Meghna Iyer', action: 'Initiated', date: '2026-06-26', comment: 'First walkthrough session completed.' },
+      { actor: 'System', action: 'Receiver marked inactive', date: '2026-07-02', comment: 'Ishaan Gupta separated from the company mid-handover.' },
     ],
   },
   {

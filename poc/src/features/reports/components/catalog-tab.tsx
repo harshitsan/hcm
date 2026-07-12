@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { MagnifyingGlass, Play, UsersThree } from 'phosphor-react'
-import { RoleGate } from '@/context/role-context'
+import { LockSimple, MagnifyingGlass, Play, UsersThree } from 'phosphor-react'
+import { RoleGate, useRole } from '@/context/role-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,22 +39,32 @@ export function CatalogTab({
   allowCompanyGrouping,
   onSchedule,
 }: CatalogTabProps) {
+  const { hasRole } = useRole()
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
   const [running, setRunning] = useState<ReportDef | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+
+  // Consolidated portfolio/group reports are visible only to Portfolio
+  // Admin, Group Company Admin and Platform Admin (RPT-17/18).
+  const canConsolidated = hasRole(
+    'Platform Admin',
+    'Portfolio Admin',
+    'Group Company Admin'
+  )
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase()
     return reports.filter(
       (r) =>
         r.enabled &&
+        (!r.consolidated || canConsolidated) &&
         (category === 'all' || r.category === category) &&
         (q === '' ||
           r.name.toLowerCase().includes(q) ||
           r.description.toLowerCase().includes(q))
     )
-  }, [reports, category, search])
+  }, [reports, category, search, canConsolidated])
 
   const grouped = useMemo(
     () =>
@@ -131,6 +141,12 @@ export function CatalogTab({
                 {group.category}
               </h3>
               <Badge variant='open'>{group.items.length}</Badge>
+              {group.category === 'Consolidated (Portfolio / Group)' && (
+                <span className='text-neutral-1000 text-xs'>
+                  Row-level security — you see only companies within your
+                  portfolio/group; every run is recorded in the audit trail.
+                </span>
+              )}
             </div>
             <div className='grid grid-cols-1 gap-2 lg:grid-cols-2'>
               {group.items.map((report) => (
@@ -139,8 +155,14 @@ export function CatalogTab({
                   className='flex items-center justify-between gap-3 rounded-[6px] border border-gray-100 px-3 py-2'
                 >
                   <div className='min-w-0'>
-                    <p className='text-neutral-1600 truncate text-sm font-medium'>
+                    <p className='text-neutral-1600 flex items-center gap-1 truncate text-sm font-medium'>
                       {report.name}
+                      {report.comp && (
+                        <span className='text-neutral-1000 inline-flex shrink-0 items-center gap-0.5 text-xs font-normal'>
+                          <LockSimple size={12} weight='bold' />
+                          comp-dark
+                        </span>
+                      )}
                     </p>
                     <p className='text-neutral-1000 truncate text-xs'>
                       {report.description}

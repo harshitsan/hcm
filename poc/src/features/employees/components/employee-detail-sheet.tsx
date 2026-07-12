@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { ArrowSquareOut, Eye, EyeSlash, LockSimple } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,15 +21,23 @@ import {
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { RoleGate } from '@/context/role-context'
+import { RoleGate, useRole } from '@/context/role-context'
 import {
   companyGroup,
   companyName,
+  findSamePersonRecords,
+  getGovernmentIds,
+  getStatutory,
   LIFECYCLE_STAGES,
+  maskGovernmentId,
   type Employee,
   type LifecycleStage,
   type ManagerChange,
 } from '../data/employees'
+import {
+  getStatutoryFieldHints,
+  STATUTORY_FIELD_LABELS,
+} from '../data/statutory-requirements'
 import { InfoField, SectionTitle, StatusBadge } from './shared'
 
 interface EmployeeDetailSheetProps {
@@ -38,6 +47,13 @@ interface EmployeeDetailSheetProps {
   managerChanges: ManagerChange[]
   /** Directory scope — targets for the admin role-reassignment action. */
   employees: Employee[]
+  /**
+   * Full (unscoped) directory — used only to surface "also employed at"
+   * cross-links for the same physical person in another company.
+   */
+  allEmployees?: Employee[]
+  /** Opens another record's detail sheet (same-person cross-link). */
+  onOpenRecord?: (employee: Employee) => void
   onRecordLifecycleEvent: (
     id: string,
     type: LifecycleStage,
@@ -55,6 +71,27 @@ interface EmployeeDetailSheetProps {
   ) => void
 }
 
+/** Read-only field with a per-jurisdiction requirement hint underneath. */
+function StatutoryField({
+  label,
+  value,
+  hint,
+}: {
+  label: string
+  value: React.ReactNode
+  hint: string
+}) {
+  return (
+    <div className='flex flex-col gap-0.5'>
+      <span className='text-paragraph-sm text-neutral-1000'>{label}</span>
+      <span className='text-neutral-1600 text-sm font-medium'>
+        {value || '—'}
+      </span>
+      <span className='text-neutral-1000 text-xs'>{hint}</span>
+    </div>
+  )
+}
+
 /**
  * Read-oriented employee record: organizational placement, reporting lines
  * with effective-dated audit trail, statutory & leave data (engine-computed)
@@ -67,12 +104,15 @@ export function EmployeeDetailSheet({
   onOpenChange,
   managerChanges,
   employees,
+  allEmployees,
+  onOpenRecord,
   onRecordLifecycleEvent,
   onRunEngines,
   onLinkUserAccount,
   onReassignRoles,
   onInitiateSuspension,
 }: EmployeeDetailSheetProps) {
+  const { hasRole } = useRole()
   const [eventType, setEventType] = useState<LifecycleStage>('Probation')
   const [eventDate, setEventDate] = useState('')
   const [eventNote, setEventNote] = useState('')
@@ -82,6 +122,11 @@ export function EmployeeDetailSheet({
   const [suspendReason, setSuspendReason] = useState('')
   const [suspendFrom, setSuspendFrom] = useState('')
   const [suspendTo, setSuspendTo] = useState('')
+  // Government IDs render masked; Company Admin can reveal them per record.
+  const [showIds, setShowIds] = useState(false)
+  useEffect(() => {
+    setShowIds(false)
+  }, [employee?.id])
 
   if (!employee) return null
   const audit = managerChanges.filter(
@@ -90,6 +135,17 @@ export function EmployeeDetailSheet({
   const reassignTargets = employees.filter(
     (e) => e.id !== employee.id && e.lifecycleStage !== 'Exited'
   )
+  // Same physical person (matching government IDs) in other companies —
+  // separate records by design.
+  const samePersonRecords = findSamePersonRecords(
+    employee,
+    allEmployees ?? employees
+  )
+  const governmentIds = getGovernmentIds(employee)
+  const statutory = getStatutory(employee)
+  const statutoryHints = getStatutoryFieldHints(employee.jurisdictionId)
+  const renderId = (value?: string) =>
+    !value ? '—' : showIds ? value : maskGovernmentId(value)
 
   const recordEvent = () => {
     if (!eventDate) return
@@ -144,6 +200,36 @@ export function EmployeeDetailSheet({
 
           <div className='min-h-0 flex-1 overflow-y-auto px-5 py-4'>
             <TabsContent value='overview' className='space-y-4'>
+              {samePersonRecords.map((other) => (
+                <div
+                  key={other.id}
+                  className='rounded-md border border-blue-200 bg-blue-50 px-3 py-2'
+                >
+                  <div className='flex items-center justify-between gap-2'>
+                    <p className='text-sm font-medium'>
+                      Also employed at {companyName(other.companyId)} (separate
+                      record)
+                    </p>
+                    {onOpenRecord && (
+                      <Button
+                        variant='outline'
+                        size='sm'
+                        className='gap-1'
+                        onClick={() => onOpenRecord(other)}
+                      >
+                        <ArrowSquareOut size={14} />
+                        {other.code}
+                      </Button>
+                    )}
+                  </div>
+                  <p className='text-paragraph-sm text-neutral-1000 pt-1'>
+                    Employee records are company-specific by design — the same
+                    person employed by two companies has two separate records.
+                    Changes to this record never affect {other.name}'s record
+                    at {companyName(other.companyId)}.
+                  </p>
+                </div>
+              ))}
               <SectionTitle>Organizational placement</SectionTitle>
               <div className='grid grid-cols-2 gap-4'>
                 <InfoField label='Company' value={companyName(employee.companyId)} />
@@ -285,6 +371,60 @@ export function EmployeeDetailSheet({
                     </div>
                   </>
                 )}
+
+              <SectionTitle>Compensation</SectionTitle>
+              <RoleGate
+                roles={['Company Admin', 'Platform Admin']}
+                fallback={
+                  <div className='flex items-start gap-2 rounded-md border border-gray-200 bg-neutral-100 px-3 py-3'>
+                    <LockSimple size={16} className='text-neutral-1000 mt-0.5' />
+                    <div>
+                      <p className='text-sm font-medium'>
+                        Compensation details are restricted to HR
+                        administrators.
+                      </p>
+                      <p className='text-paragraph-sm text-neutral-1000 pt-0.5'>
+                        Phase 1 comp-dark policy: compensation visibility is
+                        grantable only to HR Admin, Finance & Compliance
+                        Viewer, or platform/portfolio roles (see Roles &
+                        Security).
+                      </p>
+                    </div>
+                  </div>
+                }
+              >
+                {employee.compensation ? (
+                  <>
+                    <div className='grid grid-cols-2 gap-4'>
+                      <InfoField
+                        label='Annual CTC'
+                        value={employee.compensation.annualCtc}
+                      />
+                      <InfoField
+                        label='Fixed pay'
+                        value={employee.compensation.fixedPay}
+                      />
+                      <InfoField
+                        label='Variable pay'
+                        value={employee.compensation.variablePay}
+                      />
+                      <InfoField
+                        label='Last revised on'
+                        value={employee.compensation.lastRevisedOn}
+                      />
+                    </div>
+                    <p className='text-paragraph-sm text-neutral-1000'>
+                      Comp-dark attributes — visible to HR administrators only
+                      and excluded from non-admin exports. Captured for
+                      reference; nothing is computed from these values.
+                    </p>
+                  </>
+                ) : (
+                  <p className='text-paragraph-sm text-neutral-1000'>
+                    No compensation attributes captured on this record yet.
+                  </p>
+                )}
+              </RoleGate>
             </TabsContent>
 
             <TabsContent value='reporting' className='space-y-4'>
@@ -337,20 +477,86 @@ export function EmployeeDetailSheet({
             </TabsContent>
 
             <TabsContent value='statutory' className='space-y-4'>
-              <SectionTitle>Statutory identifiers</SectionTitle>
-              <div className='grid grid-cols-2 gap-4'>
-                <InfoField label='UAN' value={employee.uan} />
-                <InfoField label='ESIC number' value={employee.esicNumber} />
-                <InfoField label='Aadhar' value={employee.aadhar} />
-                <InfoField label='PAN' value={employee.pan} />
-                <InfoField label='Passport' value={employee.passport} />
+              <div className='flex items-center justify-between'>
+                <SectionTitle>Government IDs (dedup keys)</SectionTitle>
+                <RoleGate roles={['Company Admin']}>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    className='gap-1'
+                    onClick={() => setShowIds((v) => !v)}
+                  >
+                    {showIds ? <EyeSlash size={14} /> : <Eye size={14} />}
+                    {showIds ? 'Hide' : 'Show'}
+                  </Button>
+                </RoleGate>
+              </div>
+              <div className='grid grid-cols-3 gap-4'>
                 <InfoField
-                  label='Professional Tax'
-                  value={employee.ptRegistered ? 'Registered' : 'Not registered'}
+                  label='Aadhaar'
+                  value={renderId(governmentIds.aadhaar)}
                 />
+                <InfoField label='PAN' value={renderId(governmentIds.pan)} />
                 <InfoField
-                  label='LWF'
-                  value={employee.lwfApplicable ? 'Applicable' : 'Not applicable'}
+                  label='Passport'
+                  value={renderId(governmentIds.passport)}
+                />
+              </div>
+              <p className='text-paragraph-sm text-neutral-1000'>
+                Shown masked — only the last 4 characters are visible.
+                {hasRole('Company Admin')
+                  ? ' Use Show to reveal the full values.'
+                  : ' Full values can be revealed by the Company Admin only.'}{' '}
+                Uniqueness is enforced on these IDs within a company; a match
+                in another company is a valid separate record.
+              </p>
+
+              <SectionTitle>Statutory workforce data</SectionTitle>
+              <p className='text-paragraph-sm text-neutral-1000'>
+                Which fields are required comes from the jurisdiction's
+                statutory profile ({employee.jurisdiction}) — captured for
+                reference only, nothing is computed here.
+              </p>
+              <div className='grid grid-cols-2 gap-4'>
+                <StatutoryField
+                  label={STATUTORY_FIELD_LABELS.uan}
+                  value={statutory.uan}
+                  hint={statutoryHints.uan.hint}
+                />
+                <StatutoryField
+                  label={STATUTORY_FIELD_LABELS.esicNumber}
+                  value={statutory.esicNumber}
+                  hint={statutoryHints.esicNumber.hint}
+                />
+                <StatutoryField
+                  label={STATUTORY_FIELD_LABELS.pfEligible}
+                  value={statutory.pfEligible ? 'Eligible' : 'Not eligible'}
+                  hint={statutoryHints.pfEligible.hint}
+                />
+                <StatutoryField
+                  label={STATUTORY_FIELD_LABELS.esiEligible}
+                  value={statutory.esiEligible ? 'Eligible' : 'Not eligible'}
+                  hint={statutoryHints.esiEligible.hint}
+                />
+                <StatutoryField
+                  label={STATUTORY_FIELD_LABELS.ptRegistration}
+                  value={statutory.ptRegistration}
+                  hint={statutoryHints.ptRegistration.hint}
+                />
+                <StatutoryField
+                  label={STATUTORY_FIELD_LABELS.lwfApplicable}
+                  value={statutory.lwfApplicable ? 'Applicable' : 'Not applicable'}
+                  hint={statutoryHints.lwfApplicable.hint}
+                />
+                <StatutoryField
+                  label={STATUTORY_FIELD_LABELS.maternityEligible}
+                  value={statutory.maternityEligible ? 'Eligible' : 'Not eligible'}
+                  hint={statutoryHints.maternityEligible.hint}
+                />
+                <StatutoryField
+                  label={STATUTORY_FIELD_LABELS.gratuityEligible}
+                  value={statutory.gratuityEligible ? 'Eligible' : 'Not eligible'}
+                  hint={statutoryHints.gratuityEligible.hint}
                 />
               </div>
               <SectionTitle>Engine-determined eligibility</SectionTitle>
@@ -373,7 +579,7 @@ export function EmployeeDetailSheet({
                 <span className='font-medium'>{employee.evaluatedRulePack}</span>{' '}
                 — inputs and version recorded for audit.
               </p>
-              <SectionTitle>Leave balances vs statutory entitlement</SectionTitle>
+              <SectionTitle>Leave balances & statutory entitlements</SectionTitle>
               <ul className='space-y-1.5'>
                 {employee.leaveBalances.map((b) => (
                   <li
@@ -382,7 +588,8 @@ export function EmployeeDetailSheet({
                   >
                     <span className='font-medium'>{b.type}</span>
                     <span className='text-neutral-1000'>
-                      {b.balance} available · {b.statutoryEntitlement}/yr statutory
+                      {b.balance} of {b.statutoryEntitlement} days — statutory
+                      minimum {b.statutoryEntitlement}/yr
                     </span>
                   </li>
                 ))}

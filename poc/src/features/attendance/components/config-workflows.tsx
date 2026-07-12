@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowClockwise, PencilSimple, Plus, Trash } from 'phosphor-react'
+import { ArrowClockwise, LockSimple, PencilSimple, Plus, Trash } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -66,6 +66,9 @@ export function ConfigWorkflows({
   config: AttendanceConfigStore
   onNext?: () => void
 }) {
+  // Payroll lock date (W8) — freezes attendance corrections for the period
+  const [lockDraft, setLockDraft] = useState(config.payrollLock.lockedThrough)
+
   const [search, setSearch] = useState('')
   const [locFilter, setLocFilter] = useState(ANY)
   const [deptFilter, setDeptFilter] = useState(ANY)
@@ -245,6 +248,46 @@ export function ConfigWorkflows({
 
   return (
     <div className='w-full space-y-5'>
+      {/* Payroll lock (W8): corrections on or before this date are frozen */}
+      <div className='flex flex-wrap items-end justify-between gap-3 rounded-[8px] border border-gray-200 bg-white p-4'>
+        <div>
+          <h3 className='flex items-center gap-1.5 text-sm font-medium'>
+            <LockSimple size={14} weight='fill' />
+            Payroll Lock
+            <Badge variant='badge_inactive'>
+              Locked through {fmtDate(config.payrollLock.lockedThrough)}
+            </Badge>
+          </h3>
+          <p className='text-paragraph-sm text-neutral-1000 pt-0.5'>
+            Attendance corrections and overrides for any date on or before the
+            lock date are frozen — the period is closed for payroll. Employees
+            who try are told to contact HR to unlock. Every change to this date
+            is recorded in the audit trail.
+          </p>
+          <p className='text-neutral-1000 pt-1 text-xs'>
+            Last updated by {config.payrollLock.updatedBy} on{' '}
+            {fmtDate(config.payrollLock.updatedOn)}
+          </p>
+        </div>
+        <div className='flex items-end gap-2'>
+          <Field label='Locked through (e.g. 30 Jun 2026)'>
+            <Input
+              type='date'
+              className='h-7 w-[160px]'
+              value={lockDraft}
+              onChange={(e) => setLockDraft(e.target.value)}
+            />
+          </Field>
+          <Button
+            className='h-7'
+            disabled={!lockDraft || lockDraft === config.payrollLock.lockedThrough}
+            onClick={() => config.savePayrollLock(lockDraft)}
+          >
+            Save Lock Date
+          </Button>
+        </div>
+      </div>
+
       <div>
         <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
           <h3 className='text-neutral-1600 text-sm font-medium'>

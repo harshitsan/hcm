@@ -349,6 +349,7 @@ export function MyAttendanceTab({
         employeeId={CURRENT_EMPLOYEE_ID}
         requestedBy={employeeName(CURRENT_EMPLOYEE_ID)}
         afterPayrollCutoff={new Date().getDate() > payrollCutoffDay}
+        payrollLockedThrough={config.payrollLock.lockedThrough}
         onSubmit={requests.submitCorrection}
         prefill={correctionPrefill}
       />

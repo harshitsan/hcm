@@ -55,6 +55,37 @@ export interface SwapRequest {
   submittedOn: string
 }
 
+/** "22:00 – 07:00 (ends next day)" for night shifts, "09:00 – 18:00" otherwise. */
+export function patternTimeLabel(p: Pick<ShiftPattern, 'startTime' | 'endTime' | 'nightShift'>) {
+  return p.nightShift
+    ? `${p.startTime} – ${p.endTime} (ends next day)`
+    : `${p.startTime} – ${p.endTime}`
+}
+
+/**
+ * Which approved assignment applies to an employee on a given day. The
+ * narrowest date range wins so a single-day change (e.g. an approved swap)
+ * overrides the month-long roster; newer assignments win ties because the
+ * roster array is newest-first.
+ */
+export function resolveAssignmentForDay(
+  roster: RosterAssignment[],
+  employeeId: string,
+  date: string
+): RosterAssignment | null {
+  const rangeDays = (r: RosterAssignment) =>
+    (new Date(r.toDate).getTime() - new Date(r.fromDate).getTime()) / 86400000
+
+  let best: RosterAssignment | null = null
+  for (const r of roster) {
+    if (r.employeeId !== employeeId) continue
+    if (r.status !== 'approved') continue
+    if (date < r.fromDate || date > r.toDate) continue
+    if (best === null || rangeDays(r) < rangeDays(best)) best = r
+  }
+  return best
+}
+
 export const seedShiftPatterns: ShiftPattern[] = [
   { id: 'shift-01', name: 'General 9–6', startTime: '09:00', endTime: '18:00', breakMinutes: 60, nightShift: false, version: 2, effectiveFrom: '2026-04-01', status: 'active' },
   { id: 'shift-01v1', name: 'General 9–6', startTime: '09:30', endTime: '18:30', breakMinutes: 60, nightShift: false, version: 1, effectiveFrom: '2025-01-01', status: 'superseded' },

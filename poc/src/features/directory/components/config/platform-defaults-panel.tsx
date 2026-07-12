@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
@@ -11,6 +12,7 @@ import {
   DIRECTORY_FIELD_KEYS,
   FIELD_ACCESS_LEVELS,
   FIELD_LABELS,
+  PHASE1_EXCLUDED_FIELDS,
 } from '../../data/directory-config'
 import { type DirectoryConfigStore } from '../../hooks/use-directory-config'
 import { SensitiveBadge } from '../directory-badges'
@@ -39,6 +41,7 @@ export function PlatformDefaultsPanel({
       <CardContent className='space-y-2'>
         {DIRECTORY_FIELD_KEYS.map((key) => {
           const overridden = config.activeVersion.overrides[key] !== undefined
+          const excluded = PHASE1_EXCLUDED_FIELDS.includes(key)
           return (
             <div
               key={key}
@@ -48,7 +51,7 @@ export function PlatformDefaultsPanel({
                 <span className='text-neutral-1600 text-sm font-medium'>
                   {FIELD_LABELS[key]}
                 </span>
-                {config.platformRules[key] === 'restricted' && (
+                {!excluded && config.platformRules[key] === 'restricted' && (
                   <SensitiveBadge />
                 )}
                 {overridden && (
@@ -57,29 +60,33 @@ export function PlatformDefaultsPanel({
                   </span>
                 )}
               </div>
-              <Select
-                value={config.platformRules[key]}
-                onValueChange={(v) =>
-                  config.setPlatformRule(
-                    key,
-                    v as (typeof FIELD_ACCESS_LEVELS)[number]
-                  )
-                }
-              >
-                <SelectTrigger
-                  variant='secondary'
-                  className='h-8 w-[210px] text-xs'
+              {excluded ? (
+                <Badge variant='badge_inactive'>Never shown — Phase 1</Badge>
+              ) : (
+                <Select
+                  value={config.platformRules[key]}
+                  onValueChange={(v) =>
+                    config.setPlatformRule(
+                      key,
+                      v as (typeof FIELD_ACCESS_LEVELS)[number]
+                    )
+                  }
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FIELD_ACCESS_LEVELS.map((level) => (
-                    <SelectItem key={level} value={level}>
-                      {ACCESS_LABELS[level]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger
+                    variant='secondary'
+                    className='h-8 w-[210px] text-xs'
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FIELD_ACCESS_LEVELS.map((level) => (
+                      <SelectItem key={level} value={level}>
+                        {ACCESS_LABELS[level]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           )
         })}

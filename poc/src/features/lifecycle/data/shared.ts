@@ -68,6 +68,20 @@ export function addDays(iso: string, days: number) {
   return d.toISOString().slice(0, 10)
 }
 
+export function addMonths(iso: string, months: number) {
+  const d = new Date(iso)
+  d.setMonth(d.getMonth() + months)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Whole days elapsed from `fromISO` to `toISO` (negative if in the future). */
+export function daysBetween(fromISO: string, toISO: string) {
+  const MS_PER_DAY = 86_400_000
+  return Math.floor(
+    (new Date(toISO).getTime() - new Date(fromISO).getTime()) / MS_PER_DAY
+  )
+}
+
 const dateFmt = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: 'short',

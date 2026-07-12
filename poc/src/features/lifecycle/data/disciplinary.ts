@@ -34,6 +34,15 @@ export type DisciplinaryStatus =
 export interface ExitHandoff {
   process: 'Suspension' | 'Termination'
   triggeredOn: string
+  /** Id of the exit case opened from this disciplinary referral (case ↔ exit link). */
+  exitId?: string
+}
+
+/** A dated line on the case's activity history. */
+export interface DisciplinaryHistoryEntry {
+  id: string
+  date: string
+  text: string
 }
 
 export interface DisciplinaryCase {
@@ -54,6 +63,33 @@ export interface DisciplinaryCase {
   status: DisciplinaryStatus
   approvals: ApprovalStep[]
   exitHandoff: ExitHandoff | null
+  /** Case activity trail — initiate, approvals, letters, handoffs. */
+  history?: DisciplinaryHistoryEntry[]
+}
+
+/**
+ * Statuses that count as an "open" disciplinary case. While an employee has
+ * one, their probation confirmation is gated (Confirm blocked, Extend still
+ * available) until the case is resolved.
+ */
+export const OPEN_DISCIPLINARY_STATUSES: DisciplinaryStatus[] = [
+  'pending-approval',
+  'approved',
+  'counselling-in-progress',
+]
+
+/** The first open disciplinary case for an employee, if any. */
+export function openDisciplinaryCaseFor(
+  employeeName: string,
+  cases: DisciplinaryCase[]
+): DisciplinaryCase | null {
+  return (
+    cases.find(
+      (c) =>
+        c.employeeName === employeeName &&
+        OPEN_DISCIPLINARY_STATUSES.includes(c.status)
+    ) ?? null
+  )
 }
 
 export const COUNSELLING_OUTCOMES = ['No Action', 'Termination'] as const
@@ -166,6 +202,23 @@ export const seedDisciplinary: DisciplinaryCase[] = [
       },
     ],
     exitHandoff: null,
+    history: [
+      {
+        id: 'dh-5003-1',
+        date: '2026-05-15',
+        text: 'Case initiated by Vikram Shah and routed to the location approver.',
+      },
+      {
+        id: 'dh-5003-2',
+        date: '2026-05-16',
+        text: 'Approved by Vikram Shah (Location Approver) — verbal warning to be delivered.',
+      },
+      {
+        id: 'dh-5003-3',
+        date: '2026-05-16',
+        text: 'Open case is gating this employee’s probation confirmation until resolved.',
+      },
+    ],
   },
   {
     id: 'dsc-5004',
@@ -220,6 +273,55 @@ export const seedDisciplinary: DisciplinaryCase[] = [
       },
     ],
     exitHandoff: null,
+  },
+  {
+    id: 'dsc-5006',
+    employeeName: 'Imran Khan',
+    employeeCode: 'EMP-2255',
+    department: 'Operations',
+    location: 'Hyderabad',
+    actionType: 'Suspension',
+    policyDeviated: 'Code of Conduct',
+    reason:
+      'Warehouse stock discrepancies traced to unlogged dispatches on his shift; suspension pending inquiry.',
+    reportedBy: 'Sunil Patil',
+    reportedOn: '2026-06-28',
+    actionToBeTakenOn: '2026-07-10',
+    attachmentName: 'stock-audit-june.pdf',
+    initiatedBy: 'Anita Desai',
+    initiatedOn: '2026-06-30',
+    status: 'approved',
+    approvals: [
+      {
+        role: 'Location Approver',
+        approver: 'Vikram Shah',
+        status: 'approved',
+        actedOn: '2026-07-02',
+        note: 'Suspend pending inquiry outcome.',
+      },
+    ],
+    exitHandoff: {
+      process: 'Suspension',
+      triggeredOn: '2026-07-02',
+      exitId: 'ext-4007',
+    },
+    history: [
+      {
+        id: 'dh-5006-1',
+        date: '2026-06-30',
+        text: 'Case initiated by Anita Desai and routed to the location approver.',
+      },
+      {
+        id: 'dh-5006-2',
+        date: '2026-07-02',
+        text: 'Approved by Vikram Shah (Location Approver).',
+      },
+      {
+        id: 'dh-5006-3',
+        date: '2026-07-02',
+        text: 'Severe outcome — Suspension case handed to the Exit Coordinator. Exit case ext-4007 opened and linked back to this record.',
+      },
+    ],
   },
 ]
 

@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import {
   ACCESS_LABELS,
   FIELD_LABELS,
+  PHASE1_EXCLUDED_FIELDS,
   seedCompanyPolicyVersions,
   seedCustomFields,
   seedPlatformRules,
@@ -37,7 +39,34 @@ export function useDirectoryConfig() {
 
   const setPlatformRule = useCallback(
     (key: DirectoryFieldKey, access: FieldAccess) => {
-      setPlatformRules((prev) => ({ ...prev, [key]: access }))
+      // Structurally excluded fields cannot be re-enabled by configuration.
+      if (PHASE1_EXCLUDED_FIELDS.includes(key)) {
+        toast.error(
+          `"${FIELD_LABELS[key]}" is never shown in Phase 1 — this cannot be changed by configuration.`
+        )
+        return
+      }
+      let previous: FieldAccess | undefined
+      setPlatformRules((prev) => {
+        previous = prev[key]
+        return { ...prev, [key]: access }
+      })
+      publishAuditEvent({
+        module: 'Directory & Org Chart',
+        action: `Platform default for "${FIELD_LABELS[key]}" changed to ${ACCESS_LABELS[access]}`,
+        actor: 'Platform Admin',
+        actorRole: 'Platform Admin',
+        entityType: 'Company',
+        actionType: 'update',
+        recordName: 'Directory field policy',
+        changes: [
+          {
+            field: FIELD_LABELS[key],
+            previousValue: previous ? ACCESS_LABELS[previous] : '—',
+            newValue: ACCESS_LABELS[access],
+          },
+        ],
+      })
       toast.success(
         `Platform default for "${FIELD_LABELS[key]}" set to ${ACCESS_LABELS[access]}`
       )
@@ -51,15 +80,36 @@ export function useDirectoryConfig() {
       overrides: Partial<Record<DirectoryFieldKey, FieldAccess>>,
       note: string
     ) => {
+      // Strip structurally excluded fields — overrides can never surface them.
+      const safeOverrides = Object.fromEntries(
+        Object.entries(overrides).filter(
+          ([key]) =>
+            !PHASE1_EXCLUDED_FIELDS.includes(key as DirectoryFieldKey)
+        )
+      ) as Partial<Record<DirectoryFieldKey, FieldAccess>>
       setCompanyVersions((prev) => {
         const version: CompanyPolicyVersion = {
           version: prev.length + 1,
           effectiveFrom: new Date().toISOString().slice(0, 10),
           changedBy: 'You (Company Admin)',
           note: note || 'Company privacy override updated.',
-          overrides,
+          overrides: safeOverrides,
         }
         return [...prev, version]
+      })
+      publishAuditEvent({
+        module: 'Directory & Org Chart',
+        action: 'Company directory privacy override published as a new version',
+        actor: 'Meera Iyer',
+        actorRole: 'Company Admin',
+        entityType: 'Company',
+        actionType: 'update',
+        recordName: 'Directory field policy',
+        changes: Object.entries(safeOverrides).map(([key, access]) => ({
+          field: FIELD_LABELS[key as DirectoryFieldKey],
+          previousValue: 'Platform default',
+          newValue: ACCESS_LABELS[access],
+        })),
       })
       toast.success('Company override published as a new version')
     },

@@ -122,7 +122,8 @@ export const TRANSITION_RULES: TransitionRule[] = [
   { id: 'R-AVAILABLE', action: 'mark-available', from: ['Returned'], to: 'Available', description: 'Serviceable returns re-enter issuable inventory' },
   { id: 'R-REPAIR', action: 'send-repair', from: ['Returned', 'Issued', 'Available', 'Loan'], to: 'In Repair', description: 'Unserviceable assets are excluded from issuable inventory' },
   { id: 'R-REPAIR-DONE', action: 'repair-complete', from: ['In Repair'], to: 'Available', description: 'Repaired assets return to issuable inventory' },
-  { id: 'R-RETIRE', action: 'retire', from: ['Returned', 'In Repair', 'Available', 'Allocated'], to: 'Retired', description: 'End-of-life assets leave issuable inventory' },
+  { id: 'R-LOST', action: 'mark-lost', from: ['Issued', 'Loan', 'Allocated'], to: 'Lost', description: 'Assets unaccounted for while with an employee are flagged Lost and routed to disciplinary review / recovery' },
+  { id: 'R-RETIRE', action: 'retire', from: ['Returned', 'In Repair', 'Available', 'Allocated', 'Lost'], to: 'Retired', description: 'End-of-life (or written-off lost) assets leave issuable inventory' },
   { id: 'R-DISPOSE', action: 'dispose', from: ['Retired'], to: 'Disposed', description: 'Only retired assets may be physically disposed' },
 ]
 

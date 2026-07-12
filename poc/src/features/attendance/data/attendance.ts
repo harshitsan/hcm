@@ -76,6 +76,14 @@ export interface AttendanceRecord {
   duplicateOfId: string | null
   status: AttendanceStatus
   overrides: OverrideEntry[]
+  /**
+   * Night shifts crossing midnight: the calendar date the overtime portion
+   * belongs to when it lands after 00:00 (differs from `date`). Keeps the
+   * OT/comp-off ledger computation-ready for payroll (D6).
+   */
+  otAttributedDate?: string
+  /** Plain-language explanation of the cross-midnight attribution. */
+  otAttributionNote?: string
 }
 
 export const seedAttendance: AttendanceRecord[] = [
@@ -203,5 +211,19 @@ export const seedAttendance: AttendanceRecord[] = [
     dayType: 'working', workCategory: 'work-from-home', breaksCount: 1, breakMinutes: 30,
     plannedHours: 8, workedHours: 9.33, effectiveHours: 8.83, overtimeHours: 0.83, overtimeCategory: 'normal',
     exception: null, complianceFlag: null, duplicateOfId: null, status: 'approved', overrides: [],
+  },
+  // Edge case: night-shift OT spans the date boundary. The shift ran
+  // 22:00 (3 Jul) → 06:30 (4 Jul); the 30 minutes worked beyond the planned
+  // 8 hours fall after midnight, so the OT is attributed to 4 Jul in the
+  // payroll-ready ledger (D6).
+  {
+    id: 'att-18', employeeId: 'emp-04', date: '2026-07-03', punchIn: '22:00', punchOut: '06:30',
+    source: 'biometric', origin: 'CHN-Gate-1', enteredBy: null, shiftName: 'Night 10–7', nightShift: true,
+    dayType: 'working', workCategory: 'office', breaksCount: 0, breakMinutes: 0,
+    plannedHours: 8, workedHours: 8.5, effectiveHours: 8.5, overtimeHours: 0.5, overtimeCategory: 'night-shift',
+    exception: null, complianceFlag: null, duplicateOfId: null, status: 'approved', overrides: [],
+    otAttributedDate: '2026-07-04',
+    otAttributionNote:
+      'Night shift ran 22:00 on 3 Jul to 06:30 on 4 Jul. The 30m of overtime fell after midnight, so it is attributed to 4 Jul.',
   },
 ]

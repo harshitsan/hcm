@@ -140,7 +140,8 @@ export const seedDecisionRules: DecisionRule[] = [
     id: 'dr-01',
     order: 1,
     trigger: 'Content change',
-    scope: 'All employees holding an active acknowledgment of the changed policy',
+    scope:
+      "Applicable population only — employees the policy currently covers; anyone no longer covered is closed as no longer applicable",
     enabled: true,
     version: 3,
     effectiveFrom: '2026-05-20',

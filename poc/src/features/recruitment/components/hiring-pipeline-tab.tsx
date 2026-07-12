@@ -26,6 +26,7 @@ import type {
   RoundsConfig,
   ScorecardCriterion,
 } from '../data/config'
+import type { Vacancy } from '../data/vacancies'
 import {
   seedReferenceQuestions,
   type ReferenceQuestion,
@@ -51,6 +52,8 @@ interface HiringPipelineTabProps {
   outOfBandApprover: string
   /** Configured reference-check questionnaire; falls back to the seed set. */
   referenceQuestions?: ReferenceQuestion[]
+  /** Open vacancies offered as revival targets for on-hold candidates. */
+  vacancies?: Vacancy[]
 }
 
 /** Kensium-style hiring stage views incl. On Hold and Cancelled (TA-45, TA-47). */
@@ -101,6 +104,7 @@ export function HiringPipelineTab({
   offerApproverRules,
   outOfBandApprover,
   referenceQuestions = seedReferenceQuestions,
+  vacancies = [],
 }: HiringPipelineTabProps) {
   const { role, hasRole } = useRole()
   const [view, setView] = useState<StageView>('all')
@@ -337,6 +341,7 @@ export function HiringPipelineTab({
         checklistQuestions={checklistQuestions}
         referenceQuestions={referenceQuestions}
         onGenerateOffer={(app) => setOfferApp(app)}
+        vacancies={vacancies}
       />
 
       <ScheduleInterviewDialog

@@ -500,6 +500,8 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       '2026-06-01'
     ),
   ],
+  // Comp-dark (RPT-38): amounts are never rendered anywhere in this
+  // environment — value columns carry the "Restricted" placeholder only.
   Compensation: [
     row(
       'cp-1',
@@ -507,8 +509,8 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       'Aurora Software',
       'Engineering',
       'CTC revision · increment cycle FY27',
-      '₹28.5L (eff 01 Apr 26)',
-      '₹24.0L',
+      'Restricted',
+      'Restricted',
       '2026-04-01'
     ),
     row(
@@ -517,8 +519,8 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       'Aurora Software',
       'Sales',
       'Bonus · FY26 performance payout',
-      '₹1.8L bonus',
-      '₹1.5L bonus',
+      'Restricted',
+      'Restricted',
       '2026-04-30'
     ),
     row(
@@ -537,8 +539,8 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       'Helios Energy',
       'Finance',
       'CTC revision · market correction',
-      '₹32.0L (eff 01 Apr 26)',
-      '₹29.5L',
+      'Restricted',
+      'Restricted',
       '2026-04-01'
     ),
   ],
@@ -584,6 +586,7 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       '2026-04-05'
     ),
   ],
+  // Payroll-linked, so comp-dark too — deduction amounts stay restricted.
   'Tax Planning': [
     row(
       'tx-1',
@@ -591,8 +594,8 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       'Aurora Software',
       'Engineering',
       'TDS deducted · June 2026 payroll',
-      '₹18,420',
-      '₹14,900',
+      'Restricted',
+      'Restricted',
       '2026-06-30'
     ),
     row(
@@ -601,8 +604,8 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       'Aurora Software',
       'Sales',
       'TDS deducted · June 2026 payroll',
-      '₹11,050',
-      '₹10,800',
+      'Restricted',
+      'Restricted',
       '2026-06-30'
     ),
     row(
@@ -611,8 +614,8 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       'Zenith Manufacturing',
       'Engineering',
       'TDS deducted · June 2026 payroll',
-      '₹21,700',
-      '₹19,300',
+      'Restricted',
+      'Restricted',
       '2026-06-30'
     ),
     row(
@@ -621,8 +624,8 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       'Helios Energy',
       'Finance',
       'TDS deducted · June 2026 payroll',
-      '₹26,140',
-      '₹24,600',
+      'Restricted',
+      'Restricted',
       '2026-06-30'
     ),
   ],
@@ -666,6 +669,50 @@ const categoryRows: Record<ReportCategory, ReportRow[]> = {
       'Acknowledged',
       'Acknowledged',
       '2026-04-22'
+    ),
+  ],
+  // Consolidated portfolio/group rollups (RPT-17/18) — one row per company,
+  // so RLS visibly trims the set to the viewer's authorized companies.
+  'Consolidated (Portfolio / Group)': [
+    row(
+      'cn-1',
+      'Aurora Software',
+      'Aurora Software',
+      'All departments',
+      'Company rollup · headcount, movement, compliance',
+      '248 employees · 4.1% attrition',
+      '242 employees · 5.2% attrition',
+      '2026-06-30'
+    ),
+    row(
+      'cn-2',
+      'Northwind Retail',
+      'Northwind Retail',
+      'All departments',
+      'Company rollup · headcount, movement, compliance',
+      '286 employees · 7.8% attrition',
+      '281 employees · 8.4% attrition',
+      '2026-06-30'
+    ),
+    row(
+      'cn-3',
+      'Zenith Manufacturing',
+      'Zenith Manufacturing',
+      'All departments',
+      'Company rollup · headcount, movement, compliance',
+      '312 employees · 3.2% attrition',
+      '309 employees · 3.6% attrition',
+      '2026-06-30'
+    ),
+    row(
+      'cn-4',
+      'Helios Energy',
+      'Helios Energy',
+      'All departments',
+      'Company rollup · headcount, movement, compliance',
+      '176 employees · 2.6% attrition',
+      '171 employees · 2.9% attrition',
+      '2026-06-30'
     ),
   ],
 }

@@ -284,6 +284,7 @@ export function Recruitment() {
                   offerApproverRules={config.offerApproverRules}
                   outOfBandApprover={config.outOfBandApprover}
                   referenceQuestions={config.refQuestions}
+                  vacancies={vacancies.vacancies}
                 />
               )}
               {candidatesView === 'talent-pool' && (

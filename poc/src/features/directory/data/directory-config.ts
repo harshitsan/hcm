@@ -48,6 +48,17 @@ export const ACCESS_LABELS: Record<FieldAccess, string> = {
   restricted: 'Restricted (sensitive)',
 }
 
+/**
+ * Phase 1 structural exclusions: personal contact details and anything
+ * compensation-adjacent never render in the directory — on any surface, for
+ * any role — and no platform default or company override can re-enable them.
+ * The rules engine short-circuits these keys before any configured rule runs.
+ */
+export const PHASE1_EXCLUDED_FIELDS: DirectoryFieldKey[] = [
+  'personalEmail',
+  'salaryBand',
+]
+
 /** Platform-wide defaults set by the Platform Admin (DIR-11). */
 export const seedPlatformRules: Record<DirectoryFieldKey, FieldAccess> = {
   photo: 'everyone',

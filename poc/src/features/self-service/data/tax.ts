@@ -79,35 +79,6 @@ export const seedLtaClaims: LtaClaim[] = [
   { id: 'lta-02', financialYear: '2024-25', relationship: 'Spouse', travellerName: 'Rohit Sharma', departureDate: '2024-10-12', arrivalDate: '2024-10-19', modeOfTravel: 'Rail', totalAmount: 8600, claimFrom: '2024-10-12', claimTo: '2024-10-19', claimsAvailed: 1 },
 ]
 
-export const SALARY_MONTHS = [
-  'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
-  'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar',
-] as const
-
-export type SalaryRowKind = 'earning' | 'deduction' | 'summary' | 'tds'
-
-/** Month-by-month salary components and TDS (ESS-36). */
-export interface SalaryRow {
-  component: string
-  kind: SalaryRowKind
-  amounts: number[]
-}
-
-const m = (value: number): number[] => [
-  value, value, value, value, value, value,
-  value, value, value, value, value, value,
-]
-
-export const seedSalaryRows: SalaryRow[] = [
-  { component: 'Basic', kind: 'earning', amounts: m(72000) },
-  { component: 'House Rent Allowance', kind: 'earning', amounts: m(28800) },
-  { component: 'Special allowance', kind: 'earning', amounts: m(31400) },
-  { component: 'Employer PF contribution', kind: 'earning', amounts: m(8640) },
-  { component: 'Gross salary', kind: 'summary', amounts: m(140840) },
-  { component: 'Employee PF contribution', kind: 'deduction', amounts: m(8640) },
-  { component: 'ESI contribution', kind: 'deduction', amounts: m(0) },
-  { component: 'Profession tax', kind: 'deduction', amounts: m(200) },
-  { component: 'Standard deduction', kind: 'deduction', amounts: m(4167) },
-  { component: 'Gross pay', kind: 'summary', amounts: m(127833) },
-  { component: 'Actual TDS deducted (per payslip)', kind: 'tds', amounts: [14100, 14100, 14100, 14350, 14350, 14350, 14350, 14350, 14350, 15200, 15200, 15200] },
-]
+// Month-by-month salary/TDS seed data (ESS-36) was removed for Phase 1:
+// compensation amounts are comp-dark and must not ship in self-service.
+// The "My Salary Details" tab renders a restricted-visibility note instead.

@@ -4,7 +4,6 @@ import {
   seedDeductions,
   seedExemptions,
   seedLtaClaims,
-  seedSalaryRows,
   type LtaClaim,
   type TaxDeduction,
 } from '../data/tax'
@@ -12,12 +11,14 @@ import {
 export type DeductionDraft = Omit<TaxDeduction, 'id'>
 export type LtaClaimDraft = Omit<LtaClaim, 'id' | 'claimsAvailed'>
 
-/** In-memory tax-planning store (ESS-33..36). */
+/**
+ * In-memory tax-planning store (ESS-33..35). Salary/TDS rows are not exposed
+ * here — compensation data stays comp-dark in Phase 1 self-service.
+ */
 export function useTax() {
   const [deductions, setDeductions] = useState<TaxDeduction[]>(seedDeductions)
   const [exemptions] = useState(seedExemptions)
   const [ltaClaims, setLtaClaims] = useState<LtaClaim[]>(seedLtaClaims)
-  const [salaryRows] = useState(seedSalaryRows)
 
   const addDeduction = useCallback((draft: DeductionDraft) => {
     setDeductions((prev) => [
@@ -37,7 +38,7 @@ export function useTax() {
     toast.success('LTA reimbursement claim saved')
   }, [])
 
-  return { deductions, exemptions, ltaClaims, salaryRows, addDeduction, addLtaClaim }
+  return { deductions, exemptions, ltaClaims, addDeduction, addLtaClaim }
 }
 
 export type TaxStore = ReturnType<typeof useTax>

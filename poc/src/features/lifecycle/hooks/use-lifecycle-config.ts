@@ -11,6 +11,7 @@ import {
   seedExitQuestions,
   seedExitTaskDefs,
   seedExitTypes,
+  seedJoineeWindow,
   seedLayoffApprovers,
   seedLetterTemplates,
   seedNoticeRules,
@@ -18,6 +19,7 @@ import {
   seedTemplates,
   type ApproverGraph,
   type ApproverGraphStep,
+  type JoineeWindowConfig,
   type LifecycleSettings,
   type OnboardingTemplate,
   type ProbationDecisionTable,
@@ -57,6 +59,8 @@ export function useLifecycleConfig(log: Log) {
     useState<ProbationDecisionTable>(seedDecisionTable)
   const [approverGraphs, setApproverGraphs] =
     useState<ApproverGraph[]>(seedApproverGraphs)
+  const [joineeWindow, setJoineeWindow] =
+    useState<JoineeWindowConfig>(seedJoineeWindow)
 
   const exitTypes = useList(seedExitTypes)
   const exitApproverGroups = useList(seedExitApproverGroups)
@@ -85,6 +89,30 @@ export function useLifecycleConfig(log: Log) {
         onBehalfOf: null,
       })
       toast.success(`${label} saved`)
+    },
+    [log]
+  )
+
+  /** New-joinee window settings → publishes a NEW effective-dated version. */
+  const updateJoineeWindow = useCallback(
+    (patch: { firstWindowDays: number; overdueAfterDays: number }) => {
+      setJoineeWindow((prev) => ({
+        version: `v${Number(prev.version.slice(1)) + 1}`,
+        effectiveFrom: todayISO(),
+        ...patch,
+      }))
+      log({
+        company: 'Aurora Software India',
+        module: 'Configuration',
+        action: 'New joinee window settings published',
+        target: `First window ${patch.firstWindowDays} day(s) · overdue after ${patch.overdueAfterDays} day(s)`,
+        outcome:
+          'Versioned & effective-dated — joinee chips recompute from the new definitions immediately',
+        onBehalfOf: null,
+      })
+      toast.success(
+        'Window settings saved — New Joinees statuses recomputed with the new definitions'
+      )
     },
     [log]
   )
@@ -217,6 +245,8 @@ export function useLifecycleConfig(log: Log) {
     updateDecisionRow,
     approverGraphs,
     addGraphStep,
+    joineeWindow,
+    updateJoineeWindow,
     exitTypes,
     exitApproverGroups,
     clearanceChains,

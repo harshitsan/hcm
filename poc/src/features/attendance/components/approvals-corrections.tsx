@@ -29,9 +29,12 @@ const KIND_LABEL: Record<CorrectionRequest['kind'], string> = {
 export function ApprovalsCorrections({
   requests,
   actor,
+  payrollLockedThrough,
 }: {
   requests: RequestsStore
   actor: string
+  /** Payroll lock date (W8) — corrections on or before it are frozen. */
+  payrollLockedThrough: string
 }) {
   const [statusFilter, setStatusFilter] = useState('all')
   const [deptFilter, setDeptFilter] = useState('all')
@@ -194,6 +197,7 @@ export function ApprovalsCorrections({
         employeeId={onBehalfFor || 'emp-09'}
         requestedBy={`${actor} (on behalf)`}
         afterPayrollCutoff={false}
+        payrollLockedThrough={payrollLockedThrough}
         onSubmit={requests.submitCorrection}
       />
     </div>

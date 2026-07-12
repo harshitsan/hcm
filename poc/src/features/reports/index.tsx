@@ -13,22 +13,12 @@ import { NonUserPanel } from './components/non-user-panel'
 import { ReportsSummary } from './components/reports-summary'
 import { ScheduleOverlay } from './components/schedule-overlay'
 import { SchedulesTab } from './components/schedules-tab'
-import { companiesForRole } from './data/governance'
+import { companiesForRole, ROLE_ACTORS } from './data/governance'
 import { useCompliance } from './hooks/use-compliance'
 import { useReportConfig } from './hooks/use-report-config'
 import { useSavedViews } from './hooks/use-saved-views'
 import { useSchedules } from './hooks/use-schedules'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
-
-/** Named persona acting for each canonical role. */
-const ACTORS: Record<Role, string> = {
-  'Platform Admin': 'Platform Ops',
-  'Portfolio Admin': 'Devika Rao',
-  'Group Company Admin': 'Arjun Mehta',
-  'Company Admin': 'Sunita Patil',
-  'Employee (User)': 'Ananya Rao',
-  'Employee (Non-User)': 'Ravi Naik',
-}
 
 interface TabDef {
   value: string
@@ -117,7 +107,7 @@ export function ReportsAnalytics() {
   const companies = companiesForRole(role, config.grants)
   const scopeLabel =
     companies.length === 0 ? 'No direct access' : companies.join(', ')
-  const actor = ACTORS[role]
+  const actor = ROLE_ACTORS[role]
 
   const layout =
     config.roleDashboards.find((m) => m.role === role)?.layout ??

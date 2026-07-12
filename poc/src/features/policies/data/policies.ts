@@ -760,4 +760,39 @@ export const seedPolicies: Policy[] = [
     ],
     retired: false,
   },
+  // Publishing a new version of this policy demonstrates population-scoped
+  // re-acknowledgment: the acknowledgment tracker applies the Code of
+  // Conduct to office-based staff only, so a version bump re-asks part of
+  // the earlier roster and closes the rest as "No longer applicable".
+  {
+    id: 'pol-1017',
+    name: 'Code of Conduct',
+    type: 'HR',
+    category: 'Code of Conduct',
+    tenant: TENANT,
+    ownerLevel: 'Group',
+    ownerName: 'Acme Group',
+    linkedModules: ['Onboarding'],
+    scope: scope({ groups: ['Acme Group'], workerKinds: 'employees' }),
+    scopeConfigVersions: configV1(
+      scope({ groups: ['Acme Group'], workerKinds: 'employees' }),
+      '2026-01-01'
+    ),
+    versions: [
+      {
+        version: 1,
+        editionName: 'Code of Conduct 2026',
+        effectiveFrom: '2026-01-01',
+        effectiveTill: null,
+        content:
+          'Group-wide standards of professional and ethical behaviour for office-based staff: conflicts of interest, gifts and hospitality, fair dealing and the duty to report misconduct through the confidential ethics line.',
+        attachment: { fileName: 'code-of-conduct-2026.pdf', sizeKb: 1180 },
+        status: 'published',
+        changeNote: 'Annual refresh of the group code',
+        createdBy: 'Rohit Malhotra',
+        createdOn: '2025-12-18',
+      },
+    ],
+    retired: false,
+  },
 ]

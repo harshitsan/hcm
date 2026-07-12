@@ -12,7 +12,8 @@ import {
   type OvertimeRequest,
   type WfhRequest,
 } from '../data/requests'
-import { employeeName, hoursBetween } from '../data/shared'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
+import { employeeName, fmtDate, hoursBetween } from '../data/shared'
 
 export interface CorrectionDraft {
   employeeId: string
@@ -37,6 +38,8 @@ interface UseRequestsArgs {
   wfhMonthlyLimit: number
   /** Out-time per-request hour limit (TNA-35). */
   outTimeMaxHoursPerRequest: number
+  /** W8 — corrections for dates on/before this date are frozen for payroll. */
+  payrollLockedThrough: string
 }
 
 /**
@@ -49,6 +52,7 @@ export function useRequests({
   supervisorCapHours,
   wfhMonthlyLimit,
   outTimeMaxHoursPerRequest,
+  payrollLockedThrough,
 }: UseRequestsArgs) {
   const [corrections, setCorrections] = useState<CorrectionRequest[]>(seedCorrections)
   const [overtime, setOvertime] = useState<OvertimeRequest[]>(seedOvertime)
@@ -56,25 +60,49 @@ export function useRequests({
   const [outTime, setOutTime] = useState<OutTimeRequest[]>(seedOutTime)
   const [wfh, setWfh] = useState<WfhRequest[]>(seedWfh)
 
-  const submitCorrection = useCallback((draft: CorrectionDraft) => {
-    setCorrections((prev) => [
-      {
-        ...draft,
-        id: `cor-${crypto.randomUUID().slice(0, 6)}`,
-        status: 'pending',
-        approvalLevel: 1,
-        slaHoursLeft: 48,
-        escalatedTo: null,
-        submittedOn: new Date().toISOString().slice(0, 10),
-      },
-      ...prev,
-    ])
-    toast.success(
-      draft.afterPayrollCutoff
-        ? 'Correction submitted — raised after the payroll cut-off, so a second-level approval is required'
-        : 'Correction request submitted and routed to your approver'
-    )
-  }, [])
+  /** Returns false when the payroll lock blocked the correction (W8). */
+  const submitCorrection = useCallback(
+    (draft: CorrectionDraft): boolean => {
+      if (draft.date <= payrollLockedThrough) {
+        toast.error(
+          `This period is locked for payroll — corrections up to ${fmtDate(payrollLockedThrough)} are frozen. Contact HR to unlock.`
+        )
+        publishAuditEvent({
+          module: 'Time & Attendance',
+          action: 'Correction blocked by payroll lock',
+          actor: draft.requestedBy,
+          recordName: `Attendance correction — ${employeeName(draft.employeeId)}`,
+          changes: [
+            {
+              field: `Correction for ${fmtDate(draft.date)}`,
+              previousValue: null,
+              newValue: `Blocked — period locked through ${fmtDate(payrollLockedThrough)}`,
+            },
+          ],
+        })
+        return false
+      }
+      setCorrections((prev) => [
+        {
+          ...draft,
+          id: `cor-${crypto.randomUUID().slice(0, 6)}`,
+          status: 'pending',
+          approvalLevel: 1,
+          slaHoursLeft: 48,
+          escalatedTo: null,
+          submittedOn: new Date().toISOString().slice(0, 10),
+        },
+        ...prev,
+      ])
+      toast.success(
+        draft.afterPayrollCutoff
+          ? 'Correction submitted — raised after the payroll cut-off, so a second-level approval is required'
+          : 'Correction request submitted and routed to your approver'
+      )
+      return true
+    },
+    [payrollLockedThrough]
+  )
 
   const decideCorrection = useCallback(
     (id: string, approve: boolean, reason: string) => {

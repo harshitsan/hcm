@@ -71,6 +71,64 @@ export function TransferDetailSheet({
           )}
           <Separator />
 
+          {t.type === 'Inter-Company' && (
+            <>
+              <section className='space-y-2'>
+                <h3 className='text-sm font-semibold'>
+                  Company-specific employee records
+                </h3>
+                <p className='text-neutral-1000 text-xs'>
+                  Each company keeps its own employee record — an inter-company
+                  transfer never moves the existing record. The same person is
+                  represented by two records, one per company, linked to each
+                  other.
+                </p>
+                <div className='rounded-[6px] border border-gray-200 px-3 py-2'>
+                  <p className='text-neutral-1000 text-xs'>Source record</p>
+                  <p className='text-sm font-medium'>
+                    {t.employeeName} · {t.employeeCode}
+                  </p>
+                  <p className='text-neutral-1000 text-xs'>
+                    {t.fromCompany} — stays as the record of employment with the
+                    source company (closed as of the effective date).
+                  </p>
+                </div>
+                {t.destinationRecord ? (
+                  <div className='rounded-[6px] border border-green-300 bg-green-50 px-3 py-2'>
+                    <p className='text-neutral-1000 text-xs'>
+                      Destination record (new, company-specific)
+                    </p>
+                    <p className='text-sm font-medium'>
+                      {t.employeeName} · {t.destinationRecord.employeeCode}
+                    </p>
+                    <p className='text-neutral-1000 text-xs'>
+                      {t.destinationRecord.company} — created{' '}
+                      {fmtDate(t.destinationRecord.createdOn)} and linked to
+                      source record {t.employeeCode}. Visible in the destination
+                      company&apos;s employee directory
+                      {t.status === 'scheduled'
+                        ? ` from the effective date (${fmtDate(t.effectiveDate)})`
+                        : ''}
+                      .
+                    </p>
+                  </div>
+                ) : (
+                  <div className='rounded-[6px] border border-dashed border-gray-300 px-3 py-2'>
+                    <p className='text-neutral-1000 text-xs'>
+                      Destination record (new, company-specific)
+                    </p>
+                    <p className='text-neutral-1000 text-sm'>
+                      Created automatically once all approvals are granted — a
+                      new {t.toCompany} employee record with its own employee
+                      code, linked back to {t.employeeCode}.
+                    </p>
+                  </div>
+                )}
+              </section>
+              <Separator />
+            </>
+          )}
+
           <section className='space-y-2'>
             <h3 className='text-sm font-semibold'>Approval workflow</h3>
             <ApprovalSteps
@@ -113,17 +171,29 @@ export function TransferDetailSheet({
                     No balance changes at destination.
                   </p>
                 ) : (
-                  t.impact.leaveAdjustments.map((l) => (
-                    <div
-                      key={l.leaveType}
-                      className='mb-1 flex items-center justify-between rounded-[6px] border border-gray-200 px-3 py-1.5 text-sm'
-                    >
-                      <span>{l.leaveType}</span>
-                      <span className='text-neutral-1000 text-xs'>
-                        {l.before} → {l.after} · {l.note}
-                      </span>
+                  <>
+                    <div className='mb-1 rounded-[6px] border border-blue-200 bg-blue-150 px-3 py-1.5'>
+                      <p className='text-sm'>
+                        Balances reconciled per policy at transfer date —
+                        computation handled by the leave engine
+                      </p>
+                      <p className='text-neutral-1000 text-xs'>
+                        Display-only in this POC · source balance → destination
+                        balance per leave type below.
+                      </p>
                     </div>
-                  ))
+                    {t.impact.leaveAdjustments.map((l) => (
+                      <div
+                        key={l.leaveType}
+                        className='mb-1 flex items-center justify-between rounded-[6px] border border-gray-200 px-3 py-1.5 text-sm'
+                      >
+                        <span>{l.leaveType}</span>
+                        <span className='text-neutral-1000 text-xs'>
+                          {l.before} → {l.after} · {l.note}
+                        </span>
+                      </div>
+                    ))}
+                  </>
                 )}
               </div>
               <div>

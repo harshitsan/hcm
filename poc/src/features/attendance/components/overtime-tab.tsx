@@ -20,12 +20,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { type ApprovalWorkflow } from '../data/config'
 import { LOCATIONS, employeeById, employeeName, fmtDate, fmtHours } from '../data/shared'
 import { type AttendanceStore } from '../hooks/use-attendance'
 import { type AttendanceConfigStore } from '../hooks/use-attendance-config'
 import { OtBadge, StatusBadge } from './badges'
 import { DualListTransfer } from './dual-list-transfer'
+import { PayrollLedger } from './payroll-ledger'
 import { SummaryCards } from './summary-cards'
 
 const OT_APPROVER_ROLES = [
@@ -228,7 +230,23 @@ export function OvertimeTab({
                   <tr key={r.id} className='border-b last:border-0'>
                     <td className='py-2 pr-3 font-medium'>{employeeName(r.employeeId)}</td>
                     <td className='px-2'>{emp?.workerCategory ?? '—'}</td>
-                    <td className='px-2'>{fmtDate(r.date)}</td>
+                    <td className='px-2'>
+                      {r.otAttributedDate && r.otAttributedDate !== r.date ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className='cursor-help underline decoration-dotted underline-offset-2'>
+                              {fmtDate(r.date)} → {fmtDate(r.otAttributedDate)}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side='top' className='max-w-[260px]'>
+                            {r.otAttributionNote ??
+                              `This night shift crossed midnight, so the overtime is attributed to ${fmtDate(r.otAttributedDate)}.`}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        fmtDate(r.date)
+                      )}
+                    </td>
                     <td className='px-2 capitalize'>{r.dayType}</td>
                     <td className='px-2 font-medium'>{fmtHours(r.overtimeHours)}</td>
                     <td className='px-2'>
@@ -251,6 +269,12 @@ export function OvertimeTab({
           </table>
         </div>
       </div>
+
+      {/* OT / comp-off ledger — computation-ready for payroll (D6) */}
+      <PayrollLedger
+        attendance={attendance}
+        lockedThrough={config.payrollLock.lockedThrough}
+      />
 
       <div className='grid gap-4 lg:grid-cols-2'>
         {/* Rules engine decision table (TNA-26) */}

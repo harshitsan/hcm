@@ -37,14 +37,15 @@ export interface ProfileField {
 }
 
 export const seedProfileFields: ProfileField[] = [
-  { id: 'fullName', label: 'Full name', section: 'Personal', mode: 'view-only', approvalRequired: true, isUdf: false, inputType: 'text', minLength: 2, effectiveFrom: '2026-01-01' },
+  { id: 'fullName', label: 'Legal name', section: 'Personal', mode: 'editable', approvalRequired: true, isUdf: false, inputType: 'text', minLength: 2, effectiveFrom: '2026-01-01' },
   { id: 'preferredName', label: 'Preferred name', section: 'Personal', mode: 'editable', approvalRequired: false, isUdf: false, inputType: 'text', minLength: 2, effectiveFrom: '2026-01-01' },
   { id: 'personalEmail', label: 'Personal email', section: 'Personal', mode: 'editable', approvalRequired: false, isUdf: false, inputType: 'email', effectiveFrom: '2026-01-01' },
   { id: 'mobile', label: 'Mobile number', section: 'Personal', mode: 'editable', approvalRequired: false, isUdf: false, inputType: 'tel', pattern: '^\\+?[0-9 -]{10,15}$', patternMessage: 'Enter a valid phone number', effectiveFrom: '2026-01-01' },
-  { id: 'currentAddress', label: 'Current address', section: 'Personal', mode: 'editable', approvalRequired: true, isUdf: false, inputType: 'text', minLength: 10, effectiveFrom: '2026-01-01' },
+  { id: 'currentAddress', label: 'Current address', section: 'Personal', mode: 'editable', approvalRequired: false, isUdf: false, inputType: 'text', minLength: 10, effectiveFrom: '2026-01-01' },
   { id: 'emergencyContact', label: 'Emergency contact', section: 'Personal', mode: 'editable', approvalRequired: false, isUdf: false, inputType: 'text', minLength: 5, effectiveFrom: '2026-03-01' },
-  { id: 'dateOfBirth', label: 'Date of birth', section: 'Personal', mode: 'view-only', approvalRequired: true, isUdf: false, inputType: 'date', effectiveFrom: '2026-01-01' },
+  { id: 'dateOfBirth', label: 'Date of birth', section: 'Personal', mode: 'editable', approvalRequired: true, isUdf: false, inputType: 'date', effectiveFrom: '2026-01-01' },
   { id: 'panNumber', label: 'PAN number', section: 'Personal', mode: 'hidden', approvalRequired: true, isUdf: false, inputType: 'text', effectiveFrom: '2026-01-01' },
+  { id: 'bankDetails', label: 'Bank details', section: 'Personal', mode: 'hidden', approvalRequired: true, isUdf: false, inputType: 'text', effectiveFrom: '2026-01-01' },
   { id: 'employeeId', label: 'Employee ID', section: 'Employment', mode: 'view-only', approvalRequired: true, isUdf: false, inputType: 'text', effectiveFrom: '2026-01-01' },
   { id: 'designation', label: 'Designation', section: 'Employment', mode: 'view-only', approvalRequired: true, isUdf: false, inputType: 'text', effectiveFrom: '2026-01-01' },
   { id: 'department', label: 'Department', section: 'Employment', mode: 'view-only', approvalRequired: true, isUdf: false, inputType: 'text', effectiveFrom: '2026-01-01' },
@@ -67,6 +68,7 @@ export const seedProfileValues: Record<string, string> = {
   emergencyContact: 'Rohit Sharma — +91 98450 88214',
   dateOfBirth: '1994-08-17',
   panNumber: 'BXKPS4821F',
+  bankDetails: 'HDFC Bank — account ending 4821',
   employeeId: 'KEN-0417',
   designation: 'Senior Software Engineer',
   department: 'Product Engineering',
@@ -80,6 +82,57 @@ export const seedProfileValues: Record<string, string> = {
   udfWorkMode: 'Hybrid',
 }
 
+/**
+ * Fields that hold compensation data are comp-dark in Phase 1: they never
+ * render on any self-service surface and cannot be un-hidden by
+ * configuration.
+ */
+export const COMP_DARK_FIELD_IDS = ['compensationBand'] as const
+
+export type EditPolicy = 'direct' | 'approval' | 'hr-only'
+
+export const EDIT_POLICY_LABELS: Record<EditPolicy, string> = {
+  direct: 'Direct edit',
+  approval: 'Approval required',
+  'hr-only': 'HR only',
+}
+
+export const EDIT_POLICY_HELP: Record<EditPolicy, string> = {
+  direct: 'Employees update these fields themselves — the change applies immediately and is recorded.',
+  approval: 'Employee edits create a change request; the prior value stays in effect until it is approved.',
+  'hr-only': 'Employees cannot see or edit these fields — HR maintains them on their behalf.',
+}
+
+/**
+ * Field groups the Company Admin controls from one place. The group policy
+ * drives how the edit rule engine treats each member field: direct edit,
+ * approval-routed, or HR only.
+ */
+export interface ProfileFieldGroup {
+  id: string
+  label: string
+  description: string
+  fieldIds: string[]
+}
+
+export const PROFILE_FIELD_GROUPS: ProfileFieldGroup[] = [
+  { id: 'contact', label: 'Personal contact', description: 'Mobile number, personal email and emergency contact', fieldIds: ['mobile', 'personalEmail', 'emergencyContact'] },
+  { id: 'address', label: 'Address', description: 'Current residential address', fieldIds: ['currentAddress'] },
+  { id: 'identity', label: 'Legal name & birth details', description: 'Legal name and date of birth', fieldIds: ['fullName', 'dateOfBirth'] },
+  { id: 'government-ids', label: 'Government IDs', description: 'PAN and other government identifiers', fieldIds: ['panNumber'] },
+  { id: 'bank', label: 'Bank details', description: 'Bank account details', fieldIds: ['bankDetails'] },
+  { id: 'work-location', label: 'Work location', description: 'Assigned office or work base', fieldIds: ['workLocation'] },
+]
+
+export const seedGroupPolicies: Record<string, EditPolicy> = {
+  contact: 'direct',
+  address: 'direct',
+  identity: 'approval',
+  'government-ids': 'hr-only',
+  bank: 'hr-only',
+  'work-location': 'approval',
+}
+
 export type ChangeRequestStatus = 'Pending approval' | 'Approved' | 'Rejected'
 
 /** A self-service edit routed through the workflow/approval engine (ESS-15). */
@@ -89,11 +142,17 @@ export interface ChangeRequest {
   fieldLabel: string
   currentValue: string
   requestedValue: string
+  /** Why the employee asked for the change. */
+  reason: string
+  requestedBy: string
   submittedOn: string
   status: ChangeRequestStatus
   /** Configured approver graph the engine routes through — not hard-coded. */
   approverGraph: string[]
   pendingWith: string | null
+  decidedBy: string | null
+  decidedOn: string | null
+  decisionComment: string | null
 }
 
 export const seedChangeRequests: ChangeRequest[] = [
@@ -103,10 +162,15 @@ export const seedChangeRequests: ChangeRequest[] = [
     fieldLabel: 'Work location',
     currentValue: 'Bengaluru — Tower B',
     requestedValue: 'Hyderabad — Hitec City',
+    reason: 'Relocating to Hyderabad to be closer to family.',
+    requestedBy: CURRENT_EMPLOYEE,
     submittedOn: '2026-06-24',
     status: 'Pending approval',
     approverGraph: ['Vikram Mehta', 'HR Partner'],
     pendingWith: 'Vikram Mehta',
+    decidedBy: null,
+    decidedOn: null,
+    decisionComment: null,
   },
   {
     id: 'cr-2002',
@@ -114,10 +178,31 @@ export const seedChangeRequests: ChangeRequest[] = [
     fieldLabel: 'Current address',
     currentValue: '22 MG Road, Bengaluru 560008',
     requestedValue: '14/2 Lavelle Road, Bengaluru, Karnataka 560001',
+    reason: 'Moved to a new rented apartment in May.',
+    requestedBy: CURRENT_EMPLOYEE,
     submittedOn: '2026-05-11',
     status: 'Approved',
     approverGraph: ['Vikram Mehta'],
     pendingWith: null,
+    decidedBy: 'Vikram Mehta',
+    decidedOn: '2026-05-12',
+    decisionComment: 'Verified against the new rental agreement.',
+  },
+  {
+    id: 'cr-2003',
+    fieldId: 'fullName',
+    fieldLabel: 'Legal name',
+    currentValue: 'Anika Sharma',
+    requestedValue: 'Anika S. Sharma',
+    reason: 'Match the name printed on my passport.',
+    requestedBy: CURRENT_EMPLOYEE,
+    submittedOn: '2026-06-02',
+    status: 'Rejected',
+    approverGraph: ['Vikram Mehta', 'HR Partner'],
+    pendingWith: null,
+    decidedBy: 'HR Partner',
+    decidedOn: '2026-06-10',
+    decisionComment: 'Please upload the passport copy to your documents first, then resubmit.',
   },
 ]
 

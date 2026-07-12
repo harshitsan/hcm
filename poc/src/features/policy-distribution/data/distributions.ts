@@ -109,6 +109,9 @@ export type AssignmentStatus =
   | 'Overdue'
   | 'Delivered' // Read-Only: information only, no acknowledgment expected
   | 'Failed'
+  // Terminal: the policy's applicability no longer covers this employee, so
+  // no re-acknowledgment is requested. Prior evidence stays on the record.
+  | 'No longer applicable'
 
 export interface Assignment {
   id: string

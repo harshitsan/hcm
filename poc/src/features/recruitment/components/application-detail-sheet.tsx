@@ -25,11 +25,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { useRole } from '@/context/role-context'
 import {
   PIPELINE_STAGES,
+  REFERENCE_MODES,
   type Application,
   type PipelineStage,
   type ReferenceCheck,
+  type ReferenceMode,
 } from '../data/candidates'
 import type { ChecklistQuestion } from '../data/config'
+import type { Vacancy } from '../data/vacancies'
 import {
   seedReferenceQuestions,
   type ReferenceQuestion,
@@ -46,7 +49,19 @@ interface ApplicationDetailSheetProps {
   referenceQuestions?: ReferenceQuestion[]
   /** Opens the offer-generation dialog (Company Admin) or records the HM recommendation. */
   onGenerateOffer: (app: Application) => void
+  /** Open vacancies offered as revival targets for on-hold candidates. */
+  vacancies?: Vacancy[]
 }
+
+/** Candidate-journey labels layered over the internal pipeline stages. */
+const JOURNEY_STEPS = [
+  'In Review',
+  'Schedule Interview',
+  'Interview Feedback',
+  'Reference Check',
+  'Offer',
+  'Hired',
+] as const
 
 /**
  * Per-candidate drill-down — stage actions with rules-engine gating,
@@ -61,12 +76,16 @@ export function ApplicationDetailSheet({
   checklistQuestions,
   referenceQuestions = seedReferenceQuestions,
   onGenerateOffer,
+  vacancies = [],
 }: ApplicationDetailSheetProps) {
   const { hasRole } = useRole()
   const [rejectReason, setRejectReason] = useState('')
   const [resumeStage, setResumeStage] = useState<PipelineStage>('screening')
+  const [reviveTarget, setReviveTarget] = useState('')
   const [refName, setRefName] = useState('')
   const [refRelation, setRefRelation] = useState('Direct manager')
+  const [refMode, setRefMode] = useState<ReferenceMode>('In-house call')
+  const [refContactEmail, setRefContactEmail] = useState('')
   const [refOutcome, setRefOutcome] = useState<NonNullable<ReferenceCheck['outcome']>>('positive')
   const [refNotes, setRefNotes] = useState('')
   const [checklist, setChecklist] = useState<Record<string, string>>({})
@@ -108,6 +127,48 @@ export function ApplicationDetailSheet({
   // Hiring history — other applications by the same candidate across requisitions.
   const otherApplications = store.applications.filter(
     (a) => a.candidateId === app.candidateId && a.id !== app.id
+  )
+  // Candidate journey stepper — map the internal stage onto the journey labels.
+  const endedJourney = ['rejected', 'cancelled'].includes(app.status)
+  const journeyIndex =
+    activeStage === 'hired'
+      ? 5
+      : activeStage === 'offer'
+        ? 4
+        : activeStage === 'reference-check'
+          ? 3
+          : activeStage === 'interview'
+            ? app.scorecards.length > 0
+              ? 2
+              : 1
+            : 0
+  // Panel verdict — aggregate the submitted scorecards into one recommendation.
+  const allScores = app.scorecards.flatMap((s) => s.ratings.map((r) => r.score))
+  const avgRating =
+    allScores.length > 0
+      ? allScores.reduce((sum, n) => sum + n, 0) / allScores.length
+      : 0
+  const recCounts = app.scorecards.reduce(
+    (acc, s) => ({ ...acc, [s.recommendation]: acc[s.recommendation] + 1 }),
+    { advance: 0, hold: 0, reject: 0 }
+  )
+  const majority =
+    recCounts.advance >= recCounts.hold && recCounts.advance >= recCounts.reject
+      ? 'advance'
+      : recCounts.hold >= recCounts.reject
+        ? 'hold'
+        : 'reject'
+  const panelNames = app.scorecards.map((s) => s.interviewer).join(', ')
+  const verdictNote = `Based on panel feedback from ${panelNames} — average rating ${avgRating.toFixed(1)}/5, ${recCounts.advance} advance / ${recCounts.hold} hold / ${recCounts.reject} reject`
+  // Checklist progress — an item counts once it has any recorded answer.
+  const checklistDone = checklistQuestions.filter((q) =>
+    Boolean(checklist[q.id] ?? app.checklist[q.id])
+  ).length
+  // On-hold revival — other open vacancies this candidate can move into.
+  const revivalVacancies = vacancies.filter(
+    (v) =>
+      ['new', 'assigned', 'in-process'].includes(v.status) &&
+      v.rrfId !== app.requisitionId
   )
 
   const openRefDialog = (r: ReferenceCheck) => {
@@ -178,6 +239,45 @@ export function ApplicationDetailSheet({
         </SheetHeader>
 
         <div className='space-y-5 px-5 py-4'>
+          {/* Candidate journey stepper — PRD stages over the internal pipeline */}
+          <section className='rounded-[8px] border border-gray-200 p-3'>
+            <div className='flex flex-wrap items-center gap-1.5'>
+              {JOURNEY_STEPS.map((label, i) => (
+                <div key={label} className='flex items-center gap-1.5'>
+                  {i > 0 && <span className='text-neutral-1000 text-xs'>›</span>}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      endedJourney
+                        ? i <= journeyIndex
+                          ? 'bg-neutral-100 text-neutral-1000 line-through'
+                          : 'bg-neutral-100 text-neutral-1000'
+                        : i < journeyIndex
+                          ? 'bg-blue-100 text-blue-1400'
+                          : i === journeyIndex
+                            ? 'bg-blue-1400 font-medium text-white'
+                            : 'bg-neutral-100 text-neutral-1000'
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {app.status === 'on-hold' && (
+              <p className='text-neutral-1000 text-paragraph-sm mt-1.5'>
+                On hold — journey paused at{' '}
+                <b className='text-neutral-1600'>{JOURNEY_STEPS[journeyIndex]}</b>.
+                Resume the candidate or revive them into another open vacancy below.
+              </p>
+            )}
+            {endedJourney && (
+              <p className='text-neutral-1000 text-paragraph-sm mt-1.5'>
+                This candidature has ended ({app.status})
+                {app.rejectionReason ? ` — ${app.rejectionReason}` : ''}.
+              </p>
+            )}
+          </section>
+
           {/* Stage actions (TA-13, TA-17, TA-28, TA-45) */}
           {!terminal && (isAdmin || isHiringManager) && (
             <section className='rounded-[8px] border border-gray-200 p-3'>
@@ -261,6 +361,46 @@ export function ApplicationDetailSheet({
                   </Button>
                 )}
               </div>
+              {/* On-hold revival — move the candidate into another open vacancy */}
+              {app.status === 'on-hold' && isAdmin && (
+                <div className='mt-2 flex items-center gap-2'>
+                  <Select value={reviveTarget} onValueChange={setReviveTarget}>
+                    <SelectTrigger className='h-7 flex-1 text-xs'>
+                      <SelectValue placeholder='Revive into another open vacancy…' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {revivalVacancies.length === 0 && (
+                        <SelectItem value='none' disabled>
+                          No other open vacancies right now
+                        </SelectItem>
+                      )}
+                      {revivalVacancies.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.code} · {v.position} ({v.workLocation})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant='outline'
+                    className='h-7 text-xs'
+                    disabled={!reviveTarget}
+                    onClick={() => {
+                      const v = revivalVacancies.find((x) => x.id === reviveTarget)
+                      if (!v) return
+                      store.reviveIntoVacancy(app.id, {
+                        code: v.code,
+                        rrfId: v.rrfId,
+                        position: v.position,
+                      })
+                      setReviveTarget('')
+                      onOpenChange(false)
+                    }}
+                  >
+                    Revive into vacancy
+                  </Button>
+                </div>
+              )}
             </section>
           )}
 
@@ -356,6 +496,71 @@ export function ApplicationDetailSheet({
                 </table>
               </div>
             )}
+            {/* Panel verdict — aggregated recommendation drives the stage decision */}
+            {app.scorecards.length > 0 && (
+              <div className='mt-2 rounded-[8px] border border-gray-200 p-3'>
+                <div className='flex flex-wrap items-center gap-2 text-sm'>
+                  <span className='font-medium'>Panel verdict:</span>
+                  <Badge
+                    variant={
+                      majority === 'advance'
+                        ? 'qualified'
+                        : majority === 'hold'
+                          ? 'overdue'
+                          : 'dropped'
+                    }
+                  >
+                    {majority === 'advance'
+                      ? 'Advance'
+                      : majority === 'hold'
+                        ? 'Hold'
+                        : 'Reject'}
+                  </Badge>
+                  <span className='text-neutral-1000'>
+                    average rating {avgRating.toFixed(1)}/5 · {recCounts.advance}{' '}
+                    advance / {recCounts.hold} hold / {recCounts.reject} reject
+                  </span>
+                </div>
+                <p className='text-neutral-1000 text-paragraph-sm mt-1'>
+                  Based on feedback from {panelNames}
+                </p>
+                {!terminal &&
+                  app.status !== 'on-hold' &&
+                  (isAdmin || isHiringManager) && (
+                    <div className='mt-2 flex flex-wrap items-center gap-2'>
+                      {nextStage && (
+                        <Button
+                          className='h-7 text-xs'
+                          onClick={() =>
+                            store.advanceStage(app.id, nextStage, verdictNote)
+                          }
+                        >
+                          Advance on panel verdict
+                        </Button>
+                      )}
+                      <Button
+                        variant='outline'
+                        className='h-7 text-xs'
+                        onClick={() => store.holdApplication(app.id, verdictNote)}
+                      >
+                        Hold on panel verdict
+                      </Button>
+                      <Button
+                        variant='outline'
+                        className='h-7 text-xs'
+                        onClick={() =>
+                          store.rejectApplication(
+                            app.id,
+                            `Panel recommendation: reject — ${verdictNote}`
+                          )
+                        }
+                      >
+                        Reject on panel verdict
+                      </Button>
+                    </div>
+                  )}
+              </div>
+            )}
           </section>
 
           {/* Reference checks (TA-10) */}
@@ -375,11 +580,19 @@ export function ApplicationDetailSheet({
                   </div>
                   <p className='text-neutral-1000 text-paragraph-sm'>
                     {r.relationship}
+                    {r.mode ? ` · ${r.mode}` : ''}
                     {r.contactEmail ? ` · ${r.contactEmail}` : ''}
                     {r.contactPhone ? ` · ${r.contactPhone}` : ''}
                     {r.outcome ? ` · outcome: ${r.outcome}` : ''}
                     {r.notes ? ` · ${r.notes}` : ''}
                   </p>
+                  {r.mode === 'Email' && r.status === 'pending' && (
+                    <p className='text-neutral-1000 text-paragraph-sm mt-0.5'>
+                      Reference request sent
+                      {r.requestSentAt ? ` on ${r.requestSentAt}` : ''} — awaiting
+                      reply
+                    </p>
+                  )}
                   {/* Questionnaire responses captured on completion */}
                   {(r.answers ?? []).filter((a) => a.answer).length > 0 && (
                     <div className='mt-1 space-y-0.5'>
@@ -404,26 +617,37 @@ export function ApplicationDetailSheet({
                     </p>
                   )}
                   {isAdmin && r.status === 'pending' && (
-                    <Button
-                      variant='outline'
-                      className='mt-1.5 h-7 text-xs'
-                      onClick={() => openRefDialog(r)}
-                    >
-                      Complete reference check
-                    </Button>
+                    <div className='mt-1.5 flex flex-wrap items-center gap-1.5'>
+                      <Button
+                        variant='outline'
+                        className='h-7 text-xs'
+                        onClick={() => openRefDialog(r)}
+                      >
+                        {r.mode === 'Email' ? 'Record response' : 'Record call notes'}
+                      </Button>
+                      {r.mode === 'Email' && (
+                        <Button
+                          variant='outline'
+                          className='h-7 text-xs'
+                          onClick={() => store.markReferenceNoResponse(app.id, r.id)}
+                        >
+                          Mark no response
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}
               {isAdmin && !terminal && (
-                <div className='flex items-center gap-1.5'>
+                <div className='flex flex-wrap items-center gap-1.5'>
                   <Input
                     placeholder='Referee name & company'
                     value={refName}
                     onChange={(e) => setRefName(e.target.value)}
-                    className='h-7 flex-1 text-xs'
+                    className='h-7 min-w-[160px] flex-1 text-xs'
                   />
                   <Select value={refRelation} onValueChange={setRefRelation}>
-                    <SelectTrigger className='h-7 w-[150px] text-xs'>
+                    <SelectTrigger className='h-7 w-[130px] text-xs'>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -434,16 +658,44 @@ export function ApplicationDetailSheet({
                       ))}
                     </SelectContent>
                   </Select>
+                  <Select
+                    value={refMode}
+                    onValueChange={(v) => setRefMode(v as ReferenceMode)}
+                  >
+                    <SelectTrigger className='h-7 w-[130px] text-xs'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REFERENCE_MODES.map((m) => (
+                        <SelectItem key={m} value={m}>
+                          {m}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {refMode === 'Email' && (
+                    <Input
+                      type='email'
+                      placeholder='e.g. referee@company.com'
+                      value={refContactEmail}
+                      onChange={(e) => setRefContactEmail(e.target.value)}
+                      className='h-7 w-[180px] text-xs'
+                    />
+                  )}
                   <Button
                     variant='outline'
                     className='h-7 text-xs'
-                    disabled={!refName}
+                    disabled={!refName || (refMode === 'Email' && !refContactEmail)}
                     onClick={() => {
                       store.addReferenceCheck(app.id, {
                         referee: refName,
                         relationship: refRelation,
+                        mode: refMode,
+                        contactEmail:
+                          refMode === 'Email' ? refContactEmail : undefined,
                       })
                       setRefName('')
+                      setRefContactEmail('')
                     }}
                   >
                     Add reference
@@ -459,6 +711,19 @@ export function ApplicationDetailSheet({
               <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
                 Pre-onboarding checklist (from checklist questionnaire config)
               </h3>
+              <div className='mb-2'>
+                <p className='text-neutral-1000 text-paragraph-sm mb-1'>
+                  {checklistDone} of {checklistQuestions.length} complete
+                </p>
+                <div className='h-1.5 w-full rounded-full bg-neutral-100'>
+                  <div
+                    className='h-1.5 rounded-full bg-blue-1400 transition-all'
+                    style={{
+                      width: `${checklistQuestions.length > 0 ? Math.round((checklistDone / checklistQuestions.length) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
               <div className='space-y-2'>
                 {checklistQuestions.map((q) => (
                   <div key={q.id} className='flex items-center gap-2 text-sm'>

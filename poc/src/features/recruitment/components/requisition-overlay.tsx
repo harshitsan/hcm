@@ -255,7 +255,7 @@ export function RequisitionOverlay({
   // ---- Approval action panel helpers (edit view only) ----
   const req = requisition ?? null
   const pendingStep = req?.approvals.find((a) => a.decision === 'pending')
-  const openQuestion = req?.clarifications.filter((c) => !c.answer).at(-1)
+  const openQuestion = req?.clarifications.filter((c) => !c.answer).slice(-1)[0]
   const requesterName = req?.hiringManager ?? 'Requester'
   /** Requester + previous-level approvers a question can be routed to. */
   const clarifyTargets = req

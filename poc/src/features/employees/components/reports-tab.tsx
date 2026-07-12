@@ -9,8 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useRole } from '@/context/role-context'
 import {
   DEPARTMENTS,
+  getStatutory,
   LIFECYCLE_STAGES,
   LOCATIONS,
   companyName,
@@ -75,7 +77,11 @@ export function ReportsTab({
   employees: Employee[]
   scopeLabel: string
 }) {
+  const { hasRole } = useRole()
   const [dimension, setDimension] = useState<Dimension>('department')
+  // Comp-dark (W1): compensation columns leave the module only for HR admin
+  // roles — every other exporting role gets the file without them.
+  const canExportCompensation = hasRole('Company Admin', 'Platform Admin')
 
   const rows = useMemo<HeadcountRow[]>(() => {
     const byGroup = new Map<string, Employee[]>()
@@ -127,6 +133,66 @@ export function ReportsTab({
     )
   }
 
+  /** CSV-safe cell — quoted, inner quotes doubled. */
+  const csvCell = (v: string | number) => `"${String(v).replaceAll('"', '""')}"`
+
+  const exportRecordsCsv = () => {
+    const header = [
+      'Code',
+      'Name',
+      'Company',
+      'Jurisdiction',
+      'Departments',
+      'Position',
+      'Lifecycle stage',
+      'PF eligible',
+      'ESI eligible',
+      'PT registration',
+      'LWF applicable',
+      ...(canExportCompensation
+        ? ['Annual CTC', 'Fixed pay', 'Variable pay', 'Comp last revised']
+        : []),
+    ]
+    const lines = employees.map((e) => {
+      const statutory = getStatutory(e)
+      return [
+        e.code,
+        e.name,
+        companyName(e.companyId),
+        e.jurisdiction,
+        e.departments.join('; '),
+        e.position,
+        e.lifecycleStage,
+        statutory.pfEligible ? 'Yes' : 'No',
+        statutory.esiEligible ? 'Yes' : 'No',
+        statutory.ptRegistration ?? '—',
+        statutory.lwfApplicable ? 'Yes' : 'No',
+        ...(canExportCompensation
+          ? [
+              e.compensation?.annualCtc ?? '—',
+              e.compensation?.fixedPay ?? '—',
+              e.compensation?.variablePay ?? '—',
+              e.compensation?.lastRevisedOn ?? '—',
+            ]
+          : []),
+      ]
+        .map(csvCell)
+        .join(',')
+    })
+    const csv = [header.map(csvCell).join(','), ...lines].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'employee-records.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(
+      canExportCompensation
+        ? `Exported ${employees.length} employee record(s) — compensation columns included (HR admin role)`
+        : `Exported ${employees.length} employee record(s) — compensation columns excluded (comp-dark policy)`
+    )
+  }
+
   return (
     <div className='w-full'>
       <div className='mb-3 flex flex-wrap items-center justify-between gap-2'>
@@ -155,6 +221,14 @@ export function ReportsTab({
           <Button variant='outline' className='h-7 gap-1' onClick={exportCsv}>
             <DownloadSimple size={14} weight='bold' />
             Export CSV
+          </Button>
+          <Button
+            variant='outline'
+            className='h-7 gap-1'
+            onClick={exportRecordsCsv}
+          >
+            <DownloadSimple size={14} weight='bold' />
+            Export records
           </Button>
         </div>
       </div>
@@ -187,7 +261,10 @@ export function ReportsTab({
         <p className='text-neutral-1000 mt-3 text-xs'>
           Counts are over your role-scoped directory ({employees.length}{' '}
           record(s)). Department and location breakdowns count an employee once
-          per assignment, so totals can exceed headcount.
+          per assignment, so totals can exceed headcount. The records export{' '}
+          {canExportCompensation
+            ? 'includes compensation columns for your HR admin role.'
+            : 'excludes compensation columns — comp-dark data is limited to HR administrators.'}
         </p>
       </div>
     </div>

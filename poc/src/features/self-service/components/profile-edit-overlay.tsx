@@ -73,7 +73,17 @@ function schemaFor(field: ProfileField) {
     }
     rule = stringRule
   }
-  return z.object({ value: rule })
+  // Approval-routed changes must carry the requester's reason so the
+  // approver can decide with context.
+  const reason = field.approvalRequired
+    ? z.string().min(5, 'Explain why this change is needed')
+    : z.string().optional()
+  return z.object({ value: rule, reason })
+}
+
+interface EditFormValues {
+  value: string
+  reason: string | undefined
 }
 
 interface ProfileEditOverlayProps {
@@ -81,7 +91,7 @@ interface ProfileEditOverlayProps {
   onOpenChange: (open: boolean) => void
   field: ProfileField | null
   currentValue: string
-  onSubmit: (field: ProfileField, value: string) => void
+  onSubmit: (field: ProfileField, value: string, reason?: string) => void
 }
 
 export function ProfileEditOverlay({
@@ -91,19 +101,19 @@ export function ProfileEditOverlay({
   currentValue,
   onSubmit,
 }: ProfileEditOverlayProps) {
-  const form = useForm<{ value: string }>({
+  const form = useForm<EditFormValues, unknown, EditFormValues>({
     resolver: field ? zodResolver(schemaFor(field)) : undefined,
-    defaultValues: { value: currentValue },
+    defaultValues: { value: currentValue, reason: '' },
   })
 
   useEffect(() => {
-    if (open) form.reset({ value: currentValue })
+    if (open) form.reset({ value: currentValue, reason: '' })
   }, [open, currentValue, form])
 
   if (!field) return null
 
-  const handleSubmit = (values: { value: string }) => {
-    onSubmit(field, values.value)
+  const handleSubmit = (values: EditFormValues) => {
+    onSubmit(field, values.value, values.reason ?? '')
     onOpenChange(false)
   }
 
@@ -119,9 +129,9 @@ export function ProfileEditOverlay({
 
         {field.approvalRequired && (
           <p className='text-paragraph-sm text-neutral-1000 bg-vanilla-400/40 rounded-[6px] px-3 py-2'>
-            Policy marks this field approval-required. Your change will be
-            routed through the configured approver graph and the prior value
-            stays in effect until approved.
+            This is a sensitive field, so your edit becomes a change request
+            instead of a direct update. Your profile keeps showing the current
+            value until an approver accepts the change.
           </p>
         )}
 
@@ -209,6 +219,29 @@ export function ProfileEditOverlay({
                 </FormItem>
               )}
             />
+            {field.approvalRequired && (
+              <FormField
+                control={form.control}
+                name='reason'
+                render={({ field: rhf }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Reason for the change
+                      <span className='text-destructive'>*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={2}
+                        placeholder='e.g. Name updated after marriage — matches my passport'
+                        {...rhf}
+                        value={rhf.value ?? ''}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <DialogFooter>
               <Button
                 type='button'

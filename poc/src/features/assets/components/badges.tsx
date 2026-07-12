@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge'
-import { type AssetState } from '../data/assets'
+import { type AssetState, type AssignmentOrigin } from '../data/assets'
 import { type MovementStatus } from '../data/movements'
 import { type RequisitionStatus } from '../data/requisitions'
 
@@ -20,6 +20,7 @@ const STATE_VARIANTS: Record<AssetState, BadgeVariant> = {
   Loan: 'overdue',
   'In Repair': 'pending',
   Returned: 'open',
+  Lost: 'dropped',
   Retired: 'badge_inactive',
   Disposed: 'dropped',
 }
@@ -56,6 +57,12 @@ export function AckStatusBadge({ status }: { status: 'Pending' | 'Completed' }) 
   return (
     <Badge variant={status === 'Pending' ? 'pending' : 'completed'}>{status}</Badge>
   )
+}
+
+/** Workflow-origin tag shown on movements and asset records (W2/W5/W8). */
+export function OriginBadge({ origin }: { origin?: AssignmentOrigin | null }) {
+  if (!origin) return null
+  return <Badge variant='live'>{origin}</Badge>
 }
 
 export function OverdueBadge({ daysOverdue }: { daysOverdue: number }) {

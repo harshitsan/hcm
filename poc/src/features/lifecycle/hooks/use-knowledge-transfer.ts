@@ -362,6 +362,61 @@ export function useKnowledgeTransfer({ log }: Deps) {
     [log, sendKtEmail]
   )
 
+  /**
+   * W7 — reassign the handover to a new receiver when the current receiver
+   * is unavailable (separated or on a long approved leave). The task returns
+   * to "Reassigned" so the provider can pick the sessions back up.
+   */
+  const reassignReceiver = useCallback(
+    (
+      task: KtTask,
+      opts: { newReceiver: string; reason: string; actor: string }
+    ) => {
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === task.id
+            ? appendHistory(
+                {
+                  ...t,
+                  receiver: opts.newReceiver,
+                  receiverActive: true,
+                  status: 'Reassigned',
+                },
+                {
+                  actor: opts.actor,
+                  action: `Reassigned · receiver changed ${task.receiver} → ${opts.newReceiver}`,
+                  date: KT_TODAY,
+                  comment: opts.reason || null,
+                }
+              )
+            : t
+        )
+      )
+      log({
+        company: COMPANY,
+        module: MODULE,
+        action: 'KT receiver reassigned',
+        target: `${task.id} · ${task.task}`,
+        outcome: `Receiver changed from ${task.receiver} (unavailable) to ${opts.newReceiver}${
+          opts.reason ? ` — ${opts.reason}` : ''
+        }`,
+        onBehalfOf: null,
+      })
+      toast.success(`"${task.task}" reassigned to ${opts.newReceiver}`)
+      sendKtEmail(
+        opts.newReceiver,
+        'KT task reassigned to you as receiver',
+        `Receive "${task.task}" from ${task.provider} by ${task.endDate}.`
+      )
+      sendKtEmail(
+        task.provider,
+        'KT receiver changed',
+        `"${task.task}" will now be received by ${opts.newReceiver}.`
+      )
+    },
+    [log, sendKtEmail]
+  )
+
   return {
     moduleEnabled,
     defaultHandoverDays,
@@ -379,6 +434,7 @@ export function useKnowledgeTransfer({ log }: Deps) {
     addTask,
     initiateTask,
     receiveTask,
+    reassignReceiver,
     refresh,
     refreshedAt,
   }

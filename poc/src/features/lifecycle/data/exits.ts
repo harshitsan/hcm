@@ -576,7 +576,133 @@ export const seedExits: ExitCase[] = [
       { id: 'sd1', name: 'stock-audit-report-june.pdf', uploadedBy: 'Anita Desai', uploadedOn: '2026-07-02' },
     ],
     comments: [
+      { id: 'xm0', author: 'System', text: 'Opened from disciplinary case dsc-5006 — see the Disciplinary tab for the originating record and its history.', visibility: 'hr-managers', on: '2026-07-02' },
       { id: 'xm1', author: 'Anita Desai', text: 'Inquiry committee constituted; findings expected by 22 Jul.', visibility: 'hr-managers', on: '2026-07-04' },
     ],
+  },
+  /* --- W8 seeds — exits tracked in the asset register (Aster Digital) --- */
+  {
+    // Karan Mehta holds a ThinkPad (asset register e-09) — every functional
+    // clearance is done, so only the unreturned asset blocks finalization.
+    id: 'ext-4008',
+    employeeName: 'Karan Mehta',
+    employeeCode: 'AD-1009',
+    department: 'Operations',
+    location: 'Pune',
+    positionLevel: 'L4 - Manager',
+    exitType: 'Resignation',
+    reason: 'Moving to a family logistics business.',
+    requestedOn: '2026-05-01',
+    lastWorkingDay: '2026-06-30',
+    noticePeriodDays: 60,
+    status: 'clearance-in-progress',
+    approvals: EXIT_CHAIN.map((s) => ({
+      ...s,
+      status: 'approved' as const,
+      actedOn: '2026-05-05',
+      note: null,
+    })),
+    clearances: DEFAULT_CLEARANCES.map((c) => ({
+      ...c,
+      status: 'cleared' as const,
+      note: null,
+    })),
+    tasks: [
+      { id: 't1', name: 'Warehouse handover walkthrough', owner: 'Reporting Manager', due: 'Before LWD - 10 Day(s)', done: true },
+      { id: 't2', name: 'Revoke system access', owner: 'IT Support', due: 'Before LWD - 0 Day(s)', done: true },
+    ],
+    questionnaire: [
+      { questionId: 'q1', question: 'What is your primary reason for leaving?', responder: 'Employee', mandatory: true, answer: 'Joining the family business.' },
+      { questionId: 'q2', question: 'Would you recommend the company as a place to work?', responder: 'Employee', mandatory: true, answer: 'Yes' },
+    ],
+    questionnaireSubmitted: true,
+    raisedBy: 'Employee',
+    resignationDate: '2026-05-01',
+    approvedLwd: '2026-06-30',
+    resignationSubmitted: true,
+    comments: [
+      { id: 'xm1', author: 'Anita Desai', text: 'LWD has passed — closure held only by the unreturned laptop tracked in the asset register.', visibility: 'hr-managers', on: '2026-07-02' },
+    ],
+  },
+  {
+    // Josh Patel (asset register e-04) still has a projector out on loan —
+    // functional clearance is mid-flight and the asset also blocks finalize.
+    id: 'ext-4009',
+    employeeName: 'Josh Patel',
+    employeeCode: 'AD-1004',
+    department: 'Sales',
+    location: 'Austin',
+    positionLevel: 'L2 - Senior',
+    exitType: 'Resignation',
+    reason: 'Relocating for a partner opportunity.',
+    requestedOn: '2026-06-01',
+    lastWorkingDay: '2026-07-31',
+    noticePeriodDays: 60,
+    status: 'clearance-in-progress',
+    approvals: EXIT_CHAIN.map((s) => ({
+      ...s,
+      status: 'approved' as const,
+      actedOn: '2026-06-04',
+      note: null,
+    })),
+    clearances: [
+      { functionName: 'IT', owner: 'Tomás Silva', status: 'pending', note: 'Projector on loan still out with the employee.' },
+      { functionName: 'Finance', owner: 'Kavya Menon', status: 'cleared', note: null },
+      { functionName: 'HR', owner: 'Anita Desai', status: 'pending', note: null },
+      { functionName: 'Admin', owner: 'Sunil Patil', status: 'cleared', note: null },
+    ],
+    tasks: [
+      { id: 't1', name: 'Key account handover', owner: 'Reporting Manager', due: 'Before LWD - 20 Day(s)', done: false },
+      { id: 't2', name: 'Revoke system access', owner: 'IT Support', due: 'Before LWD - 0 Day(s)', done: false },
+    ],
+    questionnaire: [
+      { questionId: 'q1', question: 'What is your primary reason for leaving?', responder: 'Employee', mandatory: true, answer: 'Relocation.' },
+      { questionId: 'q2', question: 'Would you recommend the company as a place to work?', responder: 'Employee', mandatory: true, answer: 'Yes' },
+    ],
+    questionnaireSubmitted: false,
+    raisedBy: 'Employee',
+    resignationDate: '2026-06-01',
+    approvedLwd: '2026-07-31',
+    resignationSubmitted: true,
+  },
+  {
+    // Nikhil Bose (asset register e-06) returned his access key on 18 Jun —
+    // assets are cleared, so this exit can be finalized once shown.
+    id: 'ext-4010',
+    employeeName: 'Nikhil Bose',
+    employeeCode: 'AD-1006',
+    department: 'Engineering',
+    location: 'Bengaluru',
+    positionLevel: 'L2 - Senior',
+    exitType: 'Resignation',
+    reason: 'Startup founding opportunity.',
+    requestedOn: '2026-05-15',
+    lastWorkingDay: '2026-07-15',
+    noticePeriodDays: 60,
+    status: 'clearance-in-progress',
+    approvals: EXIT_CHAIN.map((s) => ({
+      ...s,
+      status: 'approved' as const,
+      actedOn: '2026-05-18',
+      note: null,
+    })),
+    clearances: DEFAULT_CLEARANCES.map((c) => ({
+      ...c,
+      status: 'cleared' as const,
+      note: null,
+    })),
+    tasks: [
+      { id: 't1', name: 'Platform runbook handover', owner: 'Reporting Manager', due: 'Before LWD - 15 Day(s)', done: true },
+      { id: 't2', name: 'Revoke system access', owner: 'IT Support', due: 'Before LWD - 0 Day(s)', done: false },
+    ],
+    questionnaire: [
+      { questionId: 'q1', question: 'What is your primary reason for leaving?', responder: 'Employee', mandatory: true, answer: 'Starting up.' },
+      { questionId: 'q2', question: 'Would you recommend the company as a place to work?', responder: 'Employee', mandatory: true, answer: 'Yes' },
+    ],
+    questionnaireSubmitted: true,
+    raisedBy: 'Employee',
+    resignationDate: '2026-05-15',
+    approvedLwd: '2026-07-15',
+    resignationSubmitted: true,
   },
 ]

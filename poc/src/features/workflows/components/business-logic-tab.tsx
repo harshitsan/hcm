@@ -59,6 +59,8 @@ const TYPE_BADGE_VARIANT: Record<
   template: 'badge_inactive',
   alert: 'overdue',
   setting: 'badge_active',
+  'category-list': 'live',
+  calendar: 'pending',
   flow: 'open',
 }
 

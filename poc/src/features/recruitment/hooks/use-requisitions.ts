@@ -340,7 +340,7 @@ export function useRequisitions({
   const answerClarification = useCallback(
     (id: string, answer: string) => {
       const req = requisitions.find((r) => r.id === id)
-      const open = req?.clarifications.filter((c) => !c.answer).at(-1)
+      const open = req?.clarifications.filter((c) => !c.answer).slice(-1)[0]
       if (!req || !open) return
       patch(id, `Clarification answered for ${open.askedBy}`, (r) => {
         const idx = r.clarifications.reduce(

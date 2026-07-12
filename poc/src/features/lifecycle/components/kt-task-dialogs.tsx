@@ -19,8 +19,11 @@ import {
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Textarea } from '@/components/ui/textarea'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import {
+  KT_EMPLOYEES,
   KT_TODAY,
+  receiverUnavailability,
   seedKtLeaves,
   type KtActionEntry,
   type KtTask,
@@ -169,6 +172,7 @@ interface KtDetailSheetProps {
  */
 export function KtDetailSheet({ open, onOpenChange, task }: KtDetailSheetProps) {
   if (!task) return null
+  const unavailable = receiverUnavailability(task)
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <FloatingSheetContent className='flex w-full flex-col gap-0 p-0 sm:max-w-[560px]'>
@@ -177,6 +181,7 @@ export function KtDetailSheet({ open, onOpenChange, task }: KtDetailSheetProps) 
             {task.task}
             <StatusBadge status={task.status} />
             {isKtOverdue(task) && <Badge variant='overdue'>Overdue</Badge>}
+            {unavailable && <Badge variant='overdue'>Receiver unavailable</Badge>}
           </SheetTitle>
           <p className='text-neutral-1000 text-xs'>
             {task.id} · {task.department} ·{' '}
@@ -185,6 +190,12 @@ export function KtDetailSheet({ open, onOpenChange, task }: KtDetailSheetProps) 
         </SheetHeader>
 
         <div className='flex-1 space-y-5 overflow-y-auto px-5 py-5'>
+          {unavailable && (
+            <p className='rounded-[6px] border border-amber-600/30 bg-amber-50 p-2 text-xs text-amber-800'>
+              Receiver unavailable — {unavailable}. Use the Reassign action to
+              hand this task to a new receiver.
+            </p>
+          )}
           <section className='space-y-1.5'>
             <h3 className='text-sm font-semibold'>Task details</h3>
             <div className='space-y-1.5 rounded-[8px] border border-gray-200 bg-white p-3'>
@@ -445,6 +456,135 @@ export function KtReceiveDialog({
             Submit
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+interface KtReassignDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  task: KtTask | null
+  store: KnowledgeTransferStore
+  /** Name of the admin / manager performing the reassignment. */
+  actor: string
+}
+
+/**
+ * W7 — "Reassign" action for tasks whose receiver is unavailable (separated
+ * or on a long approved leave). Picks a new receiver, shows their pending KT
+ * load and leave calendar, and confirms before switching the handover over.
+ */
+export function KtReassignDialog({
+  open,
+  onOpenChange,
+  task,
+  store,
+  actor,
+}: KtReassignDialogProps) {
+  const [newReceiver, setNewReceiver] = useState('')
+  const [reason, setReason] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  if (!task) return null
+
+  const unavailable = receiverUnavailability(task)
+  const choices = KT_EMPLOYEES.filter(
+    (e) => e !== task.provider && e !== task.receiver
+  )
+
+  const close = () => {
+    setNewReceiver('')
+    setReason('')
+    setConfirmOpen(false)
+    onOpenChange(false)
+  }
+
+  const submit = () => {
+    store.reassignReceiver(task, { newReceiver, reason, actor })
+    close()
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) close()
+      }}
+    >
+      <DialogContent className='sm:max-w-[560px]'>
+        <DialogHeader>
+          <DialogTitle>Reassign KT receiver · {task.task}</DialogTitle>
+        </DialogHeader>
+        <div className='space-y-3 text-sm'>
+          <div className='flex flex-wrap items-center gap-2'>
+            <StatusBadge status={task.status} />
+            <span className='text-neutral-1000 text-xs'>
+              {task.provider} → {task.receiver} · due {fmtDate(task.endDate)}
+            </span>
+          </div>
+          {unavailable ? (
+            <p className='rounded-[6px] border border-amber-600/30 bg-amber-50 p-2 text-xs text-amber-800'>
+              Receiver unavailable — {unavailable}.
+            </p>
+          ) : (
+            <p className='text-neutral-1000 rounded-[6px] border border-gray-200 bg-white p-2 text-xs'>
+              The current receiver is available; reassign only if the handover
+              needs to move to someone else.
+            </p>
+          )}
+          <label className='flex items-center gap-3'>
+            <span className='w-40 shrink-0'>New KT receiver</span>
+            <Select value={newReceiver} onValueChange={setNewReceiver}>
+              <SelectTrigger variant='secondary' className='h-7 w-[220px]'>
+                <SelectValue placeholder='Select employee' />
+              </SelectTrigger>
+              <SelectContent>
+                {choices.map((e) => (
+                  <SelectItem key={e} value={e}>
+                    {e}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+          {newReceiver && (
+            <KtPersonContext
+              label='New KT receiver'
+              person={newReceiver}
+              tasks={store.tasks}
+            />
+          )}
+          <label className='flex flex-col gap-1'>
+            <span>Reason</span>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder='e.g. Current receiver separated mid-handover'
+              className='min-h-[64px]'
+            />
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant='outline' size='sm' onClick={close}>
+            Cancel
+          </Button>
+          <Button
+            size='sm'
+            disabled={!newReceiver}
+            onClick={() => setConfirmOpen(true)}
+          >
+            Reassign
+          </Button>
+        </DialogFooter>
+        <ConfirmDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          title='Reassign this KT task?'
+          desc={`"${task.task}" will move from ${task.receiver} to ${newReceiver}. The task returns to "Reassigned", the action is recorded in the task history, and both the provider and the new receiver are notified.`}
+          confirmText='Reassign receiver'
+          handleConfirm={submit}
+        />
       </DialogContent>
     </Dialog>
   )

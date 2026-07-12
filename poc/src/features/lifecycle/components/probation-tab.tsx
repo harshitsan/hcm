@@ -25,13 +25,14 @@ import {
   type PeriodicReview,
   type ProbationCase,
 } from '../data/probation'
-import { DEPARTMENTS, PERSONAS } from '../data/shared'
+import { DEPARTMENTS, PERSONAS, todayISO } from '../data/shared'
 import { type ProbationStore } from '../hooks/use-probation'
 import { ClassChangeList } from './class-change-list'
+import { LifecycleSummary } from './lifecycle-summary'
 import {
+  makeProbationColumns,
   peerReviewColumns,
   periodicReviewColumns,
-  probationColumns,
 } from './probation-columns'
 import { ProbationDetailSheet } from './probation-detail-sheet'
 
@@ -125,6 +126,49 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
   const selected = store.cases.find((c) => c.id === selectedId) ?? null
   const isAdmin = hasRole('Company Admin')
 
+  // Gate-aware confirmation grid — flags employees whose confirmation is
+  // blocked by an open disciplinary case.
+  const confirmationColumns = useMemo(
+    () => makeProbationColumns(store.confirmationGate),
+    [store.confirmationGate]
+  )
+
+  // Confirmation summary — derived counts over the unfiltered case list.
+  const summaryItems = useMemo(() => {
+    const today = todayISO()
+    const quarterStartMonth = Math.floor(new Date(today).getMonth() / 3) * 3
+    const quarterStart = `${today.slice(0, 4)}-${String(quarterStartMonth + 1).padStart(2, '0')}-01`
+    const isOpen = (c: ProbationCase) =>
+      c.status === 'pending' ||
+      c.status === 'in-review' ||
+      c.status === 'pending-approval'
+    return [
+      {
+        label: 'Due for confirmation',
+        value: store.cases.filter(isOpen).length,
+      },
+      {
+        label: 'Overdue',
+        value: store.cases.filter(
+          (c) => isOpen(c) && (c.extendedTo ?? c.dueDate) < today
+        ).length,
+      },
+      {
+        label: 'Extended',
+        value: store.cases.filter((c) => c.status === 'extended').length,
+      },
+      {
+        label: 'Confirmed this quarter',
+        value: store.cases.filter(
+          (c) =>
+            c.status === 'confirmed' &&
+            c.confirmedOn !== null &&
+            c.confirmedOn >= quarterStart
+        ).length,
+      },
+    ]
+  }, [store.cases])
+
   const resetFilters = () => {
     setStatus('all')
     setDepartment('all')
@@ -161,6 +205,7 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
 
       {section === 'confirmation' && (
         <>
+          <LifecycleSummary title='Confirmation Summary' items={summaryItems} />
           <div className='mb-3 flex flex-wrap items-center gap-2'>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger variant='secondary' className='h-7 w-[190px]'>
@@ -216,7 +261,7 @@ export function ProbationTab({ store, decisionTable }: ProbationTabProps) {
             </Button>
           </div>
           <DataTable
-            columns={probationColumns}
+            columns={confirmationColumns}
             data={cases}
             variant='no-status'
             onRowClick={(row: ProbationCase) => setSelectedId(row.id)}

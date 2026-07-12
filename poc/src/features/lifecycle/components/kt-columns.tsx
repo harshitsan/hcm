@@ -1,5 +1,10 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { WEEK_DAYS, type KtTask } from '../data/knowledge-transfer'
+import { Badge } from '@/components/ui/badge'
+import {
+  WEEK_DAYS,
+  receiverUnavailability,
+  type KtTask,
+} from '../data/knowledge-transfer'
 import { fmtDate } from '../data/shared'
 import { StatusBadge } from './badges'
 import { SortHeader } from './columns-shared'
@@ -33,6 +38,24 @@ function personCell(name: string, active: boolean) {
       <span className='text-neutral-1000 text-xs'>
         {active ? 'Active employee' : 'Inactive employee'}
       </span>
+    </div>
+  )
+}
+
+/** W7 — receiver cell with the "Receiver unavailable" flag when applicable. */
+export function receiverCell(task: KtTask) {
+  const unavailable = receiverUnavailability(task)
+  return (
+    <div className='flex min-w-0 flex-col gap-0.5'>
+      <span className='text-neutral-1600 font-medium'>{task.receiver}</span>
+      <span className='text-neutral-1000 text-xs'>
+        {task.receiverActive ? 'Active employee' : 'Inactive employee'}
+      </span>
+      {unavailable && (
+        <Badge variant='overdue' className='w-fit text-[10px]' title={unavailable}>
+          Receiver unavailable
+        </Badge>
+      )}
     </div>
   )
 }
@@ -90,8 +113,7 @@ export const ktTaskColumns: ColumnDef<KtTask>[] = [
   {
     accessorKey: 'receiver',
     header: ({ column }) => <SortHeader column={column} label='Received by' />,
-    cell: ({ row }) =>
-      personCell(row.original.receiver, row.original.receiverActive),
+    cell: ({ row }) => receiverCell(row.original),
   },
   departmentCol,
   periodCol,
@@ -104,8 +126,7 @@ export const ktProvidedColumns: ColumnDef<KtTask>[] = [
   {
     accessorKey: 'receiver',
     header: ({ column }) => <SortHeader column={column} label='Handing over to' />,
-    cell: ({ row }) =>
-      personCell(row.original.receiver, row.original.receiverActive),
+    cell: ({ row }) => receiverCell(row.original),
   },
   departmentCol,
   periodCol,

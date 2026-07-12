@@ -25,7 +25,7 @@ const WorkflowEditorContext = createContext<WorkflowEditorContextValue | null>(n
  * Place high in the tree (above any route that needs openEditor) but below
  * RoleProvider (the sheet's Save button uses hasRole).
  */
-export function WorkflowEditorProvider({ children }: { children: ReactNode }): JSX.Element {
+export function WorkflowEditorProvider({ children }: { children: ReactNode }) {
   const [artifactId, setArtifactId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
 

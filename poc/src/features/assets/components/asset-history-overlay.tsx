@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { type Asset } from '../data/assets'
 import { formatDate, todayIso } from '../data/org'
-import { AssetStateBadge } from './badges'
+import { AssetStateBadge, OriginBadge } from './badges'
 
 interface AssetHistoryOverlayProps {
   open: boolean
@@ -87,6 +87,7 @@ export function AssetHistoryOverlay({ open, onOpenChange, asset }: AssetHistoryO
                   {entry.priorState && <span className='text-neutral-1000 text-xs'>→</span>}
                   <AssetStateBadge state={entry.newState} />
                   {entry.ruleId && <Badge variant='open'>rule {entry.ruleId}</Badge>}
+                  <OriginBadge origin={entry.origin} />
                 </div>
                 <p className='text-paragraph-sm text-neutral-1000'>
                   Actor: {entry.actor}

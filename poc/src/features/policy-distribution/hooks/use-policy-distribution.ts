@@ -521,6 +521,12 @@ export function usePolicyDistribution() {
    * policy (kept as history — never deleted) and re-issues them as Pending,
    * recording the wave as its own distribution row so the console shows why
    * each ask went out.
+   *
+   * When `applicability` is provided (version-bump waves announced by the
+   * policy library), the wave is scoped to the policy's CURRENT applicable
+   * population: only covered employees are re-asked, employees the policy no
+   * longer covers are marked "No longer applicable", and covered employees
+   * who never had an assignment receive a first request.
    */
   const runReAckWave = useCallback(
     (input: {
@@ -533,6 +539,8 @@ export function usePolicyDistribution() {
       /** One-line plain-language reason shown to employees, or null. */
       context: string | null
       priority: boolean
+      /** Current applicable population; null = re-ask every active acknowledger. */
+      applicability?: Audience | null
     }): number => {
       const { trigger } = input
       const bumpsVersion =
@@ -551,6 +559,180 @@ export function usePolicyDistribution() {
         type: 'Relative',
         relativeDays: input.priority ? 7 : 14,
       }
+
+      // Version-bump waves: scope everything to the CURRENT applicable
+      // population instead of everyone who ever acknowledged.
+      if (input.applicability) {
+        const population = resolveAudience(input.applicability)
+        const popIds = new Set(population.map((e) => e.id))
+        const populationSummary = summarizeAudience(input.applicability)
+        const activeForPolicy = assignments.filter(
+          (a) => a.policyId === input.policyId && !a.superseded
+        )
+        // (a) Active acknowledgers still covered by the policy → re-ask.
+        const reAckTargets = targets.filter((a) => popIds.has(a.employeeId))
+        // (b) Open records for employees the policy no longer covers →
+        // closed as "No longer applicable"; evidence stays on the row.
+        const dropped = activeForPolicy.filter(
+          (a) =>
+            !popIds.has(a.employeeId) &&
+            (a.status === 'Acknowledged' ||
+              a.status === 'Pending' ||
+              a.status === 'Overdue' ||
+              a.status === 'Failed')
+        )
+        const droppedIds = new Set(dropped.map((a) => a.id))
+        // (c) Covered employees who never had this policy → first request.
+        const everAssigned = new Set(
+          assignments
+            .filter((a) => a.policyId === input.policyId)
+            .map((a) => a.employeeId)
+        )
+        const newlyCovered = population.filter((e) => !everAssigned.has(e.id))
+
+        const waveId = shortId('dist')
+        const reissued: Assignment[] = reAckTargets.map((a) => ({
+          ...a,
+          id: shortId('as'),
+          distributionId: waveId,
+          policyVersion: newVersion,
+          status: 'Pending',
+          dueDate: computeDueDate(
+            dueRule,
+            seedEmployees.find((e) => e.id === a.employeeId) ?? seedEmployees[0],
+            now
+          ),
+          assignedAt: now,
+          acknowledgedAt: null,
+          acknowledgedBy: null,
+          proxy: false,
+          proxyEvidence: null,
+          receiptId: null,
+          remindersSent: [],
+          escalated: false,
+          trigger,
+          triggerContext: input.context,
+          priority: input.priority,
+          superseded: false,
+          taskStatus: 'Open',
+        }))
+        const firstRequests: Assignment[] = newlyCovered.map((e) => ({
+          id: shortId('as'),
+          distributionId: waveId,
+          employeeId: e.id,
+          employeeName: e.name,
+          company: e.company,
+          department: e.department,
+          policyId: input.policyId,
+          policyTitle: input.policyTitle,
+          policyVersion: newVersion,
+          ackType: 'Required',
+          criticality: input.criticality,
+          status: 'Pending',
+          dueDate: computeDueDate(dueRule, e, now),
+          assignedAt: now,
+          acknowledgedAt: null,
+          acknowledgedBy: null,
+          proxy: false,
+          proxyEvidence: null,
+          receiptId: null,
+          remindersSent: [],
+          escalated: false,
+          isNonUser: !e.isPortalUser,
+          trigger: 'Initial',
+          triggerContext: 'This policy now applies to you — first request',
+          priority: input.priority,
+          superseded: false,
+          taskStatus: 'Open',
+        }))
+
+        if (reissued.length + firstRequests.length > 0) {
+          const wave: Distribution = {
+            id: waveId,
+            policyId: input.policyId,
+            policyTitle: input.policyTitle,
+            policyVersion: newVersion,
+            ackType: 'Required',
+            criticality: input.criticality,
+            audience: {
+              logic: 'OR',
+              criteria: [
+                {
+                  field: 'employee',
+                  values: [
+                    ...reAckTargets.map((t) => t.employeeId),
+                    ...newlyCovered.map((e) => e.id),
+                  ],
+                },
+              ],
+            },
+            audienceSummary: `Applicable population — ${population.length} employee(s) (${populationSummary})`,
+            method: 'Manual',
+            scheduledFor: null,
+            eventTrigger: null,
+            dueDateRule: dueRule,
+            status: 'Sent',
+            trigger,
+            priority: input.priority,
+            isBulk: false,
+            createdBy: input.actor,
+            createdAt: now,
+            sentAt: now,
+          }
+          setDistributions((prev) => [wave, ...prev])
+        }
+        setAssignments((prev) => [
+          ...reissued,
+          ...firstRequests,
+          ...prev.map((a) => {
+            if (reAckTargets.some((t) => t.id === a.id))
+              return { ...a, superseded: true }
+            if (droppedIds.has(a.id))
+              return {
+                ...a,
+                status: 'No longer applicable' as const,
+                escalated: false,
+                taskStatus:
+                  a.taskStatus === 'Open' ? ('None' as const) : a.taskStatus,
+              }
+            return a
+          }),
+        ])
+        addAudit({
+          effectiveAt: now,
+          actor: input.actor,
+          action: `Re-acknowledgment triggered (${trigger})`,
+          employeeName: `— (${reissued.length} of ${population.length} in the applicable population)`,
+          policyTitle: input.policyTitle,
+          policyVersion: newVersion,
+          company: 'Per scope',
+          detail: `Applicable population: ${population.length} employee(s) — ${populationSummary}. ${reissued.length} re-acknowledgment(s) issued, ${firstRequests.length} first request(s) to newly covered employees, ${dropped.length} record(s) closed as "No longer applicable".${input.context ? ` ${input.context}.` : ''} Prior acknowledgments preserved as bitemporal history.`,
+        })
+        publishAuditEvent({
+          module: 'Policy Distribution',
+          action: `Re-acknowledgment wave started (${trigger}) — applicable population only`,
+          actor: input.actor,
+          actionType: 'update',
+          recordId: input.policyId,
+          recordName: `${input.policyTitle} · ${newVersion} — ${reissued.length} of ${population.length} employees`,
+        })
+        const descriptionParts = [
+          firstRequests.length > 0
+            ? `${firstRequests.length} newly covered employee(s) received a first request`
+            : null,
+          dropped.length > 0
+            ? `${dropped.length} record(s) closed as “No longer applicable” — those employees are outside the policy's current applicability`
+            : null,
+        ].filter((p): p is string => p !== null)
+        toast.success(
+          `Re-acknowledgment issued to ${reissued.length} of ${population.length} employees — the policy's applicable population`,
+          descriptionParts.length > 0
+            ? { description: `${descriptionParts.join('. ')}.` }
+            : undefined
+        )
+        return reissued.length
+      }
+
       if (targets.length > 0) {
         const wave: Distribution = {
           id: shortId('dist'),
@@ -716,8 +898,8 @@ export function usePolicyDistribution() {
   /**
    * Waves announced by the Policy Management library on publish (content
    * change / regulatory update) are consumed here exactly once and turned
-   * into pending re-acknowledgments for everyone holding an active
-   * acknowledgment of the matching policy.
+   * into pending re-acknowledgments — scoped to the policy's current
+   * applicable population, not everyone who ever acknowledged.
    */
   const applyAnnouncedWave = useCallback(
     (wave: ReAckWaveAnnouncement) => {
@@ -751,6 +933,8 @@ export function usePolicyDistribution() {
             ? `Regulatory update published on ${publishedOn} — ${wave.editionName}`
             : `Policy content changed on ${publishedOn} — ${wave.editionName}`,
         priority: wave.priority,
+        // Version bumps re-ask the current applicable population only.
+        applicability: policy.applicability,
       })
     },
     [addAudit, runReAckWave]

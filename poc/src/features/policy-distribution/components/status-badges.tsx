@@ -78,6 +78,7 @@ const assignmentVariant: Record<AssignmentStatus, BadgeVariant> = {
   Overdue: 'overlay_overdue',
   Delivered: 'pending',
   Failed: 'dropped',
+  'No longer applicable': 'badge_inactive',
 }
 
 export function AssignmentStatusBadge({

@@ -106,19 +106,6 @@ export function validateCustomFields(
   const fields = getFieldsSnapshot().filter((f) => f.entity === entity)
   const errors: Record<string, string> = {}
 
-  // For audience filtering: hidden fields should not be validated.
-  // We construct a minimal record for resolveFieldAccess.
-  const syntheticRecord: EntityRecord = {
-    id: 'validate-context',
-    entity: 'Employees',
-    name: '',
-    subtitle: '',
-    relationship: audience === 'employee' ? 'self' : 'org',
-    isUser: true,
-    tenant: '',
-    values: {},
-  }
-
   // We need the role for resolveFieldAccess. Since this is called outside React,
   // we validate all fields that are not HR-only (a conservative safe approach).
   // Fields where hrEdit is false and all permissions false should be skipped.

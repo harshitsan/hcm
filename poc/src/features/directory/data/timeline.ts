@@ -108,19 +108,19 @@ export const seedFeedEvents: TimelineEvent[] = [
   { id: 'ev-a2', employeeId: SELF_EMPLOYEE_ID, employeeName: SELF_EMPLOYEE_NAME, eventType: 'Confirmed', date: '2022-08-14', description: 'Probation completed — confirmed as a permanent employee.' },
   { id: 'ev-a3', employeeId: SELF_EMPLOYEE_ID, employeeName: SELF_EMPLOYEE_NAME, eventType: 'Transferred', date: '2023-05-02', description: 'Moved from Bengaluru Tower A to Tower B with the Product Engineering pod.' },
   { id: 'ev-a4', employeeId: SELF_EMPLOYEE_ID, employeeName: SELF_EMPLOYEE_NAME, eventType: 'Manager change', date: '2024-11-01', description: 'Reporting manager changed to Vikram Mehta (Product Engineering).' },
-  { id: 'ev-a5', employeeId: SELF_EMPLOYEE_ID, employeeName: SELF_EMPLOYEE_NAME, eventType: 'Promotion', date: '2025-04-01', description: 'Promoted to Senior Software Engineer, band L4 — annual promotion cycle.' },
+  { id: 'ev-a5', employeeId: SELF_EMPLOYEE_ID, employeeName: SELF_EMPLOYEE_NAME, eventType: 'Promotion', date: '2025-04-01', description: 'Promoted to Senior Software Engineer — annual promotion cycle.' },
 
   // ── Daniel Kim (e-04) ─────────────────────────────────────────────────────
   { id: 'ev-d1', employeeId: 'e-04', employeeName: 'Daniel Kim', eventType: 'Joined', date: '2019-11-04', description: 'Joined as Senior Software Engineer, Platform work group — Chennai HQ.' },
   { id: 'ev-d2', employeeId: 'e-04', employeeName: 'Daniel Kim', eventType: 'Exit', date: '2021-01-31', description: 'Resigned — last working day recorded, relieving letter issued.' },
   { id: 'ev-d3', employeeId: 'e-04', employeeName: 'Daniel Kim', eventType: 'Rehired', date: '2021-06-14', description: 'Rejoined after prior exit — earlier service history linked to the new record.' },
-  { id: 'ev-d4', employeeId: 'e-04', employeeName: 'Daniel Kim', eventType: 'Promotion', date: '2022-04-01', description: 'Promoted to Engineering Manager, band M2.' },
+  { id: 'ev-d4', employeeId: 'e-04', employeeName: 'Daniel Kim', eventType: 'Promotion', date: '2022-04-01', description: 'Promoted to Engineering Manager.' },
   { id: 'ev-d5', employeeId: 'e-04', employeeName: 'Daniel Kim', eventType: 'Manager change', date: '2023-01-09', description: 'Reporting line moved to Marcus Bell (VP of Engineering).' },
 
   // ── Rohit Verma (e-06) ────────────────────────────────────────────────────
   { id: 'ev-r1', employeeId: 'e-06', employeeName: 'Rohit Verma', eventType: 'Joined', date: '2021-02-08', description: 'Joined as Software Engineer, Platform work group — Chennai HQ.' },
   { id: 'ev-r2', employeeId: 'e-06', employeeName: 'Rohit Verma', eventType: 'Confirmed', date: '2021-08-08', description: 'Probation completed — confirmation letter issued.' },
-  { id: 'ev-r3', employeeId: 'e-06', employeeName: 'Rohit Verma', eventType: 'Promotion', date: '2023-04-01', description: 'Promoted to Senior Software Engineer, band P4.' },
+  { id: 'ev-r3', employeeId: 'e-06', employeeName: 'Rohit Verma', eventType: 'Promotion', date: '2023-04-01', description: 'Promoted to Senior Software Engineer.' },
   { id: 'ev-r4', employeeId: 'e-06', employeeName: 'Rohit Verma', eventType: 'Transferred', date: '2024-06-01', description: 'Inter-location transfer from Chennai HQ to Hyderabad — transfer letter issued.' },
 
   // ── Grace Osei (e-07) ─────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ export const seedFeedEvents: TimelineEvent[] = [
   // ── Nina Kowalski (e-13) ──────────────────────────────────────────────────
   { id: 'ev-n1', employeeId: 'e-13', employeeName: 'Nina Kowalski', eventType: 'Joined', date: '2022-04-01', description: 'Joined as Senior Accountant, Finance Ops — Chicago.' },
   { id: 'ev-n2', employeeId: 'e-13', employeeName: 'Nina Kowalski', eventType: 'Confirmed', date: '2022-10-01', description: 'Probation completed — confirmed as a permanent employee.' },
-  { id: 'ev-n3', employeeId: 'e-13', employeeName: 'Nina Kowalski', eventType: 'Promotion', date: '2024-04-01', description: 'Promoted to Finance Manager, band M1.' },
+  { id: 'ev-n3', employeeId: 'e-13', employeeName: 'Nina Kowalski', eventType: 'Promotion', date: '2024-04-01', description: 'Promoted to Finance Manager.' },
   { id: 'ev-n4', employeeId: 'e-13', employeeName: 'Nina Kowalski', eventType: 'Manager change', date: '2026-05-01', description: 'Reporting line moved from Ananya Rao to Priya Sharma, effective 1 May 2026.' },
 ]
 
@@ -147,7 +147,7 @@ export const seedFeedComments: TimelineComment[] = [
   // Anika
   { id: 'cm-01', eventId: 'ev-a1', author: 'Tomás Alvarez', text: 'Welcome aboard, Anika! Onboarding checklist shared over email.', visibility: 'public', createdOn: '2022-02-14' },
   { id: 'cm-02', eventId: 'ev-a5', author: 'Vikram Mehta', text: 'Very well deserved — congratulations on the promotion!', visibility: 'public', createdOn: '2025-04-01' },
-  { id: 'cm-03', eventId: 'ev-a5', author: 'Tomás Alvarez', text: 'Revised band letter issued; compensation change effective 1 Apr payroll.', visibility: 'private', createdOn: '2025-04-02', attachmentName: 'promotion-letter-anika.pdf' },
+  { id: 'cm-03', eventId: 'ev-a5', author: 'Tomás Alvarez', text: 'Revised appointment letter issued; new designation effective 1 Apr.', visibility: 'private', createdOn: '2025-04-02', attachmentName: 'promotion-letter-anika.pdf' },
   { id: 'cm-04', eventId: 'ev-a3', author: SELF_EMPLOYEE_NAME, text: 'Note to self: desk allocation CH-B-214 confirmed with facilities.', visibility: 'private', createdOn: '2023-05-03' },
 
   // Daniel
@@ -163,7 +163,7 @@ export const seedFeedComments: TimelineComment[] = [
 
   // Liam
   { id: 'cm-10', eventId: 'ev-l4', author: 'Elena Petrova', text: 'Welcome to the Delivery team, Liam.', visibility: 'public', createdOn: '2026-03-02' },
-  { id: 'cm-11', eventId: 'ev-l4', author: 'Tomás Alvarez', text: 'Reporting change synced to payroll and access systems.', visibility: 'private', createdOn: '2026-03-02' },
+  { id: 'cm-11', eventId: 'ev-l4', author: 'Tomás Alvarez', text: 'Reporting change synced to downstream access systems.', visibility: 'private', createdOn: '2026-03-02' },
 
   // Nina
   { id: 'cm-12', eventId: 'ev-n3', author: 'Priya Sharma', text: 'Congratulations — Finance Ops is in great hands.', visibility: 'public', createdOn: '2024-04-01' },

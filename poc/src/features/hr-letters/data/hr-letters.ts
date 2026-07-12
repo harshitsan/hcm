@@ -48,12 +48,25 @@ export const AGREEMENT_TYPES = [
 ] as const
 export type AgreementType = (typeof AGREEMENT_TYPES)[number]
 
+/**
+ * Contract agreements (O10) — generated from these templates and tracked as
+ * agreement records in the Documents module with validity and expiry rules.
+ */
+export const CONTRACT_AGREEMENT_TYPES = [
+  'Employment agreement',
+  'Service bond',
+  'Non-disclosure agreement',
+  'Non-compete agreement',
+] as const
+export type ContractAgreementType = (typeof CONTRACT_AGREEMENT_TYPES)[number]
+
 export const ALL_DOC_KINDS = [
   ...LETTER_TYPES,
   ...CERTIFICATE_TYPES,
   ...OFFER_JOINING_TYPES,
   ...EMAIL_DOC_TYPES,
   ...AGREEMENT_TYPES,
+  ...CONTRACT_AGREEMENT_TYPES,
 ] as const
 export type DocKind = (typeof ALL_DOC_KINDS)[number]
 
@@ -64,6 +77,7 @@ export const TEMPLATE_CATEGORIES = [
   'Certificates',
   'Offers & joining',
   'Email templates',
+  'Agreements',
 ] as const
 export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number]
 
@@ -75,6 +89,8 @@ export function categoryOfDocType(docType: DocKind): TemplateCategory {
     return 'Offers & joining'
   if ((EMAIL_DOC_TYPES as readonly string[]).includes(docType))
     return 'Email templates'
+  if ((CONTRACT_AGREEMENT_TYPES as readonly string[]).includes(docType))
+    return 'Agreements'
   // Standard letters and agreement letters both sit under Letters.
   return 'Letters'
 }
@@ -529,6 +545,69 @@ export const seedTemplates: LetterTemplate[] = [
     currentVersion: 1,
     versions: [v(1, '2025-10-01', 'Initial agreement')],
     updatedOn: '2025-10-01',
+  },
+  /* ------------------------ Contract agreements (O10) ------------------------ */
+  {
+    id: 'tpl-agr-employment',
+    docType: 'Employment agreement',
+    name: 'Standard Employment Agreement',
+    body: 'EMPLOYMENT AGREEMENT\n\nThis agreement is made between {{company.legalName}}, {{company.address}}, and {{employee.fullName}} ({{employee.id}}).\n\nThe employee is engaged as {{position.title}} in the {{position.department}} department with effect from {{agreement.validFrom}}. The applicable notice period is {{custom.noticePeriod}}.\n\nThis agreement remains in force until {{agreement.validUntil}}, unless terminated earlier under its terms. It was executed on {{agreement.executedOn}}.',
+    layout: 'Classic',
+    letterhead: true,
+    requiresApproval: true,
+    requiresAcknowledgment: true,
+    signingAuthority: SIGNING_AUTHORITIES[1],
+    currentVersion: 2,
+    versions: [
+      v(1, '2025-11-01', 'Initial agreement template'),
+      v(2, '2026-03-15', 'Clarified notice-period clause'),
+    ],
+    updatedOn: '2026-03-15',
+  },
+  {
+    id: 'tpl-agr-bond',
+    docType: 'Service bond',
+    name: 'Service Bond',
+    body: 'SERVICE BOND\n\n{{employee.fullName}} ({{employee.id}}), serving as {{position.title}} in the {{position.department}} department, agrees to remain in the service of {{company.legalName}} from {{agreement.validFrom}} until {{agreement.validUntil}}.\n\nShould the employee leave before the bond period ends, the training and onboarding investment becomes repayable as set out in this bond. Notice period on record: {{custom.noticePeriod}}. Executed on {{agreement.executedOn}}.',
+    layout: 'Classic',
+    letterhead: true,
+    requiresApproval: true,
+    requiresAcknowledgment: true,
+    signingAuthority: SIGNING_AUTHORITIES[1],
+    currentVersion: 1,
+    versions: [v(1, '2025-11-01', 'Initial agreement template')],
+    updatedOn: '2025-11-01',
+  },
+  {
+    id: 'tpl-agr-nda',
+    docType: 'Non-disclosure agreement',
+    name: 'Non-Disclosure Agreement',
+    body: 'NON-DISCLOSURE AGREEMENT\n\n{{employee.fullName}}, {{position.title}} at {{company.legalName}}, agrees to hold in strict confidence all business, technical and customer information received in the course of employment, and to use it only for the benefit of {{company.name}}.\n\nThis obligation applies from {{agreement.validFrom}} and remains binding until {{agreement.validUntil}}. Executed on {{agreement.executedOn}}.',
+    layout: 'Classic',
+    letterhead: true,
+    requiresApproval: true,
+    requiresAcknowledgment: true,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 2,
+    versions: [
+      v(1, '2025-11-01', 'Initial agreement template'),
+      v(2, '2026-02-10', 'Extended confidential-information definition'),
+    ],
+    updatedOn: '2026-02-10',
+  },
+  {
+    id: 'tpl-agr-noncompete',
+    docType: 'Non-compete agreement',
+    name: 'Non-Compete Agreement',
+    body: 'NON-COMPETE AGREEMENT\n\n{{employee.fullName}} ({{employee.id}}), engaged as {{position.title}} in the {{position.department}} department, agrees not to join or start a competing business within the agreed territory while employed by {{company.legalName}}, and for the restraint period ending {{agreement.validUntil}}.\n\nThis agreement takes effect from {{agreement.validFrom}} and was executed on {{agreement.executedOn}}.',
+    layout: 'Classic',
+    letterhead: true,
+    requiresApproval: true,
+    requiresAcknowledgment: true,
+    signingAuthority: SIGNING_AUTHORITIES[0],
+    currentVersion: 1,
+    versions: [v(1, '2025-11-01', 'Initial agreement template')],
+    updatedOn: '2025-11-01',
   },
 ]
 

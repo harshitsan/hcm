@@ -38,10 +38,21 @@ import {
   type GroupingKey,
   type SavedView,
 } from '../data/builder'
+import { seedFieldDefinitions } from '@/features/custom-fields/data/custom-fields'
 import { DEPARTMENTS, type Company } from '../data/report-catalog'
 import { type SavedViewsStore } from '../hooks/use-saved-views'
 import { CustomFieldBadge } from './badges'
+import { ChartCard, HBarChart } from './charts'
 import { SavedViewsPanel } from './saved-views-panel'
+
+/**
+ * Read-only view of the tenant's Custom Fields (F9) registry — the builder
+ * surfaces employee-entity definitions so UDF columns trace back to their
+ * governed definition (RPT-23).
+ */
+const F9_EMPLOYEE_DEFS = seedFieldDefinitions.filter(
+  (d) => d.entity === 'Employees'
+)
 
 const saveViewSchema = z.object({
   name: z.string().min(2, 'View name is required'),
@@ -169,6 +180,16 @@ export function BuilderTab({ fields, companies, views }: BuilderTabProps) {
                 </label>
               ))}
             </div>
+            <p className='text-neutral-1000 mt-2 text-xs'>
+              Custom/UDF fields come from the Custom Fields (F9) registry —{' '}
+              {F9_EMPLOYEE_DEFS.length} definition(s) exist for Employees
+              (e.g.{' '}
+              {F9_EMPLOYEE_DEFS.slice(0, 3)
+                .map((d) => d.name)
+                .join(', ')}
+              ). Definitions with captured report data appear above as
+              selectable fields.
+            </p>
           </div>
           <div className='space-y-2 border-t pt-3'>
             <p className='text-neutral-1600 text-sm font-semibold'>Filters</p>
@@ -253,6 +274,17 @@ export function BuilderTab({ fields, companies, views }: BuilderTabProps) {
             </p>
           ) : groups ? (
             <div className='space-y-4'>
+              <ChartCard
+                title={`Records by ${groupBy}`}
+                subtitle='Group subtotals for the current filters'
+              >
+                <HBarChart
+                  data={groups.map(([key, list]) => ({
+                    label: key,
+                    value: list.length,
+                  }))}
+                />
+              </ChartCard>
               {groups.map(([key, list]) => (
                 <div key={key}>
                   <p className='text-neutral-1600 mb-1 text-xs font-semibold'>

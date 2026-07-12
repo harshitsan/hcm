@@ -3,9 +3,11 @@ import { toast } from 'sonner'
 import {
   GROUP_STEP,
   TRANSFER_CHAIN,
+  destinationEmployeeCode,
   seedAssignments,
   seedTransfers,
   type AssignmentRecord,
+  type DestinationRecordRef,
   type TransferRequest,
   type TransferType,
 } from '../data/transfers'
@@ -134,10 +136,24 @@ export function useTransfers({ log }: Deps) {
         s === step ? { ...s, status: 'approved' as const, actedOn: todayISO() } : s
       )
       const done = approvals.every((s) => s.status === 'approved')
+      // Inter-company: full approval creates the NEW destination-company
+      // employee record reference — same person, two companies, two records.
+      const destinationRecord: DestinationRecordRef | null =
+        done && t.type === 'Inter-Company' && !t.destinationRecord
+          ? {
+              employeeCode: destinationEmployeeCode(
+                t.employeeCode,
+                t.toCompany
+              ),
+              company: t.toCompany,
+              createdOn: todayISO(),
+            }
+          : (t.destinationRecord ?? null)
       patch(t.id, (prev) => ({
         ...prev,
         approvals,
         status: done ? 'scheduled' : prev.status,
+        destinationRecord,
       }))
       log({
         company: t.fromCompany,
@@ -149,11 +165,25 @@ export function useTransfers({ log }: Deps) {
           : 'Awaiting next approver',
         onBehalfOf: null,
       })
-      toast.success(
-        done
-          ? `Transfer approved — takes effect on ${t.effectiveDate}`
-          : `${step.role} approved`
-      )
+      if (done && destinationRecord && !t.destinationRecord) {
+        log({
+          company: t.toCompany,
+          module: 'Transfer',
+          action: 'Destination employee record created',
+          target: `${t.id} · ${t.employeeName}`,
+          outcome: `New company-specific record ${destinationRecord.employeeCode} created at ${t.toCompany} and linked to source record ${t.employeeCode} — activates on ${t.effectiveDate}`,
+          onBehalfOf: null,
+        })
+        toast.success(
+          `Transfer approved — new ${t.toCompany} employee record ${destinationRecord.employeeCode} created and linked`
+        )
+      } else {
+        toast.success(
+          done
+            ? `Transfer approved — takes effect on ${t.effectiveDate}`
+            : `${step.role} approved`
+        )
+      }
     },
     [log, patch]
   )
@@ -197,6 +227,19 @@ export function useTransfers({ log }: Deps) {
         ...prev,
         status: 'effective',
         balancesReconciled: true,
+        // Safety net — an inter-company transfer always ends up with its
+        // destination-company record reference once effective.
+        destinationRecord:
+          prev.type === 'Inter-Company' && !prev.destinationRecord
+            ? {
+                employeeCode: destinationEmployeeCode(
+                  prev.employeeCode,
+                  prev.toCompany
+                ),
+                company: prev.toCompany,
+                createdOn: todayISO(),
+              }
+            : prev.destinationRecord,
       }))
       // Bitemporal write: close the prior record, append the new assignment.
       const now = new Date().toISOString()

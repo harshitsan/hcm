@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { FloppyDisk, Plus, Trash } from 'phosphor-react'
+import { FloppyDisk, LockSimple, Plus, Trash } from 'phosphor-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,6 +42,7 @@ const PROFILE_SECTIONS = [
   { id: 'profile-placement', label: 'Placement' },
   { id: 'profile-reporting', label: 'Reporting & leave' },
   { id: 'profile-statutory', label: 'Statutory' },
+  { id: 'profile-compensation', label: 'Compensation' },
   { id: 'profile-dependants', label: 'Dependants & events' },
   { id: 'profile-personal', label: 'Personal info' },
   { id: 'profile-contact', label: 'Contact & address' },
@@ -275,6 +276,26 @@ export function MyProfileTab({ store }: { store: EmployeesStore }) {
             Shown for your own record only. Spot a discrepancy? Raise it with
             HR for correction — values are view-only here.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card id='profile-compensation' className='scroll-mt-16 border-gray-200'>
+        <CardContent className='space-y-4 pt-4'>
+          <SectionTitle>Compensation</SectionTitle>
+          <div className='flex items-start gap-2 rounded-md border border-gray-200 bg-neutral-100 px-3 py-3'>
+            <LockSimple size={16} className='text-neutral-1000 mt-0.5' />
+            <div>
+              <p className='text-sm font-medium'>
+                Compensation details are restricted to HR administrators.
+              </p>
+              <p className='text-paragraph-sm text-neutral-1000 pt-0.5'>
+                In Phase 1, compensation is comp-dark — it is not shown in
+                self-service, and visibility is grantable only to HR Admin,
+                Finance & Compliance Viewer, or platform/portfolio roles. For
+                questions about your compensation, contact HR.
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

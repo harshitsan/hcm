@@ -8,7 +8,10 @@ import {
   type ReportSchedule,
 } from '../data/schedules'
 
-export type ScheduleDraft = Omit<ReportSchedule, 'id' | 'nextRun' | 'status'>
+export type ScheduleDraft = Omit<
+  ReportSchedule,
+  'id' | 'lastRun' | 'nextRun' | 'status'
+>
 
 /**
  * In-memory scheduled-delivery store (RPT-09) plus the Notification/Template
@@ -24,6 +27,7 @@ export function useSchedules() {
       ...draft,
       id: `sch-${crypto.randomUUID().slice(0, 8)}`,
       status: 'active',
+      lastRun: '—',
       nextRun: computeNextRun(draft.frequency, draft.time),
     }
     setSchedules((prev) => [schedule, ...prev])
@@ -89,6 +93,11 @@ export function useSchedules() {
       detail: `Generated within scope “${schedule.scope}” · emailed to ${schedule.recipients.length} recipient(s) as ${schedule.format}`,
     }
     setDeliveries((prev) => [entry, ...prev])
+    setSchedules((prev) =>
+      prev.map((s) =>
+        s.id === schedule.id ? { ...s, lastRun: '2026-07-02 (on demand)' } : s
+      )
+    )
     toast.success(
       `${schedule.reportName} generated and emailed to ${schedule.recipients.length} recipient(s)`
     )

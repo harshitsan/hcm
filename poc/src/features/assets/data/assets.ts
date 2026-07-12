@@ -10,6 +10,7 @@ export const ASSET_STATES = [
   'Loan',
   'In Repair',
   'Returned',
+  'Lost',
   'Retired',
   'Disposed',
 ] as const
@@ -25,6 +26,7 @@ export type AssetAction =
   | 'mark-available'
   | 'send-repair'
   | 'repair-complete'
+  | 'mark-lost'
   | 'retire'
   | 'dispose'
 
@@ -37,9 +39,23 @@ export const ACTION_LABELS: Record<AssetAction, string> = {
   'mark-available': 'Assess serviceable → Available',
   'send-repair': 'Send for repair',
   'repair-complete': 'Repair complete → Available',
+  'mark-lost': 'Report lost',
   retire: 'Retire asset',
   dispose: 'Dispose asset',
 }
+
+/**
+ * Workflow origin an assignment came from — shown as a distinct tag in the
+ * movement history and on the asset record so cross-workflow moves (onboarding
+ * issuance, internal transfer, exit recovery) stay traceable.
+ */
+export const ASSIGNMENT_ORIGINS = [
+  'Onboarding (W2)',
+  'Internal transfer (W5)',
+  'Exit recovery (W8)',
+] as const
+
+export type AssignmentOrigin = (typeof ASSIGNMENT_ORIGINS)[number]
 
 export interface AssetHistoryEntry {
   id: string
@@ -55,6 +71,8 @@ export interface AssetHistoryEntry {
   recordedAt: string
   /** Rules-engine decision-table rule that permitted the transition (ASM-23). */
   ruleId: string | null
+  /** Workflow the movement originated from, when not an ad-hoc transaction. */
+  origin?: AssignmentOrigin | null
   note: string
 }
 
@@ -75,6 +93,8 @@ export interface Asset {
   holderId: string | null
   issueDate: string | null
   expectedReturnDate: string | null
+  /** Workflow the current assignment came from (e.g. onboarding issuance). */
+  assignmentOrigin?: AssignmentOrigin | null
   history: AssetHistoryEntry[]
 }
 
@@ -87,7 +107,8 @@ function h(
   employee: string | null,
   effectiveDate: string,
   ruleId: string | null,
-  note = ''
+  note = '',
+  origin: AssignmentOrigin | null = null
 ): AssetHistoryEntry {
   return {
     id,
@@ -99,16 +120,17 @@ function h(
     effectiveDate,
     recordedAt: `${effectiveDate}T10:00:00.000Z`,
     ruleId,
+    origin,
     note,
   }
 }
 
 export const seedAssets: Asset[] = [
   {
-    id: 'a-01', assetTag: 'AST-0001', serial: 'SN-MBP16-4471', name: 'MacBook Pro 16"', category: 'IT Equipment', vendor: 'Ingram Micro', poDate: '2025-02-10', warrantyMonths: 36, value: 245000, company: 'Aster Digital', state: 'Issued', holderId: 'e-01', issueDate: '2025-03-01', expectedReturnDate: null,
+    id: 'a-01', assetTag: 'AST-0001', serial: 'SN-MBP16-4471', name: 'MacBook Pro 16"', category: 'IT Equipment', vendor: 'Ingram Micro', poDate: '2025-02-10', warrantyMonths: 36, value: 245000, company: 'Aster Digital', state: 'Issued', holderId: 'e-01', issueDate: '2025-03-01', expectedReturnDate: null, assignmentOrigin: 'Onboarding (W2)',
     history: [
       h('ah-01a', 'Registered', null, 'Available', 'Priya Sharma', null, '2025-02-18', null, 'New arrival admitted to inventory'),
-      h('ah-01b', 'Issued', 'Available', 'Issued', 'Priya Sharma', 'Anita Rao', '2025-03-01', 'R-ISSUE'),
+      h('ah-01b', 'Issued', 'Available', 'Issued', 'Priya Sharma', 'Anita Rao', '2025-03-01', 'R-ISSUE', 'Issued against onboarding workflow step "Issue laptop"', 'Onboarding (W2)'),
     ],
   },
   {
@@ -206,6 +228,22 @@ export const seedAssets: Asset[] = [
       h('ah-20a', 'Registered', null, 'Available', 'Priya Sharma', null, '2024-07-25', null),
       h('ah-20b', 'Issued', 'Available', 'Issued', 'Priya Sharma', 'Anita Rao', '2024-08-01', 'R-ISSUE'),
       h('ah-20c', 'Returned', 'Issued', 'Returned', 'Priya Sharma', 'Anita Rao', '2025-12-15', 'R-RETURN', 'Return acknowledged with condition assessment'),
+    ],
+  },
+  {
+    id: 'a-21', assetTag: 'AST-0021', serial: 'SN-HID-ACC-204', name: 'HID Access Card', category: 'Security & Access', vendor: 'SecureID Dist', poDate: '2026-05-28', warrantyMonths: 24, value: 1800, company: 'Aster Digital', state: 'Issued', holderId: 'e-10', issueDate: '2026-06-22', expectedReturnDate: null, assignmentOrigin: 'Onboarding (W2)',
+    history: [
+      h('ah-21a', 'Registered', null, 'Available', 'Priya Sharma', null, '2026-06-05', null),
+      h('ah-21b', 'Issued', 'Available', 'Issued', 'Priya Sharma', 'Grace Lin', '2026-06-22', 'R-ISSUE', 'Issued on joining day against onboarding workflow step "Issue access card"', 'Onboarding (W2)'),
+    ],
+  },
+  {
+    id: 'a-22', assetTag: 'AST-0022', serial: 'SN-LAT5440-1187', name: 'Dell Latitude 5440', category: 'IT Equipment', vendor: 'Ingram Micro', poDate: '2025-04-18', warrantyMonths: 36, value: 118000, company: 'Aster Digital', state: 'Issued', holderId: 'e-03', issueDate: '2026-04-01', expectedReturnDate: null, assignmentOrigin: 'Internal transfer (W5)',
+    history: [
+      h('ah-22a', 'Registered', null, 'Available', 'Priya Sharma', null, '2025-04-30', null),
+      h('ah-22b', 'Issued', 'Available', 'Issued', 'Priya Sharma', 'Josh Patel', '2025-05-10', 'R-ISSUE'),
+      h('ah-22c', 'Transferred out', 'Issued', 'Issued', 'Priya Sharma', 'Josh Patel', '2026-04-01', 'R-TRANSFER', 'Handed over on internal transfer — new holder Meera Iyer', 'Internal transfer (W5)'),
+      h('ah-22d', 'Transferred in', 'Issued', 'Issued', 'Priya Sharma', 'Meera Iyer', '2026-04-01', 'R-TRANSFER', 'Received from Josh Patel — assignment moved without a return/reissue cycle', 'Internal transfer (W5)'),
     ],
   },
   {

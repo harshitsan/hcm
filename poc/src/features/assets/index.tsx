@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { ConfigTab } from './components/config-tab'
+import { ExitClearanceSection } from './components/exit-clearance-section'
 import { InventoryTab } from './components/inventory-tab'
 import { MovementsTab } from './components/movements-tab'
 import { MyAssetsTab } from './components/my-assets-tab'
@@ -177,6 +178,10 @@ export function Assets() {
                         <section>
                           <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Onboarding & exit tasks</h3>
                           <WorkflowsTab store={store} />
+                        </section>
+                        <section>
+                          <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Exit clearance</h3>
+                          <ExitClearanceSection store={store} />
                         </section>
                       </div>
                     </TabsContent>

@@ -71,7 +71,8 @@ export function SchedulesTab({
         <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
           Scheduled Deliveries ({store.schedules.length})
           <span className='text-neutral-1000 ml-2 text-xs'>
-            generated and emailed by the Notification/Template engine
+            Delivered via Notifications &amp; Comms (F7) — the engine renders
+            each report and emails it on schedule
           </span>
         </h2>
         <div className='flex items-center gap-3'>

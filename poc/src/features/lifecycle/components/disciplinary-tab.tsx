@@ -143,8 +143,36 @@ function ExitHandoffNotice({ c }: { c: DisciplinaryCase }) {
       </p>
       <p className='mt-0.5 text-xs text-amber-800'>
         Referred on {fmtDate(c.exitHandoff.triggeredOn)} — an exit case has been
-        opened with a “Disciplinary referral” origin.
+        opened with a “Disciplinary referral” origin
+        {c.exitHandoff.exitId
+          ? ` (${c.exitHandoff.exitId} on the Exits tab, linked back to this case)`
+          : ''}
+        .
       </p>
+    </div>
+  )
+}
+
+/** Dated activity trail for a disciplinary case. */
+function CaseHistory({ c }: { c: DisciplinaryCase }) {
+  const entries = c.history ?? []
+  if (entries.length === 0) return null
+  return (
+    <div className='space-y-1.5'>
+      <p className='text-sm font-semibold'>Case history</p>
+      {entries.map((h) => (
+        <div
+          key={h.id}
+          className='rounded-[6px] border border-gray-200 px-3 py-2'
+        >
+          <div className='flex items-start justify-between gap-3'>
+            <p className='text-sm'>{h.text}</p>
+            <span className='text-neutral-1000 shrink-0 text-xs'>
+              {fmtDate(h.date)}
+            </span>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -238,7 +266,7 @@ export function DisciplinaryTab({ store }: DisciplinaryTabProps) {
 
   return (
     <div className='w-full'>
-      <div className='mb-3 flex items-center justify-between'>
+      <div className='mb-1 flex items-center justify-between'>
         <h2 className='text-neutral-1600 text-paragraph-md font-medium'>
           Disciplinary Actions ({store.cases.length})
         </h2>
@@ -256,12 +284,21 @@ export function DisciplinaryTab({ store }: DisciplinaryTabProps) {
           </Button>
         </RoleGate>
       </div>
+      <p className='text-neutral-1000 mb-3 text-xs'>
+        Visible to Company Admins only — employees never see disciplinary
+        records other than communications addressed to them. Opening a record
+        or acting on it is captured on the audit trail. While a case is open,
+        the employee&apos;s probation confirmation stays gated.
+      </p>
 
       <DataTable
         columns={columns}
         data={store.cases}
         variant='no-status'
-        onRowClick={(row: DisciplinaryCase) => setSelectedId(row.id)}
+        onRowClick={(row: DisciplinaryCase) => {
+          setSelectedId(row.id)
+          store.recordView(row)
+        }}
       />
 
       {/* Counselling engagements */}
@@ -611,6 +648,8 @@ export function DisciplinaryTab({ store }: DisciplinaryTabProps) {
               />
 
               <ExitHandoffNotice c={selected} />
+
+              <CaseHistory c={selected} />
 
               {selected.status === 'approved' &&
                 selected.actionType !== 'Counselling' &&

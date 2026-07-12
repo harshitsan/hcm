@@ -2,8 +2,11 @@
  * Policy catalogue for the distribution module. Each policy carries the
  * compliance controls the stories configure: acknowledgment type
  * (Required / Optional / Read-Only), criticality (drives escalation
- * routing) and an optional periodic renewal cycle.
+ * routing), an optional periodic renewal cycle and the policy's current
+ * applicability — who the policy applies to right now, which scopes
+ * version-bump re-acknowledgment waves to the applicable population only.
  */
+import { type Audience } from './distributions'
 
 export const ACK_TYPES = ['Required', 'Optional', 'Read-Only'] as const
 export type AckType = (typeof ACK_TYPES)[number]
@@ -36,6 +39,14 @@ export interface Policy {
   lastUpdated: string
   /** How often acknowledgments must be renewed even without content changes. */
   renewalCadence: RenewalCadence
+  /**
+   * The policy's CURRENT applicable population, evaluated against the
+   * employee directory. When a new version is published, re-acknowledgment
+   * is issued only to employees matching these criteria; anyone who
+   * acknowledged earlier but is no longer covered is marked
+   * "No longer applicable" instead of being asked again.
+   */
+  applicability: Audience
 }
 
 export const seedPolicies: Policy[] = [
@@ -51,6 +62,19 @@ export const seedPolicies: Policy[] = [
       'All employees of Meridian Holdings group companies are expected to act with integrity, honesty and respect in every business interaction. This policy covers conflicts of interest, gifts and hospitality, fair dealing with customers and suppliers, and the duty to report misconduct through the confidential ethics line.\n\nViolations of this Code may result in disciplinary action up to and including termination. Managers carry an additional duty to model these standards and to respond promptly to concerns raised by their teams.',
     lastUpdated: '2026-05-28',
     renewalCadence: 'Annually',
+    // Demo of population-scoped re-acknowledgment: the Code of Conduct
+    // applies to office-based staff only — Field Staff follow the
+    // Workplace Safety Handbook's site code instead. Publishing a new
+    // version therefore re-asks only part of the earlier roster.
+    applicability: {
+      logic: 'OR',
+      criteria: [
+        {
+          field: 'group',
+          values: ['Office Staff', 'People Managers', 'Leadership'],
+        },
+      ],
+    },
   },
   {
     id: 'pol-02',
@@ -64,6 +88,10 @@ export const seedPolicies: Policy[] = [
       'Company information must be classified, stored and shared according to its sensitivity level. Multi-factor authentication is mandatory on all corporate accounts, and credentials must never be shared. Removable media is prohibited for Confidential and Restricted data.\n\nSuspected security incidents must be reported to the Security Operations Centre within one hour of discovery. Contractors and interns with system access are bound by the same obligations as permanent staff.',
     lastUpdated: '2026-06-14',
     renewalCadence: 'Annually',
+    applicability: {
+      logic: 'OR',
+      criteria: [{ field: 'department', values: ['Engineering'] }],
+    },
   },
   {
     id: 'pol-03',
@@ -77,6 +105,10 @@ export const seedPolicies: Policy[] = [
       'The company maintains a zero-tolerance stance on sexual harassment as defined under the POSH Act, 2013. Every workplace and location has a constituted Internal Committee whose contact details are published on the intranet.\n\nComplaints may be raised directly with the Internal Committee and will be handled confidentially within statutory timelines. Retaliation against complainants or witnesses is itself a policy violation.',
     lastUpdated: '2026-04-02',
     renewalCadence: 'Annually',
+    applicability: {
+      logic: 'OR',
+      criteria: [{ field: 'company', values: ['Northwind Retail'] }],
+    },
   },
   {
     id: 'pol-04',
@@ -90,6 +122,12 @@ export const seedPolicies: Policy[] = [
       'Business travel must be booked through the approved travel desk. Economy class applies to flights under six hours; per-diem rates vary by city tier and are published in the finance portal.\n\nExpense claims must be submitted within 30 days of travel completion with itemised receipts. Claims outside policy require pre-approval from the cost-centre owner.',
     lastUpdated: '2026-03-19',
     renewalCadence: 'Every 2 years',
+    // Live demo path — publishing a Travel & Expense version in the policy
+    // library re-asks the Finance/Sales population only.
+    applicability: {
+      logic: 'OR',
+      criteria: [{ field: 'department', values: ['Finance', 'Sales'] }],
+    },
   },
   {
     id: 'pol-05',
@@ -103,6 +141,15 @@ export const seedPolicies: Policy[] = [
       'The attached calendar lists the mandatory and optional holidays for each work location in 2026. Optional holidays may be availed as per the leave policy — up to two per calendar year, applied through the leave module.\n\nPlant locations follow the state-notified factory holiday list where it differs from the corporate calendar.',
     lastUpdated: '2026-01-05',
     renewalCadence: 'None',
+    applicability: {
+      logic: 'OR',
+      criteria: [
+        {
+          field: 'company',
+          values: ['Northwind Retail', 'Contoso Manufacturing'],
+        },
+      ],
+    },
   },
   {
     id: 'pol-06',
@@ -116,6 +163,20 @@ export const seedPolicies: Policy[] = [
       'Personal data of employees, customers and partners may only be collected for declared purposes and retained no longer than the published retention schedule. Cross-border transfers require a documented lawful basis.\n\nEvery employee who processes personal data must complete this acknowledgment and the annual privacy refresher. Data subject requests must be forwarded to the privacy office within 24 hours.',
     lastUpdated: '2026-06-01',
     renewalCadence: 'Annually',
+    applicability: {
+      logic: 'OR',
+      criteria: [
+        {
+          field: 'company',
+          values: [
+            'Northwind Retail',
+            'Contoso Manufacturing',
+            'Fabrikam Logistics',
+            'Trey Research',
+          ],
+        },
+      ],
+    },
   },
   {
     id: 'pol-07',
@@ -129,6 +190,16 @@ export const seedPolicies: Policy[] = [
       'Personal protective equipment is mandatory in all marked zones. Lock-out/tag-out procedures must be followed before any machine maintenance, and near-misses must be logged in the safety register within the same shift.\n\nEvacuation drills run quarterly at every plant. Field staff must complete the defensive driving module before operating company vehicles.',
     lastUpdated: '2026-05-11',
     renewalCadence: 'Annually',
+    applicability: {
+      logic: 'AND',
+      criteria: [
+        { field: 'group', values: ['Field Staff'] },
+        {
+          field: 'company',
+          values: ['Contoso Manufacturing', 'Fabrikam Logistics'],
+        },
+      ],
+    },
   },
   {
     id: 'pol-08',
@@ -142,6 +213,10 @@ export const seedPolicies: Policy[] = [
       'Eligible roles may work remotely up to three days per week with manager approval recorded in the HRMS. Core collaboration hours are 11:00–16:00 IST regardless of location.\n\nCompany equipment used at home remains subject to the Information Security Policy. Ergonomic self-assessments are recommended every six months.',
     lastUpdated: '2026-02-23',
     renewalCadence: 'Annually',
+    applicability: {
+      logic: 'OR',
+      criteria: [{ field: 'group', values: ['Office Staff'] }],
+    },
   },
 ]
 

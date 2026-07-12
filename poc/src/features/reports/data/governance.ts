@@ -2,6 +2,16 @@ import { type Role } from '@/context/role-context'
 import { type DashboardLayout } from './dashboards'
 import { COMPANIES, type Company } from './report-catalog'
 
+/** Named persona acting for each canonical role across the reports module. */
+export const ROLE_ACTORS: Record<Role, string> = {
+  'Platform Admin': 'Platform Ops',
+  'Portfolio Admin': 'Devika Rao',
+  'Group Company Admin': 'Arjun Mehta',
+  'Company Admin': 'Sunita Patil',
+  'Employee (User)': 'Ananya Rao',
+  'Employee (Non-User)': 'Ravi Naik',
+}
+
 /**
  * Company-access scope for a role, derived from the live RLS grant table
  * (RPT-12, RPT-17, RPT-18, RPT-20). Platform Admin operates the platform

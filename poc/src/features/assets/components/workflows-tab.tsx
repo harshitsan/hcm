@@ -64,6 +64,7 @@ export function WorkflowsTab({ store }: WorkflowsTabProps) {
       employeeId: task.employeeId,
       effectiveDate: today,
       note: `Issued via onboarding workflow step “${task.step}”`,
+      origin: 'Onboarding (W2)',
     })
   }
 
@@ -71,6 +72,7 @@ export function WorkflowsTab({ store }: WorkflowsTabProps) {
     store.runTransaction(assetId, 'recover', {
       effectiveDate: today,
       note: `Recovered via exit workflow step “${task.step}”`,
+      origin: 'Exit recovery (W8)',
     })
   }
 

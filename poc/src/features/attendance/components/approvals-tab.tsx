@@ -18,11 +18,14 @@ export function ApprovalsTab({
   requests,
   shifts,
   actor,
+  payrollLockedThrough,
 }: {
   attendance: AttendanceStore
   requests: RequestsStore
   shifts: ShiftsStore
   actor: string
+  /** Payroll lock date (W8) — corrections on or before it are frozen. */
+  payrollLockedThrough: string
 }) {
   const pendingCorrections = requests.corrections.filter(
     (c) => c.status === 'pending' || c.status === 'escalated'
@@ -55,7 +58,11 @@ export function ApprovalsTab({
         </TabsList>
 
         <TabsContent value='corrections'>
-          <ApprovalsCorrections requests={requests} actor={actor} />
+          <ApprovalsCorrections
+            requests={requests}
+            actor={actor}
+            payrollLockedThrough={payrollLockedThrough}
+          />
         </TabsContent>
         <TabsContent value='swaps-ot'>
           <ApprovalsSwapsOt shifts={shifts} requests={requests} />

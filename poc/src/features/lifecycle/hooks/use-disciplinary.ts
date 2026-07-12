@@ -48,11 +48,25 @@ interface Deps {
     body: string
   }) => void
   approverGroups: DisciplinaryApproverGroup[]
-  /** Hands the case to the exit module so the Exit Coordinator can act on it. */
+  /**
+   * Hands the case to the exit module so the Exit Coordinator can act on it.
+   * Returns the opened exit case reference so the two records can be linked.
+   */
   onExitReferral: (
     c: DisciplinaryCase,
     process: 'Suspension' | 'Termination'
-  ) => void
+  ) => { id: string } | void
+}
+
+/** Appends a dated line to a case's activity history. */
+function withHistory(c: DisciplinaryCase, text: string): DisciplinaryCase {
+  return {
+    ...c,
+    history: [
+      ...(c.history ?? []),
+      { id: shortId('dh'), date: todayISO(), text },
+    ],
+  }
 }
 
 /** Disciplinary actions routed to the configured location approver. */
@@ -71,11 +85,19 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
   /** Suspension/Termination handoff — task + notification to the Exit Coordinator. */
   const triggerExitHandoff = useCallback(
     (c: DisciplinaryCase, process: 'Suspension' | 'Termination') => {
-      patch(c.id, (prev) => ({
-        ...prev,
-        exitHandoff: { process, triggeredOn: todayISO() },
-      }))
-      onExitReferral(c, process)
+      const referred = onExitReferral(c, process)
+      const exitId = referred?.id
+      patch(c.id, (prev) =>
+        withHistory(
+          {
+            ...prev,
+            exitHandoff: { process, triggeredOn: todayISO(), exitId },
+          },
+          exitId
+            ? `Severe outcome — ${process} case handed to the Exit Coordinator. Exit case ${exitId} opened and linked back to this record.`
+            : `Severe outcome — ${process} case handed to the Exit Coordinator.`
+        )
+      )
       log({
         company: 'Aurora Software India',
         module: 'Disciplinary',
@@ -118,6 +140,13 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
           },
         ],
         exitHandoff: null,
+        history: [
+          {
+            id: shortId('dh'),
+            date: todayISO(),
+            text: `Case initiated by ${draft.initiatedBy} and routed to the location approver (${approver}).`,
+          },
+        ],
       }
       setCases((prev) => [created, ...prev])
       log({
@@ -143,13 +172,20 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
     (c: DisciplinaryCase) => {
       const step = pendingStep(c.approvals)
       if (!step) return
-      patch(c.id, (prev) => ({
-        ...prev,
-        status: 'approved',
-        approvals: prev.approvals.map((s) =>
-          s === step ? { ...s, status: 'approved' as const, actedOn: todayISO() } : s
-        ),
-      }))
+      patch(c.id, (prev) =>
+        withHistory(
+          {
+            ...prev,
+            status: 'approved',
+            approvals: prev.approvals.map((s) =>
+              s === step
+                ? { ...s, status: 'approved' as const, actedOn: todayISO() }
+                : s
+            ),
+          },
+          `Approved by ${step.approver} (${step.role}).`
+        )
+      )
       log({
         company: 'Aurora Software India',
         module: 'Disciplinary',
@@ -174,15 +210,20 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
     (c: DisciplinaryCase, note: string) => {
       const step = pendingStep(c.approvals)
       if (!step) return
-      patch(c.id, (prev) => ({
-        ...prev,
-        status: 'rejected',
-        approvals: prev.approvals.map((s) =>
-          s === step
-            ? { ...s, status: 'rejected' as const, actedOn: todayISO(), note }
-            : s
-        ),
-      }))
+      patch(c.id, (prev) =>
+        withHistory(
+          {
+            ...prev,
+            status: 'rejected',
+            approvals: prev.approvals.map((s) =>
+              s === step
+                ? { ...s, status: 'rejected' as const, actedOn: todayISO(), note }
+                : s
+            ),
+          },
+          `Rejected by ${step.approver} (${step.role})${note ? ` — ${note}` : ''}.`
+        )
+      )
       log({
         company: 'Aurora Software India',
         module: 'Disciplinary',
@@ -202,7 +243,12 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
         toast.error('The action must be approved before a letter is issued')
         return
       }
-      patch(c.id, (prev) => ({ ...prev, status: 'letter-issued' }))
+      patch(c.id, (prev) =>
+        withHistory(
+          { ...prev, status: 'letter-issued' },
+          `${c.actionType} letter issued from the configured template. Case resolved — any probation confirmation gate on this employee is released.`
+        )
+      )
       log({
         company: 'Aurora Software India',
         module: 'Disciplinary',
@@ -239,7 +285,12 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
         completedOn: null,
       }
       setCounselling((prev) => [record, ...prev])
-      patch(c.id, (prev) => ({ ...prev, status: 'counselling-in-progress' }))
+      patch(c.id, (prev) =>
+        withHistory(
+          { ...prev, status: 'counselling-in-progress' },
+          `Counselling on "${draft.topic}" scheduled by ${draft.initiatedBy}.`
+        )
+      )
       log({
         company: 'Aurora Software India',
         module: 'Disciplinary',
@@ -277,10 +328,17 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
       )
       const c = cases.find((x) => x.id === record.caseId)
       if (!c) return
-      patch(c.id, (prev) => ({
-        ...prev,
-        status: outcome === 'No Action' ? 'closed' : 'counselling-completed',
-      }))
+      patch(c.id, (prev) =>
+        withHistory(
+          {
+            ...prev,
+            status: outcome === 'No Action' ? 'closed' : 'counselling-completed',
+          },
+          outcome === 'No Action'
+            ? 'Counselling concluded — no further action; case closed and any probation confirmation gate released.'
+            : 'Counselling concluded with a Termination outcome.'
+        )
+      )
       log({
         company: 'Aurora Software India',
         module: 'Disciplinary',
@@ -301,6 +359,24 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
     [cases, log, patch, triggerExitHandoff]
   )
 
+  /**
+   * Publishes an audit event whenever a disciplinary record is opened —
+   * viewing these records is itself a sensitive, tracked action.
+   */
+  const recordView = useCallback(
+    (c: DisciplinaryCase) => {
+      log({
+        company: 'Aurora Software India',
+        module: 'Disciplinary',
+        action: 'Disciplinary record viewed',
+        target: `${c.id} · ${c.employeeName}`,
+        outcome: `Case detail opened (${c.actionType}, ${c.status})`,
+        onBehalfOf: null,
+      })
+    },
+    [log]
+  )
+
   return {
     cases,
     counselling,
@@ -310,6 +386,7 @@ export function useDisciplinary({ log, notify, approverGroups, onExitReferral }:
     issueLetter,
     initiateCounselling,
     completeCounselling,
+    recordView,
   }
 }
 

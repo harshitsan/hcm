@@ -33,13 +33,25 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CURRENT_EMPLOYEE, CURRENT_TENANT, type FieldMode } from '../data/profile'
+import {
+  COMP_DARK_FIELD_IDS,
+  CURRENT_EMPLOYEE,
+  CURRENT_TENANT,
+  EDIT_POLICY_HELP,
+  EDIT_POLICY_LABELS,
+  PROFILE_FIELD_GROUPS,
+  type EditPolicy,
+  type FieldMode,
+} from '../data/profile'
 import { type PortalStore } from '../hooks/use-portal'
 import { type ProfileStore, type UdfDraft } from '../hooks/use-profile'
+import { ChangeApprovalsTab } from './change-approvals-tab'
 import { SelectField, TextField } from './form-fields'
 import { LearningAdminTab } from './learning-admin-tab'
 import { TaxAdminTab } from './tax-admin-tab'
 import { formatDate } from './utils'
+
+const EDIT_POLICIES: EditPolicy[] = ['direct', 'approval', 'hr-only']
 
 const FIELD_MODES: FieldMode[] = ['editable', 'view-only', 'hidden']
 
@@ -79,6 +91,22 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
   const [udfOpen, setUdfOpen] = useState(false)
   const [nonUsers, setNonUsers] = useState<NonUserRow[]>(SEED_NON_USERS)
 
+  const pendingApprovals = profile.changeRequests.filter(
+    (cr) => cr.status === 'Pending approval'
+  ).length
+
+  /** True when per-field toggles have diverged from the group's policy. */
+  const groupCustomized = (fieldIds: string[], policy: EditPolicy) =>
+    fieldIds.some((id) => {
+      const field = profile.fields.find((f) => f.id === id)
+      if (!field) return false
+      if (policy === 'hr-only') return field.mode !== 'hidden'
+      return (
+        field.mode !== 'editable' ||
+        field.approvalRequired !== (policy === 'approval')
+      )
+    })
+
   /** Provision role/policy-scoped portal access for a non-user (ESS-10). */
   const convertToUser = (name: string) => {
     setNonUsers((prev) =>
@@ -111,6 +139,14 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
         <TabsList className='mb-3 bg-transparent p-0'>
         <TabsTrigger variant='primary' value='access'>
           Access Policy
+        </TabsTrigger>
+        <TabsTrigger variant='primary' value='approvals'>
+          Change Approvals
+          {pendingApprovals > 0 && (
+            <Badge variant='pending' className='ml-1'>
+              {pendingApprovals}
+            </Badge>
+          )}
         </TabsTrigger>
         <TabsTrigger variant='primary' value='fields'>
           Fields & custom fields
@@ -176,7 +212,63 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
         </div>
       </TabsContent>
 
+      <TabsContent value='approvals'>
+        <ChangeApprovalsTab profile={profile} />
+      </TabsContent>
+
       <TabsContent value='fields'>
+        <div className='mb-4 rounded-md border bg-white px-4 py-3'>
+          <h3 className='text-sm font-medium'>Profile edit policy</h3>
+          <p className='text-paragraph-sm text-neutral-1000 mt-1 mb-3'>
+            Decide, per field group, whether employees update the fields
+            themselves, must request approval, or leave them to HR. The rule
+            engine applies the policy the next time an employee edits their
+            profile.
+          </p>
+          <div className='space-y-2'>
+            {PROFILE_FIELD_GROUPS.map((group) => {
+              const policy = profile.groupPolicies[group.id] ?? 'approval'
+              return (
+                <div
+                  key={group.id}
+                  className='flex flex-wrap items-center justify-between gap-3 rounded-[6px] border border-gray-200 px-3 py-2'
+                >
+                  <div className='min-w-0'>
+                    <p className='text-sm font-medium'>
+                      {group.label} — {EDIT_POLICY_LABELS[policy]}
+                      {groupCustomized(group.fieldIds, policy) && (
+                        <span className='text-neutral-1000 ml-2 text-xs font-normal'>
+                          (customized per field below)
+                        </span>
+                      )}
+                    </p>
+                    <p className='text-paragraph-sm text-neutral-1000'>
+                      {group.description} · {EDIT_POLICY_HELP[policy]}
+                    </p>
+                  </div>
+                  <Select
+                    value={policy}
+                    onValueChange={(v) =>
+                      profile.setGroupPolicy(group.id, v as EditPolicy)
+                    }
+                  >
+                    <SelectTrigger className='h-7 w-[180px]'>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EDIT_POLICIES.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {EDIT_POLICY_LABELS[p]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
         <div className='mb-3 flex items-center justify-between'>
           <p className='text-paragraph-sm text-neutral-1000'>
             The forms engine renders self-service screens from this versioned,
@@ -204,18 +296,26 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {profile.fields.map((field) => (
+              {profile.fields.map((field) => {
+                const compDark = (
+                  COMP_DARK_FIELD_IDS as readonly string[]
+                ).includes(field.id)
+                return (
                 <TableRow key={field.id}>
                   <TableCell className='font-medium'>
                     <span className='flex items-center gap-2'>
                       {field.label}
                       {field.isUdf && <Badge variant='open'>Custom field</Badge>}
+                      {compDark && (
+                        <Badge variant='dropped'>Never shown — Phase 1</Badge>
+                      )}
                     </span>
                   </TableCell>
                   <TableCell>{field.section}</TableCell>
                   <TableCell>
                     <Select
                       value={field.mode}
+                      disabled={compDark}
                       onValueChange={(mode) =>
                         profile.setFieldMode(field.id, mode as FieldMode)
                       }
@@ -235,6 +335,7 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
                   <TableCell>
                     <Switch
                       checked={field.approvalRequired}
+                      disabled={compDark}
                       onCheckedChange={() =>
                         profile.toggleApprovalRequired(field.id)
                       }
@@ -248,7 +349,8 @@ export function AdminTab({ profile, portal }: AdminTabProps) {
                   </TableCell>
                   <TableCell>{formatDate(field.effectiveFrom)}</TableCell>
                 </TableRow>
-              ))}
+                )
+              })}
             </TableBody>
           </Table>
         </div>

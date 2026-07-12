@@ -24,6 +24,10 @@ import {
 import { PERSONAS, fmtDate, todayISO } from '../data/shared'
 import { type ExitsStore } from '../hooks/use-exits'
 import { ExitApprovalPanel } from './exit-approval-panel'
+import {
+  AssetClearancePanel,
+  useExitAssetClearance,
+} from './exit-asset-clearance'
 import { ExitConditionsCard } from './exit-conditions-card'
 import { ExitResignationForm } from './exit-resignation-form'
 import { ExitStatusBadge } from './exit-status-badge'
@@ -70,6 +74,8 @@ export function ExitDetailSheet({
   const [supDocName, setSupDocName] = useState('')
   const [suspFrom, setSuspFrom] = useState('')
   const [suspTill, setSuspTill] = useState('')
+  // W8 — live verdict from the Assets module (empty name = untracked).
+  const assetClearance = useExitAssetClearance(e?.employeeName ?? '')
   if (!e) return null
 
   const isAdmin = hasRole('Company Admin', 'Group Company Admin')
@@ -552,10 +558,31 @@ export function ExitDetailSheet({
                 Outstanding: {outstanding.map((c) => `${c.functionName} (${c.owner})`).join(', ')}
               </p>
             )}
+
+            {/* W8 — asset clearance from the Assets module (live) */}
+            <AssetClearancePanel
+              employeeName={e.employeeName}
+              clearance={assetClearance}
+            />
+
             {e.status === 'clearance-in-progress' && isAdmin && (
-              <Button size='sm' onClick={() => store.finalizeExit(e)}>
-                Finalize exit
-              </Button>
+              <div className='space-y-1.5'>
+                <Button
+                  size='sm'
+                  disabled={assetClearance.tracked && !assetClearance.cleared}
+                  onClick={() => store.finalizeExit(e)}
+                >
+                  Finalize exit
+                </Button>
+                {assetClearance.tracked && !assetClearance.cleared && (
+                  <p className='text-xs text-red-700'>
+                    Finalize is blocked — {assetClearance.unreturned.length}{' '}
+                    asset(s) are still with the employee. Record the returns
+                    (or write-offs) in the Assets module → Exit clearance
+                    screen; this exit unlocks automatically.
+                  </p>
+                )}
+              </div>
             )}
             {e.status === 'finalized' && (
               <div className='space-y-2'>

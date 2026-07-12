@@ -69,8 +69,15 @@ export const scheduleColumns: ColumnDef<ReportSchedule>[] = [
   },
   {
     accessorKey: 'nextRun',
-    header: 'Next run',
-    cell: ({ row }) => <span className='text-sm'>{row.original.nextRun}</span>,
+    header: 'Delivery timeline',
+    cell: ({ row }) => (
+      <div className='flex flex-col text-sm'>
+        <span className='text-neutral-1000 text-xs'>
+          Last run · {row.original.lastRun}
+        </span>
+        <span>Next run · {row.original.nextRun}</span>
+      </div>
+    ),
   },
   {
     accessorKey: 'status',

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useRole } from '@/context/role-context'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -15,6 +16,7 @@ import {
   DIRECTORY_FIELD_KEYS,
   FIELD_ACCESS_LEVELS,
   FIELD_LABELS,
+  PHASE1_EXCLUDED_FIELDS,
   type DirectoryFieldKey,
   type FieldAccess,
 } from '../../data/directory-config'
@@ -62,43 +64,52 @@ export function CompanyOverridePanel({
         </p>
       </CardHeader>
       <CardContent className='space-y-2'>
-        {DIRECTORY_FIELD_KEYS.map((key) => (
-          <div
-            key={key}
-            className='flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2'
-          >
-            <div className='flex flex-col'>
-              <span className='text-neutral-1600 text-sm font-medium'>
-                {FIELD_LABELS[key]}
-              </span>
-              <span className='text-neutral-1000 text-xs'>
-                Platform default: {ACCESS_LABELS[config.platformRules[key]]}
-              </span>
-            </div>
-            <Select
-              value={draft[key] ?? 'inherit'}
-              onValueChange={(v) => setField(key, v)}
-              disabled={!canEdit}
+        {DIRECTORY_FIELD_KEYS.map((key) => {
+          const excluded = PHASE1_EXCLUDED_FIELDS.includes(key)
+          return (
+            <div
+              key={key}
+              className='flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2'
             >
-              <SelectTrigger
-                variant='secondary'
-                className='h-8 w-[220px] text-xs'
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='inherit'>
-                  Inherit platform default
-                </SelectItem>
-                {FIELD_ACCESS_LEVELS.map((level) => (
-                  <SelectItem key={level} value={level}>
-                    Override: {ACCESS_LABELS[level]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ))}
+              <div className='flex flex-col'>
+                <span className='text-neutral-1600 text-sm font-medium'>
+                  {FIELD_LABELS[key]}
+                </span>
+                <span className='text-neutral-1000 text-xs'>
+                  {excluded
+                    ? 'Structurally excluded — no override can surface this field.'
+                    : `Platform default: ${ACCESS_LABELS[config.platformRules[key]]}`}
+                </span>
+              </div>
+              {excluded ? (
+                <Badge variant='badge_inactive'>Never shown — Phase 1</Badge>
+              ) : (
+                <Select
+                  value={draft[key] ?? 'inherit'}
+                  onValueChange={(v) => setField(key, v)}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger
+                    variant='secondary'
+                    className='h-8 w-[220px] text-xs'
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='inherit'>
+                      Inherit platform default
+                    </SelectItem>
+                    {FIELD_ACCESS_LEVELS.map((level) => (
+                      <SelectItem key={level} value={level}>
+                        Override: {ACCESS_LABELS[level]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )
+        })}
 
         {canEdit && (
           <div className='flex flex-wrap items-center gap-2 pt-1'>

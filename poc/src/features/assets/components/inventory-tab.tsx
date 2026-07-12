@@ -43,6 +43,7 @@ const ALL_ACTIONS: AssetAction[] = [
   'mark-available',
   'send-repair',
   'repair-complete',
+  'mark-lost',
   'retire',
   'dispose',
 ]

@@ -1,18 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Eye, PencilLine, RotateCcw } from 'lucide-react'
 import { ClipboardText } from 'phosphor-react'
-import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -30,11 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Textarea } from '@/components/ui/textarea'
 import { CURRENT_EMPLOYEE } from '../data/entries'
 import { type Survey } from '../data/surveys'
+import { resolveSurveyAudience } from '../data/survey-audience'
 import { type SurveysStore } from '../hooks/use-surveys'
 import { SurveyDetailSheet } from './survey-detail-sheet'
+import { SurveyTakeDialog } from './survey-take-dialog'
 import { surveyStatusVariant } from './survey-status'
 
 const ALL = 'all'
@@ -46,47 +38,44 @@ interface MySurveysTabProps {
   store: SurveysStore
 }
 
-/** Response the signed-in employee recorded against a survey (POC in-memory). */
-interface SurveyResponse {
-  respondedOn: string
-  answer: string
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
 /**
  * Employee-facing survey list (SUR-01..04): every survey published to the
- * employee with title, start/end dates and a personal Pending response /
- * Responded status, filterable by a From/To period window and by status,
- * with a single Reset restoring the full list. Responding is done inline
- * through a dialog and flips the survey to Responded.
+ * signed-in employee's targeted audience, with title, start/end dates and a
+ * personal Pending response / Responded status, filterable by a From/To
+ * period window and by status, with a single Reset restoring the full list.
+ * Responding opens the survey's questionnaire; answers flow into the same
+ * store the admin responses view aggregates.
  */
 export function MySurveysTab({ store }: MySurveysTabProps) {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>(ALL)
-  const [responses, setResponses] = useState<Record<string, SurveyResponse>>({
-    // The completed engagement pulse was already answered by this employee.
-    'svy-1': { respondedOn: '2026-04-12', answer: 'Submitted via pulse form.' },
-  })
   const [viewing, setViewing] = useState<Survey | null>(null)
   const [viewOpen, setViewOpen] = useState(false)
-  const [responding, setResponding] = useState<Survey | null>(null)
-  const [answer, setAnswer] = useState('')
+  const [respondingId, setRespondingId] = useState<string | null>(null)
 
-  /** Only surveys actually released to employees appear here. */
+  /**
+   * Only surveys actually released to employees appear here, and only when
+   * the audience targeting resolves to the signed-in employee.
+   */
   const published = useMemo(
     () =>
       store.surveys.filter(
-        (s) => s.status === 'Published' || s.status === 'Completed'
+        (s) =>
+          (s.status === 'Published' || s.status === 'Completed') &&
+          resolveSurveyAudience(s.audience).some(
+            (e) => e.name === CURRENT_EMPLOYEE
+          )
       ),
     [store.surveys]
   )
 
+  /** The separate participation ledger drives "have I responded?". */
+  const myParticipation = (s: Survey) =>
+    store.participantsFor(s.id).find((p) => p.name === CURRENT_EMPLOYEE)
+
   const myStatusOf = (s: Survey): MySurveyStatus =>
-    responses[s.id] ? 'Responded' : 'Pending response'
+    myParticipation(s) ? 'Responded' : 'Pending response'
 
   /** SUR-01 — period From/To window; SUR-02 — my-status filter. */
   const filtered = useMemo(
@@ -94,16 +83,20 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
       published.filter((s) => {
         if (from !== '' && s.endDate < from) return false
         if (to !== '' && s.startDate > to) return false
-        const mine: MySurveyStatus = responses[s.id]
+        const mine: MySurveyStatus = store
+          .participantsFor(s.id)
+          .some((p) => p.name === CURRENT_EMPLOYEE)
           ? 'Responded'
           : 'Pending response'
         if (statusFilter !== ALL && mine !== statusFilter) return false
         return true
       }),
-    [published, from, to, statusFilter, responses]
+    [published, from, to, statusFilter, store]
   )
 
-  const pendingCount = published.filter((s) => !responses[s.id]).length
+  const pendingCount = published.filter(
+    (s) => s.status === 'Published' && !myParticipation(s)
+  ).length
 
   const hasFilters = from !== '' || to !== '' || statusFilter !== ALL
 
@@ -114,18 +107,8 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
     setStatusFilter(ALL)
   }
 
-  const submitResponse = () => {
-    if (!responding) return
-    setResponses((prev) => ({
-      ...prev,
-      [responding.id]: { respondedOn: today(), answer: answer.trim() },
-    }))
-    toast.success('Survey response submitted', {
-      description: `Your ${responding.anonymous ? 'anonymous ' : ''}response to "${responding.title}" was recorded for ${CURRENT_EMPLOYEE}.`,
-    })
-    setResponding(null)
-    setAnswer('')
-  }
+  const responding =
+    store.surveys.find((s) => s.id === respondingId) ?? null
 
   if (!store.settings.moduleEnabled) {
     return (
@@ -217,6 +200,7 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
               <TableHead>Survey Title</TableHead>
               <TableHead>Start Date</TableHead>
               <TableHead>End Date</TableHead>
+              <TableHead>Questions</TableHead>
               <TableHead>Anonymity</TableHead>
               <TableHead>Survey Status</TableHead>
               <TableHead>My Status</TableHead>
@@ -227,7 +211,7 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className='text-neutral-1000 py-6 text-center text-sm'
                 >
                   No surveys match the current filters.
@@ -235,8 +219,8 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
               </TableRow>
             )}
             {filtered.map((s) => {
+              const participation = myParticipation(s)
               const mine = myStatusOf(s)
-              const response = responses[s.id]
               const open = s.status === 'Published'
               return (
                 <TableRow key={s.id}>
@@ -246,6 +230,7 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
                   </TableCell>
                   <TableCell className='text-sm'>{s.startDate}</TableCell>
                   <TableCell className='text-sm'>{s.endDate}</TableCell>
+                  <TableCell className='text-sm'>{s.questions.length}</TableCell>
                   <TableCell>
                     <Badge variant={s.anonymous ? 'open' : 'pending'}>
                       {s.anonymous ? 'Anonymous' : 'Identified'}
@@ -264,9 +249,9 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
                     >
                       {mine}
                     </Badge>
-                    {response && (
+                    {participation && (
                       <p className='text-neutral-1000 mt-0.5 text-[11px]'>
-                        on {response.respondedOn}
+                        on {participation.completedOn}
                       </p>
                     )}
                   </TableCell>
@@ -287,10 +272,7 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
                         variant='outline'
                         className='h-7 gap-1 px-2 text-xs'
                         disabled={!open || mine === 'Responded'}
-                        onClick={() => {
-                          setResponding(s)
-                          setAnswer('')
-                        }}
+                        onClick={() => setRespondingId(s.id)}
                       >
                         <PencilLine className='size-3.5' />
                         {mine === 'Responded'
@@ -310,6 +292,7 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
 
       <SurveyDetailSheet
         survey={viewing}
+        responses={viewing ? store.responsesFor(viewing.id) : []}
         open={viewOpen}
         onOpenChange={(open) => {
           setViewOpen(open)
@@ -317,57 +300,18 @@ export function MySurveysTab({ store }: MySurveysTabProps) {
         }}
       />
 
-      {/* Respond dialog — records the employee's response in memory. */}
-      <Dialog
+      {/* Respond — renders the questionnaire by question type, validates
+          required answers and records the response in the shared store. */}
+      <SurveyTakeDialog
+        survey={responding}
         open={responding !== null}
         onOpenChange={(open) => {
-          if (!open) {
-            setResponding(null)
-            setAnswer('')
-          }
+          if (!open) setRespondingId(null)
         }}
-      >
-        <DialogContent className='sm:max-w-md'>
-          <DialogHeader>
-            <DialogTitle>Respond to survey</DialogTitle>
-            <DialogDescription>
-              {responding
-                ? `"${responding.title}" is open ${responding.startDate} – ${responding.endDate}. ${
-                    responding.anonymous
-                      ? 'Responses are anonymous.'
-                      : 'Your response is recorded with your name.'
-                  }`
-                : ''}
-            </DialogDescription>
-          </DialogHeader>
-          <div className='flex flex-col gap-1.5'>
-            <Label htmlFor='my-survey-answer' className='text-xs'>
-              Your response
-            </Label>
-            <Textarea
-              id='my-survey-answer'
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder='Share your feedback for this survey…'
-              rows={4}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              variant='outline'
-              onClick={() => {
-                setResponding(null)
-                setAnswer('')
-              }}
-            >
-              Cancel
-            </Button>
-            <Button onClick={submitResponse} disabled={answer.trim() === ''}>
-              Submit response
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onSubmit={(answers) =>
+          responding ? store.submitResponse(responding, answers) : false
+        }
+      />
     </Card>
   )
 }

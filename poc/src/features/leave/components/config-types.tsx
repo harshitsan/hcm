@@ -43,7 +43,6 @@ import {
   POSITION_LEVELS,
 } from '../data/shared'
 import { type LeaveConfigStore, type LeaveTypeDraft } from '../hooks/use-leave-config'
-import { StatusBadge } from './badges'
 import { PagerControls, RefreshButton, usePager } from './list-controls'
 
 const TYPES_PAGE_SIZE = 8

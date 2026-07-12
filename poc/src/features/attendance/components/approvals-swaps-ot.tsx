@@ -4,10 +4,13 @@ import { employeeName, fmtDate, fmtHours } from '../data/shared'
 import { type RequestsStore } from '../hooks/use-requests'
 import { type ShiftsStore } from '../hooks/use-shifts'
 import { OtBadge, StatusBadge } from './badges'
+import { SwapQueue } from './swap-queue'
 
 /**
  * Shift-swap decisions with conflict/statutory warnings (TNA-14) and
  * overtime authorization with the supervisor-cap escalation (TNA-10/30/31).
+ * The swap queue is the same one shown on Shifts & Rosters — one queue,
+ * two entry points.
  */
 export function ApprovalsSwapsOt({
   shifts,
@@ -22,56 +25,11 @@ export function ApprovalsSwapsOt({
         <h3 className='text-neutral-1600 mb-2 text-sm font-medium'>
           Shift Swap Requests ({shifts.swaps.length})
           <span className='text-neutral-1000 ml-2 text-xs'>
-            approving updates the roster for both employees and notifies them
+            swaps stay pending until decided here; approving flips the roster
+            for both employees and notifies them
           </span>
         </h3>
-        <div className='space-y-3'>
-          {shifts.swaps.map((s) => (
-            <div key={s.id} className='rounded-[8px] border border-gray-200 bg-white p-4'>
-              <div className='flex flex-wrap items-start justify-between gap-3'>
-                <div>
-                  <p className='text-sm font-medium'>
-                    {employeeName(s.requesterId)} ({shifts.shiftName(s.requesterShiftId)}) ⇄{' '}
-                    {employeeName(s.counterpartyId)} ({shifts.shiftName(s.counterpartyShiftId)})
-                    {' · '}
-                    {fmtDate(s.date)}
-                  </p>
-                  <p className='text-paragraph-sm text-neutral-1000 pt-0.5'>
-                    Submitted {fmtDate(s.submittedOn)} — “{s.reason}”
-                    {s.decidedBy && ` · decided by ${s.decidedBy}: ${s.decisionNote}`}
-                  </p>
-                  {s.warning && (
-                    <p className='text-destructive pt-1 text-xs font-medium'>
-                      Warning: {s.warning}
-                    </p>
-                  )}
-                </div>
-                <div className='flex flex-col items-end gap-2'>
-                  <StatusBadge status={s.status} />
-                  {s.status === 'pending' && (
-                    <div className='flex items-center gap-2'>
-                      <Button
-                        variant='outline'
-                        className='h-7 text-xs'
-                        onClick={() =>
-                          shifts.decideSwap(s.id, false, 'Coverage would be short that day')
-                        }
-                      >
-                        Reject
-                      </Button>
-                      <Button
-                        className='h-7 text-xs'
-                        onClick={() => shifts.decideSwap(s.id, true, 'Roster updated')}
-                      >
-                        {s.warning ? 'Approve Despite Warning' : 'Approve Swap'}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <SwapQueue shifts={shifts} />
       </div>
 
       <div>

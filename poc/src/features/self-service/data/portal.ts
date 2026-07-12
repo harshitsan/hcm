@@ -33,9 +33,9 @@ export const seedDocuments: EmployeeDocument[] = [
   { id: 'doc-01', name: 'Offer letter — Anika Sharma.pdf', category: 'Employment', addedOn: '2022-02-01', authorized: true },
   { id: 'doc-02', name: 'Promotion letter FY25.pdf', category: 'Employment', addedOn: '2025-04-01', authorized: true },
   { id: 'doc-03', name: 'Form 16 — FY 2025-26.pdf', category: 'Tax', addedOn: '2026-06-05', authorized: true },
-  { id: 'doc-04', name: 'Payslip — May 2026.pdf', category: 'Payroll', addedOn: '2026-06-01', authorized: true },
+  { id: 'doc-04', name: 'Experience letter request — approved.pdf', category: 'Employment', addedOn: '2026-06-01', authorized: true },
   { id: 'doc-05', name: 'POSH policy 2026.pdf', category: 'Policy', addedOn: '2026-01-10', authorized: true },
-  { id: 'doc-06', name: 'Compensation benchmarking (HR only).xlsx', category: 'Restricted', addedOn: '2026-03-14', authorized: false },
+  { id: 'doc-06', name: 'Org design review (HR only).xlsx', category: 'Restricted', addedOn: '2026-03-14', authorized: false },
   { id: 'doc-07', name: 'Grievance case notes (HR only).pdf', category: 'Restricted', addedOn: '2026-04-22', authorized: false },
 ]
 
@@ -76,6 +76,6 @@ export const seedSectionPolicies: SectionPolicy[] = [
   { id: 'travel', label: 'Travel & expenses', view: true, manage: true },
   { id: 'learning', label: 'Learning', view: true, manage: true },
   { id: 'assets', label: 'Assets', view: true, manage: true },
-  { id: 'tax', label: 'Tax & pay', view: true, manage: true },
+  { id: 'tax', label: 'Tax planning', view: true, manage: true },
   { id: 'work', label: 'Allocation & knowledge transfer', view: true, manage: false },
 ]

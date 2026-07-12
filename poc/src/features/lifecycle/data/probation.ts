@@ -25,6 +25,29 @@ export interface ProbationCriterion {
   score: number | null
 }
 
+/** Display-only D6 note attached to outcomes with a pay implication. */
+export const D6_NOTE =
+  'Pay implication forwarded to payroll computation (D6) — computation out of scope in this POC'
+
+export interface ProbationHistoryEntry {
+  id: string
+  date: string
+  text: string
+  /** True for the display-only “Payroll notified” (D6) line items. */
+  payroll?: boolean
+}
+
+/**
+ * Employment status chip derived from the confirmation outcome:
+ * Probation / Confirmed / Probation Extended / Separation Initiated.
+ */
+export function employmentStatus(c: ProbationCase) {
+  if (c.status === 'confirmed') return 'confirmed'
+  if (c.status === 'extended') return 'probation-extended'
+  if (c.status === 'separation-initiated') return 'separation-initiated'
+  return 'probation'
+}
+
 export interface ProbationCase {
   id: string
   employeeName: string
@@ -42,6 +65,14 @@ export interface ProbationCase {
   approvals: ApprovalStep[]
   extendedTo: string | null
   decisionTableVersion: string
+  /** Extension length chosen with the Extend outcome (1–3 months). */
+  extensionMonths: number | null
+  /** Reason captured with the Extend / Initiate Separation outcome. */
+  outcomeReason: string | null
+  /** Date the employee was confirmed — drives “Confirmed this quarter”. */
+  confirmedOn: string | null
+  /** Record timeline, including display-only “Payroll notified” (D6) lines. */
+  history: ProbationHistoryEntry[]
 }
 
 export const PROBATION_CHAIN = [
@@ -75,6 +106,16 @@ export const seedProbation: ProbationCase[] = [
     approvals: makeSteps(PROBATION_CHAIN),
     extendedTo: null,
     decisionTableVersion: 'v3',
+    extensionMonths: null,
+    outcomeReason: null,
+    confirmedOn: null,
+    history: [
+      {
+        id: 'h-2001-1',
+        date: '2026-06-20',
+        text: 'Confirmation review initiated — evaluation opened against decision table v3.',
+      },
+    ],
   },
   {
     id: 'prb-2002',
@@ -101,6 +142,21 @@ export const seedProbation: ProbationCase[] = [
     ],
     extendedTo: null,
     decisionTableVersion: 'v3',
+    extensionMonths: null,
+    outcomeReason: null,
+    confirmedOn: null,
+    history: [
+      {
+        id: 'h-2002-1',
+        date: '2026-06-18',
+        text: 'Confirmation review initiated — evaluation opened against decision table v3.',
+      },
+      {
+        id: 'h-2002-2',
+        date: '2026-06-24',
+        text: 'Decision “Confirm” submitted and routed for approval.',
+      },
+    ],
   },
   {
     id: 'prb-2003',
@@ -123,6 +179,33 @@ export const seedProbation: ProbationCase[] = [
     })),
     extendedTo: '2026-09-01',
     decisionTableVersion: 'v2',
+    extensionMonths: 3,
+    outcomeReason:
+      'Delivery pace improving but goals incomplete — extension recommended to finish the ramp-up plan.',
+    confirmedOn: null,
+    history: [
+      {
+        id: 'h-2003-1',
+        date: '2026-05-20',
+        text: 'Confirmation review initiated — evaluation opened against decision table v2.',
+      },
+      {
+        id: 'h-2003-2',
+        date: '2026-05-25',
+        text: 'Decision “Extend” (3 months) submitted and routed for approval.',
+      },
+      {
+        id: 'h-2003-3',
+        date: '2026-05-28',
+        text: 'Probation extended by 3 months — new probation end date 01 Sep 2026. Status stays Probation.',
+      },
+      {
+        id: 'h-2003-4',
+        date: '2026-05-28',
+        text: `Payroll notified — ${D6_NOTE}.`,
+        payroll: true,
+      },
+    ],
   },
   {
     id: 'prb-2004',
@@ -145,6 +228,32 @@ export const seedProbation: ProbationCase[] = [
     })),
     extendedTo: null,
     decisionTableVersion: 'v2',
+    extensionMonths: null,
+    outcomeReason: null,
+    confirmedOn: '2026-05-08',
+    history: [
+      {
+        id: 'h-2004-1',
+        date: '2026-04-28',
+        text: 'Confirmation review initiated — evaluation opened against decision table v2.',
+      },
+      {
+        id: 'h-2004-2',
+        date: '2026-05-05',
+        text: 'Decision “Confirm” submitted and routed for approval.',
+      },
+      {
+        id: 'h-2004-3',
+        date: '2026-05-08',
+        text: 'Employment status updated to Confirmed — Employee Confirmation letter queued.',
+      },
+      {
+        id: 'h-2004-4',
+        date: '2026-05-08',
+        text: `Payroll notified — ${D6_NOTE}.`,
+        payroll: true,
+      },
+    ],
   },
   {
     id: 'prb-2005',
@@ -162,6 +271,10 @@ export const seedProbation: ProbationCase[] = [
     approvals: makeSteps(PROBATION_CHAIN),
     extendedTo: null,
     decisionTableVersion: 'v3',
+    extensionMonths: null,
+    outcomeReason: null,
+    confirmedOn: null,
+    history: [],
   },
   {
     id: 'prb-2006',
@@ -184,6 +297,33 @@ export const seedProbation: ProbationCase[] = [
     })),
     extendedTo: null,
     decisionTableVersion: 'v2',
+    extensionMonths: null,
+    outcomeReason:
+      'Consistently low evaluation scores across all criteria despite coaching.',
+    confirmedOn: null,
+    history: [
+      {
+        id: 'h-2006-1',
+        date: '2026-04-05',
+        text: 'Confirmation review initiated — evaluation opened against decision table v2.',
+      },
+      {
+        id: 'h-2006-2',
+        date: '2026-04-12',
+        text: 'Decision “Initiate Separation” submitted and routed for approval.',
+      },
+      {
+        id: 'h-2006-3',
+        date: '2026-04-18',
+        text: 'Separation initiated — Probation Separation exit case opened and handed to the Exits workflow.',
+      },
+      {
+        id: 'h-2006-4',
+        date: '2026-04-18',
+        text: `Payroll notified — ${D6_NOTE}.`,
+        payroll: true,
+      },
+    ],
   },
   {
     id: 'prb-2007',
@@ -201,6 +341,10 @@ export const seedProbation: ProbationCase[] = [
     approvals: makeSteps(PROBATION_CHAIN),
     extendedTo: null,
     decisionTableVersion: 'v3',
+    extensionMonths: null,
+    outcomeReason: null,
+    confirmedOn: null,
+    history: [],
   },
 ]
 

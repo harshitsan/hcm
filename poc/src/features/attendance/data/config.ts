@@ -200,6 +200,25 @@ export const seedWorkflows: ApprovalWorkflow[] = [
   { id: 'wf-07', kind: 'comp-off', scope: 'Locations: Chennai, Pune', levels: ['Shift In-charge', 'Plant Head'], slaHours: 72, escalateTo: 'Vikram Rathore', supervisorCapHours: null, payrollCutoffDay: null, version: 1, effectiveFrom: '2026-02-01', status: 'active' },
 ]
 
+// ----------------------------------------------------- Payroll lock (W8)
+/**
+ * Payroll lock date — attendance corrections for any date on or before
+ * `lockedThrough` are frozen so payroll can compute on a stable period (W8).
+ * Changing the lock is a Company Admin action and is audited.
+ */
+export interface PayrollLock {
+  /** Corrections for dates on/before this ISO date are frozen. */
+  lockedThrough: string
+  updatedBy: string
+  updatedOn: string
+}
+
+export const seedPayrollLock: PayrollLock = {
+  lockedThrough: '2026-06-30',
+  updatedBy: 'Sunita Patil',
+  updatedOn: '2026-07-01',
+}
+
 // -------------------------------------------------- Attendance audit setup
 /** Auditors panel that audits attendance for a location (Kensium AAG). */
 export interface AuditorsGroup {

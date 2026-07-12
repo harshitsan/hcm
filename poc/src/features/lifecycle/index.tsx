@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { useRole } from '@/context/role-context'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { AuditTab } from './components/audit-tab'
@@ -44,12 +45,18 @@ export function Lifecycle() {
   const lifecycleLog = useLifecycleLog()
 
   const log = useCallback(
-    (input: Omit<LogInput, 'actor' | 'actorRole'>) =>
-      lifecycleLog.logEvent({
-        ...input,
-        actor: PERSONAS[role] ?? role,
+    (input: Omit<LogInput, 'actor' | 'actorRole'>) => {
+      const actor = PERSONAS[role] ?? role
+      lifecycleLog.logEvent({ ...input, actor, actorRole: role })
+      // Every lifecycle action also lands on the global audit trail.
+      publishAuditEvent({
+        module: `Employee Lifecycle · ${input.module}`,
+        action: input.action,
+        actor,
         actorRole: role,
-      }),
+        recordName: input.target,
+      })
+    },
     [lifecycleLog, role]
   )
   const notify = lifecycleLog.notify
@@ -70,27 +77,13 @@ export function Lifecycle() {
     exitTaskDefs: config.exitTaskDefs.items,
     questionnaireEnabled: config.settings.exitQuestionnaireEnabled,
   })
-  const probation = useProbation({
-    log,
-    notify,
-    onSeparation: (c) =>
-      exits.addExit({
-        employeeName: c.employeeName,
-        employeeCode: c.employeeCode,
-        department: c.department,
-        location: 'Bengaluru',
-        positionLevel: c.positionLevel,
-        exitType: 'Probation Separation',
-        reason: 'Probation outcome: Initiate Separation.',
-        raisedBy: 'Admin (proxy)',
-      }),
-  })
   const disciplinary = useDisciplinary({
     log,
     notify,
     approverGroups: config.disciplinaryApprovers.items,
     // Exit Coordinator handoff: approved Suspension/Termination cases (and
-    // counselling closed with a Termination outcome) open an exit case.
+    // counselling closed with a Termination outcome) open an exit case that is
+    // linked back to the originating disciplinary record (case ↔ exit).
     onExitReferral: (c, process) =>
       exits.addExit({
         employeeName: c.employeeName,
@@ -100,6 +93,25 @@ export function Lifecycle() {
         positionLevel: 'L2 - Senior',
         exitType: process,
         reason: `Disciplinary referral (${c.id}): ${c.reason}`,
+        raisedBy: 'Admin (proxy)',
+        linkedDisciplinaryCaseId: c.id,
+      }),
+  })
+  const probation = useProbation({
+    log,
+    notify,
+    // Open disciplinary cases gate confirmation — Confirm is blocked until the
+    // case is resolved (Extend remains available).
+    disciplinaryCases: disciplinary.cases,
+    onSeparation: (c) =>
+      exits.addExit({
+        employeeName: c.employeeName,
+        employeeCode: c.employeeCode,
+        department: c.department,
+        location: 'Bengaluru',
+        positionLevel: c.positionLevel,
+        exitType: 'Probation Separation',
+        reason: 'Probation outcome: Initiate Separation.',
         raisedBy: 'Admin (proxy)',
       }),
   })
@@ -231,6 +243,8 @@ export function Lifecycle() {
                   <OnboardingTab
                     store={onboarding}
                     templateVersion={config.publishedTemplate.version}
+                    joineeWindow={config.joineeWindow}
+                    onUpdateWindow={config.updateJoineeWindow}
                   />
                 </TabsContent>
 

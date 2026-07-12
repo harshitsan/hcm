@@ -16,6 +16,8 @@ export interface ReportSchedule {
   recipients: string[]
   format: ScheduleFormat
   status: ScheduleStatus
+  /** Last engine delivery for this schedule; '—' if never run. */
+  lastRun: string
   nextRun: string
   createdBy: string
   /** Company scope stamped from the creator's access at creation time. */
@@ -31,6 +33,7 @@ export const seedSchedules: ReportSchedule[] = [
     recipients: ['hr-ops@aurora.example', 'sunita.patil@aurora.example'],
     format: 'XLSX',
     status: 'active',
+    lastRun: '2026-07-02 07:00',
     nextRun: '2026-07-03 07:00',
     createdBy: 'Sunita Patil',
     scope: 'Aurora Software',
@@ -43,6 +46,7 @@ export const seedSchedules: ReportSchedule[] = [
     recipients: ['payroll@aurora.example'],
     format: 'CSV',
     status: 'active',
+    lastRun: '2026-06-25 09:00',
     nextRun: '2026-07-25 09:00',
     createdBy: 'Sunita Patil',
     scope: 'Aurora Software',
@@ -55,6 +59,7 @@ export const seedSchedules: ReportSchedule[] = [
     recipients: ['devika.rao@satellitehr.example', 'cxo@satellitehr.example'],
     format: 'PDF',
     status: 'active',
+    lastRun: '2026-06-29 08:30',
     nextRun: '2026-07-06 08:30',
     createdBy: 'Devika Rao',
     scope: 'Portfolio (3 companies)',
@@ -67,6 +72,7 @@ export const seedSchedules: ReportSchedule[] = [
     recipients: ['pmo@aurora.example'],
     format: 'XLSX',
     status: 'paused',
+    lastRun: '2026-06-22 18:00',
     nextRun: '—',
     createdBy: 'Sunita Patil',
     scope: 'Aurora Software',
@@ -79,6 +85,7 @@ export const seedSchedules: ReportSchedule[] = [
     recipients: ['finance@aurora.example', 'tax@aurora.example'],
     format: 'CSV',
     status: 'cancelled',
+    lastRun: '2026-05-10 10:00',
     nextRun: '—',
     createdBy: 'Sunita Patil',
     scope: 'Aurora Software',

@@ -105,9 +105,9 @@ const builderSchema = z
     items: z.array(z.object({ label: z.string(), mandatory: z.boolean() })),
     body: z.string(),
     // template metadata (optional; ignored for non-template kinds)
-    templateChannel: z.enum(['', 'Email', 'In-app', 'SMS']).optional().default(''),
-    templateEvent: z.string().optional().default(''),
-    templateKindMeta: z.enum(['', 'letter', 'notification']).optional().default(''),
+    templateChannel: z.enum(['', 'Email', 'In-app', 'SMS']),
+    templateEvent: z.string(),
+    templateKindMeta: z.enum(['', 'letter', 'notification']),
     trigger: z.string(),
     channels: z.array(z.string()),
     key: z.string(),
@@ -115,7 +115,7 @@ const builderSchema = z
     // category-list
     categoryItems: z.array(z.object({ id: z.string(), label: z.string(), active: z.boolean() })),
     // calendar
-    calendarType: z.enum(CALENDAR_TYPES).optional().default('holiday'),
+    calendarType: z.enum(CALENDAR_TYPES),
     calendarEntries: z.array(
       z.object({
         label: z.string(),

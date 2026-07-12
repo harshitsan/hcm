@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { type CorrectionKind } from '../data/requests'
-import { employeeName } from '../data/shared'
+import { employeeName, fmtDate } from '../data/shared'
 import { type CorrectionDraft } from '../hooks/use-requests'
 
 const KINDS: { value: CorrectionKind; label: string }[] = [
@@ -69,7 +69,13 @@ interface CorrectionDialogProps {
   requestedBy: string
   /** After the payroll cut-off day a second-level approval applies (TNA-43). */
   afterPayrollCutoff: boolean
-  onSubmit: (draft: CorrectionDraft) => void
+  /**
+   * Payroll lock date (W8): dates on or before this are frozen — submitting
+   * a correction for them is blocked. Return false from onSubmit to keep the
+   * dialog open (used when the store also blocks the request).
+   */
+  payrollLockedThrough?: string
+  onSubmit: (draft: CorrectionDraft) => boolean | void
   /** Keep referentially stable (useMemo) — the form resets when it changes. */
   prefill?: CorrectionPrefill
 }
@@ -81,6 +87,7 @@ export function CorrectionDialog({
   employeeId,
   requestedBy,
   afterPayrollCutoff,
+  payrollLockedThrough,
   onSubmit,
   prefill,
 }: CorrectionDialogProps) {
@@ -106,8 +113,13 @@ export function CorrectionDialog({
       })
   }, [open, form, prefill])
 
+  const selectedDate = form.watch('date')
+  const dateIsLocked = Boolean(
+    payrollLockedThrough && selectedDate && selectedDate <= payrollLockedThrough
+  )
+
   function handleSubmit(values: CorrectionValues) {
-    onSubmit({
+    const result = onSubmit({
       employeeId,
       requestedBy,
       date: values.date,
@@ -119,6 +131,7 @@ export function CorrectionDialog({
       justification: values.justification,
       afterPayrollCutoff,
     })
+    if (result === false) return
     onOpenChange(false)
   }
 
@@ -204,6 +217,12 @@ export function CorrectionDialog({
                 )}
               />
             </div>
+            {dateIsLocked && payrollLockedThrough && (
+              <p className='text-destructive rounded-[6px] border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium'>
+                This period is locked for payroll — corrections up to{' '}
+                {fmtDate(payrollLockedThrough)} are frozen. Contact HR to unlock.
+              </p>
+            )}
             <FormField
               control={form.control}
               name='justification'
@@ -221,7 +240,9 @@ export function CorrectionDialog({
               <Button type='button' variant='outline' onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type='submit'>Submit Request</Button>
+              <Button type='submit' disabled={dateIsLocked}>
+                Submit Request
+              </Button>
             </DialogFooter>
           </form>
         </Form>

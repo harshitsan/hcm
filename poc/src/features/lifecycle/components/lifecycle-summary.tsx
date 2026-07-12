@@ -2,15 +2,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 interface LifecycleSummaryProps {
   items: { label: string; value: number }[]
+  title?: string
 }
 
 /** Count cards shown above the lifecycle tabs. */
-export function LifecycleSummary({ items }: LifecycleSummaryProps) {
+export function LifecycleSummary({
+  items,
+  title = 'Lifecycle Summary',
+}: LifecycleSummaryProps) {
   return (
     <Card className='bg-blue-150 mb-4 w-full gap-2 border-none py-2'>
       <CardHeader className='flex items-center justify-between px-0 pb-2'>
         <CardTitle className='text-paragraph-sm text-neutral-1600 font-medium'>
-          Lifecycle Summary
+          {title}
         </CardTitle>
       </CardHeader>
       <CardContent className='p-0 pt-0'>

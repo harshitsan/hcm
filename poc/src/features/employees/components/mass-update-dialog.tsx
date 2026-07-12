@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight } from 'phosphor-react'
+import { ArrowLeft, ArrowRight, ListChecks, UploadSimple } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -28,6 +28,11 @@ import {
   type Employee,
   type MassFunction,
 } from '../data/employees'
+import {
+  IMPORT_STEP_TITLES,
+  type MappedImportInput,
+} from '../data/mass-mapping'
+import { MappingImportFlow } from './mapping-import-flow'
 
 /** Legacy single-value functions patch one record attribute directly. */
 const VALUE_OPTIONS: Partial<Record<MassFunction, readonly string[]>> = {
@@ -143,20 +148,31 @@ interface MassUpdateDialogProps {
     value: string,
     fields?: string[]
   ) => void
+  /** W10 — apply a mapped bulk-file import (see MappingImportFlow). */
+  onApplyMapped: (input: MappedImportInput) => void
 }
 
 /**
- * EMP-43 — bulk-apply data across many records: select employees, pick the
- * function, then configure — legacy functions take a single new value while
- * category functions (contact / address / agreements / skills / general info
- * / client feedback) use an Available/Applicable field grid.
+ * EMP-43 / W10 — bulk-apply data across many records, two ways:
+ * - Guided update: select employees, pick the function, then configure —
+ *   legacy functions take a single new value while category functions use an
+ *   Available/Applicable field grid.
+ * - File import with data mapping: pick a mock source file, map its columns
+ *   onto employee target fields, preview per-cell validation, then apply.
  */
 export function MassUpdateDialog({
   open,
   onOpenChange,
   employees,
   onApply,
+  onApplyMapped,
 }: MassUpdateDialogProps) {
+  const [mode, setMode] = useState<'choose' | 'guided' | 'import'>('choose')
+  // Remount key so re-entering the import flow always starts on step 1.
+  const [importKey, setImportKey] = useState(0)
+  const [importStepTitle, setImportStepTitle] = useState<string>(
+    IMPORT_STEP_TITLES.source
+  )
   const [step, setStep] = useState<'employees' | 'configure'>('employees')
   const [fn, setFn] = useState<MassFunction>('position')
   const [value, setValue] = useState('')
@@ -184,6 +200,9 @@ export function MassUpdateDialog({
   }))
 
   const reset = () => {
+    setMode('choose')
+    setImportStepTitle(IMPORT_STEP_TITLES.source)
+    setImportKey((k) => k + 1)
     setStep('employees')
     setSelectedEmployees([])
     setApplicableFields([])
@@ -219,15 +238,78 @@ export function MassUpdateDialog({
         onOpenChange(o)
       }}
     >
-      <DialogContent className='sm:max-w-[640px]'>
+      <DialogContent
+        className={cn(
+          mode === 'import' ? 'sm:max-w-[860px]' : 'sm:max-w-[640px]'
+        )}
+      >
         <DialogHeader>
           <DialogTitle>
-            Mass update of employee data —{' '}
-            {step === 'employees' ? 'Step 1: Select employees' : 'Step 2: Configure'}
+            {mode === 'choose' &&
+              'Mass update of employee data — choose how to apply'}
+            {mode === 'guided' &&
+              `Mass update of employee data — ${
+                step === 'employees'
+                  ? 'Step 1: Select employees'
+                  : 'Step 2: Configure'
+              }`}
+            {mode === 'import' &&
+              `Bulk import with data mapping — ${importStepTitle}`}
           </DialogTitle>
         </DialogHeader>
 
-        {step === 'employees' ? (
+        {mode === 'choose' && (
+          <>
+            <div className='grid grid-cols-2 gap-3'>
+              <button
+                type='button'
+                onClick={() => setMode('guided')}
+                className='hover:border-blue-1400 rounded-md border border-gray-200 px-4 py-4 text-left transition-colors'
+              >
+                <ListChecks size={20} className='text-blue-1400 mb-2' />
+                <p className='text-neutral-1600 text-sm font-medium'>
+                  Guided update
+                </p>
+                <p className='text-paragraph-sm text-neutral-1000 pt-0.5'>
+                  Pick the employees, a function and the applicable fields —
+                  one value applied across the selection.
+                </p>
+              </button>
+              <button
+                type='button'
+                onClick={() => setMode('import')}
+                className='hover:border-blue-1400 rounded-md border border-gray-200 px-4 py-4 text-left transition-colors'
+              >
+                <UploadSimple size={20} className='text-blue-1400 mb-2' />
+                <p className='text-neutral-1600 text-sm font-medium'>
+                  File import with data mapping
+                </p>
+                <p className='text-paragraph-sm text-neutral-1000 pt-0.5'>
+                  Pick a source file, map its columns onto employee fields,
+                  validate the mapped rows, then apply.
+                </p>
+              </button>
+            </div>
+            <DialogFooter>
+              <Button variant='outline' onClick={close}>
+                Cancel
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {mode === 'import' && (
+          <MappingImportFlow
+            key={importKey}
+            employees={employees}
+            onApply={onApplyMapped}
+            onBack={() => setMode('choose')}
+            onClose={close}
+            onStepChange={setImportStepTitle}
+          />
+        )}
+
+        {mode === 'guided' && (step === 'employees' ? (
           <div className='space-y-3'>
             <p className='text-paragraph-sm text-neutral-1000'>
               Move the employees the update applies to into Applicable, then
@@ -315,32 +397,34 @@ export function MassUpdateDialog({
               </div>
             )}
           </div>
-        )}
+        ))}
 
-        <DialogFooter>
-          {step === 'employees' ? (
-            <>
-              <Button variant='outline' onClick={close}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => setStep('configure')}
-                disabled={selectedEmployees.length === 0}
-              >
-                Next — configure ({selectedEmployees.length} selected)
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant='outline' onClick={() => setStep('employees')}>
-                Back
-              </Button>
-              <Button onClick={submit} disabled={!canApply}>
-                Apply to {selectedEmployees.length} employee(s)
-              </Button>
-            </>
-          )}
-        </DialogFooter>
+        {mode === 'guided' && (
+          <DialogFooter>
+            {step === 'employees' ? (
+              <>
+                <Button variant='outline' onClick={() => setMode('choose')}>
+                  Back
+                </Button>
+                <Button
+                  onClick={() => setStep('configure')}
+                  disabled={selectedEmployees.length === 0}
+                >
+                  Next — configure ({selectedEmployees.length} selected)
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant='outline' onClick={() => setStep('employees')}>
+                  Back
+                </Button>
+                <Button onClick={submit} disabled={!canApply}>
+                  Apply to {selectedEmployees.length} employee(s)
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )

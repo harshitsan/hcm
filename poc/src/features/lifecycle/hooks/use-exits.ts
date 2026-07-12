@@ -16,6 +16,7 @@ import {
   type SuspensionReviewOutcome,
   type TerminationExitType,
 } from '../data/exits'
+import { assetClearanceBlocker } from '../data/asset-clearance'
 import {
   type ClearanceApproverChain,
   type ExitDocumentToTrack,
@@ -39,6 +40,8 @@ export interface ExitDraft {
   requestedLwd?: string
   messageToHr?: string
   supportingDocuments?: string[]
+  /** When the exit originates from a disciplinary referral, links the case (case ↔ exit). */
+  linkedDisciplinaryCaseId?: string
 }
 
 /** Payload for the coordinator's "Enable Exit" transaction. */
@@ -221,6 +224,17 @@ export function useExits({
           uploadedBy: draft.employeeName,
           uploadedOn: todayISO(),
         })),
+        comments: draft.linkedDisciplinaryCaseId
+          ? [
+              {
+                id: shortId('cmt'),
+                author: 'System',
+                text: `Opened from disciplinary case ${draft.linkedDisciplinaryCaseId} — see the Disciplinary tab for the originating record and its history.`,
+                visibility: 'hr-managers' as const,
+                on: todayISO(),
+              },
+            ]
+          : undefined,
       }
       setExits((prev) => [exit, ...prev])
       log({
@@ -1194,6 +1208,14 @@ export function useExits({
           `Cannot finalize — pending clearance: ${outstanding
             .map((c) => `${c.functionName} (${c.owner})`)
             .join(', ')}`
+        )
+        return
+      }
+      // W8 — assets still with the employee hold the exit open.
+      const assetBlock = assetClearanceBlocker(e.employeeName)
+      if (assetBlock) {
+        toast.error(
+          `Cannot finalize — ${assetBlock}. Record the returns (or write-offs) in the Assets module → Exit clearance screen first.`
         )
         return
       }

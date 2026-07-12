@@ -2,10 +2,13 @@ import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import { consumeNextEmployeeCode, getEmployeeCodeSeries } from '../data/configuration'
+import { applyMappedValue, type MappedImportInput } from '../data/mass-mapping'
 import {
   companyName,
   EMPLOYEES_TODAY,
+  getGovernmentIds,
   MASS_FUNCTION_LABELS,
+  normalizeGovernmentId,
   seedDelegations,
   seedEmployees,
   seedManagerChanges,
@@ -51,10 +54,21 @@ const MASS_FIELD_PATCHES: Record<string, (value: string) => Partial<Employee>> =
     'Functional manager': (value) => ({ dottedLineManagers: [value] }),
   }
 
+export type DedupField = 'Aadhaar' | 'PAN' | 'Passport'
+
+/** Government-ID match surfaced by the dedup check. */
+export interface DedupMatch {
+  field: DedupField
+  existingName: string
+  existingCode: string
+  /** Company of the matching record, e.g. 'Aurora Retail Pvt Ltd'. */
+  company: string
+}
+
 export type DedupClassification =
   | { kind: 'clear' }
-  | { kind: 'same-company'; field: string; existing: string }
-  | { kind: 'separate-company'; field: string; existing: string }
+  | ({ kind: 'same-company' } & DedupMatch)
+  | ({ kind: 'separate-company' } & DedupMatch)
 
 /**
  * In-memory employees store — company-scoped records, manager change audit
@@ -77,32 +91,34 @@ export function useEmployees() {
       draft: Pick<EmployeeDraft, 'aadhar' | 'pan' | 'passport' | 'companyId'>,
       excludeId?: string
     ): DedupClassification => {
-      const checks: Array<['Aadhar' | 'PAN' | 'Passport', string]> = [
-        ['Aadhar', draft.aadhar],
-        ['PAN', draft.pan],
-        ['Passport', draft.passport],
+      const checks: Array<[DedupField, string]> = [
+        ['Aadhaar', normalizeGovernmentId(draft.aadhar)],
+        ['PAN', normalizeGovernmentId(draft.pan)],
+        ['Passport', normalizeGovernmentId(draft.passport)],
       ]
       for (const [field, value] of checks) {
         if (!value) continue
-        const hit = employees.find(
-          (e) =>
-            e.id !== excludeId &&
-            ((field === 'Aadhar' && e.aadhar === value) ||
-              (field === 'PAN' && e.pan === value) ||
-              (field === 'Passport' && e.passport === value))
-        )
+        const hit = employees.find((e) => {
+          if (e.id === excludeId) return false
+          const ids = getGovernmentIds(e)
+          return (
+            (field === 'Aadhaar' &&
+              normalizeGovernmentId(ids.aadhaar) === value) ||
+            (field === 'PAN' && normalizeGovernmentId(ids.pan) === value) ||
+            (field === 'Passport' &&
+              normalizeGovernmentId(ids.passport) === value)
+          )
+        })
         if (!hit) continue
-        if (hit.companyId === draft.companyId) {
-          return {
-            kind: 'same-company',
-            field,
-            existing: `${hit.name} (${hit.code}) — ${companyName(hit.companyId)}`,
-          }
-        }
         return {
-          kind: 'separate-company',
+          kind:
+            hit.companyId === draft.companyId
+              ? 'same-company'
+              : 'separate-company',
           field,
-          existing: `${hit.name} (${hit.code}) — ${companyName(hit.companyId)}`,
+          existingName: hit.name,
+          existingCode: hit.code,
+          company: companyName(hit.companyId),
         }
       }
       return { kind: 'clear' }
@@ -423,6 +439,58 @@ export function useEmployees() {
   )
 
   /**
+   * W10 — mass update via data mapping: applies a mapped bulk file onto the
+   * store. Only valid rows are written (the mapping preview flags the rest);
+   * the mapping itself (source column → target field pairs) plus the
+   * applied/skipped counts are mirrored into the central audit trail.
+   */
+  const applyMappedImport = useCallback((input: MappedImportInput) => {
+    const applied = input.rows.filter((r) => r.valid && r.employeeId)
+    const skipped = input.rows.length - applied.length
+    setEmployees((prev) =>
+      prev.map((e) => {
+        const row = applied.find((r) => r.employeeId === e.id)
+        if (!row) return e
+        return row.assignments.reduce(
+          (record, a) => applyMappedValue(record, a.targetId, a.value),
+          e
+        )
+      })
+    )
+    publishAuditEvent({
+      module: 'Employee Management',
+      action: 'Mass update applied via data mapping',
+      actor: 'You',
+      actorRole: 'HR Manager',
+      actionType: 'update',
+      recordId: input.sourceName,
+      recordName: `Bulk file import — ${input.sourceName}`,
+      changes: [
+        {
+          field: 'Source file',
+          previousValue: null,
+          newValue: input.sourceName,
+        },
+        {
+          field: 'Data mapping',
+          previousValue: null,
+          newValue: input.mappingPairs
+            .map((p) => `${p.from} → ${p.to}`)
+            .join(', '),
+        },
+        {
+          field: 'Rows',
+          previousValue: null,
+          newValue: `${applied.length} applied, ${skipped} skipped`,
+        },
+      ],
+    })
+    toast.success(
+      `Mass update applied from ${input.sourceName} — ${applied.length} row(s) updated, ${skipped} skipped`
+    )
+  }, [])
+
+  /**
    * Admin role reassignment — transfers this employee's role assignments to
    * another employee and stamps an inline audit note on both records.
    */
@@ -522,6 +590,7 @@ export function useEmployees() {
     removeDependant,
     addLifeEvent,
     massUpdate,
+    applyMappedImport,
     reassignRoles,
     suspendEmployee,
   }

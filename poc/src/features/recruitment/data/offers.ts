@@ -58,6 +58,15 @@ export interface OfferClarification {
   answeredAt?: string
 }
 
+/** Handoff summary recorded when the candidate converts to an employee. */
+export interface OfferConversion {
+  employeeCode: string
+  onboardingCaseId: string
+  /** Whether a sign-in user account was created alongside the employee record. */
+  userAccount: boolean
+  at: string
+}
+
 /** Offer lifecycle record (TA-11, TA-12, TA-46, TA-47, TA-49, TA-50). */
 export interface Offer {
   id: string
@@ -103,6 +112,8 @@ export interface Offer {
   appointmentLetterIssued: boolean
   joined: boolean
   convertedTo?: 'employee-user' | 'employee-non-user'
+  /** Onboarding handoff summary — set when the candidate is converted. */
+  conversion?: OfferConversion
 }
 
 /** Slab-derived breakup for seed offers (mirrors the generate-offer flow). */
@@ -330,6 +341,51 @@ export const seedOffers: Offer[] = [
     joiningLetterIssued: false,
     appointmentLetterIssued: false,
     joined: false,
+  },
+  {
+    id: 'OFR-506',
+    applicationId: 'app-11',
+    candidateName: 'Priya Nair',
+    requisitionId: 'RRF-1008',
+    requisitionTitle: 'QA Automation Engineer',
+    location: 'Pune',
+    templateId: 'tpl-offer-std',
+    templateVersion: 2,
+    annualCtc: 2000000,
+    bandMax: 2600000,
+    outOfBand: false,
+    status: 'accepted',
+    responseDeadline: '2026-05-05',
+    expectedDoj: '2026-06-01',
+    currentCtc: 1400000,
+    expectedCtc: 1900000,
+    recommendedCtc: 2200000,
+    breakup: seedBreakup(2000000, 'Pune', 'Engineering'),
+    componentChanges: [],
+    clarifications: [],
+    offerLetterGenerated: true,
+    acknowledgmentFile: 'priya-offer-acknowledgment-signed.pdf',
+    approvals: [
+      {
+        level: 1,
+        approver: 'Divya Menon',
+        approverRole: 'Offer Approver — Pune',
+        decision: 'approved',
+        decidedAt: '2026-04-26T10:00:00Z',
+      },
+    ],
+    releasedAt: '2026-04-28',
+    respondedAt: '2026-05-02',
+    joiningLetterIssued: true,
+    appointmentLetterIssued: true,
+    joined: true,
+    convertedTo: 'employee-user',
+    conversion: {
+      employeeCode: 'AUR-0102',
+      onboardingCaseId: 'onb-7',
+      userAccount: true,
+      at: '2026-06-01',
+    },
   },
 ]
 

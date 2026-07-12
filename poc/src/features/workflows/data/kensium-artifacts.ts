@@ -5155,4 +5155,4 @@ export const KENSIUM_ARTIFACTS: SeedArtifact[] = [
       }
     ]
   }
-] as Artifact[]
+]

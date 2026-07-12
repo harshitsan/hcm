@@ -198,7 +198,7 @@ export function ConfigSetup({ config }: { config: RecruitmentConfigStore }) {
     applicableLocations: ['All'] as string[],
     applicableDepartments: ['All'] as string[],
     applicablePositions: ['All'] as string[],
-    assignedEmployee: EMPLOYEE_DIRECTORY[0],
+    assignedEmployee: EMPLOYEE_DIRECTORY[0] as string,
   })
 
   // Reference-check questionnaire state

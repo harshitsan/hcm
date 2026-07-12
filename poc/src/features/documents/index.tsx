@@ -5,11 +5,13 @@ import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { takeRequestedTab } from '@/features/workflows/data/module-nav'
+import { AgreementsTab } from './components/agreements-tab'
 import { CertificatesTab } from './components/certificates-tab'
 import { ConfigTab } from './components/config-tab'
 import { CustodianDeskTab } from './components/custodian-desk-tab'
 import { CustodiansTab } from './components/custodians-tab'
 import { DocumentsTab } from './components/documents-tab'
+import { MyAgreementsTab } from './components/my-agreements-tab'
 import { MyDocumentsTab } from './components/my-documents-tab'
 import { PoliciesTab } from './components/policies-tab'
 import { TypesTab } from './components/types-tab'
@@ -26,6 +28,9 @@ import { useReceipts } from './hooks/use-receipts'
  *   into custody, return them to employees, and chase due reminders
  * - My Documents: employee self-service view/upload on own record, plus
  *   acknowledgement of documents returned by the custodian
+ * - Agreements (O10): employment agreements, bonds and NDAs as trackable
+ *   records — generated via the Template Engine, acknowledged by employees,
+ *   and tracked for validity/expiry (admin grid + employee "My Agreements")
  * - Policies: policy documents with effective windows and applicability
  * - Admin: single admin surface with nested tabs for document types,
  *   required certificates, custodians, and settings (governed taxonomy,
@@ -51,12 +56,13 @@ export function Documents() {
 
   const availableTabs = useMemo(() => {
     const tabs: string[] = []
-    if (isEmployeeUser) tabs.push('mine')
+    if (isEmployeeUser) tabs.push('mine', 'my-agreements')
     if (isAdmin) tabs.push('grid', 'custodian')
+    if (isCompanyAdmin) tabs.push('agreements')
     tabs.push('policies')
     if (showAdminTab) tabs.push('admin')
     return tabs
-  }, [isAdmin, isEmployeeUser, showAdminTab])
+  }, [isAdmin, isCompanyAdmin, isEmployeeUser, showAdminTab])
 
   const adminSubTabs = useMemo(() => {
     const tabs: string[] = []
@@ -100,6 +106,16 @@ export function Documents() {
                   Custodian Desk
                 </TabsTrigger>
               )}
+              {isCompanyAdmin && (
+                <TabsTrigger variant='primary' value='agreements'>
+                  Agreements
+                </TabsTrigger>
+              )}
+              {isEmployeeUser && (
+                <TabsTrigger variant='primary' value='my-agreements'>
+                  My Agreements
+                </TabsTrigger>
+              )}
               <TabsTrigger variant='primary' value='policies'>
                 Policies
               </TabsTrigger>
@@ -136,6 +152,16 @@ export function Documents() {
                   receipts={receipts}
                   documentTypes={masters.documentTypes}
                 />
+              </TabsContent>
+            )}
+            {isCompanyAdmin && (
+              <TabsContent value='agreements'>
+                <AgreementsTab docStore={store} />
+              </TabsContent>
+            )}
+            {isEmployeeUser && (
+              <TabsContent value='my-agreements'>
+                <MyAgreementsTab />
               </TabsContent>
             )}
             <TabsContent value='policies'>

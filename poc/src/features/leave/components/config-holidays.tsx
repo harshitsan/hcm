@@ -292,11 +292,13 @@ export function ConfigHolidays({ settings }: { settings: LeaveSettingsStore }) {
     .flatMap((c) =>
       c.holidays
         .filter((h) => h.kind !== 'weekly-off' && h.date)
-        .map((h) => ({
-          date: h.date,
-          label: h.name,
-          kind: h.kind === 'optional' ? ('optional' as const) : ('holiday' as const),
-        }))
+        .map(
+          (h): CalendarMarker => ({
+            date: h.date,
+            label: h.name,
+            kind: h.kind === 'optional' ? 'optional' : 'holiday',
+          })
+        )
     )
     .concat(
       settings.closures.map((cl) => ({

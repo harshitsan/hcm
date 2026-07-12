@@ -40,10 +40,13 @@ export function MyRequestsPanel({
   requests,
   shifts,
   payrollCutoffDay,
+  payrollLockedThrough,
 }: {
   requests: RequestsStore
   shifts: ShiftsStore
   payrollCutoffDay: number
+  /** Payroll lock date (W8) — corrections on or before it are frozen. */
+  payrollLockedThrough: string
 }) {
   const [openDialog, setOpenDialog] = useState<DialogKind>(null)
   const [outTimeStatus, setOutTimeStatus] = useState('all')
@@ -319,6 +322,7 @@ export function MyRequestsPanel({
         employeeId={CURRENT_EMPLOYEE_ID}
         requestedBy={employeeName(CURRENT_EMPLOYEE_ID)}
         afterPayrollCutoff={afterPayrollCutoff}
+        payrollLockedThrough={payrollLockedThrough}
         onSubmit={requests.submitCorrection}
       />
       <SwapDialog

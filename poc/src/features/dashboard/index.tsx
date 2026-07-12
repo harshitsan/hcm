@@ -9,7 +9,10 @@ import { SatelliteMark } from '@/components/brand/logo'
 import CommonHeader from '@/components/layout/common-header'
 import { Main } from '@/components/layout/main'
 import { SummaryCards } from '@/components/module-page'
+import { CompanyAdminDashboard } from './components/company-admin-dashboard'
+import { EmployeeDashboard } from './components/employee-dashboard'
 import { HomeAnnouncements } from './components/home-announcements'
+import { OversightDashboard } from './components/oversight-dashboard'
 import { PlatformAdminDashboard } from './components/platform-admin-dashboard'
 
 /** Module-grid section order — mirrors the sidebar groups. */
@@ -79,6 +82,14 @@ export function Dashboard() {
               </span>
             </div>
           </div>
+
+          {/* Role-default dashboard (R2): KPIs, widgets, drill-down and the
+              pending-actions surface — adapts as the role switcher changes. */}
+          {(role === 'Portfolio Admin' || role === 'Group Company Admin') && (
+            <OversightDashboard />
+          )}
+          {role === 'Company Admin' && <CompanyAdminDashboard />}
+          {role === 'Employee (User)' && <EmployeeDashboard />}
 
           <SummaryCards
             title='Your workspace at a glance'

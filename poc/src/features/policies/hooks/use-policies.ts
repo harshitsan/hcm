@@ -217,11 +217,14 @@ export function usePolicies() {
         recordId: policy.id,
         recordName: `${policy.name} — ${version.editionName}`,
       })
-      toast.info('Employees will be asked to re-acknowledge', {
-        description: version.regulatoryUpdate
-          ? `${version.editionName} is a regulatory update — the re-acknowledgment is marked priority with a shorter deadline.`
-          : `${version.editionName} replaces earlier acknowledged content, so previous acknowledgments no longer count.`,
-      })
+      toast.info(
+        'The applicable population will be asked to re-acknowledge',
+        {
+          description: version.regulatoryUpdate
+            ? `${version.editionName} is a regulatory update — the re-acknowledgment is marked priority with a shorter deadline. Only employees the policy currently applies to are asked.`
+            : `${version.editionName} replaces earlier acknowledged content. Only employees the policy currently applies to are asked; anyone no longer covered is not.`,
+        }
+      )
     },
     [recordAudit]
   )

@@ -64,11 +64,19 @@ export type PipelineStage = (typeof PIPELINE_STAGES)[number]
 
 export type ApplicationStatus = PipelineStage | 'on-hold' | 'rejected' | 'cancelled'
 
+/** How a reference is taken — an in-house call or an emailed request. */
+export const REFERENCE_MODES = ['In-house call', 'Email'] as const
+export type ReferenceMode = (typeof REFERENCE_MODES)[number]
+
 export interface ReferenceCheck {
   id: string
   referee: string
   relationship: string
-  status: 'pending' | 'completed'
+  /** In-house call (notes recorded directly) vs emailed request (awaits reply). */
+  mode?: ReferenceMode
+  status: 'pending' | 'completed' | 'no-response'
+  /** When the emailed reference request went out (mode: Email). */
+  requestSentAt?: string
   outcome?: 'positive' | 'mixed' | 'negative'
   notes?: string
   contactEmail?: string
@@ -372,6 +380,31 @@ export const seedCandidates: Candidate[] = [
     vacancyId: 'v-02',
   },
   {
+    id: 'c-11',
+    name: 'Priya Nair',
+    email: 'priya.nair@gmail.com',
+    phone: '+91 98470 33221',
+    currentRole: 'QA Engineer @ BugBusters',
+    skills: ['Selenium', 'API Testing', 'Jira'],
+    source: 'Naukri',
+    folders: ['Campus Drive'],
+    reviewStatus: 'reviewed',
+    resume: 'priya-nair-resume.pdf',
+    linkedRequisitionId: 'RRF-1008',
+    addedAt: '2026-04-05',
+    gender: 'Female',
+    referredBy: '',
+    address: 'Kakkanad, Kochi',
+    experienceYears: 4,
+    currentCtc: 14,
+    expectedCtc: 19,
+    qualification: 'B.Tech, Computer Science',
+    noticePeriodDays: 30,
+    channelSource: 'Naukri Premium',
+    appliedForVacancy: true,
+    vacancyId: 'v-04',
+  },
+  {
     id: 'c-10',
     name: 'Anita George',
     email: 'anita.george@gmail.com',
@@ -467,6 +500,7 @@ export const seedApplications: Application[] = [
         id: 'rf-01',
         referee: 'Vivek Anand (Manager, Finstack)',
         relationship: 'Direct manager',
+        mode: 'In-house call',
         status: 'completed',
         outcome: 'positive',
         notes: 'Would rehire without hesitation.',
@@ -475,6 +509,7 @@ export const seedApplications: Application[] = [
         id: 'rf-02',
         referee: 'Shreya Iyengar (Peer, Finstack)',
         relationship: 'Peer',
+        mode: 'Email',
         status: 'completed',
         outcome: 'positive',
         notes: 'Great collaborator.',
@@ -514,7 +549,17 @@ export const seedApplications: Application[] = [
       },
     ],
     scorecards: [],
-    referenceChecks: [],
+    referenceChecks: [
+      {
+        id: 'rf-04',
+        referee: 'Priyanka Bose (Manager, Cartwheel)',
+        relationship: 'Direct manager',
+        mode: 'Email',
+        status: 'pending',
+        requestSentAt: '2026-07-08',
+        contactEmail: 'priyanka.bose@cartwheel.io',
+      },
+    ],
     stageHistory: [
       { at: '2026-05-23', actor: 'Meera Iyer', from: '—', to: 'applied' },
       { at: '2026-05-30', actor: 'Ananya Sharma', from: 'applied', to: 'screening' },
@@ -685,6 +730,7 @@ export const seedApplications: Application[] = [
         id: 'rf-03',
         referee: 'Nikhil Bhatia (Manager, Testify)',
         relationship: 'Direct manager',
+        mode: 'In-house call',
         status: 'completed',
         outcome: 'positive',
       },
@@ -767,6 +813,80 @@ export const seedApplications: Application[] = [
       },
     ],
     checklist: {},
+  },
+  {
+    id: 'app-11',
+    candidateId: 'c-11',
+    candidateName: 'Priya Nair',
+    candidateEmail: 'priya.nair@gmail.com',
+    requisitionId: 'RRF-1008',
+    requisitionTitle: 'QA Automation Engineer',
+    status: 'hired',
+    resume: 'priya-nair-resume.pdf',
+    appliedAt: '2026-04-06',
+    preScreenScore: 84,
+    interviews: [
+      {
+        id: 'iv-06',
+        round: 1,
+        roundName: 'Technical Screen',
+        panel: ['Ananya Sharma', 'Dev Patel'],
+        date: '2026-04-16',
+        time: '11:00',
+        mode: 'In-person',
+        status: 'completed',
+      },
+    ],
+    scorecards: [
+      {
+        id: 'sc-05',
+        round: 1,
+        interviewer: 'Ananya Sharma',
+        ratings: [
+          { criterionId: 'cr-1', criterion: 'Technical depth', score: 4 },
+          { criterionId: 'cr-2', criterion: 'Problem solving', score: 4 },
+          { criterionId: 'cr-3', criterion: 'Communication', score: 5 },
+          { criterionId: 'cr-4', criterion: 'Culture add', score: 4 },
+        ],
+        comments: 'Thorough tester with a strong automation mindset.',
+        recommendation: 'advance',
+        submittedAt: '2026-04-16T14:00:00Z',
+      },
+    ],
+    referenceChecks: [
+      {
+        id: 'rf-05',
+        referee: 'Deepak Menon (Manager, BugBusters)',
+        relationship: 'Direct manager',
+        mode: 'In-house call',
+        status: 'completed',
+        outcome: 'positive',
+        notes: 'Reliable and detail-oriented.',
+      },
+    ],
+    stageHistory: [
+      { at: '2026-04-06', actor: 'Meera Iyer', from: '—', to: 'applied' },
+      { at: '2026-04-10', actor: 'Ananya Sharma', from: 'applied', to: 'screening' },
+      { at: '2026-04-12', actor: 'Ananya Sharma', from: 'screening', to: 'shortlisted' },
+      { at: '2026-04-14', actor: 'Meera Iyer', from: 'shortlisted', to: 'interview' },
+      { at: '2026-04-18', actor: 'Meera Iyer', from: 'interview', to: 'reference-check' },
+      { at: '2026-04-22', actor: 'Sunita Patil', from: 'reference-check', to: 'offer' },
+      {
+        at: '2026-06-01',
+        actor: 'Sunita Patil',
+        from: 'offer',
+        to: 'hired',
+        note: 'Handed off to Onboarding — employee record created',
+      },
+    ],
+    checklist: {
+      'cq-1': 'Yes',
+      'cq-2': 'PAN, Aadhaar, degree certificates collected',
+      'cq-3': 'Yes',
+      'cq-4': 'Yes',
+      'cq-5': 'Yes',
+      'cq-6': '2026-06-01',
+    },
   },
 ]
 

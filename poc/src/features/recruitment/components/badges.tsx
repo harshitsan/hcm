@@ -43,6 +43,7 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeVariant }> = {
   // misc
   pending: { label: 'Pending', variant: 'pending' },
   completed: { label: 'Completed', variant: 'completed' },
+  'no-response': { label: 'No Response', variant: 'dropped' },
   live: { label: 'Live', variant: 'live' },
   active: { label: 'Active', variant: 'badge_active' },
   inactive: { label: 'Inactive', variant: 'badge_inactive' },

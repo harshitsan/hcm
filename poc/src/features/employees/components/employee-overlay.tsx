@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { FloatingSheetContent } from '@/components/ui/floating-sheet-content'
 import {
@@ -23,7 +24,8 @@ import {
 } from '@/components/ui/select'
 import { Sheet, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
-import { ROLES } from '@/context/role-context'
+import { ROLES, useRole } from '@/context/role-context'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import {
   formatEmployeeCode,
   getEmployeeCodeSeries,
@@ -40,6 +42,10 @@ import {
   POSITIONS,
   type Employee,
 } from '../data/employees'
+import {
+  getStatutoryFieldHints,
+  JURISDICTION_LABEL_TO_ID,
+} from '../data/statutory-requirements'
 import { type DedupClassification, type EmployeeDraft } from '../hooks/use-employees'
 import { MultiToggle, SectionTitle } from './shared'
 
@@ -81,7 +87,14 @@ const employeeFormSchema = z
     uan: z.string(),
     esicNumber: z.string(),
     ptRegistered: z.boolean(),
+    ptRegistration: z.string(),
     lwfApplicable: z.boolean(),
+    pfEligible: z.boolean(),
+    esiEligible: z.boolean(),
+    annualCtc: z.string(),
+    fixedPay: z.string(),
+    variablePay: z.string(),
+    lastRevisedOn: z.string(),
   })
   .refine((v) => !v.hasUserAccount || v.email.length > 3, {
     message: 'A linked user account needs an email',
@@ -121,7 +134,14 @@ const emptyDraft: EmployeeFormValues = {
   uan: '',
   esicNumber: '',
   ptRegistered: false,
+  ptRegistration: '',
   lwfApplicable: false,
+  pfEligible: false,
+  esiEligible: false,
+  annualCtc: '',
+  fixedPay: '',
+  variablePay: '',
+  lastRevisedOn: '',
 }
 
 interface EmployeeOverlayProps {
@@ -146,6 +166,7 @@ export function EmployeeOverlay({
   onSubmit,
 }: EmployeeOverlayProps) {
   const isEdit = Boolean(employee)
+  const { role } = useRole()
   // Employee code series (governed config) — determines whether the code is
   // auto-generated on create or manually entered here.
   const codeSeries = getEmployeeCodeSeries()
@@ -153,11 +174,76 @@ export function EmployeeOverlay({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: emptyDraft,
   })
+  // Separate-company government-ID match held here until the informational
+  // dedup prompt is confirmed or cancelled.
+  const [pendingDedup, setPendingDedup] = useState<{
+    values: EmployeeFormValues
+    match: Extract<DedupClassification, { kind: 'separate-company' }>
+  } | null>(null)
 
   useEffect(() => {
     if (!open) return
-    form.reset(employee ? { ...emptyDraft, ...employee } : emptyDraft)
+    form.reset(
+      employee
+        ? {
+            ...emptyDraft,
+            ...employee,
+            ptRegistration: employee.statutory?.ptRegistration ?? '',
+            pfEligible:
+              employee.statutory?.pfEligible ??
+              employee.esiPfEligibility === 'Eligible',
+            esiEligible:
+              employee.statutory?.esiEligible ??
+              (employee.esiPfEligibility === 'Eligible' &&
+                Boolean(employee.esicNumber)),
+            annualCtc: employee.compensation?.annualCtc ?? '',
+            fixedPay: employee.compensation?.fixedPay ?? '',
+            variablePay: employee.compensation?.variablePay ?? '',
+            lastRevisedOn: employee.compensation?.lastRevisedOn ?? '',
+          }
+        : emptyDraft
+    )
   }, [open, employee, form])
+
+  /** Builds the record draft (incl. the nested W1 blocks) and saves it. */
+  function finalizeSubmit(values: EmployeeFormValues) {
+    const hasCompensation =
+      values.annualCtc ||
+      values.fixedPay ||
+      values.variablePay ||
+      values.lastRevisedOn
+    onSubmit({
+      ...values,
+      jurisdictionId:
+        JURISDICTION_LABEL_TO_ID[values.jurisdiction] ??
+        employee?.jurisdictionId,
+      lifecycleStage: employee?.lifecycleStage ?? 'Onboarding',
+      governmentIds: {
+        aadhaar: values.aadhar || undefined,
+        pan: values.pan || undefined,
+        passport: values.passport || undefined,
+      },
+      statutory: {
+        uan: values.uan || undefined,
+        esicNumber: values.esicNumber || undefined,
+        pfEligible: values.pfEligible,
+        esiEligible: values.esiEligible,
+        ptRegistration: values.ptRegistration || undefined,
+        lwfApplicable: values.lwfApplicable,
+        maternityEligible: employee?.statutory?.maternityEligible ?? false,
+        gratuityEligible: employee?.statutory?.gratuityEligible ?? false,
+      },
+      compensation: hasCompensation
+        ? {
+            annualCtc: values.annualCtc || undefined,
+            fixedPay: values.fixedPay || undefined,
+            variablePay: values.variablePay || undefined,
+            lastRevisedOn: values.lastRevisedOn || undefined,
+          }
+        : employee?.compensation,
+    })
+    onOpenChange(false)
+  }
 
   function handleSubmit(values: EmployeeFormValues) {
     if (!isEdit && !codeSeries.autoGenerate && !values.code.trim()) {
@@ -167,36 +253,81 @@ export function EmployeeOverlay({
       })
       return
     }
-    // Duplicate-detection decision table (EMP-10 / EMP-25): same-company hit
-    // blocks the save on the specific conflicting field; a hit in another
-    // company is a valid, independent record.
+    // Duplicate-detection decision table (EMP-10 / EMP-25): a same-company
+    // government-ID hit blocks the save on the conflicting field; a hit in
+    // another company is a valid, independent record after an informational
+    // confirmation. Both outcomes are written to the audit trail.
     const result = classify(values, employee?.id)
     if (result.kind === 'same-company') {
       const fieldName =
-        result.field === 'Aadhar'
+        result.field === 'Aadhaar'
           ? 'aadhar'
           : result.field === 'PAN'
             ? 'pan'
             : 'passport'
       form.setError(fieldName, {
-        message: `${result.field} already exists on ${result.existing}. Resolve the duplicate to continue.`,
+        message: `An employee record with this ${result.field} already exists in ${result.company} — duplicate records within a company are not allowed (matches ${result.existingName}, ${result.existingCode}).`,
+      })
+      publishAuditEvent({
+        module: 'Employee Management',
+        action: 'Duplicate employee record blocked',
+        actor: 'You',
+        actorRole: role,
+        actionType: 'update',
+        recordId: employee?.code ?? '—',
+        recordName: values.name || 'New employee',
+        changes: [
+          {
+            field: `${result.field} duplicate check`,
+            previousValue: null,
+            newValue: `Blocked — matches ${result.existingName} (${result.existingCode}) in ${result.company}`,
+          },
+        ],
       })
       toast.error(
-        `Same-company duplicate blocked — ${result.field} collides with ${result.existing}`
+        `An employee record with this ${result.field} already exists in ${result.company} — duplicate records within a company are not allowed`
       )
       return
     }
     if (result.kind === 'separate-company') {
-      toast.info(
-        `${result.field} matches ${result.existing} — allowed as a separate-company record per dedup config`
-      )
+      setPendingDedup({ values, match: result })
+      return
     }
-    onSubmit({
-      ...values,
-      lifecycleStage: employee?.lifecycleStage ?? 'Onboarding',
-    })
-    onOpenChange(false)
+    finalizeSubmit(values)
   }
+
+  /** Separate-company match confirmed — audit the override, then save. */
+  function confirmSeparateCompany() {
+    if (!pendingDedup) return
+    const { values, match } = pendingDedup
+    publishAuditEvent({
+      module: 'Employee Management',
+      action: 'Separate-company ID match confirmed',
+      actor: 'You',
+      actorRole: role,
+      actionType: 'update',
+      recordId: employee?.code ?? '—',
+      recordName: values.name || 'New employee',
+      changes: [
+        {
+          field: `${match.field} duplicate check`,
+          previousValue: null,
+          newValue: `Allowed — matches ${match.existingName} (${match.existingCode}) at ${match.company}; records are company-specific by design`,
+        },
+      ],
+    })
+    toast.info(
+      `${match.field} matches ${match.existingName} at ${match.company} — saved as a separate company-specific record`
+    )
+    setPendingDedup(null)
+    finalizeSubmit(values)
+  }
+
+  // Per-jurisdiction statutory requirements, derived read-only from the
+  // jurisdictions catalog for the currently selected jurisdiction.
+  const statutoryHints = getStatutoryFieldHints(
+    JURISDICTION_LABEL_TO_ID[form.watch('jurisdiction')]
+  )
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -697,14 +828,19 @@ export function EmployeeOverlay({
               ))}
 
               <SectionTitle>Government IDs & statutory data</SectionTitle>
+              <p className='text-paragraph-sm text-neutral-1000'>
+                Government IDs are the duplicate-detection keys: the same ID
+                twice in one company is blocked; a match in another company is
+                allowed after confirmation (records are company-specific).
+              </p>
               <div className='grid grid-cols-2 gap-4'>
                 {(
                   [
-                    ['aadhar', 'Aadhar', '0000-0000-0000'],
-                    ['pan', 'PAN', 'e.g. ABCDE1234F'],
+                    ['aadhar', 'Aadhaar', 'e.g. 2345 6789 4821'],
+                    ['pan', 'PAN', 'e.g. ABCPE1234F'],
                     ['passport', 'Passport', 'e.g. N1234567'],
-                    ['uan', 'UAN', '12 digits'],
-                    ['esicNumber', 'ESIC number', '10 digits'],
+                    ['uan', 'UAN', 'e.g. 100845221101'],
+                    ['esicNumber', 'ESIC number', 'e.g. 3100224466'],
                   ] as const
                 ).map(([name, label, placeholder]) => (
                   <FormField
@@ -717,13 +853,69 @@ export function EmployeeOverlay({
                         <FormControl>
                           <Input placeholder={placeholder} {...field} />
                         </FormControl>
+                        {name === 'uan' && (
+                          <p className='text-neutral-1000 text-xs'>
+                            {statutoryHints.uan.hint}
+                          </p>
+                        )}
+                        {name === 'esicNumber' && (
+                          <p className='text-neutral-1000 text-xs'>
+                            {statutoryHints.esicNumber.hint}
+                          </p>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 ))}
+                <FormField
+                  control={form.control}
+                  name='ptRegistration'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PT registration number</FormLabel>
+                      <FormControl>
+                        <Input placeholder='e.g. PTR-KA-2026-0125' {...field} />
+                      </FormControl>
+                      <p className='text-neutral-1000 text-xs'>
+                        {statutoryHints.ptRegistration.hint}
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               <div className='grid grid-cols-2 gap-4'>
+                <FormField
+                  control={form.control}
+                  name='pfEligible'
+                  render={({ field }) => (
+                    <FormItem className='flex items-center justify-between rounded-md border border-gray-200 px-3 py-2'>
+                      <FormLabel>Provident Fund eligible</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='esiEligible'
+                  render={({ field }) => (
+                    <FormItem className='flex items-center justify-between rounded-md border border-gray-200 px-3 py-2'>
+                      <FormLabel>ESI eligible</FormLabel>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name='ptRegistered'
@@ -756,10 +948,52 @@ export function EmployeeOverlay({
                 />
               </div>
               <p className='text-paragraph-sm text-neutral-1000'>
-                ESI/PF, maternity and gratuity eligibility are determined
-                automatically by the Rules engine from the jurisdiction
-                rule-pack after save.
+                Labour Welfare Fund: {statutoryHints.lwfApplicable.hint}.
+                Maternity and gratuity eligibility are determined by the Rules
+                engine from the jurisdiction rule-pack after save — statutory
+                data is captured for reference only, nothing is computed.
               </p>
+
+              <SectionTitle>Compensation (restricted)</SectionTitle>
+              <p className='text-paragraph-sm text-neutral-1000'>
+                Comp-dark: these values are shown only to HR administrators on
+                the record. Captured for reference — never computed.
+              </p>
+              <div className='grid grid-cols-2 gap-4'>
+                {(
+                  [
+                    ['annualCtc', 'Annual CTC', 'e.g. ₹12,00,000'],
+                    ['fixedPay', 'Fixed pay', 'e.g. ₹10,80,000'],
+                    ['variablePay', 'Variable pay', 'e.g. ₹1,20,000'],
+                  ] as const
+                ).map(([name, label, placeholder]) => (
+                  <FormField
+                    key={name}
+                    control={form.control}
+                    name={name}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{label}</FormLabel>
+                        <FormControl>
+                          <Input placeholder={placeholder} {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                ))}
+                <FormField
+                  control={form.control}
+                  name='lastRevisedOn'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last revised on</FormLabel>
+                      <FormControl>
+                        <Input type='date' {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <div className='border-gray-200 flex items-center justify-end gap-3 border-t px-5 py-4'>
@@ -776,6 +1010,22 @@ export function EmployeeOverlay({
             </div>
           </form>
         </Form>
+
+        {/* Informational dedup prompt — separate-company government-ID match. */}
+        <ConfirmDialog
+          open={pendingDedup !== null}
+          onOpenChange={(dialogOpen) => {
+            if (!dialogOpen) setPendingDedup(null)
+          }}
+          title='Same ID found in another company'
+          desc={
+            pendingDedup
+              ? `This ${pendingDedup.match.field} matches ${pendingDedup.match.existingName} (${pendingDedup.match.existingCode}) at ${pendingDedup.match.company}. The same person may hold separate records in different companies — employee records are company-specific by design. Continue?`
+              : ''
+          }
+          confirmText='Continue — separate record'
+          handleConfirm={confirmSeparateCompany}
+        />
       </FloatingSheetContent>
     </Sheet>
   )

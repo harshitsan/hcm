@@ -240,6 +240,13 @@ export function ReviewStep({ values, attachment, nextVersionNumber }: ReviewStep
         Save as draft keeps this version invisible to employees; Publish makes it
         active per its effective dates and notifies the in-scope population.
       </p>
+      {nextVersionNumber > 1 && (
+        <p className='text-paragraph-sm text-neutral-1000'>
+          Because this replaces an already-published edition, publishing asks
+          for re-acknowledgment — only from the policy's applicable population.
+          Employees the policy no longer covers are not asked again.
+        </p>
+      )}
     </div>
   )
 }

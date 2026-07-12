@@ -13,6 +13,8 @@ import {
   PlanMixChart,
   RevenueByTenantChart,
 } from './platform-billing-charts'
+import { PendingActionsPanel } from './pending-actions'
+import { PlatformHealthPanel } from './platform-health'
 import { PlatformKpis } from './platform-kpis'
 import { ModuleAdoptionPanel } from './platform-module-adoption'
 import {
@@ -64,6 +66,12 @@ export function PlatformAdminDashboard() {
 
           {/* KPI stat cards */}
           <PlatformKpis />
+
+          {/* Pending actions + platform health (R2) */}
+          <div className='grid grid-cols-1 gap-4 xl:grid-cols-2'>
+            <PendingActionsPanel />
+            <PlatformHealthPanel />
+          </div>
 
           {/* Billing charts */}
           <div className='grid grid-cols-1 gap-4 xl:grid-cols-3'>

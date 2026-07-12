@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 import { toast } from 'sonner'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
 import {
   seedAcknowledgements,
   seedWorkflowTasks,
@@ -8,13 +9,14 @@ import {
   type AckType,
   type WorkflowTask,
 } from '../data/acknowledgements'
+import { getAssetsSnapshot, mutateAssets, subscribeAssets } from '../data/asset-store'
 import {
   ACTION_LABELS,
-  seedAssets,
   type Asset,
   type AssetAction,
   type AssetHistoryEntry,
   type AssetState,
+  type AssignmentOrigin,
 } from '../data/assets'
 import { denialReason, findRule, type AckRules } from '../data/config'
 import { type ArrivalRecord } from '../data/movements'
@@ -36,7 +38,13 @@ export interface TransactionOptions {
   effectiveDate: string
   expectedReturnDate?: string | null
   note?: string
+  /** Workflow the movement originates from (onboarding, transfer, exit). */
+  origin?: AssignmentOrigin | null
 }
+
+/** Routing note stamped on every asset reported lost. */
+export const LOST_ROUTING_NOTE =
+  'Forwarded to disciplinary review / recovery process'
 
 function historyEntry(
   event: string,
@@ -45,7 +53,8 @@ function historyEntry(
   employee: string | null,
   effectiveDate: string,
   ruleId: string | null,
-  note = ''
+  note = '',
+  origin: AssignmentOrigin | null = null
 ): AssetHistoryEntry {
   return {
     id: `ah-${crypto.randomUUID().slice(0, 8)}`,
@@ -57,18 +66,40 @@ function historyEntry(
     effectiveDate,
     recordedAt: nowIso(),
     ruleId,
+    origin,
     note,
   }
 }
 
+/** Mirrors an asset mutation into the central audit trail. */
+function auditAsset(
+  action: string,
+  asset: Pick<Asset, 'assetTag' | 'name'>,
+  changes: { field: string; previousValue: string | null; newValue: string | null }[],
+  actionType: 'create' | 'update' | 'status-change' = 'status-change'
+) {
+  publishAuditEvent({
+    module: 'Asset Management',
+    action,
+    actor: CURRENT_ADMIN,
+    actorRole: 'Company Admin',
+    actionType,
+    recordId: asset.assetTag,
+    recordName: `${asset.assetTag} · ${asset.name}`,
+    changes,
+  })
+}
+
 /**
- * In-memory canonical asset store: master records, lifecycle transactions
- * validated against the rules-engine decision table (ASM-23), append-only
- * bitemporal history (ASM-17), acknowledgements (ASM-07/08/14) and the
- * workflow-engine asset tasks (ASM-09/25).
+ * Canonical asset store: master records, lifecycle transactions validated
+ * against the rules-engine decision table (ASM-23), append-only bitemporal
+ * history (ASM-17), acknowledgements (ASM-07/08/14) and the workflow-engine
+ * asset tasks (ASM-09/25). The asset list itself lives in the module-level
+ * external store (data/asset-store.ts) so the exit-clearance bridge in
+ * data/exit-clearance.ts reads the same live data as this page.
  */
 export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
-  const [assets, setAssets] = useState<Asset[]>(seedAssets)
+  const assets = useSyncExternalStore(subscribeAssets, getAssetsSnapshot)
   const [acknowledgements, setAcknowledgements] = useState<Acknowledgement[]>(seedAcknowledgements)
   const [workflowTasks, setWorkflowTasks] = useState<WorkflowTask[]>(seedWorkflowTasks)
 
@@ -98,9 +129,13 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
         holderId: null,
         issueDate: null,
         expectedReturnDate: null,
+        assignmentOrigin: null,
         history: [historyEntry('Registered', null, 'Available', null, todayIso(), null, 'Created with default state Available')],
       }
-      setAssets((prev) => [asset, ...prev])
+      mutateAssets((prev) => [asset, ...prev])
+      auditAsset('Asset registered', asset, [
+        { field: 'State', previousValue: null, newValue: 'Available' },
+      ], 'create')
       toast.success(`${draft.assetTag} registered — Available for issue`)
       return true
     },
@@ -115,7 +150,7 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
         toast.error(`Asset ID “${draft.assetTag}” already exists in ${asset.company}`)
         return false
       }
-      setAssets((prev) =>
+      mutateAssets((prev) =>
         prev.map((a) =>
           a.id === id
             ? {
@@ -129,6 +164,9 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
             : a
         )
       )
+      auditAsset('Asset details edited', { assetTag: draft.assetTag, name: draft.name }, [
+        { field: 'Master attributes', previousValue: `${asset.assetTag} · ${asset.name}`, newValue: `${draft.assetTag} · ${draft.name}` },
+      ], 'update')
       toast.success(`${draft.assetTag} updated`)
       return true
     },
@@ -192,14 +230,46 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
       const employee = movesToEmployee ? employeeName(opts.employeeId ?? null) : asset.holderId ? employeeName(asset.holderId) : null
       const label = ACTION_LABELS[action]
       const priorHolderId = asset.holderId
+      // Internal transfers are always tagged with their workflow origin (W5);
+      // other callers (onboarding issuance, exit recovery) pass theirs in.
+      const origin: AssignmentOrigin | null =
+        opts.origin ?? (action === 'transfer' ? 'Internal transfer (W5)' : null)
 
-      setAssets((prev) =>
+      mutateAssets((prev) =>
         prev.map((a) => {
           if (a.id !== assetId) return a
+          // A lost report keeps the accountable holder on record and stamps
+          // the disciplinary/recovery routing note.
           const note =
-            action === 'transfer' && priorHolderId
-              ? `Transferred from ${employeeName(priorHolderId)} to ${employee}. ${opts.note ?? ''}`.trim()
+            action === 'mark-lost'
+              ? [opts.note, LOST_ROUTING_NOTE].filter(Boolean).join(' — ')
               : (opts.note ?? '')
+          // Transfers record both sides of the movement in history.
+          const entries: AssetHistoryEntry[] =
+            action === 'transfer' && priorHolderId
+              ? [
+                  historyEntry(
+                    'Transferred out',
+                    a.state,
+                    rule.to,
+                    employeeName(priorHolderId),
+                    opts.effectiveDate,
+                    rule.id,
+                    `Handed over on internal transfer — new holder ${employee}${opts.note ? `. ${opts.note}` : ''}`,
+                    origin
+                  ),
+                  historyEntry(
+                    'Transferred in',
+                    rule.to,
+                    rule.to,
+                    employee,
+                    opts.effectiveDate,
+                    rule.id,
+                    `Received from ${employeeName(priorHolderId)} — assignment moved without a return/reissue cycle`,
+                    origin
+                  ),
+                ]
+              : [historyEntry(label, a.state, rule.to, employee, opts.effectiveDate, rule.id, note, origin)]
           return {
             ...a,
             state: rule.to,
@@ -210,10 +280,12 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
               : releasesEmployee
                 ? null
                 : a.expectedReturnDate,
-            history: [
-              ...a.history,
-              historyEntry(label, a.state, rule.to, employee, opts.effectiveDate, rule.id, note),
-            ],
+            assignmentOrigin: movesToEmployee
+              ? origin
+              : releasesEmployee
+                ? null
+                : (a.assignmentOrigin ?? null),
+            history: [...a.history, ...entries],
           }
         })
       )
@@ -226,7 +298,28 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
       }
       reflectInWorkflow(action, movesToEmployee ? (opts.employeeId ?? null) : priorHolderId, `${label} ${asset.assetTag} · ${opts.effectiveDate}`)
 
-      toast.success(`${asset.assetTag}: ${label} recorded (rule ${rule.id}) — state → ${rule.to}`)
+      auditAsset(label, asset, [
+        { field: 'State', previousValue: asset.state, newValue: rule.to },
+        ...(action === 'transfer' && priorHolderId
+          ? [{ field: 'Held by', previousValue: employeeName(priorHolderId), newValue: employee }]
+          : movesToEmployee
+            ? [{ field: 'Held by', previousValue: priorHolderId ? employeeName(priorHolderId) : null, newValue: employee }]
+            : releasesEmployee && priorHolderId
+              ? [{ field: 'Held by', previousValue: employeeName(priorHolderId), newValue: null }]
+              : []),
+        ...(origin ? [{ field: 'Workflow origin', previousValue: null, newValue: origin }] : []),
+        ...(action === 'mark-lost'
+          ? [{ field: 'Routing', previousValue: null, newValue: LOST_ROUTING_NOTE }]
+          : []),
+      ])
+
+      if (action === 'mark-lost') {
+        toast.warning(
+          `${asset.assetTag} reported lost — ${LOST_ROUTING_NOTE.toLowerCase()}`
+        )
+      } else {
+        toast.success(`${asset.assetTag}: ${label} recorded (rule ${rule.id}) — state → ${rule.to}`)
+      }
       return true
     },
     [assets, ackRules, raiseAck, reflectInWorkflow]
@@ -244,7 +337,7 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
         )
       )
       if (ack) {
-        setAssets((prev) =>
+        mutateAssets((prev) =>
           prev.map((a) =>
             a.id === ack.assetId
               ? {
@@ -265,6 +358,18 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
               : a
           )
         )
+        publishAuditEvent({
+          module: 'Asset Management',
+          action: `${ack.type} acknowledgement captured${onBehalf ? ' (on behalf)' : ''}`,
+          actor: recordedBy,
+          actorRole: onBehalf ? 'Company Admin' : 'Employee (User)',
+          actionType: 'update',
+          recordId: ack.assetLabel,
+          recordName: ack.assetLabel,
+          changes: [
+            { field: 'Acknowledgement', previousValue: 'Pending', newValue: 'Completed' },
+          ],
+        })
       }
       toast.success(
         onBehalf
@@ -293,11 +398,24 @@ export function useAssets(ackRules: AckRules, currentTemplateVersion: number) {
       holderId: null,
       issueDate: null,
       expectedReturnDate: null,
+      assignmentOrigin: null,
       history: [
         historyEntry('Registered', null, 'Available', null, todayIso(), null, `Admitted from approved arrival ${arrival.invoiceNumber}`),
       ],
     }))
-    setAssets((prev) => [...units, ...prev])
+    mutateAssets((prev) => [...units, ...prev])
+    publishAuditEvent({
+      module: 'Asset Management',
+      action: 'Arrival admitted to inventory',
+      actor: CURRENT_ADMIN,
+      actorRole: 'Company Admin',
+      actionType: 'create',
+      recordId: arrival.invoiceNumber,
+      recordName: `${arrival.name} × ${arrival.approvedQuantity}`,
+      changes: [
+        { field: 'Units admitted', previousValue: null, newValue: String(arrival.approvedQuantity) },
+      ],
+    })
     toast.success(`${arrival.approvedQuantity} unit(s) of ${arrival.name} admitted to inventory as Available`)
   }, [assets.length])
 

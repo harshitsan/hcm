@@ -16,6 +16,7 @@ import {
   seedOtScopeLocations,
   seedOutTimeSettings,
   seedOvertimeRules,
+  seedPayrollLock,
   seedStatutory,
   seedTenants,
   seedTrackingModes,
@@ -31,12 +32,14 @@ import {
   type Holiday,
   type HolidayCalendar,
   type OutTimeSettings,
+  type PayrollLock,
   type StatutoryConfig,
   type TemplateChannel,
   type TrackingDevice,
   type TrackingMode,
 } from '../data/config'
-import { type WorkerCategory } from '../data/shared'
+import { publishAuditEvent } from '@/features/audit-logs/data/live-trail'
+import { fmtDate, todayIso, type WorkerCategory } from '../data/shared'
 
 /**
  * Versioned, effective-dated Time & Attendance configuration store
@@ -44,7 +47,7 @@ import { type WorkerCategory } from '../data/shared'
  * Saving statutory or workflow changes creates a new version and supersedes
  * the previous one so prior periods keep their configuration.
  */
-export function useAttendanceConfig() {
+export function useAttendanceConfig(actor = 'Company Admin') {
   const [calendars, setCalendars] = useState<HolidayCalendar[]>(seedCalendars)
   const [statutory, setStatutory] = useState<StatutoryConfig[]>(seedStatutory)
   const [overtimeRules] = useState(seedOvertimeRules)
@@ -70,6 +73,8 @@ export function useAttendanceConfig() {
   const [groupCompliance] = useState(seedGroupCompliance)
   /** Optional holidays the current employee opted into (TNA-08/17). */
   const [optedHolidayIds, setOptedHolidayIds] = useState<string[]>(['hol-07'])
+  /** W8 — corrections for dates on/before this date are frozen for payroll. */
+  const [payrollLock, setPayrollLock] = useState<PayrollLock>(seedPayrollLock)
 
   const activeCalendar = calendars.find((c) => c.status === 'active') ?? calendars[0]
   const activeStatutory = statutory.find((s) => s.status === 'active') ?? statutory[0]
@@ -109,6 +114,35 @@ export function useAttendanceConfig() {
       })
     },
     [activeCalendar.optionalAllowance]
+  )
+
+  /**
+   * W8 — move the payroll lock date. Every change is written to the audit
+   * trail with the before/after dates; corrections for dates on/before the
+   * lock are blocked everywhere in the module.
+   */
+  const savePayrollLock = useCallback(
+    (lockedThrough: string) => {
+      publishAuditEvent({
+        module: 'Time & Attendance',
+        action: 'Payroll lock date changed',
+        actor,
+        actorRole: 'Company Admin',
+        recordName: 'Attendance payroll lock',
+        changes: [
+          {
+            field: 'Locked through',
+            previousValue: fmtDate(payrollLock.lockedThrough),
+            newValue: fmtDate(lockedThrough),
+          },
+        ],
+      })
+      setPayrollLock({ lockedThrough, updatedBy: actor, updatedOn: todayIso() })
+      toast.success(
+        `Payroll lock saved — attendance corrections up to ${fmtDate(lockedThrough)} are now frozen`
+      )
+    },
+    [actor, payrollLock.lockedThrough]
   )
 
   /** TNA-12/24 — statutory change creates a new effective-dated version. */
@@ -447,6 +481,8 @@ export function useAttendanceConfig() {
     tenants,
     groupCompliance,
     optedHolidayIds,
+    payrollLock,
+    savePayrollLock,
     addHoliday,
     toggleOptionalHoliday,
     saveStatutory,

@@ -82,7 +82,7 @@ export const seedWorklistEntries: FeedbackWorklistEntry[] = [
     code: 'EFG-1042',
     raisedById: 'e-02',
     category: 'Grievance',
-    subject: 'Overtime hours not reflected in June payroll',
+    subject: 'Overtime hours not reflected in June attendance records',
     submittedOn: '2026-06-22',
     status: 'Submitted',
   },

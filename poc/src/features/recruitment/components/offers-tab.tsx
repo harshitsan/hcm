@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -22,6 +24,7 @@ import {
 } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
 import { useRole } from '@/context/role-context'
+import { requestModuleTab } from '@/features/workflows/data/module-nav'
 import type { Application } from '../data/candidates'
 import {
   seedRequiredDocuments,
@@ -35,6 +38,7 @@ import {
 } from '../hooks/use-candidate-documents'
 import type { OffersStore } from '../hooks/use-offers'
 import { OutOfBandBadge, StatusBadge } from './badges'
+import { COMP_POLICY_NOTE, OfferDetailSheet } from './offer-detail-sheet'
 import { UploadCandidateDocDialog } from './upload-candidate-doc-dialog'
 
 interface OffersTabProps {
@@ -155,13 +159,19 @@ export function OffersTab({
   const [emailSubject, setEmailSubject] = useState('')
   const [emailBody, setEmailBody] = useState('')
   const [converting, setConverting] = useState<Offer | null>(null)
-  const [convertMode, setConvertMode] = useState<
-    'employee-user' | 'employee-non-user'
-  >('employee-user')
+  const [createUser, setCreateUser] = useState(true)
+  const [viewing, setViewing] = useState<Offer | null>(null)
+  const navigate = useNavigate()
 
   const isAdmin = hasRole('Company Admin', 'Group Company Admin')
   const isCandidate = hasRole('Employee (User)')
   const today = new Date().toISOString().slice(0, 10)
+
+  /** Cross-module jump to Lifecycle → Onboarding for a converted hire. */
+  const viewOnboarding = () => {
+    requestModuleTab('/lifecycle', 'onboarding')
+    navigate({ to: '/lifecycle' })
+  }
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {}
@@ -199,6 +209,10 @@ export function OffersTab({
   // The decide dialog reads the live offer so breakup edits render fresh.
   const decidingLive = deciding
     ? (store.offers.find((x) => x.id === deciding.id) ?? deciding)
+    : null
+  // The detail sheet reads the live offer so conversion updates render fresh.
+  const viewingLive = viewing
+    ? (store.offers.find((x) => x.id === viewing.id) ?? viewing)
     : null
   const openClarification = decidingLive?.clarifications.find((c) => !c.answer)
 
@@ -289,6 +303,9 @@ export function OffersTab({
         </div>
       )}
 
+      {/* Comp-dark policy — compensation is masked in the grid for everyone */}
+      <p className='text-neutral-1000 text-paragraph-sm mb-2'>{COMP_POLICY_NOTE}</p>
+
       {/* overflow-x-auto keeps the wide table inside the card frame; the
           Actions cell is width-capped so buttons wrap instead of spilling
           into the page gutter */}
@@ -320,8 +337,9 @@ export function OffersTab({
                     {o.requisitionId} · {o.location}
                   </TableCell>
                   <TableCell>
+                    {/* Comp-dark: amounts never render in the general grid */}
                     <div className='flex items-center gap-1 text-sm'>
-                      {formatInr(o.annualCtc)}
+                      <span className='text-neutral-1000'>••• Restricted</span>
                       {o.outOfBand && <OutOfBandBadge />}
                     </div>
                   </TableCell>
@@ -364,6 +382,22 @@ export function OffersTab({
                   </TableCell>
                   <TableCell className='max-w-[240px] text-right'>
                     <div className='ml-auto flex max-w-[240px] flex-wrap justify-end gap-1'>
+                      <Button
+                        variant='outline'
+                        className='h-6 px-2 text-xs'
+                        onClick={() => setViewing(o)}
+                      >
+                        View offer
+                      </Button>
+                      {o.convertedTo && (
+                        <Button
+                          variant='outline'
+                          className='h-6 px-2 text-xs'
+                          onClick={viewOnboarding}
+                        >
+                          View onboarding
+                        </Button>
+                      )}
                       {isAdmin && o.status === 'pending-approval' && (
                         <Button
                           variant='outline'
@@ -489,9 +523,12 @@ export function OffersTab({
                           {!o.convertedTo && (
                             <Button
                               className='h-6 px-2 text-xs'
-                              onClick={() => setConverting(o)}
+                              onClick={() => {
+                                setCreateUser(true)
+                                setConverting(o)
+                              }}
                             >
-                              Convert to employee
+                              Hand off to Onboarding
                             </Button>
                           )}
                         </>
@@ -902,72 +939,63 @@ export function OffersTab({
         store={docs}
       />
 
-      {/* TA-14, TA-18: conversion with onboarding handoff and gap check */}
-      <Dialog
+      {/* TA-14, TA-18: onboarding handoff with gap check */}
+      <ConfirmDialog
         open={converting !== null}
         onOpenChange={(o) => !o && setConverting(null)}
-      >
-        <DialogContent className='sm:max-w-[440px]'>
-          <DialogHeader>
-            <DialogTitle>
-              Convert {converting?.candidateName} to employee
-            </DialogTitle>
-          </DialogHeader>
-          <div className='space-y-3'>
-            <RadioGroup
-              value={convertMode}
-              onValueChange={(v) =>
-                setConvertMode(v as 'employee-user' | 'employee-non-user')
-              }
-              className='space-y-1'
-            >
-              <div className='flex items-center gap-1.5'>
-                <RadioGroupItem value='employee-user' id='cv-user' />
-                <Label htmlFor='cv-user'>
-                  Employee (User) — provision a login
-                </Label>
-              </div>
-              <div className='flex items-center gap-1.5'>
-                <RadioGroupItem value='employee-non-user' id='cv-non-user' />
-                <Label htmlFor='cv-non-user'>
-                  Employee (Non-User) — no system access; upgradeable later
-                </Label>
-              </div>
-            </RadioGroup>
+        title={`Hand off ${converting?.candidateName ?? ''} to Onboarding?`}
+        confirmText='Hand off to Onboarding'
+        desc={
+          <div className='space-y-2'>
+            <p>
+              {createUser
+                ? `An employee record will be created for ${converting?.candidateName ?? 'the candidate'} along with a user account, so they can sign in from day one. An onboarding case opens in Lifecycle → Onboarding.`
+                : `An employee record will be created for ${converting?.candidateName ?? 'the candidate'} without a sign-in account — one can be added later. An onboarding case opens in Lifecycle → Onboarding.`}
+            </p>
             {converting && conversionGaps(converting).length > 0 && (
-              <p className='text-paragraph-sm text-red-1400'>
-                Onboarding data gaps (complete the pre-onboarding checklist
-                first): {conversionGaps(converting).join('; ')}
+              <p className='text-red-1400'>
+                Pre-onboarding checklist items are still pending:{' '}
+                {conversionGaps(converting).join('; ')}. Complete them before
+                handing off.
               </p>
             )}
-            <p className='text-paragraph-sm text-neutral-1000'>
-              Captured personal, role, compensation and document data is handed
-              off to onboarding without re-entry; the source requisition is
-              marked filled and the candidate becomes Hired.
+            <p>
+              Captured personal, role, compensation and document details carry
+              over without re-entry, and the source requisition is marked
+              filled.
             </p>
           </div>
-          <DialogFooter>
-            <Button variant='outline' onClick={() => setConverting(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                if (
-                  converting &&
-                  store.convertToEmployee(
-                    converting.id,
-                    convertMode,
-                    conversionGaps(converting)
-                  )
-                )
-                  setConverting(null)
-              }}
-            >
-              Convert &amp; hand off
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        }
+        handleConfirm={() => {
+          if (
+            converting &&
+            store.convertToEmployee(
+              converting.id,
+              createUser ? 'employee-user' : 'employee-non-user',
+              conversionGaps(converting)
+            )
+          )
+            setConverting(null)
+        }}
+      >
+        <div className='flex items-center gap-2'>
+          <Checkbox
+            id='handoff-create-user'
+            checked={createUser}
+            onCheckedChange={(v) => setCreateUser(v === true)}
+          />
+          <Label htmlFor='handoff-create-user'>
+            Create user account so the new joiner can sign in
+          </Label>
+        </div>
+      </ConfirmDialog>
+
+      {/* Individual offer detail — comp visible to admins + candidate view */}
+      <OfferDetailSheet
+        offer={viewingLive}
+        onOpenChange={(o) => !o && setViewing(null)}
+        onViewOnboarding={viewOnboarding}
+      />
     </div>
   )
 }

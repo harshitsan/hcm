@@ -25,7 +25,7 @@ import { todayIso, type Employee } from '../data/org'
 import { type TransactionOptions } from '../hooks/use-assets'
 
 const NEEDS_EMPLOYEE: AssetAction[] = ['issue', 'loan', 'transfer']
-const NEEDS_REASON: AssetAction[] = ['retire', 'dispose', 'send-repair', 'recover']
+const NEEDS_REASON: AssetAction[] = ['retire', 'dispose', 'send-repair', 'recover', 'mark-lost']
 
 interface TransactionDialogProps {
   open: boolean
@@ -111,6 +111,9 @@ export function TransactionDialog({
             {rule
               ? `. Rule ${rule.id}: permitted from ${rule.from.join(', ')} → ${rule.to}.`
               : ''}
+            {action === 'mark-lost'
+              ? ' The asset is flagged Lost against its current holder and forwarded to disciplinary review / recovery process.'
+              : ''}
           </DialogDescription>
         </DialogHeader>
 
@@ -173,7 +176,11 @@ export function TransactionDialog({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={
-                action === 'return' ? 'Return condition assessment…' : 'Optional context…'
+                action === 'return'
+                  ? 'Return condition assessment…'
+                  : action === 'mark-lost'
+                    ? 'e.g. Not returned after repeated follow-ups'
+                    : 'Optional context…'
               }
             />
           </div>

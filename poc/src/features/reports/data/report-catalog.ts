@@ -38,6 +38,7 @@ export const REPORT_CATEGORIES = [
   'Asset & Travel',
   'Tax Planning',
   'Policy Compliance',
+  'Consolidated (Portfolio / Group)',
 ] as const
 
 export type ReportCategory = (typeof REPORT_CATEGORIES)[number]
@@ -51,6 +52,16 @@ export interface ReportDef {
   selfService: boolean
   /** Per-tenant catalog config: disabled reports are hidden (RPT-22). */
   enabled: boolean
+  /**
+   * Comp-dark: compensation/payroll figures are never rendered — value
+   * columns show "Restricted" and employee roles cannot run the report.
+   */
+  comp?: boolean
+  /**
+   * Consolidated portfolio/group report — visible only to Portfolio Admin,
+   * Group Company Admin and Platform Admin under row-level security.
+   */
+  consolidated?: boolean
 }
 
 const r = (
@@ -394,26 +405,38 @@ export const seedReportCatalog: ReportDef[] = [
     'Training & Learning',
     'Employees grouped under each certification.'
   ),
-  // Compensation (RPT-38)
-  r(
-    'rep-53',
-    'CTC Revision History Report',
-    'Compensation',
-    'CTC revisions with effective dates per employee.'
-  ),
-  r(
-    'rep-54',
-    'Increment Report',
-    'Compensation',
-    'Increments granted in the selected period.'
-  ),
-  r('rep-55', 'Bonus Report', 'Compensation', 'Bonus amounts per employee.'),
-  r(
-    'rep-56',
-    'Promotion Report',
-    'Compensation',
-    'Promotions with old and new designations.'
-  ),
+  // Compensation (RPT-38) — comp-dark: no pay figures are ever rendered.
+  {
+    ...r(
+      'rep-53',
+      'CTC Revision History Report',
+      'Compensation',
+      'CTC revisions with effective dates per employee.'
+    ),
+    comp: true,
+  },
+  {
+    ...r(
+      'rep-54',
+      'Increment Report',
+      'Compensation',
+      'Increments granted in the selected period.'
+    ),
+    comp: true,
+  },
+  {
+    ...r('rep-55', 'Bonus Report', 'Compensation', 'Bonus amounts per employee.'),
+    comp: true,
+  },
+  {
+    ...r(
+      'rep-56',
+      'Promotion Report',
+      'Compensation',
+      'Promotions with old and new designations.'
+    ),
+    comp: true,
+  },
   // Asset & Travel (RPT-03, RPT-45, RPT-46)
   r(
     'rep-57',
@@ -441,14 +464,17 @@ export const seedReportCatalog: ReportDef[] = [
     'Travel entries per employee with dates and purpose.',
     true
   ),
-  // Tax Planning (RPT-41)
-  r(
-    'rep-61',
-    'Employee Monthly TDS Report',
-    'Tax Planning',
-    'TDS deducted per employee for the selected month.',
-    true
-  ),
+  // Tax Planning (RPT-41) — payroll-linked, so comp-dark as well.
+  {
+    ...r(
+      'rep-61',
+      'Employee Monthly TDS Report',
+      'Tax Planning',
+      'TDS deducted per employee for the selected month.',
+      true
+    ),
+    comp: true,
+  },
   // Policy Compliance (RPT-13)
   r(
     'rep-62',
@@ -456,4 +482,24 @@ export const seedReportCatalog: ReportDef[] = [
     'Policy Compliance',
     'Policy acknowledgement / compliance status per employee.'
   ),
+  // Consolidated portfolio/group reporting (RPT-17, RPT-18) — authorised
+  // roles only, always under row-level security, every run audited.
+  {
+    ...r(
+      'rep-63',
+      'Portfolio Consolidated Workforce Report',
+      'Consolidated (Portfolio / Group)',
+      'Headcount, movement and attrition rolled up across every company in your portfolio or group.'
+    ),
+    consolidated: true,
+  },
+  {
+    ...r(
+      'rep-64',
+      'Group Compliance Rollup Report',
+      'Consolidated (Portfolio / Group)',
+      'Policy acknowledgement and statutory compliance posture per company, consolidated.'
+    ),
+    consolidated: true,
+  },
 ]

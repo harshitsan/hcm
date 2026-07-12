@@ -658,6 +658,36 @@ export const seedChecklistQuestions: ChecklistQuestion[] = [
     value: '',
     mandatory: false,
   },
+  {
+    id: 'cq-4',
+    responseFrom: 'IT',
+    question: 'Employee ID creation requested?',
+    questionType: 'Objective',
+    fieldType: 'Yes/No',
+    displayType: 'Checkbox',
+    value: '',
+    mandatory: false,
+  },
+  {
+    id: 'cq-5',
+    responseFrom: 'HR',
+    question: 'Welcome kit prepared?',
+    questionType: 'Objective',
+    fieldType: 'Yes/No',
+    displayType: 'Checkbox',
+    value: '',
+    mandatory: false,
+  },
+  {
+    id: 'cq-6',
+    responseFrom: 'HR',
+    question: 'Joining date confirmed with candidate?',
+    questionType: 'Objective',
+    fieldType: 'Date',
+    displayType: 'Input',
+    value: '',
+    mandatory: true,
+  },
 ]
 
 /** Departments that can own a joining formality (notified when it is due). */

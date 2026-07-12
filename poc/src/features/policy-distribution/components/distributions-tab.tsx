@@ -110,6 +110,12 @@ function ReAckExplainer() {
           </li>
         ))}
       </ul>
+      <p className='text-paragraph-sm text-neutral-1000 mt-1.5'>
+        <span className='text-neutral-1600 font-medium'>Who is asked</span> —
+        version updates go only to the policy's current applicable population;
+        employees the policy no longer covers are marked "No longer applicable"
+        instead of being asked again.
+      </p>
     </div>
   )
 }

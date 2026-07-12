@@ -93,7 +93,11 @@ export function Employees() {
         search: { employee: employee.code },
       })
     } else {
-      void navigate({ to: '/employees', search: {}, replace: true })
+      void navigate({
+        to: '/employees',
+        search: { employee: undefined },
+        replace: true,
+      })
     }
   }
   const [massUpdateOpen, setMassUpdateOpen] = useState(false)
@@ -453,6 +457,8 @@ export function Employees() {
         }}
         managerChanges={store.managerChanges}
         employees={scoped}
+        allEmployees={store.employees}
+        onOpenRecord={(e) => setDetailEmployee(e)}
         onRecordLifecycleEvent={store.recordLifecycleEvent}
         onRunEngines={store.runEngines}
         onLinkUserAccount={store.linkUserAccount}
@@ -465,6 +471,7 @@ export function Employees() {
         onOpenChange={setMassUpdateOpen}
         employees={scoped}
         onApply={store.massUpdate}
+        onApplyMapped={store.applyMappedImport}
       />
     </>
   )

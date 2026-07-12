@@ -11,7 +11,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { type DirectoryConfigStore } from '../../hooks/use-directory-config'
-import { evaluateAll } from '../../utils/privacy'
+import { evaluateAll, type FieldDecision } from '../../utils/privacy'
+
+const SOURCE_LABELS: Record<FieldDecision['source'], string> = {
+  'platform-default': 'Platform default',
+  'company-override': 'Company override',
+  'per-company-restriction': 'Company restriction',
+  'phase1-structural': 'Never shown — Phase 1',
+}
 
 /**
  * Rules-engine inspector (DIR-21): evaluates the governed privacy
@@ -69,11 +76,7 @@ export function RulesTracePanel({ config }: { config: DirectoryConfigStore }) {
                 <span className='text-neutral-1600 text-sm font-medium'>
                   {d.label}
                 </span>
-                <Badge variant='secondary'>
-                  {d.source === 'company-override'
-                    ? 'Company override'
-                    : 'Platform default'}
-                </Badge>
+                <Badge variant='secondary'>{SOURCE_LABELS[d.source]}</Badge>
               </span>
               <span className='text-neutral-1000 text-xs'>{d.reason}</span>
             </div>

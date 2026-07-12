@@ -12,20 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DataTable } from '@/components/common/data-table/table'
 import {
   DEDUCTION_CATEGORIES,
   FINANCIAL_YEARS,
-  SALARY_MONTHS,
   type FinancialYear,
   type LtaClaim,
   type TaxDeduction,
@@ -40,8 +31,9 @@ interface TaxTabProps {
 }
 
 /**
- * Tax planning: deduction declarations (ESS-33), exemptions (ESS-34), LTA
- * claims (ESS-35) and the month-by-month salary/TDS table (ESS-36).
+ * Tax planning: deduction declarations (ESS-33), exemptions (ESS-34) and LTA
+ * claims (ESS-35). Salary/TDS details (ESS-36) are comp-dark in Phase 1 —
+ * the tab shows a restricted-visibility note instead of amounts.
  */
 export function TaxTab({ store }: TaxTabProps) {
   const { hasRole } = useRole()
@@ -278,54 +270,17 @@ export function TaxTab({ store }: TaxTabProps) {
         </TabsContent>
 
         <TabsContent value='salary'>
-          <div className='overflow-x-auto rounded-md border bg-white'>
-            <Table>
-              <TableHeader>
-                <TableRow className='bg-gray-50'>
-                  <TableHead className='min-w-[220px]'>Component</TableHead>
-                  {SALARY_MONTHS.map((month) => (
-                    <TableHead key={month} className='text-right'>
-                      {month}
-                    </TableHead>
-                  ))}
-                  <TableHead className='text-right font-semibold'>
-                    Total
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {store.salaryRows.map((row) => (
-                  <TableRow
-                    key={row.component}
-                    className={
-                      row.kind === 'summary' || row.kind === 'tds'
-                        ? 'bg-blue-150/40 font-medium'
-                        : undefined
-                    }
-                  >
-                    <TableCell>{row.component}</TableCell>
-                    {row.amounts.map((amount, idx) => (
-                      <TableCell
-                        key={`${row.component}-${SALARY_MONTHS[idx]}`}
-                        className='text-right'
-                      >
-                        {amount.toLocaleString('en-IN')}
-                      </TableCell>
-                    ))}
-                    <TableCell className='text-right font-medium'>
-                      {row.amounts
-                        .reduce((a, b) => a + b, 0)
-                        .toLocaleString('en-IN')}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className='rounded-md border bg-white px-4 py-6'>
+            <p className='text-neutral-1600 text-sm font-medium'>
+              Salary details are restricted in Phase 1
+            </p>
+            <p className='text-paragraph-sm text-neutral-1000 mt-1 max-w-[560px]'>
+              Compensation, payslip and TDS information is not shown in
+              self-service. Visibility is limited to authorized HR and finance
+              roles. Your deduction declarations, exemptions and LTA claims
+              remain fully available in the other tabs.
+            </p>
           </div>
-          <p className='text-paragraph-sm text-neutral-1000 mt-2'>
-            Amounts in ₹ for FY {fy}. The last row shows the actual TDS deducted
-            as per your payslips.
-          </p>
         </TabsContent>
       </Tabs>
 

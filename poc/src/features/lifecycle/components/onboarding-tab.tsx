@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select'
 import { DataTable } from '@/components/common/data-table/table'
 import { RoleGate } from '@/context/role-context'
+import { type JoineeWindowConfig } from '../data/config'
 import { type OnboardingCase } from '../data/onboarding'
 import { type OnboardingStore } from '../hooks/use-onboarding'
 import { NewJoineesList } from './new-joinees-list'
@@ -20,6 +21,11 @@ import { StartOnboardingOverlay } from './start-onboarding-overlay'
 interface OnboardingTabProps {
   store: OnboardingStore
   templateVersion: string
+  joineeWindow: JoineeWindowConfig
+  onUpdateWindow: (patch: {
+    firstWindowDays: number
+    overdueAfterDays: number
+  }) => void
 }
 
 type OnboardingSection = 'cases' | 'joinees'
@@ -30,7 +36,12 @@ const SECTIONS: { value: OnboardingSection; label: string }[] = [
 ]
 
 /** Admin grid of onboarding cases with search/filter and case workspace. */
-export function OnboardingTab({ store, templateVersion }: OnboardingTabProps) {
+export function OnboardingTab({
+  store,
+  templateVersion,
+  joineeWindow,
+  onUpdateWindow,
+}: OnboardingTabProps) {
   const [section, setSection] = useState<OnboardingSection>('cases')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [newOpen, setNewOpen] = useState(false)
@@ -105,7 +116,12 @@ export function OnboardingTab({ store, templateVersion }: OnboardingTabProps) {
       )}
 
       {section === 'joinees' && (
-        <NewJoineesList cases={store.cases} onSelect={setSelectedId} />
+        <NewJoineesList
+          cases={store.cases}
+          onSelect={setSelectedId}
+          joineeWindow={joineeWindow}
+          onUpdateWindow={onUpdateWindow}
+        />
       )}
 
       <StartOnboardingOverlay

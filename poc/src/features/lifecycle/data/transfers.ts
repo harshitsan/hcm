@@ -29,6 +29,36 @@ export interface TransferImpact {
   policyDiffs: string[]
 }
 
+/**
+ * Reference to the NEW company-specific employee record created at the
+ * destination for an inter-company transfer. Each company keeps its own
+ * record of the same person — one person, two companies, two records.
+ */
+export interface DestinationRecordRef {
+  employeeCode: string
+  company: string
+  createdOn: string
+}
+
+/**
+ * Company-specific employee code for the destination record — derived
+ * deterministically from the source code so the two records of the same
+ * person stay visibly related (e.g. EMP-2401 → US-2401).
+ */
+export function destinationEmployeeCode(
+  sourceCode: string,
+  toCompany: string
+): string {
+  const digits = sourceCode.replace(/\D/g, '') || '0000'
+  const prefix = toCompany
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 3)
+  return `${prefix}-${digits}`
+}
+
 export interface TransferRequest {
   id: string
   employeeName: string
@@ -47,6 +77,13 @@ export interface TransferRequest {
   impact: TransferImpact
   submittedOn: string
   balancesReconciled: boolean
+  /**
+   * Inter-Company only — the new destination-company employee record
+   * reference, created once the transfer is fully approved. Display-level in
+   * this POC: the employees directory models the same pattern (one person,
+   * one record per company).
+   */
+  destinationRecord?: DestinationRecordRef | null
 }
 
 export const TRANSFER_CHAIN = [

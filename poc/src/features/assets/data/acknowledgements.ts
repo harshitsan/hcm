@@ -91,7 +91,8 @@ export interface WorkflowTask {
 
 /** Asset steps instantiated by the workflow engine (ASM-09, ASM-25). */
 export const seedWorkflowTasks: WorkflowTask[] = [
-  { id: 'wf-01', workflow: 'Onboarding', employeeId: 'e-10', employeeName: 'Grace Lin', step: 'Issue laptop + access key', assetHint: 'IT Equipment · Security & Access', status: 'Pending', linkedTxn: null, dueDate: '2026-07-06' },
+  { id: 'wf-01', workflow: 'Onboarding', employeeId: 'e-10', employeeName: 'Grace Lin', step: 'Issue laptop', assetHint: 'IT Equipment', status: 'Pending', linkedTxn: null, dueDate: '2026-07-06' },
+  { id: 'wf-05', workflow: 'Onboarding', employeeId: 'e-10', employeeName: 'Grace Lin', step: 'Issue access card', assetHint: 'Security & Access', status: 'Completed', linkedTxn: 'Issue AST-0021 · 22 Jun 2026', dueDate: '2026-06-22' },
   { id: 'wf-02', workflow: 'Onboarding', employeeId: 'e-01', employeeName: 'Anita Rao', step: 'Issue laptop', assetHint: 'IT Equipment', status: 'Completed', linkedTxn: 'Issue AST-0001 · 01 Mar 2025', dueDate: '2025-03-05' },
   { id: 'wf-03', workflow: 'Exit', employeeId: 'e-09', employeeName: 'Karan Mehta', step: 'Recover all outstanding assets', assetHint: 'AST-0004 outstanding', status: 'Blocked', linkedTxn: null, dueDate: '2026-06-30' },
   { id: 'wf-04', workflow: 'Exit', employeeId: 'e-09', employeeName: 'Karan Mehta', step: 'Revoke access credentials', assetHint: 'Security & Access', status: 'Completed', linkedTxn: 'Recovery of access card · 12 Jun 2026', dueDate: '2026-06-20' },

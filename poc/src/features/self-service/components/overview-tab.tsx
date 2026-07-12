@@ -89,7 +89,7 @@ export function OverviewTab({
   const navigate = useNavigate()
   const { role, hasRole } = useRole()
   const isEmployee = role === 'Employee (User)'
-  const canApprove = hasRole('Company Admin', 'Group Company Admin')
+  const isApprover = hasRole('Company Admin', 'Group Company Admin')
 
   const profilePolicy = portal.policyFor('profile')
   const leavePolicy = portal.policyFor('leave')
@@ -205,10 +205,20 @@ export function OverviewTab({
       )}
 
       <div className='grid grid-cols-1 gap-4 xl:grid-cols-2'>
-        <PanelCard title='Profile change requests'>
+        <PanelCard
+          title='My change requests'
+          aside={
+            isApprover ? (
+              <span className='text-paragraph-sm text-neutral-1000'>
+                Review pending requests under Admin → Change approvals
+              </span>
+            ) : undefined
+          }
+        >
           {profile.changeRequests.length === 0 ? (
             <p className='text-paragraph-sm text-neutral-1000'>
-              No change requests yet.
+              No change requests yet. Edits to sensitive profile fields appear
+              here while they wait for approval.
             </p>
           ) : (
             <ul className='space-y-2'>
@@ -224,29 +234,21 @@ export function OverviewTab({
                   <p className='text-paragraph-sm text-neutral-1000 mt-1'>
                     {cr.currentValue} → {cr.requestedValue}
                   </p>
-                  <div className='mt-1 flex flex-wrap items-center justify-between gap-2'>
-                    <span className='text-paragraph-sm text-neutral-1000'>
-                      Approver graph: {cr.approverGraph.join(' → ')}
-                      {cr.pendingWith ? ` · with ${cr.pendingWith}` : ''}
-                    </span>
-                    {canApprove && cr.status === 'Pending approval' && (
-                      <span className='flex gap-2'>
-                        <Button
-                          className='h-6 rounded-[6px] px-2 text-xs'
-                          onClick={() => profile.approveChange(cr.id)}
-                        >
-                          Approve
-                        </Button>
-                        <Button
-                          variant='outline'
-                          className='h-6 rounded-[6px] px-2 text-xs'
-                          onClick={() => profile.rejectChange(cr.id)}
-                        >
-                          Reject
-                        </Button>
-                      </span>
-                    )}
-                  </div>
+                  {cr.reason && (
+                    <p className='text-paragraph-sm text-neutral-1000 mt-1'>
+                      Reason: {cr.reason}
+                    </p>
+                  )}
+                  <p className='text-paragraph-sm text-neutral-1000 mt-1'>
+                    {cr.status === 'Pending approval'
+                      ? `Submitted ${formatDate(cr.submittedOn)} · with ${cr.pendingWith ?? cr.approverGraph[0]}`
+                      : `${cr.status} by ${cr.decidedBy ?? '—'}${cr.decidedOn ? ` on ${formatDate(cr.decidedOn)}` : ''}`}
+                  </p>
+                  {cr.decisionComment && (
+                    <p className='text-paragraph-sm text-neutral-1600 bg-neutral-200/60 mt-1 rounded-[4px] px-2 py-1'>
+                      Approver comment: {cr.decisionComment}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>

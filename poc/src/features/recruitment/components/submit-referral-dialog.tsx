@@ -91,6 +91,17 @@ export function SubmitReferralDialog({
       folders: [],
       resume: resume.trim(),
       linkedRequisitionId: requisition.id,
+      gender: '',
+      referredBy: referrerName,
+      address: '',
+      experienceYears: Number(experience) || 0,
+      currentCtc: 0,
+      expectedCtc: 0,
+      qualification: '',
+      noticePeriodDays: 0,
+      channelSource: 'Employee Referral',
+      appliedForVacancy: false,
+      vacancyId: null,
     })
     // Duplicate email/phone → store toasts the duplicate warning and returns
     // null; keep the dialog open so the referrer can correct the details.

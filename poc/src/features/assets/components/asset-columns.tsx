@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { LongText } from '@/components/common/long-text'
 import { type Asset } from '../data/assets'
 import { employeeName, formatDate, formatInr } from '../data/org'
-import { AssetStateBadge, OverdueBadge } from './badges'
+import { AssetStateBadge, OriginBadge, OverdueBadge } from './badges'
 
 function sortHeader<T>(label: string) {
   return function Header({ column }: { column: Column<T, unknown> }) {
@@ -127,6 +127,11 @@ export function assetTableColumns(today: string, showCompany: boolean): ColumnDe
           {row.original.issueDate && (
             <span className='text-paragraph-sm text-neutral-1000'>
               since {formatDate(row.original.issueDate)}
+            </span>
+          )}
+          {row.original.assignmentOrigin && (
+            <span className='mt-0.5'>
+              <OriginBadge origin={row.original.assignmentOrigin} />
             </span>
           )}
         </div>

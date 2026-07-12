@@ -3,7 +3,11 @@ import { PencilSimple } from 'phosphor-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { type FieldSection, type ProfileField } from '../data/profile'
+import {
+  COMP_DARK_FIELD_IDS,
+  type FieldSection,
+  type ProfileField,
+} from '../data/profile'
 import { type ProfileStore } from '../hooks/use-profile'
 import { ProfileEditOverlay } from './profile-edit-overlay'
 
@@ -22,8 +26,15 @@ export function ProfileCard({ store, canManage }: ProfileCardProps) {
   const [editing, setEditing] = useState<ProfileField | null>(null)
   const [overlayOpen, setOverlayOpen] = useState(false)
 
+  // Hidden fields follow policy; compensation fields are excluded
+  // structurally — no configuration can surface them in Phase 1.
   const visibleFields = useMemo(
-    () => store.fields.filter((f) => f.mode !== 'hidden'),
+    () =>
+      store.fields.filter(
+        (f) =>
+          f.mode !== 'hidden' &&
+          !(COMP_DARK_FIELD_IDS as readonly string[]).includes(f.id)
+      ),
     [store.fields]
   )
   const hiddenCount = store.fields.length - visibleFields.length
@@ -65,7 +76,9 @@ export function ProfileCard({ store, canManage }: ProfileCardProps) {
                     {field.mode === 'view-only' && (
                       <Badge variant='badge_inactive'>View only</Badge>
                     )}
-                    {pending && <Badge variant='pending'>Pending approval</Badge>}
+                    {pending && (
+                      <Badge variant='pending'>Change pending approval</Badge>
+                    )}
                     {canManage && field.mode === 'editable' && (
                       <Button
                         variant='icon2'

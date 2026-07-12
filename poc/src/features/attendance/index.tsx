@@ -85,8 +85,8 @@ export function TimeAttendance() {
   const actor = ACTORS[role]
   const [attendanceView, setAttendanceView] = useState<'review' | 'capture'>('review')
 
-  const config = useAttendanceConfig()
-  const attendance = useAttendance(actor)
+  const config = useAttendanceConfig(actor)
+  const attendance = useAttendance(actor, config.payrollLock.lockedThrough)
   const shifts = useShifts(actor)
 
   // Policy limits the request flows enforce come from governed config.
@@ -102,6 +102,7 @@ export function TimeAttendance() {
     supervisorCapHours,
     wfhMonthlyLimit: config.wfhTemplates[0]?.maxPerMonth ?? 4,
     outTimeMaxHoursPerRequest: config.outTimeSettings[0]?.maxHoursPerRequest ?? 3,
+    payrollLockedThrough: config.payrollLock.lockedThrough,
   })
 
   const visibleTabs = TABS.filter((t) => t.roles.includes(role))
@@ -135,6 +136,7 @@ export function TimeAttendance() {
                 requests={requests}
                 shifts={shifts}
                 payrollCutoffDay={correctionWorkflow?.payrollCutoffDay ?? 25}
+                payrollLockedThrough={config.payrollLock.lockedThrough}
               />
             </TabsContent>
 
@@ -186,6 +188,7 @@ export function TimeAttendance() {
                 requests={requests}
                 shifts={shifts}
                 actor={actor}
+                payrollLockedThrough={config.payrollLock.lockedThrough}
               />
             </TabsContent>
 

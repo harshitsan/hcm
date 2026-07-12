@@ -199,6 +199,44 @@ export interface Suspension {
   to: string
 }
 
+/**
+ * Government identifiers (W1) — the uniqueness/dedup keys of the employee
+ * record. Rendered masked outside HR-admin roles.
+ */
+export interface GovernmentIds {
+  aadhaar?: string
+  pan?: string
+  passport?: string
+}
+
+/**
+ * Statutory workforce data under Indian labour law (W1) — capture and
+ * display only; no payroll or contribution computation happens in the POC.
+ * Which fields are required is derived per jurisdiction (see
+ * statutory-requirements.ts).
+ */
+export interface StatutoryData {
+  uan?: string
+  esicNumber?: string
+  pfEligible: boolean
+  esiEligible: boolean
+  ptRegistration?: string
+  lwfApplicable: boolean
+  maternityEligible: boolean
+  gratuityEligible: boolean
+}
+
+/**
+ * Comp-dark compensation attributes (W1) — visible only to HR admin roles
+ * (Company Admin / Platform Admin). Free-text capture, zero computation.
+ */
+export interface CompensationData {
+  annualCtc?: string
+  fixedPay?: string
+  variablePay?: string
+  lastRevisedOn?: string
+}
+
 export interface Employee {
   id: string
   code: string
@@ -259,6 +297,12 @@ export interface Employee {
    * keyed by the catalog field label. Shown on the record detail sheet.
    */
   bulkFieldValues?: Record<string, string>
+  /** Government IDs — dedup keys; supersedes the flat aadhar/pan/passport columns. */
+  governmentIds?: GovernmentIds
+  /** Statutory workforce capture (W1) — display/reference only, no computation. */
+  statutory?: StatutoryData
+  /** Comp-dark compensation attributes — HR admin visibility only. */
+  compensation?: CompensationData
 }
 
 /** The employee record behind the "Employee (User)" self-service views. */
@@ -324,6 +368,26 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-1', type: 'Onboarding', date: '2019-06-10', note: 'Joined as HR Executive' },
       { id: 'lc-2', type: 'Active', date: '2019-12-10', note: 'Probation cleared' },
     ],
+    governmentIds: {
+      aadhaar: '4521 8834 1102',
+      pan: 'AKPKR2211F',
+      passport: 'N8123456',
+    },
+    statutory: {
+      uan: '100845221101',
+      pfEligible: true,
+      esiEligible: false,
+      ptRegistration: 'PTR-KA-2019-4471',
+      lwfApplicable: true,
+      maternityEligible: true,
+      gratuityEligible: true,
+    },
+    compensation: {
+      annualCtc: '₹24,00,000',
+      fixedPay: '₹21,60,000',
+      variablePay: '₹2,40,000',
+      lastRevisedOn: '2026-04-01',
+    },
   },
   {
     id: 'e-1002',
@@ -377,6 +441,25 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-3', type: 'Onboarding', date: '2017-03-01', note: 'Lateral hire' },
       { id: 'lc-4', type: 'Active', date: '2017-09-01', note: 'Probation cleared' },
     ],
+    governmentIds: {
+      aadhaar: '7810 2245 9931',
+      pan: 'VSHPS8842K',
+    },
+    statutory: {
+      uan: '100712449902',
+      pfEligible: true,
+      esiEligible: false,
+      ptRegistration: 'PTR-KA-2017-1082',
+      lwfApplicable: true,
+      maternityEligible: false,
+      gratuityEligible: true,
+    },
+    compensation: {
+      annualCtc: '₹42,00,000',
+      fixedPay: '₹35,70,000',
+      variablePay: '₹6,30,000',
+      lastRevisedOn: '2026-04-01',
+    },
   },
   {
     id: 'e-1003',
@@ -440,6 +523,26 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-6', type: 'Probation', date: '2021-08-16', note: '6-month probation' },
       { id: 'lc-7', type: 'Active', date: '2022-02-16', note: 'Probation cleared' },
     ],
+    governmentIds: {
+      aadhaar: '9034 1276 5581',
+      pan: 'RMEPM5521Q',
+      passport: 'Z4455112',
+    },
+    statutory: {
+      uan: '100933127765',
+      pfEligible: true,
+      esiEligible: false,
+      ptRegistration: 'PTR-KA-2021-3356',
+      lwfApplicable: true,
+      maternityEligible: false,
+      gratuityEligible: true,
+    },
+    compensation: {
+      annualCtc: '₹18,50,000',
+      fixedPay: '₹16,65,000',
+      variablePay: '₹1,85,000',
+      lastRevisedOn: '2026-04-01',
+    },
   },
   {
     id: 'e-1004',
@@ -493,6 +596,26 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-8', type: 'Onboarding', date: '2026-03-02', note: 'New hire' },
       { id: 'lc-9', type: 'Probation', date: '2026-03-02', note: '6-month probation per policy' },
     ],
+    governmentIds: {
+      aadhaar: '2218 9954 3307',
+      pan: 'SPAPT7733M',
+    },
+    statutory: {
+      uan: '101222995433',
+      esicNumber: '3100224466',
+      pfEligible: true,
+      esiEligible: true,
+      ptRegistration: 'PTR-MH-2026-0089',
+      lwfApplicable: true,
+      maternityEligible: false,
+      gratuityEligible: false,
+    },
+    compensation: {
+      annualCtc: '₹9,20,000',
+      fixedPay: '₹8,74,000',
+      variablePay: '₹46,000',
+      lastRevisedOn: '2026-03-02',
+    },
   },
   {
     id: 'e-1005',
@@ -549,6 +672,25 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-10', type: 'Onboarding', date: '2020-11-02', note: 'Contract staff — no system access' },
       { id: 'lc-11', type: 'Active', date: '2021-05-02', note: 'Probation cleared' },
     ],
+    governmentIds: {
+      aadhaar: '6650 3312 8874',
+      pan: 'IQUPQ9911B',
+    },
+    statutory: {
+      uan: '100665331288',
+      esicNumber: '3100992211',
+      pfEligible: true,
+      esiEligible: true,
+      ptRegistration: 'PTR-MH-2020-7741',
+      lwfApplicable: true,
+      maternityEligible: false,
+      gratuityEligible: true,
+    },
+    compensation: {
+      annualCtc: '₹6,40,000',
+      fixedPay: '₹6,40,000',
+      lastRevisedOn: '2025-11-01',
+    },
   },
   {
     id: 'e-1006',
@@ -602,6 +744,28 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-12', type: 'Onboarding', date: '2022-04-18', note: 'New hire' },
       { id: 'lc-13', type: 'Active', date: '2022-10-18', note: 'Probation cleared' },
     ],
+    // Same government IDs as e-1007 (Meridian Logistics) — one physical
+    // person, two company-specific records by design.
+    governmentIds: {
+      aadhaar: '5511 7823 6642',
+      pan: 'RIYPI4488D',
+      passport: 'M2211887',
+    },
+    statutory: {
+      uan: '100551178236',
+      pfEligible: true,
+      esiEligible: false,
+      ptRegistration: 'PTR-TG-2022-5518',
+      lwfApplicable: false,
+      maternityEligible: false,
+      gratuityEligible: false,
+    },
+    compensation: {
+      annualCtc: '₹12,80,000',
+      fixedPay: '₹11,52,000',
+      variablePay: '₹1,28,000',
+      lastRevisedOn: '2026-04-15',
+    },
   },
   {
     // Same physical person as e-1006 — an independent record in a second
@@ -656,6 +820,27 @@ export const seedEmployees: Employee[] = [
     lifecycleEvents: [
       { id: 'lc-14', type: 'Onboarding', date: '2025-01-06', note: 'Part-time engagement (second company)' },
     ],
+    // Same government IDs as e-1006 (Meridian Foods) — one physical person,
+    // two company-specific records by design.
+    governmentIds: {
+      aadhaar: '5511 7823 6642',
+      pan: 'RIYPI4488D',
+      passport: 'M2211887',
+    },
+    statutory: {
+      uan: '100551178236',
+      pfEligible: true,
+      esiEligible: false,
+      ptRegistration: 'PTR-MH-2025-2210',
+      lwfApplicable: true,
+      maternityEligible: false,
+      gratuityEligible: false,
+    },
+    compensation: {
+      annualCtc: '₹4,20,000',
+      fixedPay: '₹4,20,000',
+      lastRevisedOn: '2025-01-06',
+    },
   },
   {
     id: 'e-1008',
@@ -711,6 +896,26 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-15', type: 'Onboarding', date: '2016-02-08', note: 'Founding team' },
       { id: 'lc-16', type: 'Active', date: '2016-08-08', note: 'Probation cleared' },
     ],
+    governmentIds: {
+      aadhaar: '8890 4412 7753',
+      pan: 'DRAPR6622H',
+      passport: 'K9911223',
+    },
+    statutory: {
+      uan: '100889044127',
+      pfEligible: true,
+      esiEligible: false,
+      ptRegistration: 'PTR-TG-2016-0304',
+      lwfApplicable: false,
+      maternityEligible: true,
+      gratuityEligible: true,
+    },
+    compensation: {
+      annualCtc: '₹38,00,000',
+      fixedPay: '₹32,30,000',
+      variablePay: '₹5,70,000',
+      lastRevisedOn: '2026-04-15',
+    },
   },
   {
     id: 'e-1009',
@@ -765,6 +970,25 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-18', type: 'Active', date: '2019-03-24', note: 'Probation cleared' },
       { id: 'lc-19', type: 'Notice Period', date: '2026-06-05', note: 'Resignation initiated' },
     ],
+    governmentIds: {
+      aadhaar: '3345 6698 2210',
+      pan: 'NKAPK3355J',
+    },
+    statutory: {
+      uan: '100334566982',
+      pfEligible: true,
+      esiEligible: false,
+      ptRegistration: 'PTR-MH-2018-6633',
+      lwfApplicable: true,
+      maternityEligible: false,
+      gratuityEligible: true,
+    },
+    compensation: {
+      annualCtc: '₹16,50,000',
+      fixedPay: '₹14,85,000',
+      variablePay: '₹1,65,000',
+      lastRevisedOn: '2025-04-15',
+    },
   },
   {
     id: 'e-1010',
@@ -817,6 +1041,23 @@ export const seedEmployees: Employee[] = [
     lifecycleEvents: [
       { id: 'lc-20', type: 'Onboarding', date: '2026-06-15', note: 'Joining formalities in progress' },
     ],
+    governmentIds: {
+      aadhaar: '9912 2034 4456',
+      pan: 'KREPR8890C',
+    },
+    statutory: {
+      esicNumber: '3100778899',
+      pfEligible: false,
+      esiEligible: true,
+      lwfApplicable: false,
+      maternityEligible: false,
+      gratuityEligible: false,
+    },
+    compensation: {
+      annualCtc: '₹7,80,000',
+      fixedPay: '₹7,41,000',
+      variablePay: '₹39,000',
+    },
   },
   {
     id: 'e-1011',
@@ -871,6 +1112,26 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-22', type: 'Active', date: '2020-07-13', note: 'Probation cleared' },
       { id: 'lc-23', type: 'Exited', date: '2026-04-30', note: 'Exit processed — history retained' },
     ],
+    governmentIds: {
+      aadhaar: '1177 8845 9932',
+      pan: 'TBHPB1122E',
+    },
+    statutory: {
+      uan: '100117788459',
+      esicNumber: '3100334455',
+      pfEligible: true,
+      esiEligible: true,
+      ptRegistration: 'PTR-KA-2020-1190',
+      lwfApplicable: true,
+      maternityEligible: false,
+      gratuityEligible: true,
+    },
+    compensation: {
+      annualCtc: '₹11,00,000',
+      fixedPay: '₹9,90,000',
+      variablePay: '₹1,10,000',
+      lastRevisedOn: '2025-04-01',
+    },
   },
   {
     id: 'e-1012',
@@ -924,6 +1185,24 @@ export const seedEmployees: Employee[] = [
       { id: 'lc-24', type: 'Onboarding', date: '2026-02-02', note: 'Trainee — record maintained without user account' },
       { id: 'lc-25', type: 'Probation', date: '2026-02-02', note: 'Probation per configured duration' },
     ],
+    governmentIds: {
+      aadhaar: '7734 9908 1123',
+      pan: 'GDSPD9944A',
+      passport: 'T5566771',
+    },
+    statutory: {
+      esicNumber: '3100112233',
+      pfEligible: false,
+      esiEligible: true,
+      lwfApplicable: true,
+      maternityEligible: false,
+      gratuityEligible: false,
+    },
+    compensation: {
+      annualCtc: '₹3,60,000',
+      fixedPay: '₹3,60,000',
+      lastRevisedOn: '2026-02-02',
+    },
   },
 ]
 
@@ -1044,4 +1323,78 @@ export function companyName(companyId: string): string {
 
 export function companyGroup(companyId: string): GroupCompany | '—' {
   return COMPANIES.find((c) => c.id === companyId)?.group ?? '—'
+}
+
+/**
+ * Government IDs of a record, falling back to the flat legacy columns for
+ * records created before the nested block existed (backward compatible).
+ */
+export function getGovernmentIds(e: Employee): GovernmentIds {
+  return (
+    e.governmentIds ?? {
+      aadhaar: e.aadhar || undefined,
+      pan: e.pan || undefined,
+      passport: e.passport || undefined,
+    }
+  )
+}
+
+/**
+ * Statutory workforce data of a record, derived from the flat legacy columns
+ * when the nested block is absent.
+ */
+export function getStatutory(e: Employee): StatutoryData {
+  return (
+    e.statutory ?? {
+      uan: e.uan || undefined,
+      esicNumber: e.esicNumber || undefined,
+      pfEligible: e.esiPfEligibility === 'Eligible',
+      esiEligible: e.esiPfEligibility === 'Eligible' && Boolean(e.esicNumber),
+      ptRegistration: undefined,
+      lwfApplicable: e.lwfApplicable,
+      maternityEligible: e.maternityEligibility === 'Eligible',
+      gratuityEligible: e.gratuityEligibility === 'Eligible',
+    }
+  )
+}
+
+/**
+ * Masks a government ID to its last 4 characters, keeping separators:
+ * '4521 8834 1102' → 'XXXX XXXX 1102'.
+ */
+export function maskGovernmentId(value: string): string {
+  if (!value) return ''
+  if (value.length <= 4) return value
+  return (
+    value.slice(0, -4).replace(/[A-Za-z0-9]/g, 'X') + value.slice(-4)
+  )
+}
+
+/** Normalizes an ID for dedup comparison — case/spacing/punctuation-blind. */
+export function normalizeGovernmentId(value: string | undefined): string {
+  return (value ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+}
+
+/**
+ * Other company-specific records of the same physical person (matched on
+ * government IDs). Records are company-specific by design — the same person
+ * employed by two companies has two independent records.
+ */
+export function findSamePersonRecords(
+  employee: Employee,
+  all: Employee[]
+): Employee[] {
+  const mine = getGovernmentIds(employee)
+  const keys = [mine.aadhaar, mine.pan, mine.passport]
+    .map(normalizeGovernmentId)
+    .filter(Boolean)
+  if (keys.length === 0) return []
+  return all.filter((other) => {
+    if (other.id === employee.id || other.companyId === employee.companyId)
+      return false
+    const theirs = getGovernmentIds(other)
+    return [theirs.aadhaar, theirs.pan, theirs.passport]
+      .map(normalizeGovernmentId)
+      .some((k) => k && keys.includes(k))
+  })
 }

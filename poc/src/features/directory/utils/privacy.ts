@@ -5,6 +5,7 @@ import {
   COMPANY_FIELD_RESTRICTIONS,
   DIRECTORY_FIELD_KEYS,
   FIELD_LABELS,
+  PHASE1_EXCLUDED_FIELDS,
   type DirectoryFieldKey,
   type FieldAccess,
 } from '../data/directory-config'
@@ -33,7 +34,11 @@ export interface FieldDecision {
   label: string
   visible: boolean
   rule: FieldAccess
-  source: 'platform-default' | 'company-override' | 'per-company-restriction'
+  source:
+    | 'platform-default'
+    | 'company-override'
+    | 'per-company-restriction'
+    | 'phase1-structural'
   reason: string
 }
 
@@ -50,6 +55,19 @@ export function evaluateField(
   recordCompanyId?: string
 ): FieldDecision {
   const label = FIELD_LABELS[key]
+
+  // 0. Phase 1 structural exclusion: personal contact and compensation-
+  // adjacent fields are never shown — no configuration can surface them.
+  if (PHASE1_EXCLUDED_FIELDS.includes(key)) {
+    return {
+      key,
+      label,
+      visible: false,
+      rule: 'restricted',
+      source: 'phase1-structural',
+      reason: `"${label}" is structurally excluded in Phase 1 — never shown on any surface, for any role, regardless of configuration.`,
+    }
+  }
 
   // 1. Per-company hard restriction on the record's own company (DIR-15).
   if (

@@ -23,6 +23,9 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeVariant }> = {
   confirmed: { label: 'Confirmed', variant: 'completed' },
   extended: { label: 'Extended Probation', variant: 'overdue' },
   'separation-initiated': { label: 'Separation Initiated', variant: 'dropped' },
+  // employment status (derived from the confirmation outcome)
+  probation: { label: 'Probation', variant: 'pending' },
+  'probation-extended': { label: 'Probation Extended', variant: 'overdue' },
   // transfers
   scheduled: { label: 'Scheduled', variant: 'open' },
   effective: { label: 'Effective', variant: 'completed' },
@@ -35,6 +38,9 @@ const STATUS_MAP: Record<string, { label: string; variant: BadgeVariant }> = {
   exited: { label: 'Exited', variant: 'completed' },
   // new joinees
   'pending-initiation': { label: 'Pending Initiation', variant: 'pending' },
+  'first-window': { label: 'In First Window', variant: 'open' },
+  'on-track': { label: 'On Track', variant: 'badge_active' },
+  overdue: { label: 'Overdue', variant: 'overdue' },
   // documents
   missing: { label: 'Missing', variant: 'badge_inactive' },
   submitted: { label: 'Submitted', variant: 'open' },

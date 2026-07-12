@@ -43,6 +43,31 @@ export function ConfigOnboarding({ config }: { config: LifecycleConfigStore }) {
   const [mandatory, setMandatory] = useState(true)
   const [docs, setDocs] = useState('')
   const [criteria, setCriteria] = useState('')
+  const [firstWindowInput, setFirstWindowInput] = useState(
+    String(config.joineeWindow.firstWindowDays)
+  )
+  const [overdueInput, setOverdueInput] = useState(
+    String(config.joineeWindow.overdueAfterDays)
+  )
+
+  const saveWindow = () => {
+    const firstWindowDays = Number(firstWindowInput)
+    const overdueAfterDays = Number(overdueInput)
+    if (
+      !Number.isInteger(firstWindowDays) ||
+      !Number.isInteger(overdueAfterDays) ||
+      firstWindowDays < 1 ||
+      overdueAfterDays < 1
+    ) {
+      toast.error('Enter whole numbers of days (at least 1) for both settings')
+      return
+    }
+    if (overdueAfterDays < firstWindowDays) {
+      toast.error('The overdue threshold cannot be shorter than the first window')
+      return
+    }
+    config.updateJoineeWindow({ firstWindowDays, overdueAfterDays })
+  }
 
   const openEdit = (task: OnboardingTaskDef) => {
     setEditing(task)
@@ -74,6 +99,37 @@ export function ConfigOnboarding({ config }: { config: LifecycleConfigStore }) {
 
   return (
     <div>
+      <SectionCard
+        title={`New joinee window (${config.joineeWindow.version}, effective ${fmtDate(config.joineeWindow.effectiveFrom)})`}
+        description='Plain-language definitions for the New Joinees report: the first window is the settling-in period after the joining date, and the overdue threshold flags joinees whose joining formalities are still open after too many days. Saving publishes a new effective-dated version and recomputes every joinee chip.'
+      >
+        <div className='flex flex-wrap items-end gap-3'>
+          <div className='space-y-1'>
+            <Label>First window (days)</Label>
+            <Input
+              type='number'
+              min={1}
+              className='w-[160px]'
+              value={firstWindowInput}
+              onChange={(e) => setFirstWindowInput(e.target.value)}
+            />
+          </div>
+          <div className='space-y-1'>
+            <Label>Overdue after (days)</Label>
+            <Input
+              type='number'
+              min={1}
+              className='w-[160px]'
+              value={overdueInput}
+              onChange={(e) => setOverdueInput(e.target.value)}
+            />
+          </div>
+          <Button size='sm' onClick={saveWindow}>
+            Publish window settings
+          </Button>
+        </div>
+      </SectionCard>
+
       <SectionCard
         title='Template versions'
         description='The workflow engine reads the published version at initiation; in-flight onboardings keep the version they started with.'

@@ -19,6 +19,7 @@ import { CalendarPreview } from '@/components/common/settings/calendar-preview'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { useEngineArtifactCounts } from '@/features/workflows/hooks/use-engine-artifact-counts'
 import { shortId } from '@/features/leave/data/shared'
+import { fmtDate } from '../data/shared'
 import type { AttendanceConfigStore } from '../hooks/use-attendance-config'
 import { ConfigAudit } from './config-audit'
 import { ConfigHolidays } from './config-holidays'
@@ -364,12 +365,18 @@ export function useAttendanceSettingGroups(
         'shift swap',
         'comp off',
         'payroll cutoff',
+        'payroll lock',
+        'freeze',
         'audit recurrence',
       ],
       status: [
         {
           label: `${workflowCount} config${workflowCount !== 1 ? 's' : ''} active`,
           tone: workflowCount > 0 ? 'positive' : 'neutral',
+        },
+        {
+          label: `Locked through ${fmtDate(config.payrollLock.lockedThrough)}`,
+          tone: 'warning',
         },
       ],
       render: () => <ConfigWorkflows config={config} />,

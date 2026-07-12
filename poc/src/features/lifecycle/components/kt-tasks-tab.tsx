@@ -29,13 +29,14 @@ import { PERSONAS, fmtDate } from '../data/shared'
 import { type KnowledgeTransferStore } from '../hooks/use-knowledge-transfer'
 import { StatusBadge } from './badges'
 import { SortHeader } from './columns-shared'
-import { ktTaskColumns, WeekBreakdown } from './kt-columns'
+import { ktTaskColumns, receiverCell, WeekBreakdown } from './kt-columns'
 import { KtEmployeeView } from './kt-employee-view'
 import { EMPTY_KT_FILTERS, KtFilterBar, useKtFiltered } from './kt-filter-bar'
 import {
   KtDetailSheet,
   KtDueDate,
   KtInitiateDialog,
+  KtReassignDialog,
   KtReceiveDialog,
 } from './kt-task-dialogs'
 import { KtTaskFormDialog } from './kt-task-form'
@@ -134,6 +135,9 @@ export function KtTasksTab({ store }: KtTasksTabProps) {
 
 const INITIABLE = ['Assigned', 'Reassigned', 'Initiated']
 
+/** Statuses where the handover is closed — reassignment no longer applies. */
+const CLOSED = ['Received', 'Pre Closed', 'Withdrawn']
+
 interface KnowledgeTransferTabProps {
   store: KnowledgeTransferStore
 }
@@ -171,6 +175,7 @@ function KtManagerView({ store, actor }: KtManagerViewProps) {
   const [viewTask, setViewTask] = useState<KtTask | null>(null)
   const [initiateTask, setInitiateTask] = useState<KtTask | null>(null)
   const [receiveTask, setReceiveTask] = useState<KtTask | null>(null)
+  const [reassignTask, setReassignTask] = useState<KtTask | null>(null)
   const tasks = useKtFiltered(store.tasks, filters, 'either')
 
   const exitChoices = KT_EXIT_CONTEXTS.filter((c) =>
@@ -203,7 +208,7 @@ function KtManagerView({ store, actor }: KtManagerViewProps) {
     {
       accessorKey: 'receiver',
       header: ({ column }) => <SortHeader column={column} label='KT receiver' />,
-      cell: ({ row }) => <span className='text-sm'>{row.original.receiver}</span>,
+      cell: ({ row }) => receiverCell(row.original),
     },
     {
       accessorKey: 'department',
@@ -255,6 +260,12 @@ function KtManagerView({ store, actor }: KtManagerViewProps) {
               onClick={() => setReceiveTask(row.original)}
             >
               Received (on behalf)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={CLOSED.includes(row.original.status)}
+              onClick={() => setReassignTask(row.original)}
+            >
+              Reassign receiver
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -366,6 +377,15 @@ function KtManagerView({ store, actor }: KtManagerViewProps) {
         store={store}
         actor={actor}
         onBehalfOf
+      />
+      <KtReassignDialog
+        open={reassignTask !== null}
+        onOpenChange={(o) => {
+          if (!o) setReassignTask(null)
+        }}
+        task={reassignTask}
+        store={store}
+        actor={actor}
       />
     </div>
   )

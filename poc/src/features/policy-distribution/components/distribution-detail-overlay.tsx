@@ -23,8 +23,13 @@ import {
 } from '@/components/ui/table'
 import { REACK_TRIGGERS, type ReAckTrigger } from '../data/config'
 import { type Assignment, type Distribution } from '../data/distributions'
+import { seedPolicies } from '../data/policies'
 import { type PolicyDistributionStore } from '../hooks/use-policy-distribution'
-import { describeDueRule } from '../utils/audience'
+import {
+  describeDueRule,
+  resolveAudience,
+  summarizeAudience,
+} from '../utils/audience'
 import { ProxyAckDialog } from './proxy-ack-dialog'
 import {
   AckTypeBadge,
@@ -84,6 +89,11 @@ export function DistributionDetailOverlay({
 
   if (!distribution) return null
   const d = distribution
+  // The policy's CURRENT applicable population — who it applies to today.
+  const policy = seedPolicies.find((p) => p.id === d.policyId)
+  const appliesTo = policy
+    ? `${resolveAudience(policy.applicability).length} employees (${summarizeAudience(policy.applicability)})`
+    : null
   const all = store.assignments.filter((a) => a.distributionId === d.id)
   const failed = all.filter((a) => a.status === 'Failed').length
   const delivered = all.length - failed
@@ -166,6 +176,15 @@ export function DistributionDetailOverlay({
               <p className='text-neutral-1000'>Created by</p>
               <p className='text-neutral-1600 font-medium'>{d.createdBy}</p>
             </div>
+            {appliesTo && (
+              <div className='col-span-2 sm:col-span-3'>
+                <p className='text-neutral-1000'>Applies to</p>
+                <p className='text-neutral-1600 font-medium'>{appliesTo}</p>
+                <p className='text-paragraph-sm text-neutral-1000'>
+                  New versions ask only this population to re-acknowledge.
+                </p>
+              </div>
+            )}
           </div>
 
           {d.isBulk && d.sentAt && (
@@ -272,6 +291,9 @@ export function DistributionDetailOverlay({
                 <SelectItem value='Overdue'>Overdue</SelectItem>
                 <SelectItem value='Delivered'>Delivered</SelectItem>
                 <SelectItem value='Failed'>Failed</SelectItem>
+                <SelectItem value='No longer applicable'>
+                  No longer applicable
+                </SelectItem>
               </SelectContent>
             </Select>
             <span className='text-paragraph-sm text-neutral-1000 ml-auto'>

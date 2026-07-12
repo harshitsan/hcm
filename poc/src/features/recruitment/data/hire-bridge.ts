@@ -202,7 +202,7 @@ export function hireFromOffer(payload: HirePayload): HireResult {
   // Mirror the conversion into the central platform trail (worklist #26).
   publishAuditEvent({
     module: 'Recruitment',
-    action: 'Offer converted to employee',
+    action: `${payload.candidateName} handed off to Onboarding — employee record created`,
     actor: 'You',
     actorRole: 'HR Manager',
     actionType: 'create',

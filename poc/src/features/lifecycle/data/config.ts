@@ -138,6 +138,30 @@ export const seedTemplates: OnboardingTemplate[] = [
   },
 ]
 
+/* ---------------------------------- New joinee window --------------------- */
+
+/**
+ * Configurable "first window" and overdue definitions for the New Joinees
+ * report. Versioned & effective-dated like every governed lifecycle config —
+ * joinee chips are derived from the published version at read time, so a
+ * change here recolours the grid immediately without touching the cases.
+ */
+export interface JoineeWindowConfig {
+  version: string
+  effectiveFrom: string
+  /** Days from the joining date a new joinee counts as "in first window". */
+  firstWindowDays: number
+  /** Days from joining after which incomplete joining formalities flip to Overdue. */
+  overdueAfterDays: number
+}
+
+export const seedJoineeWindow: JoineeWindowConfig = {
+  version: 'v1',
+  effectiveFrom: '2026-06-01',
+  firstWindowDays: 7,
+  overdueAfterDays: 30,
+}
+
 /* ---------------------------------- Probation decision table ------------- */
 
 export interface DecisionRow {
