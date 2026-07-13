@@ -206,9 +206,9 @@ export function SpecTable<T>({
                       }}
                     >
                       {row.getIsExpanded() ? (
-                        <CaretUp className='size-3.5' />
+                        <CaretUp className='size-3.5 text-neutral-1000' />
                       ) : (
-                        <CaretDown className='size-3.5' />
+                        <CaretDown className='size-3.5 text-neutral-1000' />
                       )}
                     </Button>
                   </TableCell>

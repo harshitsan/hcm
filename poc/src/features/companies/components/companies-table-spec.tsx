@@ -1,6 +1,6 @@
-import { Badge } from '@/components/ui/badge'
 import type { TableSpec } from '@/components/common/data-table'
 import { primaryJurisdiction, type Company } from '../data/companies'
+import { CompanyStatusBadge, OperatingModelBadge } from './company-badges'
 
 interface CompaniesTableSpecOpts {
   onAdd: () => void
@@ -45,7 +45,7 @@ export function companiesTableSpec({
         type: 'badge',
         filter: 'quick',
         accessor: (c) => c.status,
-        cell: (c) => <Badge variant='open'>{c.status}</Badge>,
+        cell: (c) => <CompanyStatusBadge status={c.status} />,
       },
       {
         id: 'employeeCount',
@@ -61,6 +61,7 @@ export function companiesTableSpec({
         filter: 'more',
         default: 'hidden',
         accessor: (c) => c.operatingModel,
+        cell: (c) => <OperatingModelBadge model={c.operatingModel} />,
       },
       {
         id: 'subscriptionTier',
