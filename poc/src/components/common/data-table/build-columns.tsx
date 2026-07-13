@@ -62,3 +62,17 @@ export function buildColumns<T>(spec: TableSpec<T>): ColumnDef<T>[] {
       }
     })
 }
+
+/**
+ * Platform rule: anything marked primary always leads, whatever the active
+ * column sort. Partitioning (rather than a comparator) keeps it stable, so the
+ * user's sort survives inside each group.
+ */
+export function applyPrimaryFirst<T>(rows: T[], spec: TableSpec<T>): T[] {
+  const isPrimary = spec.primaryFirst
+  if (!isPrimary) return rows
+  const primary: T[] = []
+  const rest: T[] = []
+  for (const r of rows) (isPrimary(r) ? primary : rest).push(r)
+  return [...primary, ...rest]
+}
