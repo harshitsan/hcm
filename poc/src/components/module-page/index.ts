@@ -4,15 +4,9 @@
  * compose these instead of hand-rolling chrome, tabs, toolbars, pagers,
  * badges, empty states and detail sheets.
  */
-export { ModulePage } from './module-page'
 export { ModuleTabs, type TabDef } from './module-tabs'
 export { SummaryCards, type SummaryItem } from './summary-cards'
-export {
-  TableToolbar,
-  FilterSelect,
-  SearchInput,
-  CreateButton,
-} from './table-toolbar'
+export { FilterSelect, SearchInput } from './table-toolbar'
 export {
   RefreshButton,
   usePager,

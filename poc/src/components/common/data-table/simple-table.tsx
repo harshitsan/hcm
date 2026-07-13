@@ -177,6 +177,10 @@ interface SimpleTableProps<TData> {
  * popover via ColumnSearch) and a separate sort toggle. Like DataTable,
  * an active column filter never hides rows — matching rows float to the top
  * and their matching cells are highlighted.
+ *
+ * @deprecated Use `SpecTable` with a `TableSpec` instead. This component shares
+ * DataTable's never-filter quirk (filters only reorder, they do not exclude).
+ * Delete once its remaining callers are converted.
  */
 export function SimpleTable<TData>({
   columns,
