@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { applyPrimaryFirst, buildColumns, detailColumns } from './build-columns'
 import type { FilterValue } from './filters'
 import type { TableSpec } from './spec'
@@ -39,6 +40,8 @@ interface SpecTableProps<T> {
   onVisibilityChange: (next: VisibilityState) => void
   onRowClick?: (row: T) => void
   emptyMessage?: string
+  onSelectionChange?: (selectedRows: T[]) => void
+  resetSelectionKey?: number | string
 }
 
 export function SpecTable<T>({
@@ -49,13 +52,23 @@ export function SpecTable<T>({
   onVisibilityChange,
   onRowClick,
   emptyMessage = 'No data available',
+  onSelectionChange,
+  resetSelectionKey,
 }: SpecTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>(
     spec.defaultSort
       ? [{ id: spec.defaultSort.id, desc: spec.defaultSort.dir === 'desc' }]
       : []
   )
+  const [rowSelection, setRowSelection] = useState({})
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // Reset selection when resetSelectionKey changes
+  useEffect(() => {
+    if (resetSelectionKey !== undefined) {
+      setRowSelection({})
+    }
+  }, [resetSelectionKey])
 
   const columns = useMemo(() => buildColumns(spec), [spec])
   const details = useMemo(() => detailColumns(spec), [spec])
@@ -69,20 +82,37 @@ export function SpecTable<T>({
   const table = useReactTable({
     data: ordered,
     columns,
-    state: { sorting, columnFilters, columnVisibility: visibility },
+    state: { sorting, columnFilters, columnVisibility: visibility, rowSelection },
     onSortingChange: setSorting,
     onColumnVisibilityChange: (updater) =>
       onVisibilityChange(
         typeof updater === 'function' ? updater(visibility) : updater
       ),
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
     getRowCanExpand: () => details.length > 0,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
+    autoResetPageIndex: false,
+    autoResetExpanded: false,
   })
 
+  const onSelectionChangeRef = useRef(onSelectionChange)
+  useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange
+  }, [onSelectionChange])
+
+  useEffect(() => {
+    if (!onSelectionChangeRef.current) return
+    const selected = table.getSelectedRowModel().rows.map((r) => r.original)
+    onSelectionChangeRef.current(selected)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowSelection])
+
   const rows = table.getRowModel().rows
+  const leadingCols = (details.length > 0 ? 1 : 0) + (onSelectionChange ? 1 : 0)
 
   return (
     <div
@@ -93,6 +123,21 @@ export function SpecTable<T>({
         <TableHeader>
           {table.getHeaderGroups().map((hg) => (
             <TableRow key={hg.id} className='bg-neutral-100'>
+              {onSelectionChange && (
+                <TableHead className='w-10'>
+                  <Checkbox
+                    checked={
+                      table.getIsAllRowsSelected()
+                        ? true
+                        : table.getIsSomeRowsSelected()
+                          ? 'indeterminate'
+                          : false
+                    }
+                    onCheckedChange={(v) => table.toggleAllRowsSelected(!!v)}
+                    aria-label='Select all rows'
+                  />
+                </TableHead>
+              )}
               {details.length > 0 && <TableHead className='w-10' />}
               {hg.headers.map((header) => {
                 const sorted = header.column.getIsSorted()
@@ -124,7 +169,7 @@ export function SpecTable<T>({
           {rows.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={columns.length + (details.length > 0 ? 1 : 0)}
+                colSpan={columns.length + leadingCols}
                 className='text-neutral-1000 h-24 text-center'
               >
                 {emptyMessage}
@@ -138,6 +183,18 @@ export function SpecTable<T>({
                 className={cn(onRowClick && 'cursor-pointer')}
                 onClick={() => onRowClick?.(row.original)}
               >
+                {onSelectionChange && (
+                  <TableCell
+                    className='w-10'
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Checkbox
+                      checked={row.getIsSelected()}
+                      onCheckedChange={(v) => row.toggleSelected(!!v)}
+                      aria-label={`Select row ${row.index + 1}`}
+                    />
+                  </TableCell>
+                )}
                 {details.length > 0 && (
                   <TableCell className='w-10'>
                     <Button
@@ -165,7 +222,7 @@ export function SpecTable<T>({
               {row.getIsExpanded() && (
                 <TableRow key={`${row.id}-detail`} className='bg-neutral-50'>
                   <TableCell
-                    colSpan={row.getVisibleCells().length + 1}
+                    colSpan={row.getVisibleCells().length + leadingCols}
                     className='px-6 py-3'
                   >
                     <dl className='grid grid-cols-2 gap-x-8 gap-y-2 md:grid-cols-4'>

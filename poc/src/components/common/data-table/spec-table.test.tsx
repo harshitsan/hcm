@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TableSpec } from './spec'
 import { SpecTable } from './spec-table'
 
@@ -68,5 +68,51 @@ describe('SpecTable', () => {
     expect(screen.queryByText('Enterprise')).not.toBeInTheDocument()
     await user.click(screen.getAllByRole('button', { name: /expand row/i })[1])
     expect(screen.getByText('Enterprise')).toBeInTheDocument()
+  })
+
+  it('renders no checkbox column when onSelectionChange is absent', () => {
+    render(
+      <SpecTable spec={spec} data={rows} filters={{}}
+        visibility={shown} onVisibilityChange={noop} />
+    )
+    expect(screen.queryByRole('checkbox', { name: /select all rows/i })).not.toBeInTheDocument()
+  })
+
+  it('reports the selected row through onSelectionChange', async () => {
+    const user = userEvent.setup()
+    const onSel = vi.fn()
+    render(
+      <SpecTable spec={spec} data={rows} filters={{}}
+        visibility={shown} onVisibilityChange={noop} onSelectionChange={onSel} />
+    )
+    await user.click(screen.getByRole('checkbox', { name: /select row 1/i }))
+    expect(onSel).toHaveBeenLastCalledWith([rows[0]])
+  })
+
+  it('select-all reports every row', async () => {
+    const user = userEvent.setup()
+    const onSel = vi.fn()
+    render(
+      <SpecTable spec={spec} data={rows} filters={{}}
+        visibility={shown} onVisibilityChange={noop} onSelectionChange={onSel} />
+    )
+    await user.click(screen.getByRole('checkbox', { name: /select all rows/i }))
+    expect(onSel).toHaveBeenLastCalledWith(rows)
+  })
+
+  it('clears selection when resetSelectionKey changes', async () => {
+    const user = userEvent.setup()
+    const onSel = vi.fn()
+    const { rerender } = render(
+      <SpecTable spec={spec} data={rows} filters={{}}
+        visibility={shown} onVisibilityChange={noop} onSelectionChange={onSel} resetSelectionKey={0} />
+    )
+    await user.click(screen.getByRole('checkbox', { name: /select row 1/i }))
+    expect(onSel).toHaveBeenLastCalledWith([rows[0]])
+    rerender(
+      <SpecTable spec={spec} data={rows} filters={{}}
+        visibility={shown} onVisibilityChange={noop} onSelectionChange={onSel} resetSelectionKey={1} />
+    )
+    expect(onSel).toHaveBeenLastCalledWith([])
   })
 })
