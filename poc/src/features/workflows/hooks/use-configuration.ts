@@ -163,7 +163,7 @@ export function useConfiguration({
         )
         log(
           `Updated localization — ${draft.name}`,
-          `${draft.language} · ${draft.timezone} · ${draft.currency} · ${draft.dateFormat}.`,
+          `${draft.language} · ${draft.timezone} · ${draft.currency} · ${draft.dateFormat} · FY starts ${draft.fiscalYearStart}.`,
           id
         )
         toast.success('Localization updated')
@@ -178,7 +178,7 @@ export function useConfiguration({
         setLocalizations((prev) => [loc, ...prev])
         log(
           `Added localization — ${draft.name}`,
-          `${draft.language} · ${draft.timezone} · ${draft.currency}.`,
+          `${draft.language} · ${draft.timezone} · ${draft.currency} · FY starts ${draft.fiscalYearStart}.`,
           loc.id
         )
         toast.success('Localization added')

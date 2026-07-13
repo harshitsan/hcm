@@ -48,6 +48,7 @@ import { LongText } from '@/components/common/long-text'
 import {
   ALERT_CHANNELS,
   CONFIG_GROUPS,
+  FISCAL_YEAR_MONTHS,
   INTEGRATION_SYSTEMS,
   OFFICE_TYPES,
   SYNC_FREQUENCIES,
@@ -241,6 +242,8 @@ const localizationSchema = z.object({
   timezone: z.string().min(2, 'Time zone is required'),
   currency: z.string().min(1, 'Currency is required'),
   dateFormat: z.string().min(2, 'Date format is required'),
+  numberFormat: z.string().min(2, 'Number format is required'),
+  fiscalYearStart: z.enum(FISCAL_YEAR_MONTHS),
 })
 
 type LocalizationValues = z.infer<typeof localizationSchema>
@@ -251,6 +254,8 @@ const EMPTY_LOCALIZATION: LocalizationValues = {
   timezone: '',
   currency: '',
   dateFormat: '',
+  numberFormat: '',
+  fiscalYearStart: 'April',
 }
 
 function LocalizationDialog({
@@ -279,6 +284,8 @@ function LocalizationDialog({
             timezone: localization.timezone,
             currency: localization.currency,
             dateFormat: localization.dateFormat,
+            numberFormat: localization.numberFormat,
+            fiscalYearStart: localization.fiscalYearStart,
           }
         : EMPTY_LOCALIZATION
     )
@@ -292,8 +299,9 @@ function LocalizationDialog({
             {localization ? 'Edit localization' : 'New localization'}
           </DialogTitle>
           <DialogDescription>
-            Language, time zone, currency and date format applied to companies
-            and employees mapped to this region.
+            Language, time zone, currency, number &amp; date format and the
+            financial-year start applied to companies and employees mapped to
+            this region.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -366,8 +374,50 @@ function LocalizationDialog({
                   <FormItem>
                     <FormLabel>Date format</FormLabel>
                     <FormControl>
-                      <Input placeholder='DD-MM-YYYY' {...field} />
+                      <Input placeholder='DD-MM-YYYY (31-03-2026)' {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className='grid grid-cols-2 gap-4'>
+              <FormField
+                control={form.control}
+                name='numberFormat'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Number format</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder='12,34,567.89 (Indian lakh/crore)'
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='fiscalYearStart'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Financial year starts</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger variant='secondary' className='w-full'>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {FISCAL_YEAR_MONTHS.map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1049,7 +1099,14 @@ export function ConfigurationHubTab({
       accessorKey: 'currency',
       header: ({ column }) => <SortableHeader column={column} label='Currency' />,
       cell: ({ row }) => (
-        <span className='text-neutral-1900 text-sm'>{row.original.currency}</span>
+        <div className='flex min-w-0 flex-col'>
+          <span className='text-neutral-1900 text-sm'>
+            {row.original.currency}
+          </span>
+          <span className='text-paragraph-sm text-neutral-1000 truncate'>
+            {row.original.numberFormat}
+          </span>
+        </div>
       ),
     },
     {
@@ -1060,6 +1117,17 @@ export function ConfigurationHubTab({
       cell: ({ row }) => (
         <span className='text-neutral-1900 text-sm'>
           {row.original.dateFormat}
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'fiscalYearStart',
+      header: ({ column }) => (
+        <SortableHeader column={column} label='Financial year' />
+      ),
+      cell: ({ row }) => (
+        <span className='text-neutral-1900 text-sm'>
+          Starts {row.original.fiscalYearStart}
         </span>
       ),
     },

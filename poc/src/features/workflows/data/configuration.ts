@@ -177,14 +177,27 @@ export const seedConfigAreas: ConfigArea[] = [
 
 /* ------------------------- Organization settings ------------------------- */
 
+/** Month the financial year begins on — drives payroll periods and tax slabs. */
+export const FISCAL_YEAR_MONTHS = [
+  'January',
+  'April',
+  'July',
+  'October',
+] as const
+
 /** Regional localization pack (CFG-02). */
 export interface LocalizationSetting {
   id: string
   name: string
+  /** Full language label, e.g. "English (India) · en-IN". */
   language: string
   timezone: string
   currency: string
   dateFormat: string
+  /** Digit grouping + decimal style, e.g. "12,34,567.89 (Indian)". */
+  numberFormat: string
+  /** Month the financial year starts — one of FISCAL_YEAR_MONTHS. */
+  fiscalYearStart: (typeof FISCAL_YEAR_MONTHS)[number]
   isDefault: boolean
   updatedBy: string
   updatedAt: string
@@ -194,10 +207,12 @@ export const seedLocalizations: LocalizationSetting[] = [
   {
     id: 'loc-01',
     name: 'India — English',
-    language: 'English (en-IN)',
-    timezone: 'Asia/Kolkata (IST)',
-    currency: 'INR ₹',
-    dateFormat: 'DD-MM-YYYY',
+    language: 'English (India) · en-IN',
+    timezone: '(UTC+05:30) Asia/Kolkata — IST',
+    currency: 'Indian Rupee (INR ₹)',
+    dateFormat: 'DD-MM-YYYY (31-03-2026)',
+    numberFormat: '12,34,567.89 (Indian lakh/crore)',
+    fiscalYearStart: 'April',
     isDefault: true,
     updatedBy: 'Sunita Patil',
     updatedAt: '2026-05-02',
@@ -205,10 +220,12 @@ export const seedLocalizations: LocalizationSetting[] = [
   {
     id: 'loc-02',
     name: 'United States — English',
-    language: 'English (en-US)',
-    timezone: 'America/New_York (ET)',
-    currency: 'USD $',
-    dateFormat: 'MM/DD/YYYY',
+    language: 'English (United States) · en-US',
+    timezone: '(UTC-05:00) America/New_York — ET',
+    currency: 'US Dollar (USD $)',
+    dateFormat: 'MM/DD/YYYY (03/31/2026)',
+    numberFormat: '1,234,567.89 (Western thousands)',
+    fiscalYearStart: 'January',
     isDefault: false,
     updatedBy: 'Elena Garcia',
     updatedAt: '2026-03-27',
@@ -216,13 +233,28 @@ export const seedLocalizations: LocalizationSetting[] = [
   {
     id: 'loc-03',
     name: 'UAE — English',
-    language: 'English (en-AE)',
-    timezone: 'Asia/Dubai (GST)',
-    currency: 'AED د.إ',
-    dateFormat: 'DD/MM/YYYY',
+    language: 'English (United Arab Emirates) · en-AE',
+    timezone: '(UTC+04:00) Asia/Dubai — GST',
+    currency: 'UAE Dirham (AED د.إ)',
+    dateFormat: 'DD/MM/YYYY (31/03/2026)',
+    numberFormat: '1,234,567.89 (Western thousands)',
+    fiscalYearStart: 'January',
     isDefault: false,
     updatedBy: 'Farhan Ali',
     updatedAt: '2026-02-14',
+  },
+  {
+    id: 'loc-04',
+    name: 'United Kingdom — English',
+    language: 'English (United Kingdom) · en-GB',
+    timezone: '(UTC+00:00) Europe/London — GMT/BST',
+    currency: 'Pound Sterling (GBP £)',
+    dateFormat: 'DD/MM/YYYY (31/03/2026)',
+    numberFormat: '1,234,567.89 (Western thousands)',
+    fiscalYearStart: 'April',
+    isDefault: false,
+    updatedBy: 'Elena Garcia',
+    updatedAt: '2026-01-16',
   },
 ]
 
