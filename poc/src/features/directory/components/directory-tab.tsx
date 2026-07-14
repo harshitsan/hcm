@@ -3,7 +3,6 @@ import {
   BookmarkSimple,
   Cards,
   DownloadSimple,
-  Gear,
   ListBullets,
   Rows,
   Trash,
@@ -13,14 +12,13 @@ import { RoleGate, useRole } from '@/context/role-context'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { SpecTable, useColumnVisibility } from '@/components/common/data-table'
+import { DataTable } from '@/components/common/data-table/table'
 import { companyById, type Employee } from '../data/directory'
 import { COMPANY_FIELD_RESTRICTIONS } from '../data/directory-config'
 import {
@@ -37,7 +35,7 @@ import { type TimelineStore } from '../hooks/use-timeline'
 import { exportDirectoryResults } from '../utils/export'
 import { scopedCompanies } from '../utils/org'
 import { AdvancedSearch } from './advanced-search'
-import { directoryTableSpec } from './directory-table-spec'
+import { buildDirectoryColumns } from './directory-table-columns'
 import { DirectoryCardView, DirectoryCompactView } from './directory-views'
 import { SavedSearchOverlay } from './saved-search-overlay'
 import { TimelineSheet } from './timeline-sheet'
@@ -94,11 +92,17 @@ export function DirectoryTab({ store, config, timeline }: DirectoryTabProps) {
     [scopedEmployees, filters]
   )
 
-  const listSpec = useMemo(
-    () => directoryTableSpec({ showCompany: crossCompany }),
-    [crossCompany]
+  const columns = useMemo(
+    () =>
+      buildDirectoryColumns({
+        role,
+        config: config.privacyConfig,
+        customFields: config.customFields,
+        showCompany: crossCompany,
+        onViewTimeline: setTimelineEmployee,
+      }),
+    [role, config.privacyConfig, config.customFields, crossCompany]
   )
-  const { visibility, setVisibility } = useColumnVisibility(listSpec)
 
   // Per-company privacy holds inside aggregated results (DIR-15).
   const restrictedNote = useMemo(() => {
@@ -189,31 +193,6 @@ export function DirectoryTab({ store, config, timeline }: DirectoryTabProps) {
         </div>
 
         <div className='flex items-center gap-2'>
-          {store.viewMode === 'list' && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant='outline' className='h-7 gap-1 px-2 text-xs'>
-                  <Gear size={13} /> Columns
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align='end'>
-                {listSpec.columns
-                  .filter((c) => c.detail !== true)
-                  .map((c) => (
-                    <DropdownMenuCheckboxItem
-                      key={c.id}
-                      checked={visibility[c.id] !== false}
-                      disabled={c.required === true}
-                      onCheckedChange={(on) =>
-                        setVisibility({ ...visibility, [c.id]: on })
-                      }
-                    >
-                      {c.header}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
           <RoleGate roles={['Company Admin']}>
             {/* Saved searches (DIR-07) */}
             <DropdownMenu>
@@ -289,15 +268,13 @@ export function DirectoryTab({ store, config, timeline }: DirectoryTabProps) {
       </div>
 
       {store.viewMode === 'list' && (
-        <SpecTable
-          spec={listSpec}
+        <DataTable
+          columns={columns}
           data={results}
-          filters={{}}
-          visibility={visibility}
-          onVisibilityChange={setVisibility}
-          onRowClick={(e) => setTimelineEmployee(e)}
-          onSelectionChange={setSelectedRows}
+          variant='no-status'
           resetSelectionKey={resetSelectionKey}
+          onSelectionChange={(rows) => setSelectedRows(rows)}
+          onRowClick={(row) => setTimelineEmployee(row)}
         />
       )}
       {store.viewMode === 'card' && (
