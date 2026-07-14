@@ -71,6 +71,30 @@ describe('TableToolbar', () => {
     expect(onAdd).toHaveBeenCalledOnce()
   })
 
+  it('drives the search box from spec.search/searchQuery/onSearchChange when spec.search is defined', async () => {
+    const user = userEvent.setup()
+    const onSearchChange = vi.fn()
+    const searchSpec: TableSpec<Co> = { ...base, search: (r) => r.name }
+    render(
+      <TableToolbar spec={searchSpec} data={rows} filters={{}} onFiltersChange={noop}
+        visibility={{}} onVisibilityChange={noop}
+        searchQuery='acm' onSearchChange={onSearchChange} />
+    )
+    const boxes = screen.getAllByPlaceholderText(/search/i)
+    expect(boxes).toHaveLength(1)
+    expect(boxes[0]).toHaveValue('acm')
+    await user.type(boxes[0], 'x')
+    expect(onSearchChange).toHaveBeenCalled()
+  })
+
+  it('keeps the required-column search when spec.search is absent', () => {
+    render(
+      <TableToolbar spec={base} data={rows} filters={{}} onFiltersChange={noop}
+        visibility={{}} onVisibilityChange={noop} />
+    )
+    expect(screen.getByPlaceholderText(/search name/i)).toBeInTheDocument()
+  })
+
   it('disables required columns in the Columns menu', async () => {
     const user = userEvent.setup()
     render(

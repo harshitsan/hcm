@@ -33,4 +33,17 @@ describe('companiesTableSpec', () => {
     const noAdd = companiesTableSpec({ onAdd: () => {}, canCreate: false })
     expect(noAdd.add).toBeUndefined()
   })
+
+  it('searches legalName, tradeName, and code', () => {
+    expect(spec.search).toBeDefined()
+    const companyLike = {
+      legalName: 'Meridian Technologies Private Limited',
+      tradeName: 'Meridian Tech',
+      code: 'COMP-2023-0001',
+    } as Parameters<NonNullable<typeof spec.search>>[0]
+    const text = spec.search!(companyLike)
+    expect(text).toContain('Meridian Technologies Private Limited')
+    expect(text).toContain('Meridian Tech')
+    expect(text).toContain('COMP-2023-0001')
+  })
 })

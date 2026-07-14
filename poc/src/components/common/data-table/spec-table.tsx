@@ -42,6 +42,12 @@ interface SpecTableProps<T> {
   emptyMessage?: string
   onSelectionChange?: (selectedRows: T[]) => void
   resetSelectionKey?: number | string
+  /**
+   * Controlled multi-field search query, owned by the page (like `filters`).
+   * Only takes effect when `spec.search` is defined; applied ALONGSIDE the
+   * column filters (AND), before sorting/selection. No-op when empty.
+   */
+  searchQuery?: string
 }
 
 export function SpecTable<T>({
@@ -54,6 +60,7 @@ export function SpecTable<T>({
   emptyMessage = 'No data available',
   onSelectionChange,
   resetSelectionKey,
+  searchQuery,
 }: SpecTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>(
     spec.defaultSort
@@ -74,13 +81,21 @@ export function SpecTable<T>({
   const details = useMemo(() => detailColumns(spec), [spec])
   const ordered = useMemo(() => applyPrimaryFirst(data, spec), [data, spec])
 
+  const searched = useMemo(() => {
+    const query = searchQuery?.trim().toLowerCase()
+    if (!spec.search || !query) return ordered
+    return ordered.filter((row) =>
+      spec.search!(row).toLowerCase().includes(query)
+    )
+  }, [ordered, spec, searchQuery])
+
   const columnFilters = useMemo<ColumnFiltersState>(
     () => Object.entries(filters).map(([id, value]) => ({ id, value })),
     [filters]
   )
 
   const table = useReactTable({
-    data: ordered,
+    data: searched,
     columns,
     state: { sorting, columnFilters, columnVisibility: visibility, rowSelection },
     onSortingChange: setSorting,

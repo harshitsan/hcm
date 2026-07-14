@@ -70,6 +70,7 @@ export function DirectoryTab({
   const [lifecycleRequest, setLifecycleRequest] =
     useState<LifecycleRequest | null>(null)
   const [filters, setFilters] = useState<Record<string, FilterValue>>({})
+  const [searchQuery, setSearchQuery] = useState('')
 
   const scoped = useMemo(
     () => scopeCompanies(store.companies, role),
@@ -277,6 +278,8 @@ export function DirectoryTab({
         onFiltersChange={setFilters}
         visibility={visibility}
         onVisibilityChange={setVisibility}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
       />
       <SpecTable
         spec={spec}
@@ -287,6 +290,7 @@ export function DirectoryTab({
         onRowClick={openDetail}
         onSelectionChange={setSelectedRows}
         resetSelectionKey={resetSelectionKey}
+        searchQuery={searchQuery}
       />
       <p className='text-paragraph-sm text-neutral-1000 mt-2'>
         Showing {scoped.length} companies scoped to your access — companies

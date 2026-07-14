@@ -115,4 +115,24 @@ describe('SpecTable', () => {
     )
     expect(onSel).toHaveBeenLastCalledWith([])
   })
+
+  it('filters rows by spec.search + searchQuery, hiding non-matches', () => {
+    const searchSpec: TableSpec<Co> = { ...spec, search: (r) => r.name }
+    render(
+      <SpecTable spec={searchSpec} data={rows} filters={{}}
+        visibility={shown} onVisibilityChange={noop} searchQuery='glob' />
+    )
+    expect(screen.getByText('Globex')).toBeInTheDocument()
+    expect(screen.queryByText('Acme')).not.toBeInTheDocument()
+  })
+
+  it('is a no-op when searchQuery is empty', () => {
+    const searchSpec: TableSpec<Co> = { ...spec, search: (r) => r.name }
+    render(
+      <SpecTable spec={searchSpec} data={rows} filters={{}}
+        visibility={shown} onVisibilityChange={noop} searchQuery='' />
+    )
+    expect(screen.getByText('Acme')).toBeInTheDocument()
+    expect(screen.getByText('Globex')).toBeInTheDocument()
+  })
 })

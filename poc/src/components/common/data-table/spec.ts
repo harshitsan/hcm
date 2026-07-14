@@ -40,6 +40,12 @@ export interface TableSpec<T> {
   /** Add never edits inline — it routes to the real add experience. */
   add?: { label: string; onAdd: () => void }
   rowHref?: (row: T) => string
+  /**
+   * Concatenated searchable text for a row, used by the toolbar's search box
+   * and SpecTable's `searchQuery` prop. When present, the toolbar switches
+   * from the required-string-column search to this multi-field search.
+   */
+  search?: (row: T) => string
 }
 
 const collator = new Intl.Collator(undefined, { sensitivity: 'base' })

@@ -38,6 +38,13 @@ interface TableToolbarProps<T> {
   onVisibilityChange: (next: Record<string, boolean>) => void
   view?: ViewMode
   onViewChange?: (v: ViewMode) => void
+  /**
+   * Controlled multi-field search query, owned by the page. Only rendered
+   * (and only wired to the search box) when `spec.search` is defined — specs
+   * without it keep the existing required-string-column search.
+   */
+  searchQuery?: string
+  onSearchChange?: (q: string) => void
 }
 
 function FacetControl<T>({
@@ -123,7 +130,7 @@ function RangeControl({
 
 export function TableToolbar<T>({
   spec, data, filters, onFiltersChange, visibility, onVisibilityChange,
-  view = 'table', onViewChange,
+  view = 'table', onViewChange, searchQuery, onSearchChange,
 }: TableToolbarProps<T>) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
@@ -146,17 +153,26 @@ export function TableToolbar<T>({
 
   return (
     <div className='flex flex-wrap items-center gap-2 pb-3'>
-      {searchCol && (
+      {spec.search ? (
         <Input
           className='max-w-64'
-          placeholder={`Search ${searchCol.header.toLowerCase()}…`}
-          value={
-            (filters[searchCol.id] as { query?: string } | undefined)?.query ?? ''
-          }
-          onChange={(e) =>
-            set(searchCol.id, { kind: 'text', query: e.target.value })
-          }
+          placeholder='Search…'
+          value={searchQuery ?? ''}
+          onChange={(e) => onSearchChange?.(e.target.value)}
         />
+      ) : (
+        searchCol && (
+          <Input
+            className='max-w-64'
+            placeholder={`Search ${searchCol.header.toLowerCase()}…`}
+            value={
+              (filters[searchCol.id] as { query?: string } | undefined)?.query ?? ''
+            }
+            onChange={(e) =>
+              set(searchCol.id, { kind: 'text', query: e.target.value })
+            }
+          />
+        )
       )}
 
       {quick.map((c) => (

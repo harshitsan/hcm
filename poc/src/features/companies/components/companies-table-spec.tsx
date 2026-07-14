@@ -17,6 +17,7 @@ export function companiesTableSpec({
     id: 'companies-directory',
     defaultSort: { id: 'legalName', dir: 'asc' },
     add: canCreate ? { label: 'New Company', onAdd } : undefined,
+    search: (c) => `${c.legalName} ${c.tradeName} ${c.code}`,
     columns: [
       {
         id: 'legalName',
