@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Plus, ShieldWarning, UserPlus } from 'phosphor-react'
+import { Gear, Plus, ShieldWarning, UserPlus } from 'phosphor-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -11,8 +11,16 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
-import { DataTable } from '@/components/common/data-table/table'
-import { selectColumn } from '@/features/workflows/components/table-helpers'
+import {
+  SpecTable,
+  useColumnVisibility,
+} from '@/components/common/data-table'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { type FmlaReason } from '../data/config'
 import { type LeaveType } from '../data/leave-types'
 import { pendingStep, type LeaveRequest } from '../data/requests'
@@ -29,10 +37,10 @@ import { type LeaveRequestsStore } from '../hooks/use-leave-requests'
 import { ApplyLeaveOverlay } from './apply-leave-overlay'
 import { AssignLeaveDialog } from './assign-leave-dialog'
 import { EncashmentPanel } from './encashment-panel'
+import { leaveRequestsSpec } from './leave-requests-spec'
 import { LeaveSummaryCards } from './leave-summary-cards'
 import { OverrideDialog } from './override-dialog'
 import { RequestDetailSheet } from './request-detail-sheet'
-import { requestColumns } from './request-columns'
 
 interface RequestsTabProps {
   requests: LeaveRequestsStore
@@ -48,8 +56,8 @@ interface RequestsTabProps {
  * employee-class + department filters with a one-click reset (EOHR-01/05,
  * ETOR-01/02), Assign Time Off, record-on-behalf for Employee (Non-User)
  * staff (LVE-17/29) and administrative overrides (LVE-07). Approve / Reject
- * run inline from the row (with SLA indicator) or in bulk via row selection;
- * Need clarification / Cancel / View run from the row's detail sheet.
+ * run in bulk via row selection or from the row's detail sheet (with SLA
+ * indicator); Need clarification / Cancel / View also run from that sheet.
  */
 export function RequestsTab({
   requests,
@@ -199,17 +207,8 @@ export function RequestsTab({
     clearSelection()
   }
 
-  const columns = useMemo(
-    () => [
-      selectColumn<LeaveRequest>(),
-      ...requestColumns(true, {
-        onApprove: (r) => requests.approve(r.id, false),
-        onReject: (r) => setRejectTargets([r]),
-      }),
-    ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [requests.approve]
-  )
+  const spec = useMemo(() => leaveRequestsSpec(), [])
+  const { visibility, setVisibility } = useColumnVisibility(spec)
   const nonUsers = EMPLOYEES.filter((e) => !e.selfService && e.active)
 
   return (
@@ -226,6 +225,30 @@ export function RequestsTab({
               Reset filters
             </Button>
           )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant='outline' className='h-7 gap-1'>
+                <Gear size={14} weight='bold' />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end' className='min-w-[180px]'>
+              {spec.columns
+                .filter((c) => c.detail !== true)
+                .map((c) => (
+                  <DropdownMenuCheckboxItem
+                    key={c.id}
+                    checked={visibility[c.id] !== false}
+                    disabled={c.required === true}
+                    onCheckedChange={(on) =>
+                      setVisibility({ ...visibility, [c.id]: on })
+                    }
+                  >
+                    {c.header}
+                  </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Select value={empStatus} onValueChange={setEmpStatus}>
             <SelectTrigger variant='secondary' className='h-7 w-[160px]'>
               <SelectValue />
@@ -371,11 +394,13 @@ export function RequestsTab({
         </div>
       )}
 
-      <DataTable
-        columns={columns}
+      <SpecTable
+        spec={spec}
         data={data}
-        variant='no-status'
-        onRowClick={(row: LeaveRequest) => setSelectedId(row.id)}
+        filters={{}}
+        visibility={visibility}
+        onVisibilityChange={setVisibility}
+        onRowClick={(row) => setSelectedId(row.id)}
         onSelectionChange={setSelectedRows}
         resetSelectionKey={selectionKey}
       />
