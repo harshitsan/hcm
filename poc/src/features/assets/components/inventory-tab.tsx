@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { CaretDown, ClockCounterClockwise, PencilSimple, Plus } from 'phosphor-react'
+import { CaretDown, ClockCounterClockwise, Gear, PencilSimple, Plus } from 'phosphor-react'
 import { useRole } from '@/context/role-context'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -17,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DataTable } from '@/components/common/data-table/table'
+import { SpecTable, useColumnVisibility } from '@/components/common/data-table'
 import { ACTION_LABELS, ASSET_STATES, type Asset, type AssetAction } from '../data/assets'
 import {
   EMPLOYEES,
@@ -28,7 +29,8 @@ import {
 } from '../data/org'
 import { type AssetConfigStore } from '../hooks/use-asset-config'
 import { type AssetsStore } from '../hooks/use-assets'
-import { assetTableColumns, daysOverdue } from './asset-columns'
+import { assetInventorySpec } from './asset-inventory-spec'
+import { daysOverdue } from './asset-columns'
 import { AssetFormOverlay } from './asset-form-overlay'
 import { AssetHistoryOverlay } from './asset-history-overlay'
 import { SummaryCards } from './summary-cards'
@@ -126,7 +128,8 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
     setResetSelectionKey((k) => k + 1)
   }
 
-  const columns = useMemo(() => assetTableColumns(today, showCompany), [today, showCompany])
+  const spec = useMemo(() => assetInventorySpec({ today, showCompany }), [today, showCompany])
+  const { visibility, setVisibility } = useColumnVisibility(spec)
 
   const employees = useMemo(
     () => EMPLOYEES.filter((e) => e.company === HOME_COMPANY && e.active),
@@ -258,81 +261,107 @@ export function InventoryTab({ store, config }: InventoryTabProps) {
             </span>
           )}
         </h2>
-        {isCompanyAdmin && (
-          <div className='flex items-center gap-3'>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant='outline'
-                  className='h-7 gap-1 rounded-[6px] px-2'
-                  disabled={!singleLive}
-                >
-                  Transaction
-                  <CaretDown size={12} weight='bold' />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align='end' className='min-w-[220px]'>
-                {ALL_ACTIONS.map((action) => (
-                  <DropdownMenuItem key={action} onClick={() => setTxnAction(action)}>
-                    {ACTION_LABELS[action]}
-                  </DropdownMenuItem>
+        <div className='flex items-center gap-3'>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant='outline' className='h-7 gap-1 rounded-[6px] px-2'>
+                <Gear size={14} weight='bold' />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end' className='min-w-[180px]'>
+              {spec.columns
+                .filter((c) => c.detail !== true)
+                .map((c) => (
+                  <DropdownMenuCheckboxItem
+                    key={c.id}
+                    checked={visibility[c.id] !== false}
+                    disabled={c.required === true}
+                    onCheckedChange={(on) => setVisibility({ ...visibility, [c.id]: on })}
+                  >
+                    {c.header}
+                  </DropdownMenuCheckboxItem>
                 ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {isCompanyAdmin && (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='outline'
+                    className='h-7 gap-1 rounded-[6px] px-2'
+                    disabled={!singleLive}
+                  >
+                    Transaction
+                    <CaretDown size={12} weight='bold' />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end' className='min-w-[220px]'>
+                  {ALL_ACTIONS.map((action) => (
+                    <DropdownMenuItem key={action} onClick={() => setTxnAction(action)}>
+                      {ACTION_LABELS[action]}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button
+                variant='icon2'
+                className='text-neutral-1900 h-7 w-7'
+                disabled={!singleLive}
+                onClick={() => setHistoryOpen(true)}
+                aria-label='History'
+                title='Assignment history for this asset'
+              >
+                <ClockCounterClockwise size={16} weight='bold' />
+              </Button>
+              <Button
+                variant='icon2'
+                className='text-neutral-1900 h-7 w-7'
+                disabled={!singleLive}
+                onClick={() => {
+                  setEditing(singleLive)
+                  setFormOpen(true)
+                }}
+                aria-label='Edit'
+                title='Edit this asset'
+              >
+                <PencilSimple size={16} weight='fill' />
+              </Button>
+              <Button
+                variant='red'
+                onClick={() => {
+                  setEditing(null)
+                  setFormOpen(true)
+                }}
+                className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
+              >
+                <Plus size={10} weight='bold' />
+                Register Asset
+              </Button>
+            </>
+          )}
+          {!isCompanyAdmin && (
             <Button
-              variant='icon2'
-              className='text-neutral-1900 h-7 w-7'
+              variant='outline'
+              className='h-7 rounded-[6px] px-2.5'
               disabled={!singleLive}
               onClick={() => setHistoryOpen(true)}
-              aria-label='History'
-              title='Assignment history for this asset'
             >
-              <ClockCounterClockwise size={16} weight='bold' />
+              View history
             </Button>
-            <Button
-              variant='icon2'
-              className='text-neutral-1900 h-7 w-7'
-              disabled={!singleLive}
-              onClick={() => {
-                setEditing(singleLive)
-                setFormOpen(true)
-              }}
-              aria-label='Edit'
-              title='Edit this asset'
-            >
-              <PencilSimple size={16} weight='fill' />
-            </Button>
-            <Button
-              variant='red'
-              onClick={() => {
-                setEditing(null)
-                setFormOpen(true)
-              }}
-              className='bg-orange-1200 hover:bg-orange-1200 h-7 gap-1! rounded-[6px]! px-1.5!'
-            >
-              <Plus size={10} weight='bold' />
-              Register Asset
-            </Button>
-          </div>
-        )}
-        {!isCompanyAdmin && (
-          <Button
-            variant='outline'
-            className='h-7 rounded-[6px] px-2.5'
-            disabled={!singleLive}
-            onClick={() => setHistoryOpen(true)}
-          >
-            View history
-          </Button>
-        )}
+          )}
+        </div>
       </div>
 
-      <DataTable
-        columns={columns}
+      <SpecTable
+        spec={spec}
         data={filtered}
-        variant='no-status'
-        resetSelectionKey={resetSelectionKey}
+        filters={{}}
+        visibility={visibility}
+        onVisibilityChange={setVisibility}
         onSelectionChange={(rows) => setSelectedRows(rows)}
+        resetSelectionKey={resetSelectionKey}
       />
 
       <AssetFormOverlay
