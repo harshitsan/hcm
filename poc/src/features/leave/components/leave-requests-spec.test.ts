@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { leaveRequestsSpec } from './leave-requests-spec'
 
 describe('leaveRequestsSpec', () => {
-  const spec = leaveRequestsSpec()
+  const spec = leaveRequestsSpec({ onApprove: () => {}, onReject: () => {} })
 
   const col = (id: string) => spec.columns.find((c) => c.id === id)
 
@@ -27,6 +27,13 @@ describe('leaveRequestsSpec', () => {
   it('includes pendingWith as a detail-tier column', () => {
     const detailIds = spec.columns.filter((c) => c.detail === true).map((c) => c.id)
     expect(detailIds).toContain('pendingWith')
+  })
+
+  it('exposes an inline actions column that is neither detail nor filtered', () => {
+    const actions = col('actions')
+    expect(actions).toBeDefined()
+    expect(actions?.detail).not.toBe(true)
+    expect(actions?.filter).toBeUndefined()
   })
 
   it('does not define add or views', () => {

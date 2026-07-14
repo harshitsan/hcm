@@ -1,12 +1,22 @@
 import type { TableSpec } from '@/components/common/data-table'
+import { Button } from '@/components/ui/button'
 import { fmtDate } from '../data/shared'
 import { pendingStep, type LeaveRequest } from '../data/requests'
 import { LopBadge, StatusBadge } from './badges'
 
+/** Inline row decisions on the manager/admin Requests desk. */
+interface LeaveRequestsSpecOpts {
+  onApprove: (request: LeaveRequest) => void
+  onReject: (request: LeaveRequest) => void
+}
+
 /** Manager/admin Requests desk — filtering stays external (bespoke virtual
  * statuses + class/department/date filters in requests-tab.tsx); this spec
- * only drives the grid columns, custom-columns menu and row expansion. */
-export function leaveRequestsSpec(): TableSpec<LeaveRequest> {
+ * only drives the grid columns, custom-columns menu and row expansion. The
+ * Actions column runs the inline Approve/Reject decisions (with SLA badge). */
+export function leaveRequestsSpec(
+  opts: LeaveRequestsSpecOpts
+): TableSpec<LeaveRequest> {
   return {
     id: 'leave-requests',
     defaultSort: { id: 'employeeName', dir: 'asc' },
@@ -80,6 +90,49 @@ export function leaveRequestsSpec(): TableSpec<LeaveRequest> {
           const step = pendingStep(r.steps)
           if (!step) return '—'
           return `${step.approver} (L${step.level})${step.escalated ? ' — escalated' : ''}`
+        },
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        type: 'string',
+        accessor: () => '',
+        cell: (r) => {
+          if (r.status !== 'pending') {
+            return <span className='text-neutral-1000 text-xs'>—</span>
+          }
+          const step = pendingStep(r.steps)
+          return (
+            <div className='flex items-center gap-1.5'>
+              <Button
+                variant='outline'
+                className='h-6 px-2 text-xs'
+                onClick={(e) => {
+                  e.stopPropagation()
+                  opts.onApprove(r)
+                }}
+              >
+                Approve
+              </Button>
+              <Button
+                variant='outline'
+                className='text-red-1400 h-6 px-2 text-xs'
+                onClick={(e) => {
+                  e.stopPropagation()
+                  opts.onReject(r)
+                }}
+              >
+                Reject
+              </Button>
+              {step && (
+                <span
+                  className={`text-xs whitespace-nowrap ${step.escalated ? 'text-red-1400' : 'text-neutral-1000'}`}
+                >
+                  {step.escalated ? 'SLA breached' : `SLA ${step.slaHours}h`}
+                </span>
+              )}
+            </div>
+          )
         },
       },
     ],

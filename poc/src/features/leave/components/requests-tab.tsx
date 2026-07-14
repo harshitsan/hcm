@@ -56,8 +56,8 @@ interface RequestsTabProps {
  * employee-class + department filters with a one-click reset (EOHR-01/05,
  * ETOR-01/02), Assign Time Off, record-on-behalf for Employee (Non-User)
  * staff (LVE-17/29) and administrative overrides (LVE-07). Approve / Reject
- * run in bulk via row selection or from the row's detail sheet (with SLA
- * indicator); Need clarification / Cancel / View also run from that sheet.
+ * run inline from the row (with SLA indicator) or in bulk via row selection;
+ * Need clarification / Cancel / View run from the row's detail sheet.
  */
 export function RequestsTab({
   requests,
@@ -207,7 +207,15 @@ export function RequestsTab({
     clearSelection()
   }
 
-  const spec = useMemo(() => leaveRequestsSpec(), [])
+  const spec = useMemo(
+    () =>
+      leaveRequestsSpec({
+        onApprove: (r) => requests.approve(r.id, false),
+        onReject: (r) => setRejectTargets([r]),
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [requests.approve]
+  )
   const { visibility, setVisibility } = useColumnVisibility(spec)
   const nonUsers = EMPLOYEES.filter((e) => !e.selfService && e.active)
 
