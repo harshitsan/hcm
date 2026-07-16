@@ -21,7 +21,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -38,7 +37,6 @@ const shareFormSchema = z.object({
   targetCompanyIds: z
     .array(z.string())
     .min(1, 'Select at least one group company to share with'),
-  effectiveFrom: z.string().min(10, 'Effective date is required'),
 })
 
 type ShareFormValues = z.infer<typeof shareFormSchema>
@@ -53,17 +51,17 @@ interface ShareDialogProps {
 }
 
 /**
- * Explicit sharing configuration (LOC-04/05/13): pick an owned location,
+ * Explicit sharing configuration (LOC-04/05/13): pick an owned location and
  * choose target companies inside the same group (companies outside the
- * group-company structure are visibly blocked, LOC-07) and set an effective
- * date — a future date schedules the version.
+ * group-company structure are visibly blocked, LOC-07). The effective date is
+ * stamped automatically — today for a new share, unchanged when editing.
  */
 export function ShareDialog({ open, onOpenChange, store, share, actor }: ShareDialogProps) {
   const isEdit = Boolean(share)
 
   const form = useForm<ShareFormValues>({
     resolver: zodResolver(shareFormSchema),
-    defaultValues: { locationId: '', targetCompanyIds: [], effectiveFrom: todayISO() },
+    defaultValues: { locationId: '', targetCompanyIds: [] },
   })
 
   useEffect(() => {
@@ -73,9 +71,8 @@ export function ShareDialog({ open, onOpenChange, store, share, actor }: ShareDi
         ? {
             locationId: share.locationId,
             targetCompanyIds: share.targetCompanyIds,
-            effectiveFrom: share.effectiveFrom,
           }
-        : { locationId: '', targetCompanyIds: [], effectiveFrom: todayISO() }
+        : { locationId: '', targetCompanyIds: [] }
     )
   }, [open, share, form])
 
@@ -86,7 +83,10 @@ export function ShareDialog({ open, onOpenChange, store, share, actor }: ShareDi
   }, [locationId, store.locationById])
 
   function handleSubmit(values: ShareFormValues) {
-    store.enableShare(values.locationId, values.targetCompanyIds, values.effectiveFrom, actor)
+    // Effective date is auto-stamped: keep the existing one when editing,
+    // otherwise the share takes effect today.
+    const effectiveFrom = share?.effectiveFrom ?? todayISO()
+    store.enableShare(values.locationId, values.targetCompanyIds, effectiveFrom, actor)
     onOpenChange(false)
   }
 
@@ -178,24 +178,6 @@ export function ShareDialog({ open, onOpenChange, store, share, actor }: ShareDi
                   <FormDescription>
                     Only companies in the same group-company structure as the
                     owner can be selected. No location is shared implicitly.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name='effectiveFrom'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Effective from</FormLabel>
-                  <FormControl>
-                    <Input type='date' {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    A future date schedules the change — availability updates
-                    automatically when the date is reached.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

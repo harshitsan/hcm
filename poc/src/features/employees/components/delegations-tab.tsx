@@ -94,6 +94,19 @@ export function DelegationsTab({ store }: { store: EmployeesStore }) {
     .filter((e) => e.lifecycleStage !== 'Exited')
     .map((e) => e.name)
 
+  // Team scope options as "Department — Location", derived from active
+  // employees; existing delegation teams are kept selectable so seeded values
+  // stay valid.
+  const teamOptions = useMemo(() => {
+    const set = new Set<string>()
+    for (const e of store.employees) {
+      if (e.lifecycleStage === 'Exited') continue
+      for (const dept of e.departments) set.add(`${dept} — ${e.functionalLocation}`)
+    }
+    for (const d of delegations) set.add(d.team)
+    return Array.from(set).sort()
+  }, [store.employees, delegations])
+
   const valid =
     manager && acting && manager !== acting && team && startDate && endDate
 
@@ -245,11 +258,18 @@ export function DelegationsTab({ store }: { store: EmployeesStore }) {
             </div>
             <div className='space-y-1'>
               <Label>Team</Label>
-              <Input
-                placeholder='e.g. Engineering — Bengaluru'
-                value={team}
-                onChange={(e) => setTeam(e.target.value)}
-              />
+              <Select value={team} onValueChange={setTeam}>
+                <SelectTrigger variant='secondary' className='w-full'>
+                  <SelectValue placeholder='Select a team' />
+                </SelectTrigger>
+                <SelectContent>
+                  {teamOptions.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className='grid grid-cols-2 gap-3'>
               <div className='space-y-1'>

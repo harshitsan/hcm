@@ -6,10 +6,8 @@ import { useRole } from '@/context/role-context'
 import { EngineArtifactsPanel } from '@/features/workflows/components/engine-artifacts-panel'
 import { takeRequestedTab } from '@/features/workflows/data/module-nav'
 import { GovernanceTab } from './components/governance-tab'
-import { LocalizationTab } from './components/localization-tab'
 import { LocationsTab } from './components/locations-tab'
 import { MyLocationTab } from './components/my-location-tab'
-import { OrganizationTab } from './components/organization-tab'
 import { SharingTab } from './components/sharing-tab'
 import { useLocations } from './hooks/use-locations'
 import { useOrganization } from './hooks/use-organization'
@@ -21,9 +19,10 @@ interface TabDef {
 
 /**
  * Locations module: company-scoped physical sites tied to a single
- * jurisdiction, explicit group-company sharing with a versioned audit trail,
- * head-office organization setup and localization settings. Visible tabs vary
- * with the active role; admin/config surfaces are grouped under one Admin tab.
+ * jurisdiction, with explicit group-company sharing backed by a versioned
+ * audit trail. Company profile + Regional settings now live under Companies →
+ * Admin; the Locations Admin tab carries only Platform Admin data-quality
+ * tooling. Visible tabs vary with the active role.
  */
 export function Locations() {
   const { role } = useRole()
@@ -32,24 +31,18 @@ export function Locations() {
 
   const isEmployee =
     role === 'Employee (User)' || role === 'Employee (Non-User)'
-  const isCompanyAdmin = role === 'Company Admin'
   const isGroupAdmin = role === 'Group Company Admin'
   const isPlatformAdmin = role === 'Platform Admin'
 
-  // Admin sub-sections keep the same role gates the old top-level tabs had.
+  // Company profile + Regional settings moved to Companies → Admin; the
+  // Locations Admin tab now only carries Platform Admin data-quality tooling.
   const adminSections = useMemo<TabDef[]>(() => {
     const list: TabDef[] = []
-    if (isCompanyAdmin) {
-      list.push(
-        { value: 'organization', label: 'Company profile' },
-        { value: 'localization', label: 'Regional settings' }
-      )
-    }
     if (isPlatformAdmin) {
       list.push({ value: 'governance', label: 'Data quality' })
     }
     return list
-  }, [isCompanyAdmin, isPlatformAdmin])
+  }, [isPlatformAdmin])
 
   const tabs = useMemo<TabDef[]>(() => {
     if (isEmployee) return [{ value: 'my', label: 'My Location' }]
@@ -97,18 +90,6 @@ export function Locations() {
               <TabsContent value='admin'>
                 <EngineArtifactsPanel module='Locations' />
                 <div className='flex flex-col gap-6'>
-                  {isCompanyAdmin && (
-                    <>
-                      <section>
-                        <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Company profile</h3>
-                        <OrganizationTab org={org} store={store} />
-                      </section>
-                      <section>
-                        <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Regional settings</h3>
-                        <LocalizationTab org={org} />
-                      </section>
-                    </>
-                  )}
                   {isPlatformAdmin && (
                     <section>
                       <h3 className='text-paragraph-md text-neutral-1400 mb-3 font-semibold'>Data quality</h3>
