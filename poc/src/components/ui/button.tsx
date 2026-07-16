@@ -9,7 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-primary focus-visible:ring-[1px] focus-visible:border-ring focus-visible:ring-ring/50 text-primary-foreground shadow-xs hover:bg-primary/90 active:shadow-[inset_0px_2px_2px_0px_#1A1A1A33,inset_1px_0px_2px_0px_#1A1A1A1F,inset_-1px_0px_2px_0px_#1A1A1A1F] shadow-[inset_0_1px_0_0_#E3E3E3,inset_1px_0_0_0_#E3E3E3,inset_-1px_0_0_0_#E3E3E3,inset_0_-1px_0_0_#B5B5B5] hover:!shadow-[inset_0px_1px_0px_0px_#EBEBEB,inset_-1px_0px_0px_0px_#EBEBEB,inset_1px_0px_0px_0px_#EBEBEB,inset_0px_-2px_0px_0px_#CCCCCC] focus-visible:shadow-[0px_0px_0px_2px_#1F5ADB] focus-visible:ring-[1px] active:shadow-[inset_0px_2px_2px_0px_#1A1A1A33,inset_1px_0px_2px_0px_#1A1A1A1F,inset_-1px_0px_2px_0px_#1A1A1A1F]',
+          'bg-orange-1200 text-white hover:bg-signal-600 shadow-[inset_0_1px_0_0_#FFFFFF33,inset_1px_0_0_0_#FFFFFF1F,inset_-1px_0_0_0_#FFFFFF1F,inset_0_-1px_0_0_#B83F24] hover:!shadow-[inset_0px_1px_0px_0px_#FFFFFF3D,inset_1px_0px_0px_0px_#FFFFFF29,inset_-1px_0px_0px_0px_#FFFFFF29,inset_0px_-2px_0px_0px_#B83F24] active:shadow-[inset_0px_2px_2px_0px_#1A1A1A33,inset_1px_0px_2px_0px_#1A1A1A1F,inset_-1px_0px_2px_0px_#1A1A1A1F] focus-visible:shadow-[0px_0px_0px_2px_#1F5ADB] focus-visible:ring-[1px] focus-visible:border-ring focus-visible:ring-ring/50',
 
         destructive:
           'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20',

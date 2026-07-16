@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { type ReactNode, useRef, useState } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronRight, Lock } from 'lucide-react'
 import { canAccess, rolesForPath } from '@/config/module-access'
@@ -8,6 +8,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -21,19 +26,19 @@ import {
 } from '@/components/ui/sidebar'
 import { Badge } from '../ui/badge'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu'
-import {
   type NavCollapsible,
   type NavItem,
   type NavLink,
   type NavGroup as NavGroupProps,
 } from './types'
+
+/**
+ * Tree connector for nested rows: a continuous vertical trunk down the left,
+ * terminating in an elbow (└) at the last child. Applied to category-group
+ * children and module sub-items alike.
+ */
+const TREE_ITEM =
+  "relative pl-4 before:absolute before:top-0 before:left-0 before:h-full before:w-px before:bg-white/20 before:content-[''] [&:last-child]:before:h-1/2 [&:last-child]:after:absolute [&:last-child]:after:top-1/2 [&:last-child]:after:left-0 [&:last-child]:after:h-px [&:last-child]:after:w-3 [&:last-child]:after:bg-white/20 [&:last-child]:after:content-['']"
 
 /**
  * Sidebar module group. Expanded sidebar: an accordion section (collapsible
@@ -54,7 +59,7 @@ export function NavGroup({ title, items }: NavGroupProps) {
             if (!item.items)
               return <SidebarMenuLink key={key} item={item} href={href} />
             return (
-              <SidebarMenuCollapsedDropdown key={key} item={item} href={href} />
+              <SidebarMenuCollapsedFlyout key={key} item={item} href={href} />
             )
           })}
         </SidebarMenu>
@@ -62,24 +67,44 @@ export function NavGroup({ title, items }: NavGroupProps) {
     )
   }
 
-  const rows = (
+  const renderRows = (rowClassName?: string) => (
     <SidebarMenu>
       {items.map((item) => {
         const key = `${item.title}-${item.url}`
         if (!item.items)
-          return <SidebarMenuRow key={key} item={item} href={href} />
-        return <SidebarMenuCollapsible key={key} item={item} href={href} />
+          return (
+            <SidebarMenuRow
+              key={key}
+              item={item}
+              href={href}
+              className={rowClassName}
+            />
+          )
+        return (
+          <SidebarMenuCollapsible
+            key={key}
+            item={item}
+            href={href}
+            className={rowClassName}
+          />
+        )
       })}
     </SidebarMenu>
   )
 
   // Ungrouped items (e.g. Dashboard) render as plain rows without a label.
-  if (!title) return <SidebarGroup className='pb-0'>{rows}</SidebarGroup>
+  if (!title) return <SidebarGroup className='pb-0'>{renderRows()}</SidebarGroup>
+
+  // Collapsed by default; only the group holding the active route opens.
+  const groupHasActive = items.some((it) =>
+    'items' in it && it.items
+      ? checkIsActive(href, it, true)
+      : checkIsActive(href, it)
+  )
 
   return (
     <Collapsible
-      // All groups start expanded so first-time users see every module.
-      defaultOpen
+      defaultOpen={groupHasActive}
       className='group/nav-group'
       asChild
     >
@@ -93,7 +118,7 @@ export function NavGroup({ title, items }: NavGroupProps) {
           </CollapsibleTrigger>
         </SidebarGroupLabel>
         <CollapsibleContent className='CollapsibleContent'>
-          {rows}
+          {renderRows(TREE_ITEM)}
         </CollapsibleContent>
       </SidebarGroup>
     </Collapsible>
@@ -101,7 +126,15 @@ export function NavGroup({ title, items }: NavGroupProps) {
 }
 
 /** Expanded-sidebar row: icon + title link, with the lock state for roles without access. */
-function SidebarMenuRow({ item, href }: { item: NavLink; href: string }) {
+function SidebarMenuRow({
+  item,
+  href,
+  className,
+}: {
+  item: NavLink
+  href: string
+  className?: string
+}) {
   const { setOpenMobile } = useSidebar()
   const { role } = useRole()
   const isActive = checkIsActive(href, item)
@@ -110,9 +143,9 @@ function SidebarMenuRow({ item, href }: { item: NavLink; href: string }) {
   if (!accessible) {
     const allowed = rolesForPath(String(item.url))
     return (
-      <SidebarMenuItem>
+      <SidebarMenuItem className={className}>
         <div
-          className='flex h-8 cursor-not-allowed items-center gap-2 rounded-md px-2 opacity-50'
+          className='flex h-9 cursor-not-allowed items-center gap-2 rounded-lg px-2 opacity-50'
           title={
             allowed.length
               ? `Requires role: ${allowed.join(', ')}`
@@ -120,7 +153,7 @@ function SidebarMenuRow({ item, href }: { item: NavLink; href: string }) {
           }
         >
           {item.icon && (
-            <item.icon className='text-white/40 !h-[17px] !w-[17px] shrink-0' />
+            <item.icon className='text-white/40 !h-[18px] !w-[18px] shrink-0' />
           )}
           <span className='truncate text-[13.5px] text-white/40'>
             {item.title}
@@ -132,25 +165,25 @@ function SidebarMenuRow({ item, href }: { item: NavLink; href: string }) {
   }
 
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem className={className}>
       <SidebarMenuButton
         asChild
         isActive={isActive}
         className={[
-          '!rounded-md text-white/75 hover:text-white',
+          '!h-9 !rounded-lg',
           isActive
-            ? '!bg-sidebar-accent !text-sidebar-accent-foreground !font-medium hover:!bg-sidebar-accent'
-            : 'hover:!bg-white/10',
+            ? '!bg-white/[0.08] !text-white !font-medium ring-1 ring-white/[0.06] hover:!bg-white/[0.08]'
+            : 'text-white/70 hover:!bg-white/[0.05] hover:text-white',
         ].join(' ')}
       >
         <Link
           to={item.url}
           onClick={() => setOpenMobile(false)}
-          className='text-white/75 hover:text-white'
+          className={isActive ? 'text-white' : 'text-white/70 hover:text-white'}
         >
           {item.icon && (
             <item.icon
-              className={`!h-[17px] !w-[17px] shrink-0 ${isActive ? 'text-white' : 'text-white/60'}`}
+              className={`!h-[18px] !w-[18px] shrink-0 ${isActive ? 'text-white' : 'text-white/55'}`}
             />
           )}
           <span className='truncate text-[13.5px]'>{item.title}</span>
@@ -162,7 +195,11 @@ function SidebarMenuRow({ item, href }: { item: NavLink; href: string }) {
 }
 
 function NavBadge({ children }: { children: ReactNode }) {
-  return <Badge className='rounded-full px-1 py-0 text-xs'>{children}</Badge>
+  return (
+    <Badge className='ms-auto min-w-5 justify-center rounded-full border-0 bg-indigo-600 px-1.5 py-0 text-[11px] font-semibold tabular-nums text-white'>
+      {children}
+    </Badge>
+  )
 }
 
 function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
@@ -174,63 +211,46 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
   if (!accessible) {
     const allowed = rolesForPath(String(item.url))
     return (
-      <SidebarMenuItem>
+      <SidebarMenuItem className='flex justify-center'>
         <div
-          className='flex cursor-not-allowed flex-col items-center py-1 pb-0'
+          className='relative flex h-10 w-10 items-center justify-center rounded-lg opacity-40'
           title={
             allowed.length
               ? `Requires role: ${allowed.join(', ')}`
               : 'No access for your role'
           }
         >
-          <div className='relative flex h-[44px] w-[44px] items-center justify-center rounded-sm opacity-40'>
-            {item.icon && (
-              <item.icon className='!h-5 !w-5 text-white/60' />
-            )}
-            <Lock className='absolute right-1 bottom-1 !h-3 !w-3 text-white/75' />
-          </div>
-          <span className='text-caption-sm text-white/60 text-center leading-none opacity-40'>
-            {item.title}
-          </span>
+          {item.icon && <item.icon className='!h-[19px] !w-[19px] text-white/55' />}
+          <Lock className='absolute right-1 bottom-1 !h-3 !w-3 text-white/75' />
         </div>
       </SidebarMenuItem>
     )
   }
 
   return (
-    <SidebarMenuItem>
-      <div className='flex flex-col items-center py-1 pb-0'>
-        <SidebarMenuButton
-          asChild
-          isActive={isActive}
-          // tooltip={item.title}
-          size='lg'
-          className={`hover:!bg-sidebar-accent group !rounded-sm text-white/75 ${isActive ? '!bg-sidebar-accent !text-white' : ''}`}
-        >
-          <Link
-            to={item.url}
-            onClick={() => setOpenMobile(false)}
-            className='flex h-[44px] !w-[44px] items-center justify-center text-white/75 hover:text-white'
-          >
-            {item.icon && (
-              <item.icon
-                weight={isActive ? 'fill' : 'regular'}
-                className={`!h-5 !w-5 ${isActive ? 'text-white' : 'text-white/60'}`}
-              />
-            )}
-            {item.badge && <NavBadge>{item.badge}</NavBadge>}
-          </Link>
-        </SidebarMenuButton>
+    <SidebarMenuItem className='flex justify-center'>
+      <SidebarMenuButton
+        asChild
+        isActive={isActive}
+        tooltip={item.title}
+        className={`!h-10 !w-10 !justify-center !rounded-lg !p-0 ${
+          isActive
+            ? '!bg-white/[0.08] ring-1 ring-white/[0.06] hover:!bg-white/[0.08]'
+            : 'hover:!bg-white/[0.06]'
+        }`}
+      >
         <Link
-          className='mt-0 leading-none'
           to={item.url}
-          // onClick={() => setOpenMobile(false)}
+          onClick={() => setOpenMobile(false)}
+          className='flex h-10 w-10 items-center justify-center'
         >
-          <span className='text-caption-sm text-white/60 text-center leading-none'>
-            {item.title}
-          </span>
+          {item.icon && (
+            <item.icon
+              className={`!h-[19px] !w-[19px] ${isActive ? 'text-white' : 'text-white/55'}`}
+            />
+          )}
         </Link>
-      </div>
+      </SidebarMenuButton>
     </SidebarMenuItem>
   )
 }
@@ -238,53 +258,64 @@ function SidebarMenuLink({ item, href }: { item: NavLink; href: string }) {
 function SidebarMenuCollapsible({
   item,
   href,
+  className,
 }: {
   item: NavCollapsible
   href: string
+  className?: string
 }) {
   // const { setOpenMobile } = useSidebar()
   const isActive = checkIsActive(href, item, true)
 
   return (
     <Collapsible asChild defaultOpen={isActive} className='group/collapsible'>
-      <SidebarMenuItem>
+      <SidebarMenuItem className={className}>
         <CollapsibleTrigger asChild>
           <SidebarMenuButton
             tooltip={item.title}
-            className={`text-white/75 hover:text-white ${isActive ? 'bg-sidebar-accent text-white' : ''}`}
+            className={`!h-9 !rounded-lg hover:!bg-white/[0.05] hover:text-white ${isActive ? 'font-medium text-white' : 'text-white/70'}`}
           >
             {item.icon && (
               <item.icon
-                className={`h-7 w-7 ${isActive ? 'text-white' : 'text-white/60'}`}
+                className={`!h-[18px] !w-[18px] shrink-0 ${isActive ? 'text-white' : 'text-white/55'}`}
               />
             )}
-            <span className='text-white/75'>{item.title}</span>
+            <span className='truncate text-[13.5px]'>{item.title}</span>
             {item.badge && <NavBadge>{item.badge}</NavBadge>}
-            <ChevronRight className='ms-auto text-white/75 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
+            <ChevronRight className='ms-auto size-4 text-white/40 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
           </SidebarMenuButton>
         </CollapsibleTrigger>
         <CollapsibleContent className='CollapsibleContent'>
-          <SidebarMenuSub>
+          <SidebarMenuSub className='mx-0 ms-[19px] gap-0 border-0 p-0'>
             {item.items.map((subItem) => {
               const isSubActive = checkIsActive(href, subItem)
               return (
-                <SidebarMenuSubItem key={subItem.title}>
+                <SidebarMenuSubItem key={subItem.title} className={TREE_ITEM}>
                   <SidebarMenuSubButton
                     asChild
                     isActive={isSubActive}
-                    className={`text-white/75 hover:text-white ${isSubActive ? 'bg-sidebar-accent text-white' : ''}`}
+                    className={`!h-8 !rounded-lg ${
+                      isSubActive
+                        ? '!bg-white/[0.08] !text-white !font-medium ring-1 ring-white/[0.06] hover:!bg-white/[0.08]'
+                        : 'text-white/60 hover:!bg-white/[0.05] hover:text-white'
+                    }`}
                   >
                     <Link
                       to={subItem.url}
-                      // onClick={() => setOpenMobile(false)}
-                      className='text-white/75 hover:text-white'
+                      className={
+                        isSubActive
+                          ? 'text-white'
+                          : 'text-white/60 hover:text-white'
+                      }
                     >
                       {subItem.icon && (
                         <subItem.icon
-                          className={`size-7 h-7 w-7 ${isSubActive ? 'text-white' : 'text-white/60'}`}
+                          className={`!h-[16px] !w-[16px] shrink-0 ${isSubActive ? 'text-white' : 'text-white/50'}`}
                         />
                       )}
-                      <span className='text-white/75'>{subItem.title}</span>
+                      <span className='truncate text-[13px]'>
+                        {subItem.title}
+                      </span>
                       {subItem.badge && <NavBadge>{subItem.badge}</NavBadge>}
                     </Link>
                   </SidebarMenuSubButton>
@@ -298,55 +329,100 @@ function SidebarMenuCollapsible({
   )
 }
 
-function SidebarMenuCollapsedDropdown({
+/**
+ * Collapsed rail — hovering a module opens a light flyout listing its
+ * sub-items (a popover driven by hover, with a small close delay so the
+ * pointer can travel from the tile into the card).
+ */
+function SidebarMenuCollapsedFlyout({
   item,
   href,
 }: {
   item: NavCollapsible
   href: string
 }) {
+  const { setOpenMobile } = useSidebar()
   const isActive = checkIsActive(href, item)
+  const [open, setOpen] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const cancel = () => {
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = null
+  }
+  const openNow = () => {
+    cancel()
+    setOpen(true)
+  }
+  const closeSoon = () => {
+    cancel()
+    timer.current = setTimeout(() => setOpen(false), 140)
+  }
 
   return (
-    <SidebarMenuItem>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+    <SidebarMenuItem className='flex justify-center'>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
           <SidebarMenuButton
-            tooltip={item.title}
             isActive={isActive}
-            className={`text-white/75 hover:text-white ${isActive ? 'bg-sidebar-accent text-white' : ''}`}
+            onMouseEnter={openNow}
+            onMouseLeave={closeSoon}
+            className={`!h-10 !w-10 !justify-center !rounded-lg !p-0 ${
+              isActive
+                ? '!bg-white/[0.08] ring-1 ring-white/[0.06] hover:!bg-white/[0.08]'
+                : 'hover:!bg-white/[0.06]'
+            }`}
           >
             {item.icon && (
               <item.icon
-                className={`size-7 h-7 w-7 ${isActive ? 'text-white' : 'text-white/60'}`}
+                className={`!h-[19px] !w-[19px] ${isActive ? 'text-white' : 'text-white/55'}`}
               />
             )}
-            <span className='text-white/75'>{item.title}</span>
-            {item.badge && <NavBadge>{item.badge}</NavBadge>}
-            <ChevronRight className='ms-auto text-white/75 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90' />
           </SidebarMenuButton>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent side='right' align='start' sideOffset={4}>
-          <DropdownMenuLabel>
-            {item.title} {item.badge ? `(${item.badge})` : ''}
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {item.items.map((sub) => (
-            <DropdownMenuItem key={`${sub.title}-${sub.url}`} asChild>
-              <Link
-                to={sub.url}
-                className={`${checkIsActive(href, sub) ? 'bg-secondary' : ''}`}
-              >
-                {sub.icon && <sub.icon />}
-                <span className='max-w-52 text-wrap'>{sub.title}</span>
-                {sub.badge && (
-                  <span className='ms-auto text-xs'>{sub.badge}</span>
-                )}
-              </Link>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </PopoverTrigger>
+        <PopoverContent
+          side='right'
+          align='start'
+          sideOffset={12}
+          onMouseEnter={openNow}
+          onMouseLeave={closeSoon}
+          className='w-60 rounded-xl border border-black/[0.06] bg-white p-0 text-slate-800 shadow-xl'
+        >
+          <div className='px-4 pt-3 pb-2 text-[11px] font-semibold tracking-wide text-slate-400 uppercase'>
+            {item.title}
+          </div>
+          <div className='flex flex-col divide-y divide-slate-100 border-t border-slate-100'>
+            {item.items.map((sub) => {
+              const active = checkIsActive(href, sub)
+              return (
+                <Link
+                  key={sub.title}
+                  to={sub.url}
+                  onClick={() => {
+                    setOpen(false)
+                    setOpenMobile(false)
+                  }}
+                  className={`flex items-center gap-3 px-4 py-3 text-[14px] transition-colors ${
+                    active
+                      ? 'bg-slate-50 font-medium text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  {sub.icon && (
+                    <sub.icon className='size-[18px] shrink-0 text-slate-400' />
+                  )}
+                  <span className='truncate'>{sub.title}</span>
+                  {sub.badge && (
+                    <span className='ms-auto text-xs text-slate-400'>
+                      {sub.badge}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
     </SidebarMenuItem>
   )
 }

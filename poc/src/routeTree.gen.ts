@@ -25,6 +25,7 @@ import { Route as AuthenticatedSelfServiceIndexRouteImport } from './routes/_aut
 import { Route as AuthenticatedRolesSecurityIndexRouteImport } from './routes/_authenticated/roles-security/index'
 import { Route as AuthenticatedReportsIndexRouteImport } from './routes/_authenticated/reports/index'
 import { Route as AuthenticatedRecruitmentIndexRouteImport } from './routes/_authenticated/recruitment/index'
+import { Route as AuthenticatedRbacIndexRouteImport } from './routes/_authenticated/rbac/index'
 import { Route as AuthenticatedPositionsIndexRouteImport } from './routes/_authenticated/positions/index'
 import { Route as AuthenticatedPortfoliosIndexRouteImport } from './routes/_authenticated/portfolios/index'
 import { Route as AuthenticatedPolicyDistributionIndexRouteImport } from './routes/_authenticated/policy-distribution/index'
@@ -143,6 +144,11 @@ const AuthenticatedRecruitmentIndexRoute =
     path: '/recruitment/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRbacIndexRoute = AuthenticatedRbacIndexRouteImport.update({
+  id: '/rbac/',
+  path: '/rbac/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPositionsIndexRoute =
   AuthenticatedPositionsIndexRouteImport.update({
     id: '/positions/',
@@ -383,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/policy-distribution': typeof AuthenticatedPolicyDistributionIndexRoute
   '/portfolios': typeof AuthenticatedPortfoliosIndexRoute
   '/positions': typeof AuthenticatedPositionsIndexRoute
+  '/rbac': typeof AuthenticatedRbacIndexRoute
   '/recruitment': typeof AuthenticatedRecruitmentIndexRoute
   '/reports': typeof AuthenticatedReportsIndexRoute
   '/roles-security': typeof AuthenticatedRolesSecurityIndexRoute
@@ -433,6 +440,7 @@ export interface FileRoutesByTo {
   '/policy-distribution': typeof AuthenticatedPolicyDistributionIndexRoute
   '/portfolios': typeof AuthenticatedPortfoliosIndexRoute
   '/positions': typeof AuthenticatedPositionsIndexRoute
+  '/rbac': typeof AuthenticatedRbacIndexRoute
   '/recruitment': typeof AuthenticatedRecruitmentIndexRoute
   '/reports': typeof AuthenticatedReportsIndexRoute
   '/roles-security': typeof AuthenticatedRolesSecurityIndexRoute
@@ -485,6 +493,7 @@ export interface FileRoutesById {
   '/_authenticated/policy-distribution/': typeof AuthenticatedPolicyDistributionIndexRoute
   '/_authenticated/portfolios/': typeof AuthenticatedPortfoliosIndexRoute
   '/_authenticated/positions/': typeof AuthenticatedPositionsIndexRoute
+  '/_authenticated/rbac/': typeof AuthenticatedRbacIndexRoute
   '/_authenticated/recruitment/': typeof AuthenticatedRecruitmentIndexRoute
   '/_authenticated/reports/': typeof AuthenticatedReportsIndexRoute
   '/_authenticated/roles-security/': typeof AuthenticatedRolesSecurityIndexRoute
@@ -537,6 +546,7 @@ export interface FileRouteTypes {
     | '/policy-distribution'
     | '/portfolios'
     | '/positions'
+    | '/rbac'
     | '/recruitment'
     | '/reports'
     | '/roles-security'
@@ -587,6 +597,7 @@ export interface FileRouteTypes {
     | '/policy-distribution'
     | '/portfolios'
     | '/positions'
+    | '/rbac'
     | '/recruitment'
     | '/reports'
     | '/roles-security'
@@ -638,6 +649,7 @@ export interface FileRouteTypes {
     | '/_authenticated/policy-distribution/'
     | '/_authenticated/portfolios/'
     | '/_authenticated/positions/'
+    | '/_authenticated/rbac/'
     | '/_authenticated/recruitment/'
     | '/_authenticated/reports/'
     | '/_authenticated/roles-security/'
@@ -771,6 +783,13 @@ declare module '@tanstack/react-router' {
       path: '/recruitment'
       fullPath: '/recruitment'
       preLoaderRoute: typeof AuthenticatedRecruitmentIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/rbac/': {
+      id: '/_authenticated/rbac/'
+      path: '/rbac'
+      fullPath: '/rbac'
+      preLoaderRoute: typeof AuthenticatedRbacIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/positions/': {
@@ -1041,6 +1060,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPolicyDistributionIndexRoute: typeof AuthenticatedPolicyDistributionIndexRoute
   AuthenticatedPortfoliosIndexRoute: typeof AuthenticatedPortfoliosIndexRoute
   AuthenticatedPositionsIndexRoute: typeof AuthenticatedPositionsIndexRoute
+  AuthenticatedRbacIndexRoute: typeof AuthenticatedRbacIndexRoute
   AuthenticatedRecruitmentIndexRoute: typeof AuthenticatedRecruitmentIndexRoute
   AuthenticatedReportsIndexRoute: typeof AuthenticatedReportsIndexRoute
   AuthenticatedRolesSecurityIndexRoute: typeof AuthenticatedRolesSecurityIndexRoute
@@ -1089,6 +1109,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
     AuthenticatedPolicyDistributionIndexRoute,
   AuthenticatedPortfoliosIndexRoute: AuthenticatedPortfoliosIndexRoute,
   AuthenticatedPositionsIndexRoute: AuthenticatedPositionsIndexRoute,
+  AuthenticatedRbacIndexRoute: AuthenticatedRbacIndexRoute,
   AuthenticatedRecruitmentIndexRoute: AuthenticatedRecruitmentIndexRoute,
   AuthenticatedReportsIndexRoute: AuthenticatedReportsIndexRoute,
   AuthenticatedRolesSecurityIndexRoute: AuthenticatedRolesSecurityIndexRoute,

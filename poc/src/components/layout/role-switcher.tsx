@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, ShieldUser } from 'lucide-react'
+import { Check, ChevronDown, ShieldUser } from 'lucide-react'
 import { ROLES, useRole } from '@/context/role-context'
 import {
   DropdownMenu,
@@ -15,8 +15,10 @@ import {
 } from '@/components/ui/sidebar'
 
 /**
- * SatelliteHR POC — switch the active (mock) role. Stories are role-specific,
- * so this drives which actions/screens are visible across every feature.
+ * SatelliteHR POC — active (mock) role, shown as the prominent header card
+ * (the "environment" slot in the reference). Stories are role-specific, so
+ * this drives which actions/screens are visible across every feature.
+ * Collapsed rail: the gradient tile alone.
  */
 export function RoleSwitcher() {
   const { role, setRole } = useRole()
@@ -28,18 +30,22 @@ export function RoleSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size='lg'
-              className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground'
+              className='h-12 !rounded-xl border border-white/[0.07] bg-white/[0.04] px-2 hover:bg-white/[0.07] data-[state=open]:bg-white/[0.07] group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-lg group-data-[collapsible=icon]:!border-0 group-data-[collapsible=icon]:!bg-transparent group-data-[collapsible=icon]:!p-0'
             >
-              <div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg'>
-                <ShieldUser className='size-4' />
+              <div className='flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm group-data-[collapsible=icon]:size-9'>
+                <ShieldUser className='size-[18px]' />
               </div>
-              <div className='grid flex-1 text-left text-sm leading-tight'>
-                <span className='truncate font-semibold'>{role}</span>
-                <span className='truncate text-xs opacity-70'>
-                  Viewing role — tap to switch
+              <div className='grid flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden'>
+                <span className='text-[10px] font-medium tracking-wide text-white/45 uppercase'>
+                  Active role
+                </span>
+                <span className='truncate text-sm font-semibold text-white'>
+                  {role}
                 </span>
               </div>
-              <ChevronsUpDown className='ml-auto size-4' />
+              <span className='ms-auto flex size-6 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-white/60 group-data-[collapsible=icon]:hidden'>
+                <ChevronDown className='size-3.5' />
+              </span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

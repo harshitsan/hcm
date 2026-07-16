@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +22,8 @@ const ENV_DOT: Record<Tenant['environment'], string> = {
 }
 
 /**
- * Sidebar header block: active tenant name with its environment, plus a
- * dropdown to switch tenants (mock — no backend in the POC).
+ * Sidebar header — compact tenant row: gradient initial, tenant name, caret.
+ * Collapsed rail: just the initial. Switching is a POC mock (no backend).
  */
 export function TenantSwitcher({ tenants }: { tenants: Tenant[] }) {
   const [activeTenant, setActiveTenant] = useState<Tenant | undefined>(
@@ -37,25 +37,14 @@ export function TenantSwitcher({ tenants }: { tenants: Tenant[] }) {
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton
-              size='lg'
-              className='data-[state=open]:bg-sidebar-accent !rounded-md'
-            >
-              <div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg'>
-                <activeTenant.logo className='size-4' />
-              </div>
-              <div className='grid flex-1 text-left text-sm leading-tight'>
-                <span className='truncate font-semibold text-white'>
-                  {activeTenant.name}
-                </span>
-                <span className='flex items-center gap-1.5 truncate text-xs text-white/60'>
-                  <span
-                    className={`size-1.5 shrink-0 rounded-full ${ENV_DOT[activeTenant.environment]}`}
-                  />
-                  {activeTenant.environment}
-                </span>
-              </div>
-              <ChevronsUpDown className='ml-auto size-4 text-white/50' />
+            <SidebarMenuButton className='h-10 !rounded-lg px-1.5 hover:bg-white/[0.06] data-[state=open]:bg-white/[0.06] group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!px-0'>
+              <span className='flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white'>
+                {activeTenant.name.charAt(0).toUpperCase()}
+              </span>
+              <span className='truncate text-[13.5px] font-semibold text-white group-data-[collapsible=icon]:hidden'>
+                {activeTenant.name}
+              </span>
+              <ChevronDown className='ms-auto size-4 shrink-0 text-white/50 group-data-[collapsible=icon]:hidden' />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

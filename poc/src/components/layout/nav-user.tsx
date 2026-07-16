@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Bell, LogOut } from 'lucide-react'
+import { Bell, ChevronDown, LogOut } from 'lucide-react'
 import useDialogState from '@/hooks/use-dialog-state'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -26,27 +26,31 @@ export function NavUser() {
   return (
     <>
       <SidebarMenu>
-        <SidebarMenuItem className='flex items-center justify-center'>
+        <SidebarMenuItem>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <SidebarMenuButton
                 size='lg'
-                className='data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground mb-2 flex !h-auto !w-auto justify-center p-0 group-data-[collapsible=icon]:p-0! hover:!rounded-full hover:bg-transparent data-[state=open]:!rounded-full'
+                className='h-12 !rounded-xl border border-white/[0.07] bg-white/[0.04] px-2 hover:bg-white/[0.07] data-[state=open]:bg-white/[0.07] group-data-[collapsible=icon]:!size-10 group-data-[collapsible=icon]:!justify-center group-data-[collapsible=icon]:!rounded-full group-data-[collapsible=icon]:!border-0 group-data-[collapsible=icon]:!bg-transparent group-data-[collapsible=icon]:!p-0'
               >
-                <Avatar className='!bg-vanilla-200 h-8 w-8 !rounded-full p-2 hover:!rounded-full'>
+                <Avatar className='size-8 shrink-0 !rounded-full'>
                   <AvatarImage
                     src={userInfo?.avatar}
                     alt={userInfo?.username}
                   />
-                  <AvatarFallback className='bg-vanilla-200 text-vanilla-100 rounded-full'>
+                  <AvatarFallback className='rounded-full bg-gradient-to-br from-fuchsia-500 to-purple-600 text-xs font-semibold text-white'>
                     {userInfo?.username.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                {/* <div className='grid flex-1 text-start text-sm leading-tight'>
-                  <span className='truncate font-semibold'>{user.name}</span>
-                  <span className='truncate text-xs'>{user.email}</span>
+                <div className='grid flex-1 text-start leading-tight group-data-[collapsible=icon]:hidden'>
+                  <span className='truncate text-[13.5px] font-semibold text-white'>
+                    {userInfo?.username}
+                  </span>
+                  <span className='truncate text-[11px] text-white/50'>
+                    {userInfo?.['email']}
+                  </span>
                 </div>
-                <ChevronsUpDown className='ms-auto size-4' /> */}
+                <ChevronDown className='ms-auto size-4 shrink-0 text-white/50 group-data-[collapsible=icon]:hidden' />
               </SidebarMenuButton>
             </DropdownMenuTrigger>
             <DropdownMenuContent
